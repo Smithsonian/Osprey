@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
+# Version 0.2
 
 ##Import modules
 import os, sys, subprocess, locale, logging, xmltodict, datetime, time, pyexiv2, shutil, json, bitmath
@@ -245,22 +246,18 @@ def filemd5(file_id, filepath, filetype, db_cursor):
 ############################################
 # Main loop
 ############################################
-
-
-
-
 while True:
     #Connect to the database
     try:
-        print(" Connecting to database...")
+        logger1.info("Connecting to database")
         conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
     except:
-        print(" ERROR: Could not connect to server.")
+        logger1.error("Could not connect to server.")
         sys.exit(1)
     conn.autocommit = True
     db_cursor = conn.cursor()
     #Update project
-    q_project = "UPDATE project_info SET project_checks = '{}' WHERE project_id = {}".format(settings.project_checks, settings.project_id)
+    q_project = "UPDATE projects SET project_checks = '{}' WHERE project_id = {}".format(settings.project_checks, settings.project_id)
     logger1.info(q_project)
     db_cursor.execute(q_project)
     #Generate list of folders
