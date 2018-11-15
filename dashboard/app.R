@@ -8,8 +8,8 @@ library(DBI)
 source("settings.R")
 
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.1"
-# github_link <- "https://github.com/Smithsonian/dpo_shiny/tree/master/botany_locality"
+app_ver <- "0.2"
+github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
 #Connect to the database
@@ -148,7 +148,7 @@ server <- function(input, output, session) {
     }else{
       for (i in 1:dim(folders)[1]){
         
-        if (folders$project_folder[i] == which_folder){
+        if (as.character(folders$folder_id[i]) == as.character(which_folder)){
           this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
         }else{
           this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
@@ -214,7 +214,7 @@ server <- function(input, output, session) {
       p("Select a folder from the list on the left")
     }else{
       
-      folder_info <- dbGetQuery(db, paste0("SELECT * FROM folders WHERE folder_id = ", which_folder))
+      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date FROM folders WHERE folder_id = ", which_folder))
       
       #Only if there are any files
       this_folder <- ""
@@ -228,12 +228,14 @@ server <- function(input, output, session) {
       tagList(
         fluidRow(
           column(width = 4,
-                 h4(folder_info$project_folder)
+                 HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
           ),
           column(width = 8,
                  # em(folder_info$path),
                  # tags$br(),
-                 em(folder_info$notes),
+                 if (!is.na(folder_info$notes)){
+                   p(em(folder_info$notes))},
+                 p("Folder imported on: ", folder_info$import_date),
                  br(),
                  HTML(error_msg)
           )#,
@@ -257,10 +259,11 @@ server <- function(input, output, session) {
     req(which_folder != "NULL")
     
     #files_data <<- dbGetQuery(db, paste0("SELECT file_name, file_pair, jhove, iptc_metadata, file_size, magick_identify, unique_file FROM collection_items WHERE project_folder = '", which_folder, "' ORDER BY file_name"))
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, jhove, tif_size, raw_size, magick, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_name"))
+    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, jhove, tif_size, raw_size, magick, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, jhove, tif_size, raw_size, magick, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     
     DT::datatable(
-          files_data, 
+          files_data_table, 
           escape = FALSE, 
           options = list(
                 searching = TRUE, 
@@ -277,25 +280,25 @@ server <- function(input, output, session) {
           )
           ) %>% DT::formatStyle(
             'file_pair',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'jhove',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           # ) %>% DT::formatStyle(
           #   'iptc_metadata',
-          #   backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+          #   backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'tif_size',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'raw_size',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'magick',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'unique_file',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#dd4b39', '#A9A9A9'))
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           )
     
   })
@@ -312,12 +315,25 @@ server <- function(input, output, session) {
     
     req(input$files_table_rows_selected)
     
-    file_info <- dbGetQuery(db, paste0("SELECT * FROM files WHERE file_id = ", files_data[input$files_table_rows_selected, ]$file_id))
+    file_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_id = ", files_data[input$files_table_rows_selected, ]$file_id))
     print(input$files_table_rows_selected)
     html_to_print <- "<dl class=\"dl-horizontal\">"
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
-    html_to_print <- paste0(html_to_print, "<dt>Accession No.</dt><dd>", file_info$accession_no, "</dd>")
+    
+    html_to_print <- paste0(html_to_print, "<dt>File timestamp</dt><dd>", file_info$filedate, "</dd>")
+    
+    html_to_print <- paste0(html_to_print, "<dt>Imported on</dt><dd>", file_info$date, "</dd>")
+    
+    if (!is.null(file_info$tif_md5)){
+      html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", file_info$tif_md5, "</dd>")
+    }
+    
+    if (!is.null(file_info$raw_md5)){
+      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", file_info$raw_md5, "</dd>")
+    }
+    
+    #html_to_print <- paste0(html_to_print, "<dt>Accession No.</dt><dd>", file_info$accession_no, "</dd>")
     
     if (!is.na(file_info$file_pair_info[1])){
       if (file_info$file_pair[1] == 0){
@@ -362,6 +378,14 @@ server <- function(input, output, session) {
         html_to_print <- paste0(html_to_print, "</dd>")
       }
     }
+
+    if (!is.na(file_info$jhove_info[1])){
+      if (file_info$jhove[1] == 0){
+        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd>", file_info$jhove_info, "</dd>")
+      }else{
+        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd class=\"bg-danger\">", file_info$jhove_info, "</dd>")
+      }
+    }
     
     if (!is.na(file_info$magick_info[1])){
       if (file_info$magick[1] == 0){
@@ -371,13 +395,6 @@ server <- function(input, output, session) {
       }
     }
     
-    if (!is.na(file_info$jhove_info[1])){
-      if (file_info$jhove[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd>", file_info$jhove_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd class=\"bg-danger\">", file_info$jhove_info, "</dd>")
-      }
-    }
     
     html_to_print <- paste0(html_to_print, "</dl>")
     HTML(html_to_print)
@@ -388,7 +405,7 @@ server <- function(input, output, session) {
   
   #footer----
   output$footer <- renderUI({
-    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
   })
   
 }

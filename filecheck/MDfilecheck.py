@@ -1,9 +1,9 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-#
+
 ##Import modules
-import os, sys, subprocess, locale, logging, xmltodict, datetime, time, pyexiv2, shutil, json
+import os, sys, subprocess, locale, logging, xmltodict, datetime, time, pyexiv2, shutil, json, bitmath
 #For Postgres
 import psycopg2
 #For MD5
@@ -11,6 +11,7 @@ import hashlib
 from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE
+from datetime import datetime
 
 
 
@@ -69,7 +70,7 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
-        q_insert = "INSERT INTO folders (project_folder, path, notes, status, md5, project_id) VALUES ('{}', '{}', 'Added on {}', 0, 1, {}) RETURNING folder_id".format(folder_name, folder_path, datetime.date.today().strftime("%Y-%m-%d"), project_id)
+        q_insert = "INSERT INTO folders (project_folder, path, status, md5, project_id) VALUES ('{}', '{}', 0, 1, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
         logger1.info(q)
         db_cursor.execute(q_insert)
         folder_id = db_cursor.fetchone()
@@ -102,7 +103,8 @@ def jhove_validate(file_id, filename, db_cursor):
         jhove_val = 0
     else:
         jhove_val = 1
-    q_jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}".format(jhove_val, json.dumps(doc).replace("'", "''"), file_id)
+    #q_jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}".format(jhove_val, json.dumps(doc).replace("'", "''"), file_id)
+    q_jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}".format(jhove_val, file_status, file_id)
     logger1.info(q_jhove)
     db_cursor.execute(q_jhove)
     return file_status
@@ -192,24 +194,24 @@ def file_size_check(filename, filetype, file_id, db_cursor):
     if filetype == "tif":
         if file_size < settings.tif_size_min:
             file_size = 1
-            file_size_info = "TIF file is smaller than expected"
+            file_size_info = "TIF file is smaller than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
         elif file_size > settings.tif_size_max:
             file_size = 1
-            file_size_info = "TIF file is larger than expected"
+            file_size_info = "TIF file is larger than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
         else:
             file_size = 0
-            file_size_info = "TIF file within size specified"
+            file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
         q_size = "UPDATE files SET tif_size = {}, tif_size_info = '{}' WHERE file_id = {}".format(file_size, file_size_info, file_id)
     elif filetype == "raw":
         if file_size < settings.raw_size_min:
             file_size = 1
-            file_size_info = "RAW file is smaller than expected"
+            file_size_info = "RAW file is smaller than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
         elif file_size > settings.raw_size_max:
             file_size = 1
-            file_size_info = "RAW file is larger than expected"
+            file_size_info = "RAW file is larger than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
         else:
             file_size = 0
-            file_size_info = "RAW file within size specified"
+            file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
         q_size = "UPDATE files SET raw_size = {}, raw_size_info = '{}' WHERE file_id = {}".format(file_size, file_size_info, file_id)
     logger1.info(q_size)
     db_cursor.execute(q_size)
@@ -220,21 +222,28 @@ def delete_folder_files(folder_id, db_cursor):
     q_insert = "DELETE FROM files WHERE folder_id = '{}'".format(folder_id)
     logger1.info(q_insert)
     db_cursor.execute(q_insert)
-    conn.commit()
+    return True
 
 
-def filemd5(filename):
+def filemd5(file_id, filepath, filetype, db_cursor):
     md5_hash = hashlib.md5()
-    with open(filename, "rb") as f:
+    with open(filepath, "rb") as f:
         # Read and update hash in chunks of 4K
         for byte_block in iter(lambda: f.read(4096), b""):
             md5_hash.update(byte_block)
-    return md5_hash.hexdigest()
+    file_md5 = md5_hash.hexdigest()
+    if filetype == "tif":
+        q_insert = "UPDATE files SET tif_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
+    elif filetype == "raw":
+        q_insert = "UPDATE files SET raw_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
+    logger1.info(q_insert)
+    db_cursor.execute(q_insert)
+    return file_md5
 
 
+
 ############################################
-############################################
-############################################
+# Main loop
 ############################################
 
 
@@ -265,29 +274,32 @@ while True:
         folder_path = folder
         folder_name = os.path.basename(folder)
         folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-        q_folderreset = "UPDATE folders SET status = 0, md5 = 0 WHERE folder_id = {}".format(folder_id)
+        q_folderreset = "UPDATE folders SET status = 0, md5 = 1 WHERE folder_id = {}".format(folder_id)
         logger1.info(q_folderreset)
         db_cursor.execute(q_folderreset)
         if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" +settings.tif_files_path) == False):
             logger1.info("Missing TIF and RAW folders")
-            q = "UPDATE folders SET status = 9, md5 = 0, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
+            q = "UPDATE folders SET status = 9, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
             logger1.info(q)
             db_cursor.execute(q)
             delete_folder_files(folder_id, db_cursor)
         elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
             logger1.info("Missing TIF folder")
-            q = "UPDATE folders SET status = 9, md5 = 0, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
+            q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
             logger1.info(q)
             db_cursor.execute(q)
             delete_folder_files(folder_id, db_cursor)
         elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
             logger1.info("Missing RAW folder")
-            q = "UPDATE folders SET status = 9, md5 = 0, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
+            q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
             logger1.info(q)
             db_cursor.execute(q)
             delete_folder_files(folder_id, db_cursor)
         else:
             logger1.info("Both folders present")
+            q = "UPDATE folders SET status = 0 WHERE folder_id = {}".format(folder_id)
+            logger1.info(q)
+            db_cursor.execute(q)
             #Both folders present
             for file in os.scandir(folder_path + "/" + settings.tif_files_path):
                 if file.is_file():
@@ -309,7 +321,11 @@ while True:
                                 unique_file = 1
                             else:
                                 unique_file = 0
-                            q_insert = "INSERT INTO files (folder_id, file_name, unique_file) VALUES ({}, '{}', {}) RETURNING file_id".format(folder_id, Path(filename).stem, unique_file)
+                            #Get modified date for file
+                            file_timestamp_float = os.path.getmtime(file.path)
+                            file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+                            print(file_timestamp)
+                            q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
                             logger1.info(q_insert)
                             db_cursor.execute(q_insert)
                             file_id = db_cursor.fetchone()[0]
@@ -339,20 +355,25 @@ while True:
                         check_tif_size = file_size_check(file.path, "tif", file_id, db_cursor)
                         logger1.info("check_tif_size:{}".format(check_tif_size))
                         #Imagemagick check
-                        magick_validate(file_id, file.path, db_cursor)
+                        magickval = magick_validate(file_id, file.path, db_cursor)
                         logger1.info("magick_validate:{}".format(magick_validate))
-                    #MD5 file
+                        #Store MD5
+                        file_md5 = filemd5(file_id, file.path, "tif", db_cursor)
+                        logger1.info("tif_md5:{}".format(file_md5))
                     elif (Path(filename).suffix.lower() == ".md5"):
+                        #MD5 file
                         q_md5 = "UPDATE folders SET md5 = 0 WHERE folder_id = {}".format(folder_id)
                         logger1.info(q_md5)
                         db_cursor.execute(q_md5)
-                    #Other unknown file
-                    else:
-                        q_badfile = "UPDATE folders SET status = 1 WHERE folder_id = {}".format(folder_id)
-                        logger1.info(q_badfile)
-                        db_cursor.execute(q_badfile)
+                    # else:
+                    #     #Other unknown file
+                    #     q_badfile = "UPDATE folders SET status = 1, error_info = 'Unknown file {}' WHERE folder_id = {}".format(filename, folder_id)
+                    #     logger1.info(q_badfile)
+                    #     db_cursor.execute(q_badfile)
             for file in os.scandir(folder_path + "/" + settings.raw_files_path):
                 if file.is_file():
+                    filename = file.name
+                    logger1.info("RAW file {}".format(filename))
                     #Check if file exists, insert if not
                     q_checkfile = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id = {}".format(Path(file.name).stem, folder_id)
                     logger1.info(q_checkfile)
@@ -368,32 +389,38 @@ while True:
                             unique_file = 1
                         else:
                             unique_file = 0
-                        q_insert = "INSERT INTO files (folder_id, file_name, file_pair, jhove, tif_size, raw_size, iptc_metadata, magick, unique_file) VALUES ({}, '{}', 9, 9, 9, 9, 9, 9, {}) RETURNING file_id".format(folder_id, Path(filename).stem, unique_file)
+                        #Get modified date for file
+                        file_timestamp_float = os.path.getmtime(file.path)
+                        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+                        print(file_timestamp)
+                        q_insert = "INSERT INTO files (folder_id, file_name, file_pair, jhove, tif_size, raw_size, iptc_metadata, magick, unique_file, file_timestamp) VALUES ({}, '{}', 9, 9, 9, 9, 9, 9, {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
                         logger1.info(q_insert)
                         db_cursor.execute(q_insert)
                         file_id = db_cursor.fetchone()[0]
                     if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
                         #FilePair check
-                        pair_check = file_pair_check(file.path, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" +settings.raw_files_path, settings.raw_files)
+                        pair_check = file_pair_check(file_id, file.path, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
                         logger1.info("pair_check:{}".format(pair_check))
                         #File size check
                         check_raw_size = file_size_check(file.path, "raw", file_id, db_cursor)
                         logger1.info("check_raw_size:{}".format(check_raw_size))
-                    #MD5 file
+                        #Store MD5
+                        file_md5 = filemd5(file_id, file.path, "raw", db_cursor)
+                        logger1.info("raw_md5:{}".format(file_md5))
                     elif (Path(filename).suffix.lower() == ".md5"):
+                        #MD5 file
                         q_md5 = "UPDATE folders SET md5 = 0 WHERE folder_id = {}".format(folder_id)
                         logger1.info(q_md5)
                         db_cursor.execute(q_md5)
-                    #Other unknown file
-                    else:
-                        q_badfile = "UPDATE folders SET status = 1 WHERE folder_id = {}".format(folder_id)
-                        logger1.info(q_badfile)
-                        db_cursor.execute(q_badfile)
+                    # else:
+                    #     #Other unknown file
+                    #     q_badfile = "UPDATE folders SET status = 1, error_info = 'Unknown file {}' WHERE folder_id = {}".format(filename, folder_id)
+                    #     logger1.info(q_badfile)
+                    #     db_cursor.execute(q_badfile)
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
     #Sleep before trying again
     time.sleep(settings.sleep)
-
 
 sys.exit(0)

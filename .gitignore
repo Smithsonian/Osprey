@@ -108,3 +108,4 @@ settings.py
 .Rproj.user
 
 *.Rproj
+dashboard/.Rhistory

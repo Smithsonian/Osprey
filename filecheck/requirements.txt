@@ -1,0 +1,4 @@
+xmltodict
+pyexiv2
+bitmath
+psycopg2
