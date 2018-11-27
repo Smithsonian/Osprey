@@ -17,7 +17,7 @@ db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
                  user = pg_user, password = pg_pass)
 
 project <- dbGetQuery(db, paste0("SELECT * FROM projects WHERE project_id = ", project_id))
-proj_name <- project$name
+proj_name <- project$project_acronym
 
 dbDisconnect(db)
 
@@ -76,9 +76,14 @@ server <- function(input, output, session) {
   #Boxred ----
   output$boxred <- renderValueBox({
     
+    # status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM 
+    #                         (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
+    #                         (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
+    #                         (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
+    # )
     status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM 
-                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
-                            (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
+                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
+                            (SELECT count(*) AS count_ok FROM files where (file_pair + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
                             (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
     )
     #cat(status_query)
@@ -138,7 +143,7 @@ server <- function(input, output, session) {
     
     folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY project_folder DESC"))
     
-    list_of_folders <- "<div class=\"list-group\">"
+    list_of_folders <- "<p><a href=\"./\">Home</a></p><br><div class=\"list-group\">"
     
     if (dim(folders)[1] == 0){
       
@@ -163,7 +168,8 @@ server <- function(input, output, session) {
         
         #Only if there are any files
         if (folder_files$no_files > 0){
-          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
+          # error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
+          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
           
           if (error_files == 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-success\">OK</span> ")
@@ -173,7 +179,7 @@ server <- function(input, output, session) {
           md5_file <- dbGetQuery(db, paste0("SELECT md5 FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
           #cat(md5_file$md5)
           if (md5_file$md5 != 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing MD5 file\">MD5</span> ")
+            #this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing MD5 file\">MD5</span> ")
           }
         }else{
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
@@ -210,34 +216,38 @@ server <- function(input, output, session) {
     }else{
       
       folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date FROM folders WHERE folder_id = ", which_folder))
-      
-      this_folder <- ""
-     
-      folder_subdirs <- dbGetQuery(db, paste0("SELECT status, error_info from folders where folder_id = '", which_folder, "'"))
-      error_msg <- ""
-      if (folder_subdirs$status == 9){
-        error_msg <- paste0("<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_subdirs$error_info, "</span></h4>")
-      }
-      
-      if (folder_info$md5 != 0){
-        error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing MD5 file\">Missing MD5 file</span> ")
-      }
-      
-      tagList(
-        fluidRow(
-          column(width = 4,
-                 HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
+      if (dim(folder_info)[1] == 0){
+        p("Select a folder from the list on the left")
+      }else{
+        this_folder <- ""
+        
+        folder_subdirs <- dbGetQuery(db, paste0("SELECT status, error_info from folders where folder_id = '", which_folder, "'"))
+        error_msg <- ""
+        if (folder_subdirs$status == 9){
+          error_msg <- paste0("<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_subdirs$error_info, "</span></h4>")
+        }
+        
+        if (folder_info$md5 != 0){
+          #error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing MD5 file\">Missing MD5 file</span> ")
+        }
+        
+        tagList(
+          fluidRow(
+            column(width = 4,
+                   HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
+            ),
+            column(width = 8,
+                   if (!is.na(folder_info$notes)){
+                     p(em(folder_info$notes))},
+                   p("Folder imported on: ", folder_info$import_date),
+                   br(),
+                   HTML(error_msg)
+            )
           ),
-          column(width = 8,
-                 if (!is.na(folder_info$notes)){
-                   p(em(folder_info$notes))},
-                 p("Folder imported on: ", folder_info$import_date),
-                 br(),
-                 HTML(error_msg)
-          )
-        ),
-        hr()
-      )
+          hr()
+        )
+      }
+      
     }
   })
   
@@ -251,8 +261,15 @@ server <- function(input, output, session) {
     which_folder <- query['folder']
     req(which_folder != "NULL")
     
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, jhove, tif_size, raw_size, magick, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, jhove, tif_size, raw_size, magick, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date FROM folders WHERE folder_id = ", which_folder))
+    if (dim(folder_info)[1] == 0){
+      req(FALSE)
+    }
+    
+    # files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    # files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     
     DT::datatable(
           files_data_table, 
@@ -268,14 +285,14 @@ server <- function(input, output, session) {
           selection = 'single',
           caption = htmltools::tags$caption(
             style = 'caption-side: bottom; text-align: center;',
-            '0: OK, 1: error, 9: not checked'
+            'Codes: 0 = OK, 1 = error, 9 = not checked yet'
           )
           ) %>% DT::formatStyle(
             'file_pair',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'jhove',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
+          # ) %>% DT::formatStyle(
+          #   'jhove',
+          #   backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'tif_size',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
@@ -377,9 +394,9 @@ server <- function(input, output, session) {
     
     if (!is.na(file_info$magick_info[1])){
       if (file_info$magick[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
+        html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd>OK</dd><dt>Imagemagick details</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
       }else{
-        html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
+        html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd class=\"bg-danger\">Failed</dd><dt>Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
       }
     }
     
