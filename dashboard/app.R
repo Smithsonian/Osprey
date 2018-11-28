@@ -1,4 +1,4 @@
-# Libraries ----
+# Packages ----
 library(shiny)
 library(shinydashboard)
 library(dplyr)
@@ -7,7 +7,7 @@ library(DBI)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.2"
+app_ver <- "0.3"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -41,6 +41,10 @@ ui <- dashboardPage(
              box(
                title = "Folders", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("boxleft")
+             ),
+             box(
+               title = "About", width = NULL, solidHeader = TRUE, status = "info",
+               uiOutput("footer")
              )
         ),
       column(width = 6,
@@ -56,11 +60,11 @@ ui <- dashboardPage(
                uiOutput("fileinfo")
              )
       )
-    ),
+    )#,
     
     #Footer ----
-    hr(),
-    uiOutput("footer")
+    # hr(),
+    # uiOutput("footer")
   )
 )
 
@@ -168,18 +172,23 @@ server <- function(input, output, session) {
         
         #Only if there are any files
         if (folder_files$no_files > 0){
-          # error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
-          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
+          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
+          #error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
           
           if (error_files == 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-success\">OK</span> ")
           }else if (error_files > 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Error</span> ")
           }
-          md5_file <- dbGetQuery(db, paste0("SELECT md5 FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
-          #cat(md5_file$md5)
+          #tif md5
+          md5_file <- dbGetQuery(db, paste0("SELECT md5_tif FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
           if (md5_file$md5 != 0){
-            #this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing MD5 file\">MD5</span> ")
+            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing TIF MD5 file\">TIF MD5</span> ")
+          }
+          #raw md5
+          md5_file <- dbGetQuery(db, paste0("SELECT md5_raw FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
+          if (md5_file$md5 != 0){
+            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing RAW MD5 file\">RAW MD5</span> ")
           }
         }else{
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
@@ -227,8 +236,14 @@ server <- function(input, output, session) {
           error_msg <- paste0("<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_subdirs$error_info, "</span></h4>")
         }
         
-        if (folder_info$md5 != 0){
-          #error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing MD5 file\">Missing MD5 file</span> ")
+        #tif md5
+        if (folder_info$md5_tif != 0){
+          error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing TIF MD5 file\">Missing TIF MD5 file</span> ")
+        }
+        
+        #raw md5
+        if (folder_info$md5_raw != 0){
+          error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing RAW MD5 file\">Missing RAW MD5 file</span> ")
         }
         
         tagList(
@@ -266,10 +281,10 @@ server <- function(input, output, session) {
       req(FALSE)
     }
     
-    # files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    # files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    # files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    # files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     
     DT::datatable(
           files_data_table, 
@@ -290,9 +305,9 @@ server <- function(input, output, session) {
           ) %>% DT::formatStyle(
             'file_pair',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          # ) %>% DT::formatStyle(
-          #   'jhove',
-          #   backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
+          ) %>% DT::formatStyle(
+            'jhove',
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'tif_size',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
@@ -410,7 +425,8 @@ server <- function(input, output, session) {
   
   #Footer ----
   output$footer <- renderUI({
-    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    #HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    HTML(paste0("<p>", app_name, " <br>ver. ", app_ver, " <br><a href=\"", github_link, "\" target = _blank>Source code</a></p><p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></p>"))
   })
   
 }

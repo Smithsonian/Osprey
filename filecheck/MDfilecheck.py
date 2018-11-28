@@ -13,7 +13,7 @@ from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE
 from datetime import datetime
-
+import multiprocessing
 
 
 
@@ -71,7 +71,7 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
-        q_insert = "INSERT INTO folders (project_folder, path, status, md5, project_id) VALUES ('{}', '{}', 0, 1, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
+        q_insert = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, project_id) VALUES ('{}', '{}', 0, 0, 0, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
         logger1.info(q)
         db_cursor.execute(q_insert)
         folder_id = db_cursor.fetchone()
@@ -95,7 +95,8 @@ def jhove_validate(file_id, filename, db_cursor):
         with open(xml_file) as fd:
             doc = xmltodict.parse(fd.read())
     except:
-        return "Could not find result file from JHOVE ({})".format(xml_file)
+        logger1.error("Could not find result file from JHOVE ({})".format(xml_file))
+        return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     #Get file status
@@ -282,6 +283,165 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor):
 
 
 
+
+def process_tif(filename, folder_path, folder_id):
+    """
+    Run checks for tif files
+    """
+    folder_id = int(folder_id)
+    #Connect to the database
+    try:
+        logger1.info("Connecting to database")
+        conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+    except:
+        logger1.error("Could not connect to server.")
+        sys.exit(1)
+    conn2.autocommit = True
+    db_cursor = conn2.cursor()
+    #Check if file exists, insert if not
+    logger1.info("TIF file {}".format(filename))
+    q_checkfile = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id = {}".format(Path(filename).stem, folder_id)
+    logger1.info(q_checkfile)
+    db_cursor.execute(q_checkfile)
+    file_id = db_cursor.fetchone()
+    if file_id == None:
+        q_checkunique = "SELECT count(*) as dupes FROM files WHERE file_name = '{}' AND folder_id != {} and folder_id in (SELECT folder_id from folders where project_id = {})".format(Path(filename).stem, folder_id, settings.project_id)
+        logger1.info(q_checkunique)
+        db_cursor.execute(q_checkunique)
+        result = db_cursor.fetchone()
+        if result[0] > 0:
+            unique_file = 1
+        else:
+            unique_file = 0
+        #Get modified date for file
+        file_timestamp_float = os.path.getmtime(file.path)
+        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+        print(file_timestamp)
+        q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
+        logger1.info(q_insert)
+        db_cursor.execute(q_insert)
+        file_id = db_cursor.fetchone()[0]
+    else:
+        file_id = file_id[0]
+    print("file_id: {}".format(file_id))
+    #Check if file is OK
+    file_checks = 0
+    for filecheck in settings.project_checks:
+        q_checkfile = "SELECT {} FROM files WHERE file_id = {}".format(filecheck, file_id)
+        logger1.info(q_checkfile)
+        db_cursor.execute(q_checkfile)
+        result = db_cursor.fetchone()
+        file_checks = file_checks + result[0]
+    if file_checks == 0:
+        #File ok, don't run checks
+        logger1.info("File with ID {} is OK, skipping".format(file_id))
+        #Disconnect from db
+        conn2.close()
+        return True
+    else:
+        if 'file_pair' in settings.project_checks:
+            #FilePair check
+            pair_check = file_pair_check(file_id, file.path, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
+            logger1.info("pair_check:{}".format(pair_check))
+        if 'jhove' in settings.project_checks:
+            #JHOVE check
+            jhove_check = jhove_validate(file_id, file.path, db_cursor)
+            logger1.info("jhove_check:{}".format(jhove_check))
+        if 'itpc' in settings.project_checks:
+            #ITPC Metadata
+            itpc_check = itpc_validate(file_id, file.path, db_cursor)
+            logger1.info("itpc_check:{}".format(itpc_check))
+        if 'tif_size' in settings.project_checks:
+            #File size check
+            check_tif_size = file_size_check(file.path, "tif", file_id, db_cursor)
+            logger1.info("check_tif_size:{}".format(check_tif_size))
+        if 'magick' in settings.project_checks:
+            #Imagemagick check
+            magickval = magick_validate(file_id, file.path, db_cursor)
+            logger1.info("magick_validate:{}".format(magick_validate))
+        #Store MD5
+        file_md5 = filemd5(file_id, file.path, "tif", db_cursor)
+        logger1.info("tif_md5:{}".format(file_md5))
+        #Disconnect from db
+        conn2.close()
+        return True
+
+
+
+
+def process_raw(filename, folder_path, folder_id, raw):
+    """
+    Run checks for raw files
+    """
+    folder_id = int(folder_id)
+    #Connect to the database
+    try:
+        logger1.info("Connecting to database")
+        conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+    except:
+        logger1.error("Could not connect to server.")
+        sys.exit(1)
+    conn2.autocommit = True
+    db_cursor = conn2.cursor()
+    #Check if file exists, insert if not
+    logger1.info("RAW file {}".format(filename))
+    q_checkfile = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id = {}".format(Path(filename).stem, folder_id)
+    logger1.info(q_checkfile)
+    db_cursor.execute(q_checkfile)
+    file_id = db_cursor.fetchone()
+    if file_id == None:
+        q_checkunique = "SELECT count(*) as dupes FROM files WHERE file_name = '{}' AND folder_id != {} and folder_id in (SELECT folder_id from folders where project_id = {})".format(Path(filename).stem, folder_id, settings.project_id)
+        logger1.info(q_checkunique)
+        db_cursor.execute(q_checkunique)
+        result = db_cursor.fetchone()
+        if result[0] > 0:
+            unique_file = 1
+        else:
+            unique_file = 0
+        #Get modified date for file
+        file_timestamp_float = os.path.getmtime(file.path)
+        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+        print(file_timestamp)
+        q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
+        logger1.info(q_insert)
+        db_cursor.execute(q_insert)
+        file_id = db_cursor.fetchone()[0]
+    else:
+        file_id = file_id[0]
+    print("file_id: {}".format(file_id))
+    #Check if file is OK
+    file_checks = 0
+    for filecheck in settings.project_checks:
+        q_checkfile = "SELECT {} FROM files WHERE file_id = {}".format(filecheck, file_id)
+        logger1.info(q_checkfile)
+        db_cursor.execute(q_checkfile)
+        result = db_cursor.fetchone()
+        file_checks = file_checks + result[0]
+    if file_checks == 0:
+        #File ok, don't run checks
+        logger1.info("File with ID {} is OK, skipping".format(file_id))
+        #Disconnect from db
+        conn2.close()
+        return True
+    else:
+        if 'file_pair' in settings.project_checks:
+            #FilePair check
+            pair_check = file_pair_check(file_id, file.path, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
+            logger1.info("pair_check:{}".format(pair_check))
+        if 'raw_size' in settings.project_checks:
+            #File size check
+            check_raw_size = file_size_check(file.path, "raw", file_id, db_cursor)
+            logger1.info("check_raw_size:{}".format(check_raw_size))
+        #Store MD5
+        file_md5 = filemd5(file_id, file.path, "raw", db_cursor)
+        logger1.info("raw_md5:{}".format(file_md5))
+        #Disconnect from db
+        conn2.close()
+        return True
+
+
+
+
 ############################################
 # Main loop
 ############################################
@@ -296,167 +456,88 @@ while True:
     conn.autocommit = True
     db_cursor = conn.cursor()
     #Update project
-    q_project = "UPDATE projects SET project_checks = '{}' WHERE project_id = {}".format(settings.project_checks, settings.project_id)
+    q_project = "UPDATE projects SET project_checks = '{}' WHERE project_id = {}".format(','.join(settings.project_checks), settings.project_id)
     logger1.info(q_project)
     db_cursor.execute(q_project)
-    #Generate list of folders
-    folders = []
-    #List of folders
-    for entry in os.scandir(settings.project_path):
-        if entry.is_dir():
-            folders.append(entry.path)
-    #Check each folder
-    for folder in folders:
-        folder_path = folder
-        folder_name = os.path.basename(folder)
-        folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-        q_folderreset = "UPDATE folders SET status = 0, md5 = 1 WHERE folder_id = {}".format(folder_id)
-        logger1.info(q_folderreset)
-        db_cursor.execute(q_folderreset)
-        if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
-            logger1.info("Missing TIF and RAW folders")
-            q = "UPDATE folders SET status = 9, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
-            logger1.info(q)
-            db_cursor.execute(q)
-            delete_folder_files(folder_id, db_cursor)
-        elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
-            logger1.info("Missing TIF folder")
-            q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
-            logger1.info(q)
-            db_cursor.execute(q)
-            delete_folder_files(folder_id, db_cursor)
-        elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
-            logger1.info("Missing RAW folder")
-            q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
-            logger1.info(q)
-            db_cursor.execute(q)
-            delete_folder_files(folder_id, db_cursor)
-        else:
-            logger1.info("Both folders present")
-            q = "UPDATE folders SET status = 0 WHERE folder_id = {}".format(folder_id)
-            logger1.info(q)
-            db_cursor.execute(q)
-            #Both folders present
-            for file in os.scandir(folder_path + "/" + settings.tif_files_path):
-                if file.is_file():
-                    filename = file.name
-                    #TIF Files
-                    if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
-                        #Check if file exists, insert if not
-                        logger1.info("TIF file {}".format(filename))
-                        q_checkfile = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id = {}".format(Path(filename).stem, folder_id)
-                        logger1.info(q_checkfile)
-                        db_cursor.execute(q_checkfile)
-                        file_id = db_cursor.fetchone()
-                        if file_id == None:
-                            q_checkunique = "SELECT count(*) as dupes FROM files WHERE file_name = '{}' AND folder_id != {} and folder_id in (SELECT folder_id from folders where project_id = {})".format(Path(filename).stem, folder_id, settings.project_id)
-                            logger1.info(q_checkunique)
-                            db_cursor.execute(q_checkunique)
-                            result = db_cursor.fetchone()
-                            if result[0] > 0:
-                                unique_file = 1
-                            else:
-                                unique_file = 0
-                            #Get modified date for file
-                            file_timestamp_float = os.path.getmtime(file.path)
-                            file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-                            print(file_timestamp)
-                            q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
-                            logger1.info(q_insert)
-                            db_cursor.execute(q_insert)
-                            file_id = db_cursor.fetchone()[0]
-                        else:
-                            file_id = file_id[0]
-                        print("file_id: {}".format(file_id))
-                        #Check if file is OK
-                        #q_checkfile = "SELECT (file_pair + jhove + tif_size + raw_size + iptc_metadata + magick) as filecheck FROM files WHERE file_id = {}".format(file_id)
-                        #ignore jhove
-                        q_checkfile = "SELECT (file_pair + tif_size + raw_size + iptc_metadata + magick) as filecheck FROM files WHERE file_id = {}".format(file_id)
-                        logger1.info(q_checkfile)
-                        db_cursor.execute(q_checkfile)
-                        result = db_cursor.fetchone()
-                        if result != None:
-                            if result[0] == 0:
-                                #File ok, don't run checks
-                                logger1.info("File with ID {} is OK, skipping".format(file_id))
-                                continue
-                        #FilePair check
-                        pair_check = file_pair_check(file_id, file.path, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
-                        logger1.info("pair_check:{}".format(pair_check))
-                        #JHOVE check
-                        jhove_check = jhove_validate(file_id, file.path, db_cursor)
-                        logger1.info("jhove_check:{}".format(jhove_check))
-                        #ITPC Metadata
-                        itpc_check = itpc_validate(file_id, file.path, db_cursor)
-                        logger1.info("itpc_check:{}".format(itpc_check))
-                        #File size check
-                        check_tif_size = file_size_check(file.path, "tif", file_id, db_cursor)
-                        logger1.info("check_tif_size:{}".format(check_tif_size))
-                        #Imagemagick check
-                        magickval = magick_validate(file_id, file.path, db_cursor)
-                        logger1.info("magick_validate:{}".format(magick_validate))
-                        #Store MD5
-                        file_md5 = filemd5(file_id, file.path, "tif", db_cursor)
-                        logger1.info("tif_md5:{}".format(file_md5))
-                    elif (Path(filename).suffix.lower() == ".md5"):
-                        #MD5 file
-                        q_md5 = "UPDATE folders SET md5 = 0 WHERE folder_id = {}".format(folder_id)
-                        logger1.info(q_md5)
-                        db_cursor.execute(q_md5)
-                    # else:
-                    #     #Other unknown file
-                    #     q_badfile = "UPDATE folders SET status = 1, error_info = 'Unknown file {}' WHERE folder_id = {}".format(filename, folder_id)
-                    #     logger1.info(q_badfile)
-                    #     db_cursor.execute(q_badfile)
-            for file in os.scandir(folder_path + "/" + settings.raw_files_path):
-                if file.is_file():
-                    filename = file.name
-                    if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                        logger1.info("RAW file {}".format(filename))
-                        #Check if file exists, insert if not
-                        q_checkfile = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id = {}".format(Path(file.name).stem, folder_id)
-                        logger1.info(q_checkfile)
-                        db_cursor.execute(q_checkfile)
-                        if db_cursor.rowcount == 0:
-                            q_checkunique = "SELECT count(*) FROM files WHERE file_name = '{}' AND folder_id != {} and folder_id in (SELECT folder_id from folders where project_id = {})".format(Path(filename).stem, folder_id, settings.project_id)
-                            logger1.info(q_checkunique)
-                            db_cursor.execute(q_checkunique)
-                            result = db_cursor.fetchone()
-                            if result[0] > 0:
-                                unique_file = 1
-                            else:
-                                unique_file = 0
-                            #Get modified date for file
-                            file_timestamp_float = os.path.getmtime(file.path)
-                            file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-                            print(file_timestamp)
-                            q_insert = "INSERT INTO files (folder_id, file_name, file_pair, jhove, tif_size, raw_size, iptc_metadata, magick, unique_file, file_timestamp) VALUES ({}, '{}', 9, 9, 9, 9, 9, 9, {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
-                            logger1.info(q_insert)
-                            db_cursor.execute(q_insert)
-                            file_id = db_cursor.fetchone()[0]
-                        else:
-                            file_id = db_cursor.fetchone()[0]
-                            print("file_id: {}".format(file_id))
-                        #if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                        #FilePair check
-                        pair_check = file_pair_check(file_id, file.path, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
-                        logger1.info("pair_check:{}".format(pair_check))
-                        #File size check
-                        check_raw_size = file_size_check(file.path, "raw", file_id, db_cursor)
-                        logger1.info("check_raw_size:{}".format(check_raw_size))
-                        #Store MD5
-                        file_md5 = filemd5(file_id, file.path, "raw", db_cursor)
-                        logger1.info("raw_md5:{}".format(file_md5))
-                    elif (Path(filename).suffix.lower() == ".md5"):
-                        #MD5 file
-                        q_md5 = "UPDATE folders SET md5 = 0 WHERE folder_id = {}".format(folder_id)
-                        logger1.info(q_md5)
-                        db_cursor.execute(q_md5)
-                    # else:
-                    #     #Other unknown file
-                    #     q_badfile = "UPDATE folders SET status = 1, error_info = 'Unknown file {}' WHERE folder_id = {}".format(filename, folder_id)
-                    #     logger1.info(q_badfile)
-                    #     db_cursor.execute(q_badfile)
+    logger1.info(','.join(settings.project_paths))
+    for project_path in settings.project_paths:
+        logger1.info(project_path)
+        #Generate list of folders
+        folders = []
+        #List of folders
+        for entry in os.scandir(project_path):
+            if entry.is_dir():
+                folders.append(entry.path)
+        #Check each folder
+        for folder in folders:
+            folder_path = folder
+            folder_name = os.path.basename(folder)
+            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+            q_folderreset = "UPDATE folders SET status = 0, md5_tif = 1, md5_raw = 1 WHERE folder_id = {}".format(folder_id)
+            logger1.info(q_folderreset)
+            db_cursor.execute(q_folderreset)
+            if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
+                logger1.info("Missing TIF and RAW folders")
+                q = "UPDATE folders SET status = 9, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
+                logger1.info("Missing TIF folder")
+                q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
+                logger1.info("Missing RAW folder")
+                q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            else:
+                logger1.info("Both folders present")
+                q = "UPDATE folders SET status = 0 WHERE folder_id = {}".format(folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                #Both folders present
+                files = list()
+                for file in os.scandir(folder_path + "/" + settings.tif_files_path):
+                    if file.is_file():
+                        filename = file.name
+                        #TIF Files
+                        if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
+                            files.append((filename, folder_path, str(folder_id)))
+                            process_tif(filename, folder_path, folder_id)
+                        elif (Path(filename).suffix.lower() == ".md5"):
+                            #MD5 file
+                            q_md5 = "UPDATE folders SET md5_tif = 0 WHERE folder_id = {}".format(folder_id)
+                            logger1.info(q_md5)
+                            db_cursor.execute(q_md5)
+                        #parallelize steps
+                        # pool = multiprocessing.Pool(settings.no_workers)
+                        # res = pool.starmap(process_tif, files)
+                        # pool.close()
+                        # res
+                        #print(results)
+                files = list()
+                for file in os.scandir(folder_path + "/" + settings.raw_files_path):
+                    if file.is_file():
+                        filename = file.name
+                        #TIF Files
+                        if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                            files.append((filename, folder_path, folder_id))
+                            process_raw(filename, folder_path, folder_id, settings.raw_files)
+                        elif (Path(filename).suffix.lower() == ".md5"):
+                            #MD5 file
+                            q_md5 = "UPDATE folders SET md5_raw = 0 WHERE folder_id = {}".format(folder_id)
+                            logger1.info(q_md5)
+                            db_cursor.execute(q_md5)
+                        #parallelize steps
+                        #Based on https://stackoverflow.com/a/5443941
+                        # with multiprocessing.Pool(processes = settings.no_workers) as pool:
+                        #     #process_tif(filename, folder_id, db_cursor)
+                        #     results = pool.starmap(process_raw, files)
+                        #print(results)
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
