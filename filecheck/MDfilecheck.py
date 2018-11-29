@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.2
+# Version 0.3
 
 ##Import modules
-import os, sys, subprocess, locale, logging, xmltodict, datetime, time, pyexiv2, shutil, json, bitmath, pandas, re
+import os, sys, subprocess, locale, logging, time
+import xmltodict, pyexiv2, json, bitmath, pandas
 #For Postgres
 import psycopg2
 #For MD5
@@ -53,14 +54,15 @@ formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
 console.setFormatter(formatter)
 # add the handler to the root logger
 logging.getLogger('').addHandler(console)
-#Reduce logging info from requests
-# from http://stackoverflow.com/a/11029841
-logging.getLogger("requests").setLevel(logging.WARNING)
 logger1 = logging.getLogger("vendor")
 
 
 
-##Functions
+
+############################################
+# Functions
+############################################
+
 def check_folder(folder_name, folder_path, project_id, db_cursor):
     """
     Check if a folder exists
@@ -228,6 +230,9 @@ def delete_folder_files(folder_id, db_cursor):
 
 
 def filemd5(file_id, filepath, filetype, db_cursor):
+    """
+    Get MD5 hash of a file
+    """
     md5_hash = hashlib.md5()
     with open(filepath, "rb") as f:
         # Read and update hash in chunks of 4K
@@ -245,7 +250,10 @@ def filemd5(file_id, filepath, filetype, db_cursor):
 
 
 def checkmd5file(md5_file, folder_id, filetype, db_cursor):
-    #Check if md5 hashes match with the files
+    """
+    Check if md5 hashes match with the files
+    -In progress
+    """
     md5_error = ""
     if filetype == "tif":
         q_select = "SELECT tif_md5, file_name AS md5 FROM files WHERE folder_id = {}".format(folder_id)
@@ -445,103 +453,105 @@ def process_raw(filename, folder_path, folder_id, raw):
 ############################################
 # Main loop
 ############################################
-while True:
-    #Connect to the database
-    try:
-        logger1.info("Connecting to database")
-        conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
-    except:
-        logger1.error("Could not connect to server.")
-        sys.exit(1)
-    conn.autocommit = True
-    db_cursor = conn.cursor()
-    #Update project
-    q_project = "UPDATE projects SET project_checks = '{}' WHERE project_id = {}".format(','.join(settings.project_checks), settings.project_id)
-    logger1.info(q_project)
-    db_cursor.execute(q_project)
-    logger1.info(','.join(settings.project_paths))
-    for project_path in settings.project_paths:
-        logger1.info(project_path)
-        #Generate list of folders
-        folders = []
-        #List of folders
-        for entry in os.scandir(project_path):
-            if entry.is_dir():
-                folders.append(entry.path)
-        #Check each folder
-        for folder in folders:
-            folder_path = folder
-            folder_name = os.path.basename(folder)
-            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-            q_folderreset = "UPDATE folders SET status = 0, md5_tif = 1, md5_raw = 1 WHERE folder_id = {}".format(folder_id)
-            logger1.info(q_folderreset)
-            db_cursor.execute(q_folderreset)
-            if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
-                logger1.info("Missing TIF and RAW folders")
-                q = "UPDATE folders SET status = 9, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
-                logger1.info("Missing TIF folder")
-                q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
-                logger1.info("Missing RAW folder")
-                q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            else:
-                logger1.info("Both folders present")
-                q = "UPDATE folders SET status = 0 WHERE folder_id = {}".format(folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                #Both folders present
-                files = list()
-                for file in os.scandir(folder_path + "/" + settings.tif_files_path):
-                    if file.is_file():
-                        filename = file.name
-                        #TIF Files
-                        if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
-                            files.append((filename, folder_path, str(folder_id)))
-                            process_tif(filename, folder_path, folder_id)
-                        elif (Path(filename).suffix.lower() == ".md5"):
-                            #MD5 file
-                            q_md5 = "UPDATE folders SET md5_tif = 0 WHERE folder_id = {}".format(folder_id)
-                            logger1.info(q_md5)
-                            db_cursor.execute(q_md5)
-                        #parallelize steps
-                        # pool = multiprocessing.Pool(settings.no_workers)
-                        # res = pool.starmap(process_tif, files)
-                        # pool.close()
-                        # res
-                        #print(results)
-                files = list()
-                for file in os.scandir(folder_path + "/" + settings.raw_files_path):
-                    if file.is_file():
-                        filename = file.name
-                        #TIF Files
-                        if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                            files.append((filename, folder_path, folder_id))
-                            process_raw(filename, folder_path, folder_id, settings.raw_files)
-                        elif (Path(filename).suffix.lower() == ".md5"):
-                            #MD5 file
-                            q_md5 = "UPDATE folders SET md5_raw = 0 WHERE folder_id = {}".format(folder_id)
-                            logger1.info(q_md5)
-                            db_cursor.execute(q_md5)
-                        #parallelize steps
-                        #Based on https://stackoverflow.com/a/5443941
-                        # with multiprocessing.Pool(processes = settings.no_workers) as pool:
-                        #     #process_tif(filename, folder_id, db_cursor)
-                        #     results = pool.starmap(process_raw, files)
-                        #print(results)
-    #Disconnect from db
-    conn.close()
-    logger1.info("Sleeping for {} secs".format(settings.sleep))
-    #Sleep before trying again
-    time.sleep(settings.sleep)
+
+if __name__ == '__main__':
+    while True:
+        #Connect to the database
+        try:
+            logger1.info("Connecting to database")
+            conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+        except:
+            logger1.error("Could not connect to server.")
+            sys.exit(1)
+        conn.autocommit = True
+        db_cursor = conn.cursor()
+        #Update project
+        q_project = "UPDATE projects SET project_checks = '{}' WHERE project_id = {}".format(','.join(settings.project_checks), settings.project_id)
+        logger1.info(q_project)
+        db_cursor.execute(q_project)
+        logger1.info(','.join(settings.project_paths))
+        for project_path in settings.project_paths:
+            logger1.info(project_path)
+            #Generate list of folders
+            folders = []
+            #List of folders
+            for entry in os.scandir(project_path):
+                if entry.is_dir():
+                    folders.append(entry.path)
+            #Check each folder
+            for folder in folders:
+                folder_path = folder
+                folder_name = os.path.basename(folder)
+                folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+                q_folderreset = "UPDATE folders SET status = 0, md5_tif = 1, md5_raw = 1 WHERE folder_id = {}".format(folder_id)
+                logger1.info(q_folderreset)
+                db_cursor.execute(q_folderreset)
+                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
+                    logger1.info("Missing TIF and RAW folders")
+                    q = "UPDATE folders SET status = 9, error_info = 'Missing both subfolders' WHERE folder_id = {}".format(folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
+                    logger1.info("Missing TIF folder")
+                    q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.tif_files_path, folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
+                    logger1.info("Missing RAW folder")
+                    q = "UPDATE folders SET status = 9, error_info = 'Missing {} subfolder' WHERE folder_id = {}".format(settings.raw_files_path, folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                else:
+                    logger1.info("Both folders present")
+                    q = "UPDATE folders SET status = 0 WHERE folder_id = {}".format(folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    #Both folders present
+                    files = list()
+                    for file in os.scandir(folder_path + "/" + settings.tif_files_path):
+                        if file.is_file():
+                            filename = file.name
+                            #TIF Files
+                            if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
+                                files.append((filename, folder_path, str(folder_id)))
+                                process_tif(filename, folder_path, folder_id)
+                            elif (Path(filename).suffix.lower() == ".md5"):
+                                #MD5 file
+                                q_md5 = "UPDATE folders SET md5_tif = 0 WHERE folder_id = {}".format(folder_id)
+                                logger1.info(q_md5)
+                                db_cursor.execute(q_md5)
+                            #parallelize steps
+                            # pool = multiprocessing.Pool(settings.no_workers)
+                            # res = pool.starmap(process_tif, files)
+                            # pool.close()
+                            # res
+                            #print(results)
+                    files = list()
+                    for file in os.scandir(folder_path + "/" + settings.raw_files_path):
+                        if file.is_file():
+                            filename = file.name
+                            #TIF Files
+                            if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                                files.append((filename, folder_path, folder_id))
+                                process_raw(filename, folder_path, folder_id, settings.raw_files)
+                            elif (Path(filename).suffix.lower() == ".md5"):
+                                #MD5 file
+                                q_md5 = "UPDATE folders SET md5_raw = 0 WHERE folder_id = {}".format(folder_id)
+                                logger1.info(q_md5)
+                                db_cursor.execute(q_md5)
+                            #parallelize steps
+                            #Based on https://stackoverflow.com/a/5443941
+                            # with multiprocessing.Pool(processes = settings.no_workers) as pool:
+                            #     #process_tif(filename, folder_id, db_cursor)
+                            #     results = pool.starmap(process_raw, files)
+                            #print(results)
+        #Disconnect from db
+        conn.close()
+        logger1.info("Sleeping for {} secs".format(settings.sleep))
+        #Sleep before trying again
+        time.sleep(settings.sleep)
 
 sys.exit(0)

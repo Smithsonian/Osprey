@@ -80,14 +80,14 @@ server <- function(input, output, session) {
   #Boxred ----
   output$boxred <- renderValueBox({
     
-    # status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM 
+    # status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
     #                         (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
     #                         (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
     #                         (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
     # )
-    status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM 
-                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
-                            (SELECT count(*) AS count_ok FROM files where (file_pair + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
+    status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
+                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
+                            (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + tif_size + raw_size + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
                             (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
     )
     #cat(status_query)
@@ -147,7 +147,7 @@ server <- function(input, output, session) {
     
     folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY project_folder DESC"))
     
-    list_of_folders <- "<p><a href=\"./\">Home</a></p><br><div class=\"list-group\">"
+    list_of_folders <- "<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p><br><div class=\"list-group\">"
     
     if (dim(folders)[1] == 0){
       
