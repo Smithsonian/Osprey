@@ -3,6 +3,10 @@ library(shiny)
 library(shinydashboard)
 library(dplyr)
 library(DBI)
+library(RPostgres)
+library(DT)
+
+
 
 # Settings ----
 source("settings.R")
@@ -41,10 +45,6 @@ ui <- dashboardPage(
              box(
                title = "Folders", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("boxleft")
-             ),
-             box(
-               title = "About", width = NULL, solidHeader = TRUE, status = "info",
-               uiOutput("footer")
              )
         ),
       column(width = 6,
@@ -60,11 +60,10 @@ ui <- dashboardPage(
                uiOutput("fileinfo")
              )
       )
-    )#,
-    
+    ),
     #Footer ----
-    # hr(),
-    # uiOutput("footer")
+    hr(),
+    uiOutput("footer")
   )
 )
 
@@ -425,8 +424,7 @@ server <- function(input, output, session) {
   
   #Footer ----
   output$footer <- renderUI({
-    #HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
-    HTML(paste0("<p>", app_name, " <br>ver. ", app_ver, " <br><a href=\"", github_link, "\" target = _blank>Source code</a></p><p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></p>"))
+    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
   })
   
 }
