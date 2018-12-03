@@ -5,7 +5,7 @@
 
 ##Import modules
 import os, sys, subprocess, locale, logging, time
-import xmltodict, pyexiv2, json, bitmath, pandas
+import xmltodict, exifread, json, bitmath, pandas
 #For Postgres
 import psycopg2
 #For MD5
@@ -86,18 +86,22 @@ def jhove_validate(file_id, filename, db_cursor):
     """
     #Get the file name without the path
     base_filename = Path(filename).name
-    #file_type = Path(filename).suffix
     #Where to write the results
     xml_file = "/tmp/{}.xml".format(base_filename)
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
+    #Run JHOVE
     subprocess.run([jhove_path, "-m", "TIFF-hul", "-h", "xml", "-o", xml_file, filename])
     #Open and read the results xml
     try:
         with open(xml_file) as fd:
             doc = xmltodict.parse(fd.read())
     except:
-        logger1.error("Could not find result file from JHOVE ({})".format(xml_file))
+        error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
+        logger1.error(error_msg)
+        q_jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}".format(1, error_msg, file_id)
+        logger1.info(q_jhove)
+        db_cursor.execute(q_jhove)
         return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
@@ -145,23 +149,23 @@ def itpc_validate(file_id, filename, db_cursor):
     Check the IPTC Metadata
     Currently, only checks that there is metadata to read
     """
-    metadata = pyexiv2.ImageMetadata(filename)
-    iptc_metadata = 0
-    iptc_metadata_info = "IPTC Metadata exists"
-    return_code = True
-    try:
-        iptc_metadata_info = metadata.read()
-    except:
-        iptc_metadata = 1
-        iptc_metadata_info = "Could not read metadata"
-        return_code = False
-    #for meta in metadata.exif_keys:
-    #    print(metadata[meta].value)
-    #logger1.info(meta_check)
-    q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
-    logger1.info(q_meta)
-    db_cursor.execute(q_meta)
-    return return_code
+    # metadata = pyexiv2.ImageMetadata(filename)
+    # iptc_metadata = 0
+    # iptc_metadata_info = "IPTC Metadata exists"
+    # return_code = True
+    # try:
+    #     iptc_metadata_info = metadata.read()
+    # except:
+    #     iptc_metadata = 1
+    #     iptc_metadata_info = "Could not read metadata"
+    #     return_code = False
+    # #for meta in metadata.exif_keys:
+    # #    print(metadata[meta].value)
+    # #logger1.info(meta_check)
+    # q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
+    # logger1.info(q_meta)
+    # db_cursor.execute(q_meta)
+    return True
 
 
 def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor):
@@ -219,7 +223,7 @@ def file_size_check(filename, filetype, file_id, db_cursor):
         q_size = "UPDATE files SET raw_size = {}, raw_size_info = '{}' WHERE file_id = {}".format(file_size, file_size_info, file_id)
     logger1.info(q_size)
     db_cursor.execute(q_size)
-    return str(file_size)
+    return True
 
 
 def delete_folder_files(folder_id, db_cursor):
@@ -245,7 +249,7 @@ def filemd5(file_id, filepath, filetype, db_cursor):
         q_insert = "UPDATE files SET raw_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
     logger1.info(q_insert)
     db_cursor.execute(q_insert)
-    return file_md5
+    return True
 
 
 
@@ -324,7 +328,6 @@ def process_tif(filename, folder_path, folder_id):
         #Get modified date for file
         file_timestamp_float = os.path.getmtime(file.path)
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-        print(file_timestamp)
         q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
         logger1.info(q_insert)
         db_cursor.execute(q_insert)
@@ -449,12 +452,7 @@ def process_raw(filename, folder_path, folder_id, raw):
 
 
 
-
-############################################
-# Main loop
-############################################
-
-if __name__ == '__main__':
+def main():
     while True:
         #Connect to the database
         try:
@@ -553,5 +551,20 @@ if __name__ == '__main__':
         logger1.info("Sleeping for {} secs".format(settings.sleep))
         #Sleep before trying again
         time.sleep(settings.sleep)
+
+
+
+############################################
+# Main loop
+############################################
+
+if __name__=="__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger1.info("Ctrl-C detected. Leaving program.")
+        sys.exit(0)
+
+
 
 sys.exit(0)

@@ -1,4 +1,6 @@
 xmltodict
-pyexiv2
+exifread
 bitmath
 psycopg2
+bitmath
+pandas
