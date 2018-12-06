@@ -111,6 +111,9 @@ def jhove_validate(file_id, filename, db_cursor):
         jhove_val = 0
     else:
         jhove_val = 1
+        if len(doc['jhove']['repInfo']['messages']) == 1:
+            if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
+                jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
     q_jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}".format(jhove_val, file_status, file_id)
     logger1.info(q_jhove)
@@ -326,7 +329,7 @@ def process_tif(filename, folder_path, folder_id):
         else:
             unique_file = 0
         #Get modified date for file
-        file_timestamp_float = os.path.getmtime(filename)
+        file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
         logger1.info(q_insert)
@@ -356,7 +359,7 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("pair_check:{}".format(pair_check))
         if 'jhove' in settings.project_checks:
             #JHOVE check
-            jhove_check = jhove_validate(file_id, filename, db_cursor)
+            jhove_check = jhove_validate(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), db_cursor)
             logger1.info("jhove_check:{}".format(jhove_check))
         if 'itpc' in settings.project_checks:
             #ITPC Metadata
@@ -364,14 +367,14 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("itpc_check:{}".format(itpc_check))
         if 'tif_size' in settings.project_checks:
             #File size check
-            check_tif_size = file_size_check(filename, "tif", file_id, db_cursor)
+            check_tif_size = file_size_check("{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", file_id, db_cursor)
             logger1.info("check_tif_size:{}".format(check_tif_size))
         if 'magick' in settings.project_checks:
             #Imagemagick check
-            magickval = magick_validate(file_id, filename, db_cursor)
+            magickval = magick_validate(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), db_cursor)
             logger1.info("magick_validate:{}".format(magick_validate))
         #Store MD5
-        file_md5 = filemd5(file_id, filename, "tif", db_cursor)
+        file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
         logger1.info("tif_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
