@@ -1,6 +1,6 @@
 xmltodict
 exifread
 bitmath
-psycopg2
+psycopg2-binary
 bitmath
 pandas

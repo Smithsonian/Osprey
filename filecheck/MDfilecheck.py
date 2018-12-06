@@ -87,7 +87,7 @@ def jhove_validate(file_id, filename, db_cursor):
     #Get the file name without the path
     base_filename = Path(filename).name
     #Where to write the results
-    xml_file = "/tmp/{}.xml".format(base_filename)
+    xml_file = "/tmp/mdpp_{}.xml".format(base_filename)
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     #Run JHOVE
@@ -147,7 +147,7 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
 def itpc_validate(file_id, filename, db_cursor):
     """
     Check the IPTC Metadata
-    Currently, only checks that there is metadata to read
+    Need to rewrite using exifread
     """
     # metadata = pyexiv2.ImageMetadata(filename)
     # iptc_metadata = 0
