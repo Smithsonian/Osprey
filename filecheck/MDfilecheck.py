@@ -413,7 +413,7 @@ def process_raw(filename, folder_path, folder_id, raw):
         else:
             unique_file = 0
         #Get modified date for file
-        file_timestamp_float = os.path.getmtime(filename)
+        file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.raw_files_path, filename))
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         print(file_timestamp)
         q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
@@ -444,10 +444,10 @@ def process_raw(filename, folder_path, folder_id, raw):
             logger1.info("pair_check:{}".format(pair_check))
         if 'raw_size' in settings.project_checks:
             #File size check
-            check_raw_size = file_size_check(filename, "raw", file_id, db_cursor)
+            check_raw_size = file_size_check("{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", file_id, db_cursor)
             logger1.info("check_raw_size:{}".format(check_raw_size))
         #Store MD5
-        file_md5 = filemd5(file_id, filename, "raw", db_cursor)
+        file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", db_cursor)
         logger1.info("raw_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
