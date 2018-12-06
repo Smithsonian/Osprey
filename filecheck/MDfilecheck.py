@@ -326,7 +326,7 @@ def process_tif(filename, folder_path, folder_id):
         else:
             unique_file = 0
         #Get modified date for file
-        file_timestamp_float = os.path.getmtime(file.path)
+        file_timestamp_float = os.path.getmtime(filename)
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
         logger1.info(q_insert)
@@ -352,26 +352,26 @@ def process_tif(filename, folder_path, folder_id):
     else:
         if 'file_pair' in settings.project_checks:
             #FilePair check
-            pair_check = file_pair_check(file_id, file.path, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
+            pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
             logger1.info("pair_check:{}".format(pair_check))
         if 'jhove' in settings.project_checks:
             #JHOVE check
-            jhove_check = jhove_validate(file_id, file.path, db_cursor)
+            jhove_check = jhove_validate(file_id, filename, db_cursor)
             logger1.info("jhove_check:{}".format(jhove_check))
         if 'itpc' in settings.project_checks:
             #ITPC Metadata
-            itpc_check = itpc_validate(file_id, file.path, db_cursor)
+            itpc_check = itpc_validate(file_id, filename, db_cursor)
             logger1.info("itpc_check:{}".format(itpc_check))
         if 'tif_size' in settings.project_checks:
             #File size check
-            check_tif_size = file_size_check(file.path, "tif", file_id, db_cursor)
+            check_tif_size = file_size_check(filename, "tif", file_id, db_cursor)
             logger1.info("check_tif_size:{}".format(check_tif_size))
         if 'magick' in settings.project_checks:
             #Imagemagick check
-            magickval = magick_validate(file_id, file.path, db_cursor)
+            magickval = magick_validate(file_id, filename, db_cursor)
             logger1.info("magick_validate:{}".format(magick_validate))
         #Store MD5
-        file_md5 = filemd5(file_id, file.path, "tif", db_cursor)
+        file_md5 = filemd5(file_id, filename, "tif", db_cursor)
         logger1.info("tif_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
@@ -410,7 +410,7 @@ def process_raw(filename, folder_path, folder_id, raw):
         else:
             unique_file = 0
         #Get modified date for file
-        file_timestamp_float = os.path.getmtime(file.path)
+        file_timestamp_float = os.path.getmtime(filename)
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         print(file_timestamp)
         q_insert = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id".format(folder_id, Path(filename).stem, unique_file, file_timestamp)
@@ -437,14 +437,14 @@ def process_raw(filename, folder_path, folder_id, raw):
     else:
         if 'file_pair' in settings.project_checks:
             #FilePair check
-            pair_check = file_pair_check(file_id, file.path, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
+            pair_check = file_pair_check(file_id, filename, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
             logger1.info("pair_check:{}".format(pair_check))
         if 'raw_size' in settings.project_checks:
             #File size check
-            check_raw_size = file_size_check(file.path, "raw", file_id, db_cursor)
+            check_raw_size = file_size_check(filename, "raw", file_id, db_cursor)
             logger1.info("check_raw_size:{}".format(check_raw_size))
         #Store MD5
-        file_md5 = filemd5(file_id, file.path, "raw", db_cursor)
+        file_md5 = filemd5(file_id, filename, "raw", db_cursor)
         logger1.info("raw_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
