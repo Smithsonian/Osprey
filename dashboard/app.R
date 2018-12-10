@@ -331,9 +331,8 @@ server <- function(input, output, session) {
     
     file_id <- files_data[input$files_table_rows_selected, ]$file_id
     
-    html_to_print <- paste0("<a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"></a><br>")
     
-    html_to_print <- paste0(html_to_print, "<dl class=\"dl-horizontal\">")
+    html_to_print <- "<dl class=\"dl-horizontal\">"
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
     
@@ -419,7 +418,18 @@ server <- function(input, output, session) {
     
     
     html_to_print <- paste0(html_to_print, "</dl>")
-    HTML(html_to_print)
+    
+    tagList(
+      fluidRow(
+        column(width = 6,
+               HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"></a><br>"))
+        ),
+        column(width = 6,
+               HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"auto\" height = \"200px\"></a><br>"))
+        )
+      ),
+      HTML(html_to_print)
+    )
   })
   
   

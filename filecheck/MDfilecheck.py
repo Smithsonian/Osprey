@@ -72,6 +72,10 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
+        if settings.folder_name == "server_folder":
+            server_folder_path = folder_path.split("/")
+            len_server_folder_path = len(server_folder_path)
+            folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
         q_insert = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, project_id) VALUES ('{}', '{}', 0, 0, 0, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
         logger1.info(q)
         db_cursor.execute(q_insert)
