@@ -313,7 +313,7 @@ def check_jpg(file_id, filename, db_cursor):
     logger1.info(q_jpg)
     db_cursor.execute(q_jpg)
     #Save jpg preview
-    preview_file_path = "{}/{}".format(settings.jpg_previews, file_id[0:2])
+    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
     #Create subfolder if it doesn't exists
     if not os.path.exists(preview_file_path):
@@ -401,7 +401,7 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("magick_validate:{}".format(magick_validate))
         if 'jpg' in settings.project_checks:
             #JPG check
-            jpg_check = check_jpg(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), db_cursor)
+            jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
             logger1.info("jpg_check:{}".format(jpg_check))
         #Store MD5
         file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
