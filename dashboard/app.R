@@ -330,9 +330,9 @@ server <- function(input, output, session) {
     print(input$files_table_rows_selected)
     
     file_id <- files_data[input$files_table_rows_selected, ]$file_id
-    cat(file_id)
-    html_to_print <- paste0("<img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"><br>")
-    cat(html_to_print)
+    
+    html_to_print <- paste0("<a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"></a><br>")
+    
     html_to_print <- paste0(html_to_print, "<dl class=\"dl-horizontal\">")
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
