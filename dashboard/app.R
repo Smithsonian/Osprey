@@ -80,8 +80,8 @@ server <- function(input, output, session) {
   output$boxred <- renderValueBox({
     
     status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
-                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
-                            (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + tif_size + raw_size + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
+                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR magick = 1 OR unique_file = 1 OR jpg = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
+                            (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + tif_size + raw_size + magick + unique_file + jpg) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
                             (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
     )
     cat(status_query)
@@ -166,7 +166,7 @@ server <- function(input, output, session) {
         
         #Only if there are any files
         if (folder_files$no_files > 0){
-          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
+          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1 OR jpg = 1)"))
           #error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
           
           if (error_files == 0){
@@ -275,8 +275,8 @@ server <- function(input, output, session) {
       req(FALSE)
     }
     
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, jpg, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, jpg, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     # files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     # files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     
@@ -303,10 +303,7 @@ server <- function(input, output, session) {
             'jhove',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
-            'tif_size',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'raw_size',
+            'jpg',
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
           ) %>% DT::formatStyle(
             'magick',
@@ -404,6 +401,12 @@ server <- function(input, output, session) {
       }else{
         html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd class=\"bg-danger\">", file_info$jhove_info, "</dd>")
       }
+    }
+    
+    if (file_info$jpg[1] == 0){
+      html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd>OK</dd>")
+    }else{
+      html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd class=\"bg-danger\">Failed</dd><dt>JPG Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$jpg_info, "</pre></dd>")
     }
     
     if (!is.na(file_info$magick_info[1])){
