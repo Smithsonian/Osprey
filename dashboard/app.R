@@ -79,30 +79,25 @@ server <- function(input, output, session) {
   #Boxred ----
   output$boxred <- renderValueBox({
     
-    # status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
-    #                         (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
-    #                         (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + iptc_metadata + tif_size + raw_size + iptc_metadata + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
-    #                         (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
-    # )
     status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
                             (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR magick = 1 OR unique_file = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
                             (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + tif_size + raw_size + magick + unique_file) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
                             (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
     )
-    #cat(status_query)
+    cat(status_query)
     files_status <<- dbGetQuery(db, status_query)
     
     if (files_status$count_total == 0){
-      valueBox(
-        "NA", "Files with errors", icon = icon("exclamation-sign", lib = "glyphicon"),
-        color = "red"
-      )
+      err_files_count <- "NA"
+      err_files_subtitle <- "Files with errors"
     }else{
-      valueBox(
-        paste0(round((files_status$count_error/files_status$count_total) * 100, 1), " %"), paste0(files_status$count_error, " files with errors"), icon = icon("exclamation-sign", lib = "glyphicon"),
-        color = "red"
-      )
+      err_files_count <- paste0(round((files_status$count_error/files_status$count_total) * 100, 1), " %")
+      err_files_subtitle <- paste0(files_status$count_error, " files with errors")
     }
+    valueBox(
+      err_files_count, err_files_subtitle, icon = icon("exclamation-sign", lib = "glyphicon"),
+      color = "red"
+    )
     
   })
   
@@ -112,16 +107,16 @@ server <- function(input, output, session) {
   #Boxgreen ----
   output$boxgreen <- renderValueBox({
     if (files_status$count_total == 0){
-      valueBox(
-        "NA", "Files OK", icon = icon("ok-sign", lib = "glyphicon"),
-        color = "green"
-      )
+      ok_files_count <- "NA"
+      ok_files_subtitle <- "Files OK"
     }else{
-      valueBox(
-        paste0(round((files_status$count_ok/files_status$count_total) * 100, 1), " %"), paste0(files_status$count_ok, " files OK"), icon = icon("ok-sign", lib = "glyphicon"),
-        color = "green"
-      )
+      ok_files_count <- paste0(round((files_status$count_ok/files_status$count_total) * 100, 1), " %")
+      ok_files_subtitle <- paste0(files_status$count_ok, " files OK")
     }
+    valueBox(
+      ok_files_count, ok_files_subtitle, icon = icon("ok-sign", lib = "glyphicon"),
+      color = "green"
+    )
   })
     
   
