@@ -325,7 +325,7 @@ def check_jpg(file_id, filename, db_cursor):
     #Delete old image, if exists
     if os.path.isfile(preview_image):
         os.unlink(preview_image)
-    subprocess.Popen(['convert', filename, '-resize 1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+    subprocess.Popen(['convert', filename, '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
     return magick_return
 
 
