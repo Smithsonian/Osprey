@@ -332,8 +332,10 @@ server <- function(input, output, session) {
     file_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_id = ", files_data[input$files_table_rows_selected, ]$file_id))
     print(input$files_table_rows_selected)
     
-    html_to_print <- paste0("<img src = \"previews/", files_data[input$files_table_rows_selected, ]$file_id, ".jpg\" width = \"auto\" height = \"200px\"><br>")
-    
+    file_id <- files_data[input$files_table_rows_selected, ]$file_id
+    cat(file_id)
+    html_to_print <- paste0("<img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"><br>")
+    cat(html_to_print)
     html_to_print <- paste0(html_to_print, "<dl class=\"dl-horizontal\">")
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
