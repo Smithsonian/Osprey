@@ -169,20 +169,20 @@ server <- function(input, output, session) {
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i], "<p class=\"list-group-item-text\">")
         }else{
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i], "<p class=\"list-group-item-text\">")
         }
         
         folder_subdirs <- dbGetQuery(db, paste0("SELECT status from folders where folder_id = ", folders$folder_id[i]))
         if (folder_subdirs == 9){
-          this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
+          this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
         }
         
         count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
         #cat(count_files)
         folder_files <- dbGetQuery(db, count_files)
-        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span> ")
+        this_folder <- paste0(this_folder, " <span class=\"badge pull-right\" title=\"No. of files\">", folder_files$no_files, "</span> ")
         
         #Only if there are any files
         if (folder_files$no_files > 0){
@@ -200,7 +200,24 @@ server <- function(input, output, session) {
           error_files <- dbGetQuery(db, error_files_query)
 
           if (error_files == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">OK</span> ")
+            
+            #Check if all have been checked
+            checked_files_query <- paste0("SELECT count(*) AS count_checked FROM files WHERE folder_id = ", folders$folder_id[i], " AND (")
+            
+            for (f in 1:length(file_checks)){
+              checked_files_query <- paste0(checked_files_query, file_checks[f], " = 9 OR ")
+            }
+            
+            checked_files_query <- stringr::str_sub(checked_files_query, 0, -5)
+            
+            checked_files_query <- paste0(checked_files_query, ")")
+            
+            checked_files <- dbGetQuery(db, checked_files_query)
+            
+            if (checked_files == 0){
+              this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">OK</span> ")
+            }
+            
           }else if (error_files > 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Error</span> ")
           }
@@ -219,7 +236,7 @@ server <- function(input, output, session) {
           this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Unknown file found in folder\">Unknown File</span> ")
         }
         
-        this_folder <- paste0(this_folder, "</a>")
+        this_folder <- paste0(this_folder, "</p></a>")
         
         list_of_folders <- paste0(list_of_folders, this_folder)
       }
@@ -268,10 +285,10 @@ server <- function(input, output, session) {
         
         tagList(
           fluidRow(
-            column(width = 4,
+            column(width = 6,
                    HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
             ),
-            column(width = 8,
+            column(width = 6,
                    if (!is.na(folder_info$notes)){
                      p(em(folder_info$notes))},
                    p("Folder imported on: ", folder_info$import_date),
