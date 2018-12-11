@@ -80,6 +80,9 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         logger1.info(q)
         db_cursor.execute(q_insert)
         folder_id = db_cursor.fetchone()
+    query_date = "UPDATE folders SET date = {} where project_id={}".format(settings.folder_date, project_id)
+    logger1.info(query_date)
+    db_cursor.execute(query_date)
     return folder_id[0]
 
 
@@ -566,38 +569,34 @@ def main():
                             filename = file.name
                             #TIF Files
                             if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
-                                files.append((filename, folder_path, str(folder_id)))
+                                #files.append((filename, folder_path, str(folder_id)))
                                 process_tif(filename, folder_path, folder_id)
                             elif (Path(filename).suffix.lower() == ".md5"):
                                 #MD5 file
                                 q_md5 = "UPDATE folders SET md5_tif = 0 WHERE folder_id = {}".format(folder_id)
                                 logger1.info(q_md5)
                                 db_cursor.execute(q_md5)
-                            #parallelize steps
+                            #Parallel steps
                             # pool = multiprocessing.Pool(settings.no_workers)
                             # res = pool.starmap(process_tif, files)
                             # pool.close()
-                            # res
-                            #print(results)
                     files = list()
                     for file in os.scandir(folder_path + "/" + settings.raw_files_path):
                         if file.is_file():
                             filename = file.name
                             #TIF Files
                             if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                                files.append((filename, folder_path, folder_id))
+                                #files.append((filename, folder_path, folder_id, settings.raw_files))
                                 process_raw(filename, folder_path, folder_id, settings.raw_files)
                             elif (Path(filename).suffix.lower() == ".md5"):
                                 #MD5 file
                                 q_md5 = "UPDATE folders SET md5_raw = 0 WHERE folder_id = {}".format(folder_id)
                                 logger1.info(q_md5)
                                 db_cursor.execute(q_md5)
-                            #parallelize steps
-                            #Based on https://stackoverflow.com/a/5443941
-                            # with multiprocessing.Pool(processes = settings.no_workers) as pool:
-                            #     #process_tif(filename, folder_id, db_cursor)
-                            #     results = pool.starmap(process_raw, files)
-                            #print(results)
+                            #Parallel steps
+                            # pool = multiprocessing.Pool(settings.no_workers)
+                            # res = pool.starmap(process_raw, files)
+                            # pool.close()
         #Disconnect from db
         conn.close()
         logger1.info("Sleeping for {} secs".format(settings.sleep))

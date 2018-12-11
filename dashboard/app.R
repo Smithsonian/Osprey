@@ -159,13 +159,11 @@ server <- function(input, output, session) {
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
-    folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY project_folder DESC"))
+    folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder ASC"))
     
     list_of_folders <- "<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p><br><div class=\"list-group\">"
     
-    if (dim(folders)[1] == 0){
-      
-    }else{
+    if (dim(folders)[1] > 0){
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
@@ -304,17 +302,18 @@ server <- function(input, output, session) {
   })
   
   
+  
+  
+  #Files table ----
   output$tableheading <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
     if (which_folder != "NULL"){
-      HTML("<p><strong>Click on a file in the table below to see details</strong></p>")
+      HTML("<p><strong>Click on a file in the table below to see details:</strong></p>")
     }
   })
-               
   
-  #Files table ----
   output$files_table <- DT::renderDataTable({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
@@ -349,8 +348,7 @@ server <- function(input, output, session) {
           ) %>% DT::formatStyle(
             2:no_cols,
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#777')),
-            color = 'white', 
-            fontWeight = 'bold'
+            color = 'white'
           )
   })
   
@@ -392,7 +390,6 @@ server <- function(input, output, session) {
     if (stringr::str_detect(file_checks_list, "jpg")){
       html_to_print <- paste0(html_to_print, "<dt>JPG MD5</dt><dd>", file_info$jpg_md5, "</dd>")
     }
-      
       
     #file_pair ----
     if (stringr::str_detect(file_checks_list, "file_pair")){
@@ -489,10 +486,10 @@ server <- function(input, output, session) {
     tagList(
       fluidRow(
         column(width = 6,
-               HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"auto\" height = \"200px\"></a><br>"))
+               HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
         ),
         column(width = 6,
-               HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"auto\" height = \"200px\"></a><br>"))
+               HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"160px\" height = \"auto\"></a><br>"))
         )
       ),
       hr(),
