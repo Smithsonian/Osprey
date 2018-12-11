@@ -51,6 +51,7 @@ ui <- dashboardPage(
              box(
                title = "Folder details", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("folderinfo"),
+               uiOutput("tableheading"),
                DT::dataTableOutput("files_table")
              )
       ),
@@ -286,8 +287,15 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
+  output$tableheading <- renderUI({
+    query <- parseQueryString(session$clientData$url_search)
+    which_folder <- query['folder']
+    
+    if (which_folder != "NULL"){
+      HTML("<p><strong>Click on a file in the table below to see details</strong></p>")
+    }
+  })
+               
   
   #Files table ----
   output$files_table <- DT::renderDataTable({
