@@ -85,8 +85,8 @@ server <- function(input, output, session) {
     status_query <- "SELECT e.count_error, o.count_ok, t.count_total FROM
                             (SELECT count(*) AS count_error FROM files where ("
     
-    for (i in 1:length(file_checks)){
-      status_query <- paste0(status_query, file_checks[i], " = 1 OR ")
+    for (f in 1:length(file_checks)){
+      status_query <- paste0(status_query, file_checks[f], " = 1 OR ")
     }
     
     status_query <- stringr::str_sub(status_query, 0, -5)
@@ -95,8 +95,8 @@ server <- function(input, output, session) {
                     folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
                     (SELECT count(*) AS count_ok FROM files where (")
     
-    for (i in 1:length(file_checks)){
-      status_query <- paste0(status_query, file_checks[i], " + ")
+    for (f in 1:length(file_checks)){
+      status_query <- paste0(status_query, file_checks[f], " + ")
     }
     
     status_query <- stringr::str_sub(status_query, 0, -4)
@@ -188,8 +188,8 @@ server <- function(input, output, session) {
           
           error_files_query <- paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (")
           
-          for (i in 1:length(file_checks)){
-            error_files_query <- paste0(error_files_query, file_checks[i], " = 1 OR ")
+          for (f in 1:length(file_checks)){
+            error_files_query <- paste0(error_files_query, file_checks[f], " = 1 OR ")
           }
           
           error_files_query <- stringr::str_sub(error_files_query, 0, -5)

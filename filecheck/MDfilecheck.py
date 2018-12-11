@@ -301,7 +301,7 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor):
     return True
 
 
-def check_jpg(file_id, filename, db_cursor):
+def check_jpg(file_id, filename, folder_path, db_cursor):
     """
     Run checks for jpg files
     """
@@ -318,19 +318,20 @@ def check_jpg(file_id, filename, db_cursor):
     q_jpg = "UPDATE files SET jpg = {}, jpg_info = '{}' WHERE file_id = {}".format(magick_identify, magick_identify_info.decode("utf-8").replace("'", "''"), file_id)
     logger1.info(q_jpg)
     db_cursor.execute(q_jpg)
-    #Save jpg preview
-    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
-    preview_image = "{}/{}_jpg.jpg".format(preview_file_path, file_id)
-    #Create subfolder if it doesn't exists
-    if not os.path.exists(preview_file_path):
-        os.makedirs(preview_file_path)
-    #Delete old image, if exists
-    if os.path.isfile(preview_image):
-        os.unlink(preview_image)
-    subprocess.Popen(['convert', filename, '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
-    #Store MD5
-    file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.jpg_files_path, filename), "jpg", db_cursor)
-    logger1.info("jpg_md5:{}".format(file_md5))
+    if magick_return:
+        #Save jpg preview
+        preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
+        preview_image = "{}/{}_jpg.jpg".format(preview_file_path, file_id)
+        #Create subfolder if it doesn't exists
+        if not os.path.exists(preview_file_path):
+            os.makedirs(preview_file_path)
+        #Delete old image, if exists
+        if os.path.isfile(preview_image):
+            os.unlink(preview_image)
+        subprocess.Popen(['convert', filename, '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        #Store MD5
+        file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.jpg_files_path, filename), "jpg", db_cursor)
+        logger1.info("jpg_md5:{}".format(file_md5))
     return magick_return
 
 
@@ -410,7 +411,7 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("magick_validate:{}".format(magick_validate))
         if 'jpg' in settings.project_checks:
             #JPG check
-            jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
+            jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), folder_path, db_cursor)
             logger1.info("jpg_check:{}".format(jpg_check))
         #Store MD5
         file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
