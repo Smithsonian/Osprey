@@ -66,16 +66,16 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     """
     Check if a folder exists
     """
+    if settings.folder_name == "server_folder":
+        server_folder_path = folder_path.split("/")
+        len_server_folder_path = len(server_folder_path)
+        folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
     q = "SELECT folder_id FROM folders WHERE project_folder='{}' and project_id = {}".format(folder_name, project_id)
     logger1.info(q)
     db_cursor.execute(q)
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
-        if settings.folder_name == "server_folder":
-            server_folder_path = folder_path.split("/")
-            len_server_folder_path = len(server_folder_path)
-            folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
         q_insert = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, project_id) VALUES ('{}', '{}', 0, 0, 0, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
         logger1.info(q)
         db_cursor.execute(q_insert)
@@ -253,6 +253,8 @@ def filemd5(file_id, filepath, filetype, db_cursor):
         q_insert = "UPDATE files SET tif_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
     elif filetype == "raw":
         q_insert = "UPDATE files SET raw_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
+    elif filetype == "jpg":
+        q_insert = "UPDATE files SET jpg_md5 = '{}' WHERE file_id = {}".format(file_md5, file_id)
     logger1.info(q_insert)
     db_cursor.execute(q_insert)
     return True
@@ -326,6 +328,9 @@ def check_jpg(file_id, filename, db_cursor):
     if os.path.isfile(preview_image):
         os.unlink(preview_image)
     subprocess.Popen(['convert', filename, '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+    #Store MD5
+    file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.jpg_files_path, filename), "jpg", db_cursor)
+    logger1.info("jpg_md5:{}".format(file_md5))
     return magick_return
 
 

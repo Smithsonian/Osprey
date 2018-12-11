@@ -76,15 +76,34 @@ server <- function(input, output, session) {
                   host = pg_host, port = 5432,
                   user = pg_user, password = pg_pass)
   
+  file_checks_list <<- dbGetQuery(db, paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id))
+  file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
+  
   #Boxred ----
   output$boxred <- renderValueBox({
     
-    status_query <- paste0("SELECT e.count_error, o.count_ok, t.count_total FROM
-                            (SELECT count(*) AS count_error FROM files where (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR magick = 1 OR unique_file = 1 OR jpg = 1) and folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
-                            (SELECT count(*) AS count_ok FROM files where (file_pair + jhove + tif_size + raw_size + magick + unique_file + jpg) = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
-                            (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t"
-    )
-    cat(status_query)
+    status_query <- "SELECT e.count_error, o.count_ok, t.count_total FROM
+                            (SELECT count(*) AS count_error FROM files where ("
+    
+    for (i in 1:length(file_checks)){
+      status_query <- paste0(status_query, file_checks[i], " = 1 OR ")
+    }
+    
+    status_query <- stringr::str_sub(status_query, 0, -5)
+    
+    status_query <- paste0(status_query, ") and 
+                    folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
+                    (SELECT count(*) AS count_ok FROM files where (")
+    
+    for (i in 1:length(file_checks)){
+      status_query <- paste0(status_query, file_checks[i], " + ")
+    }
+    
+    status_query <- stringr::str_sub(status_query, 0, -4)
+    
+    status_query <- paste0(status_query, ") = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
+                            (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t")
+    
     files_status <<- dbGetQuery(db, status_query)
     
     if (files_status$count_total == 0){
@@ -166,23 +185,29 @@ server <- function(input, output, session) {
         
         #Only if there are any files
         if (folder_files$no_files > 0){
-          error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR jhove = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1 OR jpg = 1)"))
-          #error_files <- dbGetQuery(db, paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (file_pair = 1 OR tif_size = 1 OR raw_size = 1 OR iptc_metadata = 1 OR magick = 1 OR unique_file = 1)"))
           
+          error_files_query <- paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (")
+          
+          for (i in 1:length(file_checks)){
+            error_files_query <- paste0(error_files_query, file_checks[i], " = 1 OR ")
+          }
+          
+          error_files_query <- stringr::str_sub(error_files_query, 0, -5)
+          
+          error_files_query <- paste0(error_files_query, ")")
+          
+          error_files <- dbGetQuery(db, error_files_query)
+
           if (error_files == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-success\">OK</span> ")
+            this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">OK</span> ")
           }else if (error_files > 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Error</span> ")
           }
-          #tif md5
-          md5_file <- dbGetQuery(db, paste0("SELECT md5_tif FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
-          if (md5_file$md5 != 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing TIF MD5 file\">TIF MD5</span> ")
-          }
-          #raw md5
-          md5_file <- dbGetQuery(db, paste0("SELECT md5_raw FROM folders WHERE folder_id = ", folders$folder_id[i]))[1]
-          if (md5_file$md5 != 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing RAW MD5 file\">RAW MD5</span> ")
+          
+          #md5
+          md5_file <- dbGetQuery(db, paste0("SELECT md5_tif, md5_raw FROM folders WHERE folder_id = ", folders$folder_id[i]))
+          if ((md5_file$md5_tif != 0) || (md5_file$md5_raw != 0)){
+            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing MD5 file\">MD5</span> ")
           }
         }else{
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
@@ -275,10 +300,10 @@ server <- function(input, output, session) {
       req(FALSE)
     }
     
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, jhove, jpg, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, jhove, jpg, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    # files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    # files_data_table <- dbGetQuery(db, paste0("SELECT file_name, file_pair, magick, tif_size, raw_size, unique_file FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    
+    no_cols <- dim(files_data_table)[2]
     
     DT::datatable(
           files_data_table, 
@@ -297,20 +322,10 @@ server <- function(input, output, session) {
             'Codes: 0 = OK, 1 = error, 9 = not checked yet'
           )
           ) %>% DT::formatStyle(
-            'file_pair',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'jhove',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'jpg',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'magick',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
-          ) %>% DT::formatStyle(
-            'unique_file',
-            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#f0ad4e'))
+            2:no_cols,
+            backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#777')),
+            color = 'white', 
+            fontWeight = 'bold'
           )
   })
   
@@ -332,7 +347,7 @@ server <- function(input, output, session) {
     file_id <- files_data[input$files_table_rows_selected, ]$file_id
     
     
-    html_to_print <- "<dl class=\"dl-horizontal\">"
+    html_to_print <- "<h4>File info</h4><dl class=\"dl-horizontal\">"
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
     
@@ -348,71 +363,98 @@ server <- function(input, output, session) {
       html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", file_info$raw_md5, "</dd>")
     }
     
-    #html_to_print <- paste0(html_to_print, "<dt>Accession No.</dt><dd>", file_info$accession_no, "</dd>")
-    
-    if (!is.na(file_info$file_pair_info[1])){
-      if (file_info$file_pair[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd>", file_info$file_pair_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd class=\"bg-danger\">", file_info$file_pair_info, "</dd>")
-      }
+    #if JPG, show md5
+    if (stringr::str_detect(file_checks_list, "jpg")){
+      html_to_print <- paste0(html_to_print, "<dt>JPG MD5</dt><dd>", file_info$jpg_md5, "</dd>")
     }
-  
-  
-    if (!is.na(file_info$iptc_metadata_info[1])){
-      if (file_info$iptc_metadata[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd>", file_info$iptc_metadata_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd class=\"bg-danger\">", file_info$iptc_metadata_info, "</dd>")
-      }
-    }
-  
-    if (!is.na(file_info$tif_size_info[1])){
-      if (file_info$tif_size[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd>", file_info$tif_size_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd class=\"bg-danger\">", file_info$tif_size_info, "</dd>")
-      }
-    }
-    
-    if (!is.na(file_info$raw_size_info[1])){
-      if (file_info$raw_size[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd>", file_info$raw_size_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd class=\"bg-danger\">", file_info$raw_size_info, "</dd>")
-      }
-    }
-  
-    if (file_info$unique_file[1] > 0){
-      other_folders <- dbGetQuery(db, paste0("SELECT project_folder FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, ")"))
-      if (dim(other_folders)[1] > 0){
-        html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
-        for (j in 1:dim(other_folders)[1]){
-          html_to_print <- paste0(html_to_print, "", other_folders$project_folder, "<br>")
+      
+      
+    #file_pair ----
+    if (stringr::str_detect(file_checks_list, "file_pair")){
+      if (!is.na(file_info$file_pair_info[1])){
+        if (file_info$file_pair[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd>", file_info$file_pair_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd class=\"bg-danger\">", file_info$file_pair_info, "</dd>")
         }
-        html_to_print <- paste0(html_to_print, "</dd>")
+      }
+    }
+  
+    #itpc ----
+    if (stringr::str_detect(file_checks_list, "itpc")){
+      if (!is.na(file_info$iptc_metadata_info[1])){
+        if (file_info$iptc_metadata[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd>", file_info$iptc_metadata_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd class=\"bg-danger\">", file_info$iptc_metadata_info, "</dd>")
+        }
+      }
+    }
+  
+    #tif_size ----
+    if (stringr::str_detect(file_checks_list, "tif_size")){
+      if (!is.na(file_info$tif_size_info[1])){
+        if (file_info$tif_size[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd>", file_info$tif_size_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd class=\"bg-danger\">", file_info$tif_size_info, "</dd>")
+        }
+      }
+    }
+    
+    #raw_size ----
+    if (stringr::str_detect(file_checks_list, "raw_size")){
+      if (!is.na(file_info$raw_size_info[1])){
+        if (file_info$raw_size[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd>", file_info$raw_size_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd class=\"bg-danger\">", file_info$raw_size_info, "</dd>")
+        }
+      }
+    }
+  
+    #unique_file ----
+    if (stringr::str_detect(file_checks_list, "unique_file")){
+      if (file_info$unique_file[1] > 0){
+        other_folders <- dbGetQuery(db, paste0("SELECT project_folder FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, ")"))
+        if (dim(other_folders)[1] > 0){
+          html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
+          for (j in 1:dim(other_folders)[1]){
+            html_to_print <- paste0(html_to_print, "", other_folders$project_folder, "<br>")
+          }
+          html_to_print <- paste0(html_to_print, "</dd>")
+        }
       }
     }
 
-    if (!is.na(file_info$jhove_info[1])){
-      if (file_info$jhove[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd>", file_info$jhove_info, "</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd class=\"bg-danger\">", file_info$jhove_info, "</dd>")
+    #JHOVE ----
+    if (stringr::str_detect(file_checks_list, "jhove")){
+      if (!is.na(file_info$jhove_info[1])){
+        if (file_info$jhove[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd>", file_info$jhove_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>JHOVE</dt><dd class=\"bg-danger\">", file_info$jhove_info, "</dd>")
+        }
       }
     }
     
-    if (file_info$jpg[1] == 0){
-      html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd>OK</dd>")
-    }else{
-      html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd class=\"bg-danger\">Failed</dd><dt>JPG Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$jpg_info, "</pre></dd>")
+    #JPG ----
+    if (stringr::str_detect(file_checks_list, "jpg")){
+      if (file_info$jpg[1] == 1){
+        html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd class=\"bg-danger\">Failed</dd><dt>JPG Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$jpg_info, "</pre></dd>")
+      }else{
+        html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd>OK</dd>")
+      }
     }
     
-    if (!is.na(file_info$magick_info[1])){
-      if (file_info$magick[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd>OK</dd><dt>Imagemagick details</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd class=\"bg-danger\">Failed</dd><dt>Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
+    #ImageMagick ----
+    if (stringr::str_detect(file_checks_list, "magick")){
+      if (!is.na(file_info$magick_info[1])){
+        if (file_info$magick[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd>OK</dd><dt>Imagemagick details</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd class=\"bg-danger\">Failed</dd><dt>Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
+        }
       }
     }
     
@@ -428,6 +470,7 @@ server <- function(input, output, session) {
                HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"auto\" height = \"200px\"></a><br>"))
         )
       ),
+      hr(),
       HTML(html_to_print)
     )
   })
