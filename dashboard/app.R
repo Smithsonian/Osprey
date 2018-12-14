@@ -281,9 +281,16 @@ server <- function(input, output, session) {
           error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing TIF MD5 file\">Missing TIF MD5 file</span> ")
         }
         
-        #raw md5
-        if (folder_info$md5_raw != 0){
-          error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing RAW MD5 file\">Missing RAW MD5 file</span> ")
+        if (stringr::str_detect(file_checks_list, "jpg")){
+          #jpg md5
+          if (folder_info$md5_jpg != 0){
+            error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing JPG MD5 file\">Missing JPG MD5 file</span> ")
+          }
+        }else{
+          #raw md5
+          if (folder_info$md5_raw != 0){
+            error_msg <- paste0(error_msg, " <span class=\"label label-warning\" title=\"Missing RAW MD5 file\">Missing RAW MD5 file</span> ")
+          }
         }
         
         tagList(
