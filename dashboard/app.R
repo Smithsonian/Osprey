@@ -220,9 +220,14 @@ server <- function(input, output, session) {
             this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Error</span> ")
           }
           
-          #md5
-          md5_file <- dbGetQuery(db, paste0("SELECT md5_tif, md5_raw FROM folders WHERE folder_id = ", folders$folder_id[i]))
-          if ((md5_file$md5_tif != 0) || (md5_file$md5_raw != 0)){
+          #MD5 ----
+          if (stringr::str_detect(file_checks_list, "jpg")){
+            md5_file <- dbGetQuery(db, paste0("SELECT md5_tif + md5_jpg as md5 FROM folders WHERE folder_id = ", folders$folder_id[i]))
+          }else{
+            md5_file <- dbGetQuery(db, paste0("SELECT md5_tif + md5_raw as md5 FROM folders WHERE folder_id = ", folders$folder_id[i]))
+          }
+          
+          if ((md5_file$md5 > 0)){
             this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Missing MD5 file\">MD5</span> ")
           }
         }else{

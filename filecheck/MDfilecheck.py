@@ -64,7 +64,7 @@ logger1 = logging.getLogger("vendor")
 
 def check_folder(folder_name, folder_path, project_id, db_cursor):
     """
-    Check if a folder exists
+    Check if a folder exists, add if not
     """
     if settings.folder_name == "server_folder":
         server_folder_path = folder_path.split("/")
@@ -76,13 +76,15 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
-        q_insert = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, project_id) VALUES ('{}', '{}', 0, 0, 0, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
+        q_insert = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, md5_jpg, project_id) VALUES ('{}', '{}', 0, 9, 9, 9, {}) RETURNING folder_id".format(folder_name, folder_path, project_id)
         logger1.info(q)
         db_cursor.execute(q_insert)
         folder_id = db_cursor.fetchone()
-    query_date = "UPDATE folders SET date = {} where project_id={}".format(settings.folder_date, project_id)
-    logger1.info(query_date)
-    db_cursor.execute(query_date)
+    if settings.folder_date != "":
+        #Update to set date of folder
+        query_date = "UPDATE folders SET date = {} where project_id={}".format(settings.folder_date, project_id)
+        logger1.info(query_date)
+        db_cursor.execute(query_date)
     return folder_id[0]
 
 
@@ -118,6 +120,7 @@ def jhove_validate(file_id, filename, db_cursor):
     else:
         jhove_val = 1
         if len(doc['jhove']['repInfo']['messages']) == 1:
+            #If error is with the WB, ignore
             if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
@@ -174,7 +177,7 @@ def itpc_validate(file_id, filename, db_cursor):
     # q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
     # logger1.info(q_meta)
     # db_cursor.execute(q_meta)
-    return True
+    return False
 
 
 def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor):
@@ -188,9 +191,11 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
     tif_file = "{}/{}.{}".format(tif_path, file_stem, file_tif)
     raw_file = "{}/{}.{}".format(raw_path, file_stem, file_raw)
     if os.path.isfile(tif_file) != True:
+        #Tif file is missing
         file_pair = 1
         file_pair_info = "Missing tif"
     elif os.path.isfile(raw_file) != True:
+        #Raw file is missing
         file_pair = 1
         file_pair_info = "Missing {} file".format(settings.raw_files)
     else:
@@ -597,6 +602,24 @@ def main():
                             # pool = multiprocessing.Pool(settings.no_workers)
                             # res = pool.starmap(process_raw, files)
                             # pool.close()
+                    if 'jpg' in settings.project_checks:
+                        for file in os.scandir(folder_path + "/" + settings.jpg_files_path):
+                            if file.is_file():
+                                filename = file.name
+                                #JPG Files
+                                # if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                                #     #files.append((filename, folder_path, folder_id, settings.raw_files))
+                                #     process_raw(filename, folder_path, folder_id, settings.raw_files)
+                                #elif (Path(filename).suffix.lower() == ".md5"):
+                                if (Path(filename).suffix.lower() == ".md5"):
+                                    #MD5 file
+                                    q_md5 = "UPDATE folders SET md5_jpg = 0 WHERE folder_id = {}".format(folder_id)
+                                    logger1.info(q_md5)
+                                    db_cursor.execute(q_md5)
+                                #Parallel steps
+                                # pool = multiprocessing.Pool(settings.no_workers)
+                                # res = pool.starmap(process_raw, files)
+                                # pool.close()
         #Disconnect from db
         conn.close()
         logger1.info("Sleeping for {} secs".format(settings.sleep))
