@@ -495,18 +495,32 @@ server <- function(input, output, session) {
     
     html_to_print <- paste0(html_to_print, "</dl>")
     
-    tagList(
-      fluidRow(
-        column(width = 6,
-               HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+    if (stringr::str_detect(file_checks_list, "jpg")){
+      tagList(
+        fluidRow(
+          column(width = 6,
+                 HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+          ),
+          column(width = 6,
+                 HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+          )
         ),
-        column(width = 6,
-               HTML(paste0("<p>JPG preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, "_jpg.jpg\" width = \"160px\" height = \"auto\"></a><br>"))
-        )
-      ),
-      hr(),
-      HTML(html_to_print)
-    )
+        hr(),
+        HTML(html_to_print)
+      )
+    }else{
+      tagList(
+        fluidRow(
+          column(width = 12,
+                 HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+          )
+        ),
+        hr(),
+        HTML(html_to_print)
+      )
+    }
+    
+    
   })
   
   
