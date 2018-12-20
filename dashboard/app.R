@@ -481,6 +481,15 @@ server <- function(input, output, session) {
       }
     }
     
+    #tifpages ----
+    if (stringr::str_detect(file_checks_list, "tifpages")){
+      if (file_info$tifpages[1] == 1){
+        html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-danger\">Failed, there are multiple pages in the TIF</dd>")
+      }else{
+        html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd>No</dd>")
+      }
+    }
+    
     #ImageMagick ----
     if (stringr::str_detect(file_checks_list, "magick")){
       if (!is.na(file_info$magick_info[1])){

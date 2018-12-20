@@ -421,9 +421,21 @@ def process_tif(filename, folder_path, folder_id):
             #JPG check
             jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
             logger1.info("jpg_check:{}".format(jpg_check))
+        if 'tifpages' in settings.project_checks:
+            #Check if tif has multiple pages
+            p = subprocess.Popen(['identify', '-format', '%n', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename)], stdout=PIPE,stderr=PIPE)
+            (out,err) = p.communicate()
+            if int(out) == 1:
+                pages_vals = 0
+            else:
+                pages_vals = 1
+            q_multipage = "UPDATE files SET tifpages = 1, tifpages_info = {} WHERE file_id = {}".format(int(out), file_id)
+            logger1.info(q_multipage)
+            db_cursor.execute(q_multipage)
         #Store MD5
         file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
         logger1.info("tif_md5:{}".format(file_md5))
+        #Create preview image
         preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
         preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
         #Create subfolder if it doesn't exists
