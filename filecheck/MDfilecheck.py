@@ -432,7 +432,8 @@ def process_tif(filename, folder_path, folder_id):
         #Delete old image, if exists
         if os.path.isfile(preview_image):
             os.unlink(preview_image)
-        subprocess.Popen(['convert', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        logger1.info("preview_image:{}".format(preview_image))
+        subprocess.Popen(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
         #Disconnect from db
         conn2.close()
         return True

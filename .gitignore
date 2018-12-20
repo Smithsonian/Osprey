@@ -109,3 +109,5 @@ settings.py
 
 *.Rproj
 dashboard/.Rhistory
+*.jpg
+*.tif
