@@ -434,7 +434,7 @@ def process_tif(filename, folder_path, folder_id):
             except:
                 no_pages = "Unknown"
                 pages_vals = 1
-            q_multipage = "UPDATE files SET tifpages = {}, tifpages_info = {} WHERE file_id = {}".format(pages_vals, no_pages, file_id)
+            q_multipage = "UPDATE files SET tifpages = {}, tifpages_info = '{}' WHERE file_id = {}".format(pages_vals, no_pages, file_id)
             logger1.info(q_multipage)
             db_cursor.execute(q_multipage)
         #Store MD5
