@@ -379,6 +379,14 @@ def process_tif(filename, folder_path, folder_id):
         logger1.info(q_insert)
         db_cursor.execute(q_insert)
         file_id = db_cursor.fetchone()[0]
+        if settings.use_item_id == True:
+            q_insert = "UPDATE files SET item_no = {} WHERE file_id = {}".format(settings.item_id, file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
+        else:
+            q_insert = "UPDATE files SET item_no = file_name WHERE file_id = {}".format(settings.item_id, file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
     else:
         file_id = file_id[0]
     print("file_id: {}".format(file_id))
@@ -495,6 +503,14 @@ def process_raw(filename, folder_path, folder_id, raw):
         logger1.info(q_insert)
         db_cursor.execute(q_insert)
         file_id = db_cursor.fetchone()[0]
+        if settings.use_item_id == True:
+            q_insert = "UPDATE files SET item_no = {} WHERE file_id = {}".format(settings.item_id, file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
+        else:
+            q_insert = "UPDATE files SET item_no = file_name WHERE file_id = {}".format(settings.item_id, file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
     else:
         file_id = file_id[0]
     print("file_id: {}".format(file_id))

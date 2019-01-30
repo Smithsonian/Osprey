@@ -36,9 +36,10 @@ ui <- dashboardPage(
   #Body----
   dashboardBody(
     fluidRow(
-      valueBoxOutput("boxgreen"),
-      valueBoxOutput("boxred"),
-      valueBoxOutput("totalbox")
+      valueBoxOutput("box_ok", width = 3),
+      valueBoxOutput("box_error", width = 3),
+      valueBoxOutput("itemcount", width = 3),
+      valueBoxOutput("totalbox", width = 3)
       ),
     fluidRow(
       column(width = 2,
@@ -80,10 +81,9 @@ server <- function(input, output, session) {
   file_checks_list <<- dbGetQuery(db, paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id))
   file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
   
-  #Boxred ----
-  output$boxred <- renderValueBox({
-    
-    status_query <- "SELECT e.count_error, o.count_ok, t.count_total FROM
+  #Box_error ----
+  output$box_error <- renderValueBox({
+    status_query <- "SELECT e.count_error, o.count_ok, t.count_total, i.item_count FROM
                             (SELECT count(*) AS count_error FROM files where ("
     
     for (f in 1:length(file_checks)){
@@ -91,7 +91,6 @@ server <- function(input, output, session) {
     }
     
     status_query <- stringr::str_sub(status_query, 0, -5)
-    
     status_query <- paste0(status_query, ") and 
                     folder_id in (select folder_id from folders where project_id = ", project_id, ")) e,
                     (SELECT count(*) AS count_ok FROM files where (")
@@ -101,9 +100,9 @@ server <- function(input, output, session) {
     }
     
     status_query <- stringr::str_sub(status_query, 0, -4)
-    
     status_query <- paste0(status_query, ") = 0 and folder_id in (select folder_id from folders where project_id = ", project_id, ")) o,
-                            (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t")
+                            (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t,
+                           (SELECT count(DISTINCT item_no) as item_count FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) i")
     
     files_status <<- dbGetQuery(db, status_query)
     
@@ -118,14 +117,13 @@ server <- function(input, output, session) {
       err_files_count, err_files_subtitle, icon = icon("exclamation-sign", lib = "glyphicon"),
       color = "red"
     )
-    
   })
   
   
   
   
-  #Boxgreen ----
-  output$boxgreen <- renderValueBox({
+  #box_ok ----
+  output$box_ok <- renderValueBox({
     if (files_status$count_total == 0){
       ok_files_count <- "NA"
       ok_files_subtitle <- "Files OK"
@@ -140,12 +138,21 @@ server <- function(input, output, session) {
   })
     
   
+  #Itemcount----
+  output$itemcount <- renderValueBox({
+    valueBox(
+      files_status$item_count, "No. of Items", icon = icon("file", lib = "glyphicon"),
+      color = "blue"
+    )
+  })
+  
+  
   
   #Totalbox----
   output$totalbox <- renderValueBox({
     valueBox(
-      files_status$count_total, "Total Files", icon = icon("file", lib = "glyphicon"),
-      color = "blue"
+      files_status$count_total, "No. of Images", icon = icon("picture", lib = "glyphicon"),
+      color = "teal"
     )
   })
     
@@ -155,7 +162,6 @@ server <- function(input, output, session) {
   
   #boxleft----
   output$boxleft <- renderUI({
-    
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
@@ -178,13 +184,11 @@ server <- function(input, output, session) {
         }
         
         count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
-        #cat(count_files)
         folder_files <- dbGetQuery(db, count_files)
         this_folder <- paste0(this_folder, " <span class=\"badge pull-right\" title=\"No. of files\">", folder_files$no_files, "</span> ")
         
         #Only if there are any files
         if (folder_files$no_files > 0){
-          
           error_files_query <- paste0("SELECT count(*) AS count_error FROM files WHERE folder_id = ", folders$folder_id[i], " AND (")
           
           for (f in 1:length(file_checks)){
@@ -192,13 +196,9 @@ server <- function(input, output, session) {
           }
           
           error_files_query <- stringr::str_sub(error_files_query, 0, -5)
-          
           error_files_query <- paste0(error_files_query, ")")
-          
           error_files <- dbGetQuery(db, error_files_query)
-
           if (error_files == 0){
-            
             #Check if all have been checked
             checked_files_query <- paste0("SELECT count(*) AS count_checked FROM files WHERE folder_id = ", folders$folder_id[i], " AND (")
             
@@ -207,11 +207,8 @@ server <- function(input, output, session) {
             }
             
             checked_files_query <- stringr::str_sub(checked_files_query, 0, -5)
-            
             checked_files_query <- paste0(checked_files_query, ")")
-            
             checked_files <- dbGetQuery(db, checked_files_query)
-            
             if (checked_files == 0){
               this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">OK</span> ")
             }
@@ -246,7 +243,6 @@ server <- function(input, output, session) {
     }
     
     list_of_folders <- paste0(list_of_folders, "</div>")
-    
     HTML(list_of_folders)
   })
   
@@ -309,7 +305,6 @@ server <- function(input, output, session) {
           hr()
         )
       }
-      
     }
   })
   
@@ -356,8 +351,7 @@ server <- function(input, output, session) {
           caption = htmltools::tags$caption(
             style = 'caption-side: bottom; text-align: center;',
             'Codes: 0 = OK, 1 = error, 9 = not checked yet'
-          )
-          ) %>% DT::formatStyle(
+          )) %>% DT::formatStyle(
             2:no_cols,
             backgroundColor = DT::styleEqual(c(0, 1, 9), c('#00a65a', '#d9534f', '#777')),
             color = 'white'
@@ -381,13 +375,11 @@ server <- function(input, output, session) {
     
     file_id <- files_data[input$files_table_rows_selected, ]$file_id
     
-    
     html_to_print <- "<h4>File info</h4><dl class=\"dl-horizontal\">"
-    
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
-    
+    html_to_print <- paste0(html_to_print, "<dt>File ID</dt><dd>", file_info$file_id, "</dd>")
+    html_to_print <- paste0(html_to_print, "<dt>Item number</dt><dd>", file_info$item_no, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>File timestamp</dt><dd>", file_info$filedate, "</dd>")
-    
     html_to_print <- paste0(html_to_print, "<dt>Imported on</dt><dd>", file_info$date, "</dd>")
     
     if (!is.null(file_info$tif_md5)){
@@ -501,7 +493,6 @@ server <- function(input, output, session) {
       }
     }
     
-    
     html_to_print <- paste0(html_to_print, "</dl>")
     
     if (stringr::str_detect(file_checks_list, "jpg")){
@@ -528,8 +519,6 @@ server <- function(input, output, session) {
         HTML(html_to_print)
       )
     }
-    
-    
   })
   
   
@@ -537,10 +526,9 @@ server <- function(input, output, session) {
   
   #Footer ----
   output$footer <- renderUI({
-    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
-  })
-  
-}
+      HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    })
+  }
 
 
 
