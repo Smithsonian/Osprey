@@ -11,7 +11,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3"
+app_ver <- "0.3.1"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
