@@ -530,6 +530,13 @@ def process_raw(filename, folder_path, folder_id, raw):
         result = db_cursor.fetchone()
         file_checks = file_checks + result[0]
     if file_checks == 0:
+        #File ok, check if it hasn't been deleted
+        file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.raw_files_path, filename))
+        if file_exists == False:
+            logger1.info("File {} is gone, deleting".format(filename))
+            q_delfile = queries.delete_file.format(file_id)
+            logger1.info(q_checkfile)
+            db_cursor.execute(q_checkfile)
         #File ok, don't run checks
         logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
