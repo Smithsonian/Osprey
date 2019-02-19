@@ -297,9 +297,7 @@ server <- function(input, output, session) {
             column(width = 6,
                    if (!is.na(folder_info$notes)){
                      p(em(folder_info$notes))},
-                   p("Folder imported on: ", folder_info$import_date),
-                   p("Last update on: ", folder_info$updated_at),
-                   br(),
+                   p("Folder imported on: ", folder_info$import_date, br(), "Last update on: ", folder_info$updated_at),
                    HTML(error_msg)
             )
           ),
