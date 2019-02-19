@@ -91,6 +91,18 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     return folder_id[0]
 
 
+
+def folder_updated_at(folder_id, db_cursor):
+    """
+    Update the last time the folder was checked
+    """
+    q_update = queries.folder_updated_at.format(folder_id)
+    logger1.info(q)
+    db_cursor.execute(q_update)
+    return folder_id
+
+
+
 def jhove_validate(file_id, filename, db_cursor):
     """
     Validate the file with JHOVE
@@ -133,6 +145,7 @@ def jhove_validate(file_id, filename, db_cursor):
     return file_status
 
 
+
 def magick_validate(file_id, filename, db_cursor, paranoid = False):
     """
     Validate the file with Imagemagick
@@ -159,6 +172,7 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     return return_code
 
 
+
 def itpc_validate(file_id, filename, db_cursor):
     """
     Check the IPTC Metadata
@@ -181,6 +195,7 @@ def itpc_validate(file_id, filename, db_cursor):
     # logger1.info(q_meta)
     # db_cursor.execute(q_meta)
     return False
+
 
 
 def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor):
@@ -208,6 +223,7 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
     logger1.info(q_pair)
     db_cursor.execute(q_pair)
     return (os.path.isfile(tif_file), os.path.isfile(raw_file))
+
 
 
 def file_size_check(filename, filetype, file_id, db_cursor):
@@ -243,11 +259,13 @@ def file_size_check(filename, filetype, file_id, db_cursor):
     return True
 
 
+
 def delete_folder_files(folder_id, db_cursor):
     q_insert = queries.del_folder_files.format(folder_id)
     logger1.info(q_insert)
     db_cursor.execute(q_insert)
     return True
+
 
 
 def filemd5(file_id, filepath, filetype, db_cursor):
@@ -265,6 +283,7 @@ def filemd5(file_id, filepath, filetype, db_cursor):
     logger1.info(q_insert)
     db_cursor.execute(q_insert)
     return True
+
 
 
 def checkmd5file(md5_file, folder_id, filetype, db_cursor):
@@ -308,6 +327,7 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor):
     return True
 
 
+
 def check_jpg(file_id, filename, db_cursor):
     """
     Run checks for jpg files
@@ -340,6 +360,7 @@ def check_jpg(file_id, filename, db_cursor):
         file_md5 = filemd5(file_id, filename, "jpg", db_cursor)
         logger1.info("jpg_md5:{}".format(file_md5))
     return magick_return
+
 
 
 def process_tif(filename, folder_path, folder_id):
@@ -399,15 +420,16 @@ def process_tif(filename, folder_path, folder_id):
         file_checks = file_checks + result[0]
     if file_checks == 0:
         #File ok, check if it hasn't been deleted
-        file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
-        if file_exists == False:
-            logger1.info("File {} is gone, deleting".format(filename))
-            q_delfile = queries.delete_file.format(file_id)
-            logger1.info(q_checkfile)
-            db_cursor.execute(q_checkfile)
-        else:
-            #File ok, don't run checks
-            logger1.info("File with ID {} is OK, skipping".format(file_id))
+        #file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
+        # if file_exists == False:
+        #     logger1.info("File {} is gone, deleting".format(filename))
+        #     q_delfile = queries.delete_file.format(file_id)
+        #     logger1.info(q_delfile)
+        #     db_cursor.execute(q_delfile)
+        # else:
+        #     #File ok, don't run checks
+        #     logger1.info("File with ID {} is OK, skipping".format(file_id))
+        logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
         conn2.close()
         return True
@@ -531,12 +553,12 @@ def process_raw(filename, folder_path, folder_id, raw):
         file_checks = file_checks + result[0]
     if file_checks == 0:
         #File ok, check if it hasn't been deleted
-        file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.raw_files_path, filename))
-        if file_exists == False:
-            logger1.info("File {} is gone, deleting".format(filename))
-            q_delfile = queries.delete_file.format(file_id)
-            logger1.info(q_checkfile)
-            db_cursor.execute(q_checkfile)
+        # file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.raw_files_path, filename))
+        # if file_exists == False:
+        #     logger1.info("File {} is gone, deleting".format(filename))
+        #     q_delfile = queries.delete_file.format(file_id)
+        #     logger1.info(q_delfile)
+        #     db_cursor.execute(q_delfile)
         #File ok, don't run checks
         logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
@@ -558,6 +580,37 @@ def process_raw(filename, folder_path, folder_id, raw):
         conn2.close()
         return True
 
+
+
+def check_deleted():
+    """
+    Deleted files are removed from the database
+    """
+    #Connect to the database
+    try:
+        logger1.info("Connecting to database")
+        conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+    except:
+        logger1.error("Could not connect to server.")
+        sys.exit(1)
+    conn2.autocommit = True
+    db_cursor = conn2.cursor()
+    get_files = queries.get_files.format(settings.project_id)
+    logger1.info(get_files)
+    db_cursor.execute(get_files)
+    files = db_cursor.fetchall()
+    for file in files:
+        #file_exists = os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1]))
+        #if file_exists == True:
+        if os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1])) == True:
+            logger1.info("File {}/{}/{}.tif was found".format(file[2], settings.tif_files_path, file[1]))
+        else:
+            logger1.error("File {}/{}/{}.tif is gone, deleting".format(file[2], settings.tif_files_path, file[1]))
+            q_delfile = queries.delete_file.format(file[0])
+            logger1.info(q_delfile)
+            db_cursor.execute(q_delfile)
+    conn2.close()
+    return True
 
 
 def main():
@@ -668,6 +721,9 @@ def main():
                                 # pool = multiprocessing.Pool(settings.no_workers)
                                 # res = pool.starmap(process_raw, files)
                                 # pool.close()
+                folder_updated_at(folder_id, db_cursor)
+        #Check for deleted files
+        check_deleted()
         #Disconnect from db
         conn.close()
         logger1.info("Sleeping for {} secs".format(settings.sleep))

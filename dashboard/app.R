@@ -11,7 +11,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.1"
+app_ver <- "0.3.2"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -260,7 +260,7 @@ server <- function(input, output, session) {
       p("Select a folder from the list on the left")
     }else{
       
-      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date FROM folders WHERE folder_id = ", which_folder))
+      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at FROM folders WHERE folder_id = ", which_folder))
       if (dim(folder_info)[1] == 0){
         p("Select a folder from the list on the left")
       }else{
@@ -298,6 +298,7 @@ server <- function(input, output, session) {
                    if (!is.na(folder_info$notes)){
                      p(em(folder_info$notes))},
                    p("Folder imported on: ", folder_info$import_date),
+                   p("Last update on: ", folder_info$updated_at),
                    br(),
                    HTML(error_msg)
             )

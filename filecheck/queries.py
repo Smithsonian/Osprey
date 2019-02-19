@@ -6,6 +6,8 @@ new_folder = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_ra
 
 folder_date = "UPDATE folders SET date = {} where project_id={}"
 
+folder_updated_at = "UPDATE folders SET updated_at = NOW() where folder_id={}"
+
 jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}"
 
 update_item_no = "UPDATE files SET item_no = {} WHERE file_id = {}"
@@ -49,3 +51,5 @@ update_folder_0 = "UPDATE folders SET status = 0 WHERE folder_id = {}"
 update_folders_md5 = "UPDATE folders SET md5_{} = 0 WHERE folder_id = {}"
 
 delete_file = "DELETE FROM files WHERE file_id = {}"
+
+get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = {}"
