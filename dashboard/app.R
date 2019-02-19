@@ -260,7 +260,7 @@ server <- function(input, output, session) {
       p("Select a folder from the list on the left")
     }else{
       
-      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at FROM folders WHERE folder_id = ", which_folder))
+      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted FROM folders WHERE folder_id = ", which_folder))
       if (dim(folder_info)[1] == 0){
         p("Select a folder from the list on the left")
       }else{
@@ -297,7 +297,7 @@ server <- function(input, output, session) {
             column(width = 6,
                    if (!is.na(folder_info$notes)){
                      p(em(folder_info$notes))},
-                   p("Folder imported on: ", folder_info$import_date, br(), "Last update on: ", folder_info$updated_at),
+                   p("Folder imported on: ", folder_info$import_date, br(), "Last update on: ", folder_info$updated_at_formatted),
                    HTML(error_msg)
             )
           ),
