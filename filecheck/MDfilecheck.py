@@ -97,7 +97,7 @@ def folder_updated_at(folder_id, db_cursor):
     Update the last time the folder was checked
     """
     q_update = queries.folder_updated_at.format(folder_id)
-    logger1.info(q)
+    logger1.info(q_update)
     db_cursor.execute(q_update)
     return folder_id
 
