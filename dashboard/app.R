@@ -167,25 +167,28 @@ server <- function(input, output, session) {
     
     folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder ASC"))
     
-    last_update <- as.numeric(dbGetQuery(db, "SELECT 
+    if (project_active == TRUE){
+      last_update <- as.numeric(dbGetQuery(db, "SELECT 
                             to_char(NOW() - max(last_update), 'SS')
                              AS last_update FROM
                         (SELECT max(updated_at) AS last_update FROM folders
                         UNION
                         SELECT max(last_update) AS last_update FROM files)
                         a"))
-    
-    if (last_update > 180){
-      last_update_m <- ceiling(last_update / 3)
-      if (last_update > 3600){
-        last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago. <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
+      
+      if (last_update > 180){
+        last_update_m <- ceiling(last_update / 3)
+        if (last_update > 3600){
+          last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago. <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
+        }else{
+          last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago.</p>")
+        }
       }else{
-        last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago.</p>")
+        last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago.</p>")
       }
     }else{
-      last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago.</p>")
+      last_update_text <- ""
     }
-    
     
     list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<br><div class=\"list-group\">")
     

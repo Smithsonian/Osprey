@@ -1,0 +1,10 @@
+pg_user <- ""
+pg_pass <- ""
+pg_host <- ""
+pg_db <- ""
+
+project_id <- 101
+
+jpg_previews <- "/mnt/machine"
+
+project_active <- TRUE
