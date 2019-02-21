@@ -14,6 +14,9 @@ from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE
 from datetime import datetime
+#For parallel
+from functools import partial
+from itertools import repeat
 import multiprocessing as mp
 
 
@@ -28,6 +31,9 @@ import queries
 ##System Settings
 jhove_path = settings.jhove_path
 
+
+##Save current directory
+filecheck_dir = os.getcwd()
 
 
 ##Set locale
@@ -675,27 +681,33 @@ def main():
                     logger1.info(q)
                     db_cursor.execute(q)
                     #Both folders present
-                    files = list()
-                    #For parallel
-                    #files = glob.glob(folder_path + "/" + settings.tif_files_path, "*.tif")
-                    for file in os.scandir(folder_path + "/" + settings.tif_files_path):
-                        if file.is_file():
-                            filename = file.name
-                            #TIF Files
-                            if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
-                                #files.append((filename, folder_path, str(folder_id)))
-                                process_tif(filename, folder_path, folder_id)
-                            elif (Path(filename).suffix.lower() == ".md5"):
-                                #MD5 file
-                                q_md5 = queries.update_folders_md5.format("tif", folder_id)
-                                logger1.info(q_md5)
-                                db_cursor.execute(q_md5)
-                            #Parallel steps
-                            # pool = mp.Pool(settings.no_workers)
-                            # res = pool.starmap(process_tif, files)
-                            # OR res = pool.imap_unordered(process_tif, files)
-                            # pool.close()
-                    files = list()
+                    ##############################
+                    #Parallel
+                    ##############################
+                    os.chdir(folder_path + "/" + settings.tif_files_path)
+                    files = glob.glob("*.tif")
+                    pool = mp.Pool(settings.no_workers)
+                    #res = pool.starmap(process_tif, (files, folder_path, folder_id))
+                    #res = pool.map(partial(process_tif, folder_path = folder_path, folder_id = folder_id), files)
+                    res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id)))
+                    pool.close()
+                    #MD5
+                    for file in glob.glob("*.md5"):
+                        q_md5 = queries.update_folders_md5.format("tif", folder_id)
+                        logger1.info(q_md5)
+                        db_cursor.execute(q_md5)
+                    # for file in os.scandir(folder_path + "/" + settings.tif_files_path):
+                    #     if file.is_file():
+                    #         filename = file.name
+                    #         #TIF Files
+                    #         if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
+                    #             #files.append((filename, folder_path, str(folder_id)))
+                    #             process_tif(filename, folder_path, folder_id)
+                    #         elif (Path(filename).suffix.lower() == ".md5"):
+                    #             #MD5 file
+                    #             q_md5 = queries.update_folders_md5.format("tif", folder_id)
+                    #             logger1.info(q_md5)
+                    #             db_cursor.execute(q_md5)
                     for file in os.scandir(folder_path + "/" + settings.raw_files_path):
                         if file.is_file():
                             filename = file.name
@@ -733,6 +745,7 @@ def main():
                 folder_updated_at(folder_id, db_cursor)
         #Check for deleted files
         check_deleted()
+        os.chdir(filecheck_dir)
         #Disconnect from db
         conn.close()
         logger1.info("Sleeping for {} secs".format(settings.sleep))
