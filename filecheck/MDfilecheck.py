@@ -4,7 +4,7 @@
 # Version 0.4
 
 ##Import modules
-import os, sys, subprocess, locale, logging, time
+import os, sys, subprocess, locale, logging, time, glob
 import xmltodict, exifread, json, bitmath, pandas
 #For Postgres
 import psycopg2
@@ -14,7 +14,7 @@ from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE
 from datetime import datetime
-import multiprocessing
+import multiprocessing as mp
 
 
 ##Import settings from settings.py file
@@ -615,6 +615,12 @@ def check_deleted():
 
 def main():
     while True:
+        #Check that the paths are mounted
+        for p_path in settings.project_paths:
+            if os.path.ismount(p_path) == False:
+                logger1.error("Path not found: {}".format(p_path))
+                time.sleep(settings.sleep)
+                continue
         #Connect to the database
         try:
             logger1.info("Connecting to database")
@@ -670,6 +676,8 @@ def main():
                     db_cursor.execute(q)
                     #Both folders present
                     files = list()
+                    #For parallel
+                    #files = glob.glob(folder_path + "/" + settings.tif_files_path, "*.tif")
                     for file in os.scandir(folder_path + "/" + settings.tif_files_path):
                         if file.is_file():
                             filename = file.name
@@ -683,8 +691,9 @@ def main():
                                 logger1.info(q_md5)
                                 db_cursor.execute(q_md5)
                             #Parallel steps
-                            # pool = multiprocessing.Pool(settings.no_workers)
+                            # pool = mp.Pool(settings.no_workers)
                             # res = pool.starmap(process_tif, files)
+                            # OR res = pool.imap_unordered(process_tif, files)
                             # pool.close()
                     files = list()
                     for file in os.scandir(folder_path + "/" + settings.raw_files_path):
@@ -700,7 +709,7 @@ def main():
                                 logger1.info(q_md5)
                                 db_cursor.execute(q_md5)
                             #Parallel steps
-                            # pool = multiprocessing.Pool(settings.no_workers)
+                            # pool = mp.Pool(settings.no_workers)
                             # res = pool.starmap(process_raw, files)
                             # pool.close()
                     if 'jpg' in settings.project_checks:
@@ -718,7 +727,7 @@ def main():
                                     logger1.info(q_md5)
                                     db_cursor.execute(q_md5)
                                 #Parallel steps
-                                # pool = multiprocessing.Pool(settings.no_workers)
+                                # pool = mp.Pool(settings.no_workers)
                                 # res = pool.starmap(process_raw, files)
                                 # pool.close()
                 folder_updated_at(folder_id, db_cursor)
@@ -742,6 +751,9 @@ if __name__=="__main__":
     except KeyboardInterrupt:
         logger1.info("Ctrl-C detected. Leaving program.")
         sys.exit(0)
+    except:
+        logger1.error("There was an error: {}".format(sys.exc_info()[0]))
+        time.sleep(settings.sleep)
 
 
 sys.exit(0)
