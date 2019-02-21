@@ -109,6 +109,17 @@ def folder_updated_at(folder_id, db_cursor):
 
 
 
+def file_updated_at(file_id, db_cursor):
+    """
+    Update the last time the file was checked
+    """
+    q_update = queries.file_updated_at.format(file_id)
+    logger1.info(q_update)
+    db_cursor.execute(q_update)
+    return file_id
+
+
+
 def jhove_validate(file_id, filename, db_cursor):
     """
     Validate the file with JHOVE
@@ -435,6 +446,7 @@ def process_tif(filename, folder_path, folder_id):
         # else:
         #     #File ok, don't run checks
         #     logger1.info("File with ID {} is OK, skipping".format(file_id))
+        file_updated_at(file_id, db_cursor)
         logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
         conn2.close()
@@ -495,6 +507,7 @@ def process_tif(filename, folder_path, folder_id):
         logger1.info("preview_image:{}".format(preview_image))
         subprocess.Popen(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
         #Disconnect from db
+        file_updated_at(file_id, db_cursor)
         conn2.close()
         return True
 

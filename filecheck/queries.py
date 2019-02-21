@@ -8,6 +8,8 @@ folder_date = "UPDATE folders SET date = {} where project_id={}"
 
 folder_updated_at = "UPDATE folders SET updated_at = NOW() where folder_id={}"
 
+file_updated_at = "UPDATE files SET last_update = NOW() where file_id={}"
+
 jhove = "UPDATE files SET jhove = {}, jhove_info = '{}' WHERE file_id = {}"
 
 update_item_no = "UPDATE files SET item_no = {} WHERE file_id = {}"
