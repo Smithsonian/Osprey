@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.4
+# Version 0.4.1
 
 ##Import modules
 import os, sys, subprocess, locale, logging, time, glob
@@ -436,16 +436,6 @@ def process_tif(filename, folder_path, folder_id):
         result = db_cursor.fetchone()
         file_checks = file_checks + result[0]
     if file_checks == 0:
-        #File ok, check if it hasn't been deleted
-        #file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
-        # if file_exists == False:
-        #     logger1.info("File {} is gone, deleting".format(filename))
-        #     q_delfile = queries.delete_file.format(file_id)
-        #     logger1.info(q_delfile)
-        #     db_cursor.execute(q_delfile)
-        # else:
-        #     #File ok, don't run checks
-        #     logger1.info("File with ID {} is OK, skipping".format(file_id))
         file_updated_at(file_id, db_cursor)
         logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
@@ -571,14 +561,6 @@ def process_raw(filename, folder_path, folder_id, raw):
         result = db_cursor.fetchone()
         file_checks = file_checks + result[0]
     if file_checks == 0:
-        #File ok, check if it hasn't been deleted
-        # file_exists = os.path.exists("{}/{}/{}".format(folder_path, settings.raw_files_path, filename))
-        # if file_exists == False:
-        #     logger1.info("File {} is gone, deleting".format(filename))
-        #     q_delfile = queries.delete_file.format(file_id)
-        #     logger1.info(q_delfile)
-        #     db_cursor.execute(q_delfile)
-        #File ok, don't run checks
         logger1.info("File with ID {} is OK, skipping".format(file_id))
         #Disconnect from db
         conn2.close()
@@ -695,13 +677,15 @@ def main():
                     db_cursor.execute(q)
                     #Both folders present
                     ##############################
-                    #Parallel
+                    #Check the tifs in parallel
                     ##############################
                     os.chdir(folder_path + "/" + settings.tif_files_path)
                     files = glob.glob("*.tif")
+                    #Remove temp files
+                    if settings.ignore_string != None:
+                        files = [ x for x in files if settings.ignore_string not in x ]
+                    #Parallel
                     pool = mp.Pool(settings.no_workers)
-                    #res = pool.starmap(process_tif, (files, folder_path, folder_id))
-                    #res = pool.map(partial(process_tif, folder_path = folder_path, folder_id = folder_id), files)
                     res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id)))
                     pool.close()
                     #MD5
@@ -709,52 +693,33 @@ def main():
                         q_md5 = queries.update_folders_md5.format("tif", folder_id)
                         logger1.info(q_md5)
                         db_cursor.execute(q_md5)
-                    # for file in os.scandir(folder_path + "/" + settings.tif_files_path):
-                    #     if file.is_file():
-                    #         filename = file.name
-                    #         #TIF Files
-                    #         if (Path(filename).suffix.lower() == ".tiff" or Path(filename).suffix.lower() == ".tif"):
-                    #             #files.append((filename, folder_path, str(folder_id)))
-                    #             process_tif(filename, folder_path, folder_id)
-                    #         elif (Path(filename).suffix.lower() == ".md5"):
-                    #             #MD5 file
-                    #             q_md5 = queries.update_folders_md5.format("tif", folder_id)
-                    #             logger1.info(q_md5)
-                    #             db_cursor.execute(q_md5)
                     for file in os.scandir(folder_path + "/" + settings.raw_files_path):
                         if file.is_file():
-                            filename = file.name
-                            #TIF Files
-                            if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                                #files.append((filename, folder_path, folder_id, settings.raw_files))
-                                process_raw(filename, folder_path, folder_id, settings.raw_files)
-                            elif (Path(filename).suffix.lower() == ".md5"):
-                                #MD5 file
-                                q_md5 = queries.update_folders_md5.format("raw", folder_id)
-                                logger1.info(q_md5)
-                                db_cursor.execute(q_md5)
-                            #Parallel steps
-                            # pool = mp.Pool(settings.no_workers)
-                            # res = pool.starmap(process_raw, files)
-                            # pool.close()
-                    if 'jpg' in settings.project_checks:
-                        for file in os.scandir(folder_path + "/" + settings.jpg_files_path):
-                            if file.is_file():
+                            if settings.ignore_string != None:
+                                files = [ x for x in files if settings.ignore_string not in x ]
+                    with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
+                        for file in files:
+                            if not file.name.startswith(settings.ignore_string) and file.is_file():
                                 filename = file.name
-                                #JPG Files
-                                # if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                                #     #files.append((filename, folder_path, folder_id, settings.raw_files))
-                                #     process_raw(filename, folder_path, folder_id, settings.raw_files)
-                                #elif (Path(filename).suffix.lower() == ".md5"):
-                                if (Path(filename).suffix.lower() == ".md5"):
+                                #TIF Files
+                                if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                                    #If the file matches the raw extension
+                                    process_raw(filename, folder_path, folder_id, settings.raw_files)
+                                elif (Path(filename).suffix.lower() == ".md5"):
                                     #MD5 file
-                                    q_md5 = queries.update_folders_md5.format("jpg", folder_id)
+                                    q_md5 = queries.update_folders_md5.format("raw", folder_id)
                                     logger1.info(q_md5)
                                     db_cursor.execute(q_md5)
-                                #Parallel steps
-                                # pool = mp.Pool(settings.no_workers)
-                                # res = pool.starmap(process_raw, files)
-                                # pool.close()
+                    if 'jpg' in settings.project_checks:
+                        with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
+                            for file in files:
+                                if not file.name.startswith(settings.ignore_string) and file.is_file():
+                                    filename = file.name
+                                    if (Path(filename).suffix.lower() == ".md5"):
+                                        #MD5 file
+                                        q_md5 = queries.update_folders_md5.format("jpg", folder_id)
+                                        logger1.info(q_md5)
+                                        db_cursor.execute(q_md5)
                 folder_updated_at(folder_id, db_cursor)
         #Check for deleted files
         check_deleted()
