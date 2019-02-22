@@ -7,7 +7,6 @@ library(RPostgres)
 library(DT)
 
 
-
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
@@ -19,19 +18,16 @@ github_link <- "https://github.com/Smithsonian/MDFileCheck"
 db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
                  host = pg_host, port = 5432,
                  user = pg_user, password = pg_pass)
-
 project <- dbGetQuery(db, paste0("SELECT * FROM projects WHERE project_id = ", project_id))
 proj_name <- project$project_acronym
 
 dbDisconnect(db)
 
 
-
 # UI ----
 ui <- dashboardPage(
-  #header ----
+  #header
   dashboardHeader(title = proj_name),
-  #Sidebar----
   dashboardSidebar(disable = TRUE),
   #Body----
   dashboardBody(
@@ -72,7 +68,6 @@ ui <- dashboardPage(
 
 # Server ----
 server <- function(input, output, session) {
-
   #Connect to the database ----
   db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
                   host = pg_host, port = 5432,
@@ -81,7 +76,7 @@ server <- function(input, output, session) {
   file_checks_list <<- dbGetQuery(db, paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id))
   file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
   
-  #Box_error ----
+  #box_error ----
   output$box_error <- renderValueBox({
     status_query <- "SELECT e.count_error, o.count_ok, t.count_total, i.item_count FROM
                             (SELECT count(*) AS count_error FROM files where ("
@@ -120,8 +115,6 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
   #box_ok ----
   output$box_ok <- renderValueBox({
     if (files_status$count_total == 0){
@@ -138,7 +131,7 @@ server <- function(input, output, session) {
   })
     
   
-  #Itemcount----
+  #itemcount----
   output$itemcount <- renderValueBox({
     valueBox(
       files_status$item_count, "No. of Items", icon = icon("file", lib = "glyphicon"),
@@ -147,8 +140,7 @@ server <- function(input, output, session) {
   })
   
   
-  
-  #Totalbox----
+  #totalbox----
   output$totalbox <- renderValueBox({
     valueBox(
       files_status$count_total, "No. of Images", icon = icon("picture", lib = "glyphicon"),
@@ -156,9 +148,6 @@ server <- function(input, output, session) {
     )
   })
     
-  
-
-  
   
   #folderlist----
   output$folderlist <- renderUI({
@@ -169,9 +158,11 @@ server <- function(input, output, session) {
     
     #Only display if it is an active project, from settings
     if (project_active == TRUE){
-      last_update <- as.numeric(dbGetQuery(db, "SELECT 
-                            to_char(NOW() - max(last_update), 'SS')
-                             AS last_update FROM
+      last_update <- as.numeric(dbGetQuery(db, 
+                  "SELECT 
+                       to_char(NOW() - max(last_update), 'SS')
+                       AS last_update 
+                  FROM
                         (SELECT max(updated_at) AS last_update FROM folders
                         UNION
                         SELECT max(last_update) AS last_update FROM files)
@@ -261,7 +252,6 @@ server <- function(input, output, session) {
         }
         
         this_folder <- paste0(this_folder, "</p></a>")
-        
         list_of_folders <- paste0(list_of_folders, this_folder)
       }
     }
@@ -271,11 +261,7 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
-  
-  
-  #Folderinfo----
+  #folderinfo----
   output$folderinfo <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
@@ -333,7 +319,6 @@ server <- function(input, output, session) {
   
   
   
-  
   #Files table ----
   output$tableheading <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
@@ -368,7 +353,7 @@ server <- function(input, output, session) {
                 pageLength = 50, 
                 paging = TRUE, 
                 language = list(zeroRecords = "Folder has no files yet")
-              ), 
+              ),
           rownames = FALSE, 
           selection = 'single',
           caption = htmltools::tags$caption(
@@ -383,9 +368,7 @@ server <- function(input, output, session) {
   
   
   
-  
-  
-  #Fileinfo ----
+  #fileinfo ----
   output$fileinfo <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
@@ -405,17 +388,21 @@ server <- function(input, output, session) {
     html_to_print <- paste0(html_to_print, "<dt>File timestamp</dt><dd>", file_info$filedate, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>Imported on</dt><dd>", file_info$date, "</dd>")
     
+    #TIF MD5
     if (!is.null(file_info$tif_md5)){
       html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", file_info$tif_md5, "</dd>")
     }
     
+    #RAW MD5
     if (!is.null(file_info$raw_md5)){
       html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", file_info$raw_md5, "</dd>")
     }
     
     #if JPG, show md5
     if (stringr::str_detect(file_checks_list, "jpg")){
-      html_to_print <- paste0(html_to_print, "<dt>JPG MD5</dt><dd>", file_info$jpg_md5, "</dd>")
+      if (!is.null(file_info$jpg_md5)){
+        html_to_print <- paste0(html_to_print, "<dt>JPG MD5</dt><dd>", file_info$jpg_md5, "</dd>")
+      }
     }
       
     #file_pair ----
@@ -520,7 +507,7 @@ server <- function(input, output, session) {
     
     #Image preview ----
     if (stringr::str_detect(file_checks_list, "jpg")){
-      #JPG's are taken, show these
+      #If JPGs were taken, show them
       tagList(
         fluidRow(
           column(width = 6,
@@ -534,7 +521,7 @@ server <- function(input, output, session) {
         HTML(html_to_print)
       )
     }else{
-      #Only display the preview of the TIF
+      #Otherwise, display only the preview of the TIF
       tagList(
         fluidRow(
           column(width = 12,
@@ -546,7 +533,6 @@ server <- function(input, output, session) {
       )
     }
   })
-  
   
   
   
