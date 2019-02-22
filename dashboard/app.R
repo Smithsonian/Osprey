@@ -11,7 +11,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.2"
+app_ver <- "0.3.3"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -45,7 +45,7 @@ ui <- dashboardPage(
       column(width = 2,
              box(
                title = "Folders", width = NULL, solidHeader = TRUE, status = "primary",
-               uiOutput("boxleft")
+               uiOutput("folderlist")
              )
         ),
       column(width = 6,
@@ -160,13 +160,14 @@ server <- function(input, output, session) {
 
   
   
-  #boxleft----
-  output$boxleft <- renderUI({
+  #folderlist----
+  output$folderlist <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
-    folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder ASC"))
+    folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC"))
     
+    #Only display if it is an active project, from settings
     if (project_active == TRUE){
       last_update <- as.numeric(dbGetQuery(db, "SELECT 
                             to_char(NOW() - max(last_update), 'SS')
@@ -517,7 +518,9 @@ server <- function(input, output, session) {
     
     html_to_print <- paste0(html_to_print, "</dl>")
     
+    #Image preview ----
     if (stringr::str_detect(file_checks_list, "jpg")){
+      #JPG's are taken, show these
       tagList(
         fluidRow(
           column(width = 6,
@@ -531,6 +534,7 @@ server <- function(input, output, session) {
         HTML(html_to_print)
       )
     }else{
+      #Only display the preview of the TIF
       tagList(
         fluidRow(
           column(width = 12,
