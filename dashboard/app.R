@@ -170,7 +170,7 @@ server <- function(input, output, session) {
                         a")))
       
       if (last_update > 180){
-        last_update_m <- ceiling(last_update / 3)
+        last_update_m <- ceiling(last_update / 60)
         if (last_update > 3600){
           last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
         }else{
