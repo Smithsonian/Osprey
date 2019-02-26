@@ -158,15 +158,15 @@ server <- function(input, output, session) {
     
     #Only display if it is an active project, from settings
     if (project_active == TRUE){
-      last_update <- as.numeric(dbGetQuery(db, 
+      last_update <- as.numeric(dbGetQuery(db, paste0(
                   "SELECT 
-                       to_char(NOW() - max(last_update), 'SS')
+                       round(EXTRACT(epoch FROM (NOW() - max(last_update))))
                        AS last_update 
                   FROM
-                        (SELECT max(updated_at) AS last_update FROM folders
+                        (SELECT max(updated_at) AS last_update FROM folders WHERE project_id = ", project_id, "
                         UNION
-                        SELECT max(last_update) AS last_update FROM files)
-                        a"))
+                        SELECT max(last_update) AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))
+                        a")))
       
       if (last_update > 180){
         last_update_m <- ceiling(last_update / 3)
