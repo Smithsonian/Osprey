@@ -160,12 +160,13 @@ server <- function(input, output, session) {
     if (project_active == TRUE){
       last_update <- as.numeric(dbGetQuery(db, paste0(
                   "SELECT 
-                       round(EXTRACT(epoch FROM (NOW() - max(last_update))))
+                       round(EXTRACT(epoch FROM NOW() - last_update))
                        AS last_update 
                   FROM
-                        (SELECT max(updated_at) AS last_update FROM folders WHERE project_id = ", project_id, "
+                        (SELECT updated_at AS last_update FROM folders WHERE project_id = ", project_id, "
                         UNION
-                        SELECT max(last_update) AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))
+                        SELECT last_update AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
+						ORDER BY last_update DESC LIMIT 1)
                         a")))
       
       if (last_update > 180){
