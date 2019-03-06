@@ -10,7 +10,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.4"
+app_ver <- "0.3.5"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -194,14 +194,16 @@ server <- function(input, output, session) {
           this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i], "<p class=\"list-group-item-text\">")
         }
         
+        #Count files
+        count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
+        folder_files <- dbGetQuery(db, count_files)
+        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span> ")
+        
+        #Check subfolders
         folder_subdirs <- dbGetQuery(db, paste0("SELECT status from folders where folder_id = ", folders$folder_id[i]))
         if (folder_subdirs == 9){
           this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
         }
-        
-        count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
-        folder_files <- dbGetQuery(db, count_files)
-        this_folder <- paste0(this_folder, " <span class=\"badge pull-right\" title=\"No. of files\">", folder_files$no_files, "</span> ")
         
         #Only if there are any files
         if (folder_files$no_files > 0){
