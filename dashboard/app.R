@@ -395,8 +395,10 @@ server <- function(input, output, session) {
       html_to_print <- paste0(html_to_print, "<dt>File exists</dt>")
       if (file_info$file_exists == 0){
         html_to_print <- paste0(html_to_print, "<dd>", file_info$file_exists)
-      }else{
+      }else if (file_info$file_exists == 1){
         html_to_print <- paste0(html_to_print, "<dd class=\"bg-danger\">", file_info$file_exists)
+      }else{
+        html_to_print <- paste0(html_to_print, "<dd class=\"bg-warning\">", file_info$file_exists)
       }
       html_to_print <- paste0(html_to_print, "</dd>")
     }
