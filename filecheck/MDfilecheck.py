@@ -585,7 +585,7 @@ def process_raw(filename, folder_path, folder_id, raw):
 
 def check_deleted():
     """
-    Deleted files are removed from the database
+    Deleted files are tagged in the database
     """
     #Connect to the database
     try:
@@ -605,8 +605,11 @@ def check_deleted():
         #if file_exists == True:
         if os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1])) == True:
             logger1.info("File {}/{}/{}.tif was found".format(file[2], settings.tif_files_path, file[1]))
+            q_foundfile = queries.file_exists.format(file[0])
+            logger1.info(q_foundfile)
+            db_cursor.execute(q_foundfile)
         else:
-            logger1.error("File {}/{}/{}.tif is gone, deleting".format(file[2], settings.tif_files_path, file[1]))
+            logger1.error("File {}/{}/{}.tif was not found".format(file[2], settings.tif_files_path, file[1]))
             q_delfile = queries.delete_file.format(file[0])
             logger1.info(q_delfile)
             db_cursor.execute(q_delfile)

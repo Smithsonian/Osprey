@@ -52,6 +52,8 @@ update_folder_0 = "UPDATE folders SET status = 0 WHERE folder_id = {}"
 
 update_folders_md5 = "UPDATE folders SET md5_{} = 0 WHERE folder_id = {}"
 
-delete_file = "DELETE FROM files WHERE file_id = {}"
+delete_file = "UPDATE files SET file_exists = 1 WHERE file_id = {}"
+
+file_exists = "UPDATE files SET file_exists = 0 WHERE file_id = {}"
 
 get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = {}"

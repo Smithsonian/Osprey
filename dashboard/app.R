@@ -10,7 +10,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.3"
+app_ver <- "0.3.4"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -341,7 +341,8 @@ server <- function(input, output, session) {
     }
     
     files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dbGetQuery(db, paste0("SELECT file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_table <- dplyr::select(files_data, -file_id)
+    #files_data_table <- dbGetQuery(db, paste0("SELECT file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
     
     no_cols <- dim(files_data_table)[2]
     
@@ -388,6 +389,17 @@ server <- function(input, output, session) {
     html_to_print <- paste0(html_to_print, "<dt>Item number</dt><dd>", file_info$item_no, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>File timestamp</dt><dd>", file_info$filedate, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>Imported on</dt><dd>", file_info$date, "</dd>")
+    
+    #file_exists
+    if (stringr::str_detect(file_checks_list, "file_exists")){
+      html_to_print <- paste0(html_to_print, "<dt>File exists</dt>")
+      if (file_info$file_exists == 0){
+        html_to_print <- paste0(html_to_print, "<dd>", file_info$file_exists)
+      }else{
+        html_to_print <- paste0(html_to_print, "<dd class=\"bg-danger\">", file_info$file_exists)
+      }
+      html_to_print <- paste0(html_to_print, "</dd>")
+    }
     
     #TIF MD5
     if (!is.null(file_info$tif_md5)){
