@@ -10,7 +10,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.5"
+app_ver <- "0.3.6"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -356,7 +356,8 @@ server <- function(input, output, session) {
                 ordering = TRUE, 
                 pageLength = 50, 
                 paging = TRUE, 
-                language = list(zeroRecords = "Folder has no files yet")
+                language = list(zeroRecords = "Folder has no files yet"),
+                scrollX = TRUE
               ),
           rownames = FALSE, 
           selection = 'single',
