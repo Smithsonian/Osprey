@@ -350,6 +350,8 @@ server <- function(input, output, session) {
     
     DT::datatable(
           files_data_table, 
+          extensions = 'Responsive',
+          class = 'compact',
           escape = FALSE, 
           options = list(
                 searching = TRUE, 
