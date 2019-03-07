@@ -466,6 +466,17 @@ def process_tif(filename, folder_path, folder_id):
             #JPG check
             jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
             logger1.info("jpg_check:{}".format(jpg_check))
+        if 'valid_name' in settings.project_checks:
+            db_cursor.execute(settings.filename_pattern_query.format(Path(filename).stem))
+            valid_names = db_cursor.fetchone()[0]
+            if valid_names == 0:
+                valid_filename_check = 1
+                logger1.error("valid_name:{} not in database".format(Path(filename).stem))
+            else:
+                valid_filename_check = 0
+                logger1.info("valid_name:{} in database".format(Path(filename).stem))
+            valid_name_q = queries.filename_query.format(valid_filename_check, file_id)
+            db_cursor.execute(valid_name_q)
         if 'tifpages' in settings.project_checks:
             #Check if tif has multiple pages
             p = subprocess.Popen(['identify', '-format', '%n', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename)], stdout=PIPE,stderr=PIPE)

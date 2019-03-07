@@ -423,7 +423,16 @@ server <- function(input, output, session) {
       }
     }
       
-    #file_pair ----
+    #valid_name
+    if (stringr::str_detect(file_checks_list, "valid_name")){
+      if (file_info$valid_name[1] == 0){
+        html_to_print <- paste0(html_to_print, "<dt>Valid filename</dt><dd>", file_info$valid_name, "</dd>")
+      }else{
+        html_to_print <- paste0(html_to_print, "<dt>Valid filename</dt><dd class=\"bg-danger\">", file_info$file_name, " was not found in the allowed list of names</dd>")
+      }
+    }
+    
+    #file_pair
     if (stringr::str_detect(file_checks_list, "file_pair")){
       if (!is.na(file_info$file_pair_info[1])){
         if (file_info$file_pair[1] == 0){
