@@ -24,6 +24,10 @@ jpg_files_path = "jpgs"
 
 #Should the names match a db?
 files_db = True
+#How to find the list of valid names
+# this has to be a valid query that will 
+# be used in a subquery
+filename_pattern_query = "SELECT COUNT(*) as no_records FROM (SELECT CONCAT('AC0433-', LPAD(file_name::text, 6, '0'), '%') AS file_name FROM valid_names WHERE project_id = 104) a WHERE a.file_name LIKE '{}%'"
 
 
 #TIF file min and max size, in bytes
