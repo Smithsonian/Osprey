@@ -303,17 +303,17 @@ server <- function(input, output, session) {
         }
         
         tagList(
-          fluidRow(
-            column(width = 6,
-                   HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
-            ),
-            column(width = 6,
+          # fluidRow(
+          #   column(width = 6,
+                   HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>")),
+            # ),
+            # column(width = 6,
                    if (!is.na(folder_info$notes)){
                      p(em(folder_info$notes))},
                    p("Folder imported on: ", folder_info$import_date, br(), "Last update on: ", folder_info$updated_at_formatted),
-                   HTML(error_msg)
-            )
-          ),
+                   HTML(error_msg),
+          #   )
+          # ),
           hr()
         )
       }
