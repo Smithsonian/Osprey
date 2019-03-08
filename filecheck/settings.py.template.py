@@ -59,4 +59,5 @@ use_item_id = False
 item_id = ""
 
 
+#Ignore files with this string anywhere in the filename
 ignore_string = ""

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.4.1
+# Version 0.4.2
 
 ##Import modules
 import os, sys, subprocess, locale, logging, time, glob
@@ -707,13 +707,13 @@ def main():
                         q_md5 = queries.update_folders_md5.format("tif", folder_id)
                         logger1.info(q_md5)
                         db_cursor.execute(q_md5)
-                    for file in os.scandir(folder_path + "/" + settings.raw_files_path):
-                        if file.is_file():
-                            if settings.ignore_string != None:
-                                files = [ x for x in files if settings.ignore_string not in x ]
+                    #for file in os.scandir(folder_path + "/" + settings.raw_files_path):
+                    #    if file.is_file():
+                    #        if settings.ignore_string != None:
+                    #           files = [ x for x in files if settings.ignore_string not in x ]
                     with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
                         for file in files:
-                            if not file.name.startswith(settings.ignore_string) and file.is_file():
+                            if settings.ignore_string not in file.name and file.is_file():
                                 filename = file.name
                                 #TIF Files
                                 if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
@@ -727,7 +727,7 @@ def main():
                     if 'jpg' in settings.project_checks:
                         with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
                             for file in files:
-                                if not file.name.startswith(settings.ignore_string) and file.is_file():
+                                if settings.ignore_string not in file.name and file.is_file():
                                     filename = file.name
                                     if (Path(filename).suffix.lower() == ".md5"):
                                         #MD5 file
