@@ -22,7 +22,7 @@ tif_size = "UPDATE files SET tif_size = {}, tif_size_info = '{}' WHERE file_id =
 
 raw_size = "UPDATE files SET raw_size = {}, raw_size_info = '{}' WHERE file_id = {}"
 
-del_folder_files = "DELETE FROM files WHERE folder_id = '{}'"
+del_folder_files = "UPDATE files SET file_exists = 1 WHERE folder_id = '{}'"
 
 update_md5 = "UPDATE files SET {} = '{}' WHERE file_id = {}"
 

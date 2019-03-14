@@ -629,120 +629,119 @@ def check_deleted():
 
 
 def main():
-    while True:
-        #Check that the paths are mounted
-        for p_path in settings.project_paths:
-            if os.path.ismount(p_path) == False:
-                logger1.error("Path not found: {}".format(p_path))
-                time.sleep(settings.sleep)
-                continue
-        #Connect to the database
-        try:
-            logger1.info("Connecting to database")
-            conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
-        except:
-            logger1.error("Could not connect to server.")
-            sys.exit(1)
-        conn.autocommit = True
-        db_cursor = conn.cursor()
-        #Update project
-        q_project = queries.update_projectchecks.format(','.join(settings.project_checks), settings.project_id)
-        logger1.info(q_project)
-        db_cursor.execute(q_project)
-        logger1.info(','.join(settings.project_paths))
-        for project_path in settings.project_paths:
-            logger1.info(project_path)
-            #Generate list of folders
-            folders = []
-            #List of folders
-            for entry in os.scandir(project_path):
-                if entry.is_dir():
-                    folders.append(entry.path)
-            #Check each folder
-            for folder in folders:
-                folder_path = folder
-                folder_name = os.path.basename(folder)
-                folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-                q_folderreset = queries.update_folder_status0.format(folder_id)
-                logger1.info(q_folderreset)
-                db_cursor.execute(q_folderreset)
-                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
-                    logger1.info("Missing TIF and RAW folders")
-                    q = queries.update_folder_status9.format("both", folder_id)
-                    logger1.info(q)
-                    db_cursor.execute(q)
-                    delete_folder_files(folder_id, db_cursor)
-                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
-                    logger1.info("Missing TIF folder")
-                    q = queries.update_folder_status9.format(settings.tif_files_path, folder_id)
-                    logger1.info(q)
-                    db_cursor.execute(q)
-                    delete_folder_files(folder_id, db_cursor)
-                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
-                    logger1.info("Missing RAW folder")
-                    q = queries.update_folder_status9.format(settings.raw_files_path, folder_id)
-                    logger1.info(q)
-                    db_cursor.execute(q)
-                    delete_folder_files(folder_id, db_cursor)
-                else:
-                    logger1.info("Both folders present")
-                    q = queries.update_folder_0.format(folder_id)
-                    logger1.info(q)
-                    db_cursor.execute(q)
-                    #Both folders present
-                    ##############################
-                    #Check the tifs in parallel
-                    ##############################
-                    os.chdir(folder_path + "/" + settings.tif_files_path)
-                    files = glob.glob("*.tif")
-                    #Remove temp files
-                    if settings.ignore_string != None:
-                        files = [ x for x in files if settings.ignore_string not in x ]
-                    #Parallel
-                    pool = mp.Pool(settings.no_workers)
-                    res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id)))
-                    pool.close()
-                    #MD5
-                    for file in glob.glob("*.md5"):
-                        q_md5 = queries.update_folders_md5.format("tif", folder_id)
-                        logger1.info(q_md5)
-                        db_cursor.execute(q_md5)
-                    #for file in os.scandir(folder_path + "/" + settings.raw_files_path):
-                    #    if file.is_file():
-                    #        if settings.ignore_string != None:
-                    #           files = [ x for x in files if settings.ignore_string not in x ]
-                    with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
+    #Check that the paths are mounted
+    for p_path in settings.project_paths:
+        if os.path.ismount(p_path) == False:
+            logger1.error("Path not found: {}".format(p_path))
+            time.sleep(settings.sleep)
+            continue
+    #Connect to the database
+    try:
+        logger1.info("Connecting to database")
+        conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+    except:
+        logger1.error("Could not connect to server.")
+        sys.exit(1)
+    conn.autocommit = True
+    db_cursor = conn.cursor()
+    #Update project
+    q_project = queries.update_projectchecks.format(','.join(settings.project_checks), settings.project_id)
+    logger1.info(q_project)
+    db_cursor.execute(q_project)
+    logger1.info(','.join(settings.project_paths))
+    for project_path in settings.project_paths:
+        logger1.info(project_path)
+        #Generate list of folders
+        folders = []
+        #List of folders
+        for entry in os.scandir(project_path):
+            if entry.is_dir():
+                folders.append(entry.path)
+        #Check each folder
+        for folder in folders:
+            folder_path = folder
+            folder_name = os.path.basename(folder)
+            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+            q_folderreset = queries.update_folder_status0.format(folder_id)
+            logger1.info(q_folderreset)
+            db_cursor.execute(q_folderreset)
+            if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
+                logger1.info("Missing TIF and RAW folders")
+                q = queries.update_folder_status9.format("both", folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
+                logger1.info("Missing TIF folder")
+                q = queries.update_folder_status9.format(settings.tif_files_path, folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
+                logger1.info("Missing RAW folder")
+                q = queries.update_folder_status9.format(settings.raw_files_path, folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                delete_folder_files(folder_id, db_cursor)
+            else:
+                logger1.info("Both folders present")
+                q = queries.update_folder_0.format(folder_id)
+                logger1.info(q)
+                db_cursor.execute(q)
+                #Both folders present
+                ##############################
+                #Check the tifs in parallel
+                ##############################
+                os.chdir(folder_path + "/" + settings.tif_files_path)
+                files = glob.glob("*.tif")
+                #Remove temp files
+                if settings.ignore_string != None:
+                    files = [ x for x in files if settings.ignore_string not in x ]
+                #Parallel
+                pool = mp.Pool(settings.no_workers)
+                res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id)))
+                pool.close()
+                #MD5
+                for file in glob.glob("*.md5"):
+                    q_md5 = queries.update_folders_md5.format("tif", folder_id)
+                    logger1.info(q_md5)
+                    db_cursor.execute(q_md5)
+                #for file in os.scandir(folder_path + "/" + settings.raw_files_path):
+                #    if file.is_file():
+                #        if settings.ignore_string != None:
+                #           files = [ x for x in files if settings.ignore_string not in x ]
+                with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
+                    for file in files:
+                        if settings.ignore_string not in file.name and file.is_file():
+                            filename = file.name
+                            #TIF Files
+                            if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                                #If the file matches the raw extension
+                                process_raw(filename, folder_path, folder_id, settings.raw_files)
+                            elif (Path(filename).suffix.lower() == ".md5"):
+                                #MD5 file
+                                q_md5 = queries.update_folders_md5.format("raw", folder_id)
+                                logger1.info(q_md5)
+                                db_cursor.execute(q_md5)
+                if 'jpg' in settings.project_checks:
+                    with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
                         for file in files:
                             if settings.ignore_string not in file.name and file.is_file():
                                 filename = file.name
-                                #TIF Files
-                                if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                                    #If the file matches the raw extension
-                                    process_raw(filename, folder_path, folder_id, settings.raw_files)
-                                elif (Path(filename).suffix.lower() == ".md5"):
+                                if (Path(filename).suffix.lower() == ".md5"):
                                     #MD5 file
-                                    q_md5 = queries.update_folders_md5.format("raw", folder_id)
+                                    q_md5 = queries.update_folders_md5.format("jpg", folder_id)
                                     logger1.info(q_md5)
                                     db_cursor.execute(q_md5)
-                    if 'jpg' in settings.project_checks:
-                        with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
-                            for file in files:
-                                if settings.ignore_string not in file.name and file.is_file():
-                                    filename = file.name
-                                    if (Path(filename).suffix.lower() == ".md5"):
-                                        #MD5 file
-                                        q_md5 = queries.update_folders_md5.format("jpg", folder_id)
-                                        logger1.info(q_md5)
-                                        db_cursor.execute(q_md5)
-                folder_updated_at(folder_id, db_cursor)
-        #Check for deleted files
-        check_deleted()
-        os.chdir(filecheck_dir)
-        #Disconnect from db
-        conn.close()
-        logger1.info("Sleeping for {} secs".format(settings.sleep))
-        #Sleep before trying again
-        time.sleep(settings.sleep)
+            folder_updated_at(folder_id, db_cursor)
+    #Check for deleted files
+    check_deleted()
+    os.chdir(filecheck_dir)
+    #Disconnect from db
+    conn.close()
+    logger1.info("Sleeping for {} secs".format(settings.sleep))
+    #Sleep before trying again
+    time.sleep(settings.sleep)
 
 
 
@@ -751,14 +750,15 @@ def main():
 ############################################
 
 if __name__=="__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        logger1.info("Ctrl-C detected. Leaving program.")
-        sys.exit(0)
-    except:
-        logger1.error("There was an error: {}".format(sys.exc_info()[0]))
-        time.sleep(settings.sleep)
+    while True:
+        try:
+            main()
+        except KeyboardInterrupt:
+            logger1.info("Ctrl-C detected. Leaving program.")
+            sys.exit(0)
+        except Exception as e:
+            logger1.error("There was an error: {}".format(e))
+            time.sleep(settings.sleep)
 
 
 sys.exit(0)
