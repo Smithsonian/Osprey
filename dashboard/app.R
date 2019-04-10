@@ -10,7 +10,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.6"
+app_ver <- "0.3.7"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -482,7 +482,7 @@ server <- function(input, output, session) {
     #unique_file ----
     if (stringr::str_detect(file_checks_list, "unique_file")){
       if (file_info$unique_file[1] > 0){
-        other_folders <- dbGetQuery(db, paste0("SELECT project_folder FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, ")"))
+        other_folders <- dbGetQuery(db, paste0("SELECT project_folder FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, "))"))
         if (dim(other_folders)[1] > 0){
           html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
           for (j in 1:dim(other_folders)[1]){
