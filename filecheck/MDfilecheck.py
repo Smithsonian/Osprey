@@ -171,9 +171,9 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     base_filename = Path(filename).name
     #file_type = Path(filename).suffix
     if paranoid == True:
-        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=PIPE, stderr=PIPE)
+        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename])
     else:
-        p = subprocess.Popen(['identify', '-verbose', filename], stdout=PIPE, stderr=PIPE)
+        p = subprocess.Popen(['identify', '-verbose', filename])
     (out,err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -349,7 +349,7 @@ def check_jpg(file_id, filename, db_cursor):
     """
     Run checks for jpg files
     """
-    p = subprocess.Popen(['identify', '-verbose', filename], stdout=PIPE, stderr=PIPE)
+    p = subprocess.Popen(['identify', '-verbose', filename])
     (out,err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -372,7 +372,7 @@ def check_jpg(file_id, filename, db_cursor):
         #Delete old image, if exists
         if os.path.isfile(preview_image):
             os.unlink(preview_image)
-        subprocess.Popen(['convert', filename, '-resize', '1000x1000', preview_image], stdout=PIPE, stderr=PIPE)
+        p = subprocess.run(['convert', filename, '-resize', '1000x1000', preview_image])
         #Store MD5
         file_md5 = filemd5(file_id, filename, "jpg", db_cursor)
         logger1.info("jpg_md5:{}".format(file_md5))
@@ -506,7 +506,7 @@ def process_tif(filename, folder_path, folder_id):
         if os.path.isfile(preview_image):
             os.unlink(preview_image)
         logger1.info("preview_image:{}".format(preview_image))
-        subprocess.Popen(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
         #Disconnect from db
         file_updated_at(file_id, db_cursor)
         conn2.close()
