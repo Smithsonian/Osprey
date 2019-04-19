@@ -505,6 +505,17 @@ server <- function(input, output, session) {
           }
           html_to_print <- paste0(html_to_print, "</dd>")
         }
+        
+        #old_names
+        other_folders <- dbGetQuery(db, paste0("SELECT file_folder FROM old_names WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND project_id = ", project_id, " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = ", which_folder, ")"))
+        if (dim(other_folders)[1] > 0){
+          html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
+          for (j in 1:dim(other_folders)[1]){
+            html_to_print <- paste0(html_to_print, "", other_folders$file_folder, "<br>")
+          }
+          html_to_print <- paste0(html_to_print, "</dd>")
+        }
+        
       }
     }
 

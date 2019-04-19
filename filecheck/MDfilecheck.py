@@ -409,6 +409,16 @@ def process_tif(filename, folder_path, folder_id):
             unique_file = 1
         else:
             unique_file = 0
+        if unique_file == 0:
+            #Check for unique filename in table with old names
+            q_checkunique = queries.check_unique_old.format(Path(filename).stem, settings.project_id)
+            logger1.info(q_checkunique)
+            db_cursor.execute(q_checkunique)
+            result = db_cursor.fetchone()
+            if result[0] > 0:
+                unique_file = 1
+            else:
+                unique_file = 0
         #Get modified date for file
         file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')

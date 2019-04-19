@@ -36,6 +36,8 @@ select_file_id = "SELECT file_id FROM files WHERE file_name = '{}' AND folder_id
 
 check_unique = "SELECT count(*) as dupes FROM files WHERE file_name = '{}' AND folder_id != {} and folder_id in (SELECT folder_id from folders where project_id = {})"
 
+check_unique_old = "SELECT count(*) as dupes FROM old_names WHERE file_name = '{}' AND project_id = {}"
+
 insert_file = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id"
 
 select_check_file = "SELECT {} FROM files WHERE file_id = {}"
