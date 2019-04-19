@@ -493,20 +493,22 @@ def process_tif(filename, folder_path, folder_id):
             q_multipage = queries.update_tif_pages.format(pages_vals, no_pages, file_id)
             logger1.info(q_multipage)
             db_cursor.execute(q_multipage)
-        #Store MD5
-        file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
-        logger1.info("tif_md5:{}".format(file_md5))
-        #Create preview image
-        preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
-        preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
-        #Create subfolder if it doesn't exists
-        if not os.path.exists(preview_file_path):
-            os.makedirs(preview_file_path)
-        #Delete old image, if exists
-        if os.path.isfile(preview_image):
-            os.unlink(preview_image)
-        logger1.info("preview_image:{}".format(preview_image))
-        p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        if 'jpgpreview' in settings.project_checks: 
+            #Create preview image
+            preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
+            preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+            #Create subfolder if it doesn't exists
+            if not os.path.exists(preview_file_path):
+                os.makedirs(preview_file_path)
+            #Delete old image, if exists
+            if os.path.isfile(preview_image):
+                os.unlink(preview_image)
+            logger1.info("preview_image:{}".format(preview_image))
+            p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        if 'tifmd5' in settings.project_checks: 
+            #Store MD5
+            file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
+            logger1.info("tif_md5:{}".format(file_md5))
         #Disconnect from db
         file_updated_at(file_id, db_cursor)
         conn2.close()
