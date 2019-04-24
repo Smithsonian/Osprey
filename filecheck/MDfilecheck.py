@@ -185,7 +185,9 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
         return_code = False
     if magick_identify_info == None:
         magick_identify_info = "Error: Nothing returned from imagemagick"
-    q_pair = queries.magick.format(magick_identify, magick_identify_info.decode("utf-8").replace("'", "''"), file_id)
+        q_pair = queries.magick.format(magick_identify, magick_identify_info, file_id)
+    else:
+        q_pair = queries.magick.format(magick_identify, magick_identify_info.decode("utf-8").replace("'", "''"), file_id)
     logger1.info(q_pair)
     db_cursor.execute(q_pair)
     return return_code
