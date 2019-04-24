@@ -177,12 +177,11 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     (out,err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
-        magick_identify_info = out
         return_code = True
     else:
         magick_identify = 1
-        magick_identify_info = err
         return_code = False
+    magick_identify_info = out + err
     if magick_identify_info == None:
         magick_identify_info = "Error: Nothing returned from imagemagick"
         q_pair = queries.magick.format(magick_identify, magick_identify_info, file_id)
