@@ -777,7 +777,7 @@ if __name__=="__main__":
             sys.exit(0)
         except Exception as e:
             logger1.error("There was an error: {}".format(e))
-            time.sleep(settings.sleep)
+            sys.exit(1)
 
 
 sys.exit(0)
