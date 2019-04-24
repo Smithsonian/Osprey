@@ -171,9 +171,9 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     base_filename = Path(filename).name
     #file_type = Path(filename).suffix
     if paranoid == True:
-        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename])
+        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
-        p = subprocess.Popen(['identify', '-verbose', filename])
+        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out,err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -352,7 +352,7 @@ def check_jpg(file_id, filename, db_cursor):
     """
     Run checks for jpg files
     """
-    p = subprocess.Popen(['identify', '-verbose', filename])
+    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out,err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -492,7 +492,7 @@ def process_tif(filename, folder_path, folder_id):
             db_cursor.execute(valid_name_q)
         if 'tifpages' in settings.project_checks:
             #Check if tif has multiple pages
-            p = subprocess.Popen(['identify', '-format', '%n', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename)], stdout=PIPE,stderr=PIPE)
+            p = subprocess.Popen(['identify', '-format', '%n', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (out,err) = p.communicate()
             try:
                 no_pages = int(out)
