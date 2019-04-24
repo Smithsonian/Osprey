@@ -10,7 +10,7 @@ library(DT)
 # Settings ----
 source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.3.7"
+app_ver <- "0.3.8"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 
@@ -105,7 +105,10 @@ server <- function(input, output, session) {
       err_files_count <- "NA"
       err_files_subtitle <- "Files with errors"
     }else{
-      err_files_count <- paste0(round((files_status$count_error/files_status$count_total) * 100, 1), " %")
+      err_files_count <- paste0(round((files_status$count_error/files_status$count_total) * 100, 2), " %")
+      if (files_status$count_error != files_status$count_total && err_files_count == 0){
+        err_files_count <- paste0(round((files_status$count_error/files_status$count_total) * 100, 6), " %")
+      }
       err_files_subtitle <- paste0(files_status$count_error, " files with errors")
     }
     valueBox(
@@ -121,7 +124,10 @@ server <- function(input, output, session) {
       ok_files_count <- "NA"
       ok_files_subtitle <- "Files OK"
     }else{
-      ok_files_count <- paste0(round((files_status$count_ok/files_status$count_total) * 100, 1), " %")
+      ok_files_count <- paste0(round((files_status$count_ok/files_status$count_total) * 100, 2), " %")
+      if (files_status$count_ok != files_status$count_total && ok_files_count == 100){
+        ok_files_count <- paste0(round((files_status$count_ok/files_status$count_total) * 100, 6), " %")
+      }
       ok_files_subtitle <- paste0(files_status$count_ok, " files OK")
     }
     valueBox(
@@ -342,10 +348,19 @@ server <- function(input, output, session) {
       req(FALSE)
     }
     
-    files_data <<- dbGetQuery(db, paste0("SELECT file_id, file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
-    files_data_table <- dplyr::select(files_data, -file_id)
-    #files_data_table <- dbGetQuery(db, paste0("SELECT file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY file_timestamp DESC"))
+    files_data_query <- paste0("SELECT file_id, file_name, ", file_checks_list, " FROM files WHERE folder_id = '", which_folder, "' ORDER BY ")
     
+    file_checks_exp <- stringr::str_split(file_checks_list[1], ',')[[1]]
+    
+    for (c in 1:length(file_checks_exp)){
+      files_data_query <- paste0(files_data_query, file_checks_exp[c], " DESC, ")
+    }
+    
+    files_data_query <- paste0(files_data_query, " file_timestamp DESC")
+    
+    files_data <<- dbGetQuery(db, files_data_query)
+    files_data_table <- dplyr::select(files_data, -file_id)
+
     no_cols <- dim(files_data_table)[2]
     
     DT::datatable(
@@ -490,6 +505,17 @@ server <- function(input, output, session) {
           }
           html_to_print <- paste0(html_to_print, "</dd>")
         }
+        
+        #old_names
+        other_folders <- dbGetQuery(db, paste0("SELECT file_folder FROM old_names WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND project_id = ", project_id, " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = ", which_folder, ")"))
+        if (dim(other_folders)[1] > 0){
+          html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
+          for (j in 1:dim(other_folders)[1]){
+            html_to_print <- paste0(html_to_print, "", other_folders$file_folder, "<br>")
+          }
+          html_to_print <- paste0(html_to_print, "</dd>")
+        }
+        
       }
     }
 
