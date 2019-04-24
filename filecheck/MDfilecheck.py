@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.4.2
+# Version 0.4.3
 
 ##Import modules
 import os, sys, subprocess, locale, logging, time, glob
@@ -493,7 +493,7 @@ def process_tif(filename, folder_path, folder_id):
             q_multipage = queries.update_tif_pages.format(pages_vals, no_pages, file_id)
             logger1.info(q_multipage)
             db_cursor.execute(q_multipage)
-        if 'jpgpreview' in settings.project_checks: 
+        if 'jpgpreview' in settings.specialproject_checks: 
             #Create preview image
             preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
             preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
@@ -505,10 +505,17 @@ def process_tif(filename, folder_path, folder_id):
                 os.unlink(preview_image)
             logger1.info("preview_image:{}".format(preview_image))
             p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
-        if 'tifmd5' in settings.project_checks: 
+        if 'tif_md5' in settings.project_checks: 
             #Store MD5
             file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
             logger1.info("tif_md5:{}".format(file_md5))
+        if 'old_name' in settings.specialproject_checks:
+            q_checkunique_old = queries.check_unique_old.format(Path(filename).stem, settings.project_id)
+            logger1.info(q_checkunique)
+            db_cursor.execute(q_checkunique)
+            result = db_cursor.fetchone()
+            if result[0] > 0:
+                db_cursor.execute(queries.not_unique.format(file_id))
         #Disconnect from db
         file_updated_at(file_id, db_cursor)
         conn2.close()
@@ -587,9 +594,10 @@ def process_raw(filename, folder_path, folder_id, raw):
             #File size check
             check_raw_size = file_size_check("{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", file_id, db_cursor)
             logger1.info("check_raw_size:{}".format(check_raw_size))
-        #Store MD5
-        file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", db_cursor)
-        logger1.info("raw_md5:{}".format(file_md5))
+        if 'raw_md5' in settings.project_checks:
+            #Store MD5
+            file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", db_cursor)
+            logger1.info("raw_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
         return True

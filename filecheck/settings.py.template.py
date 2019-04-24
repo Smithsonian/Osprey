@@ -2,6 +2,7 @@
 project_paths = []
 project_id = ""
 project_checks = ["file_pair","tif_size","raw_size","magick","jhove","jpg", "unique_file","tifpages"]
+special_checks = []
 
 
 folder_name = ""
