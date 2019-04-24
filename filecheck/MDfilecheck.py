@@ -503,7 +503,7 @@ def process_tif(filename, folder_path, folder_id):
             q_multipage = queries.update_tif_pages.format(pages_vals, no_pages, file_id)
             logger1.info(q_multipage)
             db_cursor.execute(q_multipage)
-        if 'jpgpreview' in settings.specialproject_checks: 
+        if 'jpgpreview' in settings.special_checks: 
             #Create preview image
             preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
             preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
@@ -515,11 +515,11 @@ def process_tif(filename, folder_path, folder_id):
                 os.unlink(preview_image)
             logger1.info("preview_image:{}".format(preview_image))
             p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
-        if 'tif_md5' in settings.project_checks: 
+        if 'tif_md5' in settings.special_checks: 
             #Store MD5
             file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
             logger1.info("tif_md5:{}".format(file_md5))
-        if 'old_name' in settings.specialproject_checks:
+        if 'old_name' in settings.special_checks:
             q_checkunique_old = queries.check_unique_old.format(Path(filename).stem, settings.project_id)
             logger1.info(q_checkunique)
             db_cursor.execute(q_checkunique)
@@ -604,7 +604,7 @@ def process_raw(filename, folder_path, folder_id, raw):
             #File size check
             check_raw_size = file_size_check("{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", file_id, db_cursor)
             logger1.info("check_raw_size:{}".format(check_raw_size))
-        if 'raw_md5' in settings.project_checks:
+        if 'raw_md5' in settings.special_checks:
             #Store MD5
             file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.raw_files_path, filename), "raw", db_cursor)
             logger1.info("raw_md5:{}".format(file_md5))
