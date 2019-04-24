@@ -520,8 +520,8 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("tif_md5:{}".format(file_md5))
         if 'old_name' in settings.special_checks:
             q_checkunique_old = queries.check_unique_old.format(Path(filename).stem, settings.project_id)
-            logger1.info(q_checkunique)
-            db_cursor.execute(q_checkunique)
+            logger1.info(q_checkunique_old)
+            db_cursor.execute(q_checkunique_old)
             result = db_cursor.fetchone()
             if result[0] > 0:
                 db_cursor.execute(queries.not_unique.format(file_id))
