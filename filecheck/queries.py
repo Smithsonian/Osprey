@@ -40,7 +40,7 @@ check_unique_old = "SELECT count(*) as dupes FROM old_names WHERE file_name = '{
 
 insert_file = "INSERT INTO files (folder_id, file_name, unique_file, file_timestamp) VALUES ({}, '{}', {}, '{}') RETURNING file_id"
 
-not_unique = "UPDATE files SET unique_file = 1 WHERE file_if = {}"
+not_unique = "UPDATE files SET unique_file = 1 WHERE file_id = {}"
 
 select_check_file = "SELECT {} FROM files WHERE file_id = {}"
 
