@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.4.3
+# Version 0.4.4
 
-##Import modules
-import os, sys, subprocess, locale, logging, time, glob
-import xmltodict, exifread, json, bitmath, pandas
+############################################
+# Import modules
+############################################
+import os, sys, shutil, subprocess, locale, logging, time, glob
+import xmltodict, json, bitmath, pandas
+#import exifread
+from random import shuffle
 #For Postgres
 import psycopg2
 #For MD5
@@ -41,26 +45,24 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 
 
-##Set logging
+
+############################################
+# Logging
+############################################
 if not os.path.exists('logs'):
     os.makedirs('logs')
 current_time = strftime("%Y%m%d%H%M%S", localtime())
 logfile = 'logs/' + current_time + '.log'
 # from http://stackoverflow.com/a/9321890
-# set up logging to file - see previous section for more details
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M:%S',
                     filename=logfile,
                     filemode='a')
-# define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-# set a format which is simpler for console use
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# tell the handler to use this format
 console.setFormatter(formatter)
-# add the handler to the root logger
 logging.getLogger('').addHandler(console)
 logger1 = logging.getLogger("vendor")
 
@@ -120,14 +122,14 @@ def file_updated_at(file_id, db_cursor):
 
 
 
-def jhove_validate(file_id, filename, db_cursor):
+def jhove_validate(file_id, filename, tmp_folder, db_cursor):
     """
     Validate the file with JHOVE
     """
     #Get the file name without the path
     base_filename = Path(filename).name
     #Where to write the results
-    xml_file = "/tmp/mdpp_{}.xml".format(base_filename)
+    xml_file = "{}/mdpp_{}.xml".format(tmp_folder, base_filename)
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     #Run JHOVE
@@ -153,6 +155,8 @@ def jhove_validate(file_id, filename, db_cursor):
         jhove_val = 1
         if len(doc['jhove']['repInfo']['messages']) == 1:
             #If the only error is with the WhiteBalance, ignore
+            # Issue open at Github, seems will be fixed in future release
+            # https://github.com/openpreserve/jhove/issues/364
             if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
@@ -167,9 +171,6 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     """
     Validate the file with Imagemagick
     """
-    #Get the file name without the path
-    base_filename = Path(filename).name
-    #file_type = Path(filename).suffix
     if paranoid == True:
         p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
@@ -186,6 +187,72 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     logger1.info(q_pair)
     db_cursor.execute(q_pair)
     return return_code
+
+
+
+def valid_name(file_id, filename, db_cursor, paranoid = False):
+    """
+    Check if filename in database of accepted names
+    """
+    db_cursor.execute(settings.filename_pattern_query.format(Path(filename).stem))
+    valid_names = db_cursor.fetchone()[0]
+    if valid_names == 0:
+        valid_filename_check = 1
+        logger1.error("valid_name:{} not in database".format(Path(filename).stem))
+        return_code = False
+    else:
+        valid_filename_check = 0
+        logger1.info("valid_name:{} in database".format(Path(filename).stem))
+        return_code = True
+    valid_name_q = queries.filename_query.format(valid_filename_check, file_id)
+    db_cursor.execute(valid_name_q)
+    return return_code
+
+
+
+def tifpages(file_id, filename, db_cursor, paranoid = False):
+    """
+    Check if TIF has multiple pages
+    """
+    p = subprocess.Popen(['identify', '-format', '%n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    try:
+        no_pages = int(out)
+        if int(out) == 1:
+            pages_vals = 0
+            return_code = True
+        else:
+            pages_vals = 1
+            return_code = False
+    except:
+        no_pages = "Unknown"
+        pages_vals = 1
+        return_code = False
+    q_multipage = queries.update_tif_pages.format(pages_vals, no_pages, file_id)
+    logger1.info(q_multipage)
+    db_cursor.execute(q_multipage)
+    return return_code
+
+
+
+def jpgpreview(file_id, filename, db_cursor, paranoid = False):
+    """
+    Create preview image
+    """
+    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
+    preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+    #Create subfolder if it doesn't exists
+    if not os.path.exists(preview_file_path):
+        os.makedirs(preview_file_path)
+    #Delete old image, if exists
+    if os.path.isfile(preview_image):
+        os.unlink(preview_image)
+    logger1.info("preview_image:{}".format(preview_image))
+    try:
+        p = subprocess.run(['convert', "{}[0]".format(filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+        return True
+    except:
+        return False
 
 
 
@@ -379,7 +446,7 @@ def check_jpg(file_id, filename, db_cursor):
 
 
 
-def process_tif(filename, folder_path, folder_id):
+def process_tif(filename, folder_path, folder_id, folder_full_path, tmp_folder):
     """
     Run checks for tif files
     """
@@ -451,13 +518,16 @@ def process_tif(filename, folder_path, folder_id):
         conn2.close()
         return True
     else:
+        #Copy file to tmp folder
+        local_tempfile = "{}/{}".format(tmp_folder, filename)
+        shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
         if 'file_pair' in settings.project_checks:
             #FilePair check
             pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
             logger1.info("pair_check:{}".format(pair_check))
         if 'jhove' in settings.project_checks:
             #JHOVE check
-            jhove_check = jhove_validate(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), db_cursor)
+            jhove_check = jhove_validate(file_id, local_tempfile, tmp_folder, db_cursor)
             logger1.info("jhove_check:{}".format(jhove_check))
         if 'itpc' in settings.project_checks:
             #ITPC Metadata
@@ -465,55 +535,28 @@ def process_tif(filename, folder_path, folder_id):
             logger1.info("itpc_check:{}".format(itpc_check))
         if 'tif_size' in settings.project_checks:
             #File size check
-            check_tif_size = file_size_check("{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", file_id, db_cursor)
+            check_tif_size = file_size_check(local_tempfile, "tif", file_id, db_cursor)
             logger1.info("check_tif_size:{}".format(check_tif_size))
         if 'magick' in settings.project_checks:
             #Imagemagick check
-            magickval = magick_validate(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), db_cursor)
+            magickval = magick_validate(file_id, local_tempfile, db_cursor)
             logger1.info("magick_validate:{}".format(magick_validate))
         if 'jpg' in settings.project_checks:
             #JPG check
             jpg_check = check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
             logger1.info("jpg_check:{}".format(jpg_check))
         if 'valid_name' in settings.project_checks:
-            db_cursor.execute(settings.filename_pattern_query.format(Path(filename).stem))
-            valid_names = db_cursor.fetchone()[0]
-            if valid_names == 0:
-                valid_filename_check = 1
-                logger1.error("valid_name:{} not in database".format(Path(filename).stem))
-            else:
-                valid_filename_check = 0
-                logger1.info("valid_name:{} in database".format(Path(filename).stem))
-            valid_name_q = queries.filename_query.format(valid_filename_check, file_id)
-            db_cursor.execute(valid_name_q)
+            #valid name in file
+            valname = valid_name(file_id, local_tempfile, db_cursor)
+            logger1.info("valid_name:{}".format(valname))
         if 'tifpages' in settings.project_checks:
-            #Check if tif has multiple pages
-            p = subprocess.Popen(['identify', '-format', '%n', "{}/{}/{}".format(folder_path, settings.tif_files_path, filename)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (out,err) = p.communicate()
-            try:
-                no_pages = int(out)
-                if int(out) == 1:
-                    pages_vals = 0
-                else:
-                    pages_vals = 1
-            except:
-                no_pages = "Unknown"
-                pages_vals = 1
-            q_multipage = queries.update_tif_pages.format(pages_vals, no_pages, file_id)
-            logger1.info(q_multipage)
-            db_cursor.execute(q_multipage)
+            #check if tif has multiple pages
+            tif_pages = tifpages(file_id, local_tempfile, db_cursor)
+            logger1.info("tif_pages:{}".format(tif_pages))
         if 'jpgpreview' in settings.special_checks: 
             #Create preview image
-            preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
-            preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
-            #Create subfolder if it doesn't exists
-            if not os.path.exists(preview_file_path):
-                os.makedirs(preview_file_path)
-            #Delete old image, if exists
-            if os.path.isfile(preview_image):
-                os.unlink(preview_image)
-            logger1.info("preview_image:{}".format(preview_image))
-            p = subprocess.run(['convert', "{}/{}/{}[0]".format(folder_path, settings.tif_files_path, filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
+            jpg_prev = jpgpreview(file_id, local_tempfile, db_cursor)
+            logger1.info("jpg_prev:{}".format(jpg_prev))
         if 'tif_md5' in settings.special_checks: 
             #Store MD5
             file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
@@ -528,12 +571,12 @@ def process_tif(filename, folder_path, folder_id):
         #Disconnect from db
         file_updated_at(file_id, db_cursor)
         conn2.close()
+        os.remove(local_tempfile)
         return True
 
 
 
-
-def process_raw(filename, folder_path, folder_id, raw):
+def process_raw(filename, folder_path, folder_id, raw, tmp_folder):
     """
     Run checks for raw files
     """
@@ -595,6 +638,9 @@ def process_raw(filename, folder_path, folder_id, raw):
         conn2.close()
         return True
     else:
+        #Copy file to tmp folder
+        local_tempfile = "{}/{}".format(tmp_folder, filename)
+        shutil.copyfile("{}/{}".format(folder_full_path, ), local_tempfile)
         if 'file_pair' in settings.project_checks:
             #FilePair check
             pair_check = file_pair_check(file_id, filename, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
@@ -620,19 +666,17 @@ def check_deleted():
     #Connect to the database
     try:
         logger1.info("Connecting to database")
-        conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+        con = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
     except:
         logger1.error("Could not connect to server.")
         sys.exit(1)
-    conn2.autocommit = True
-    db_cursor = conn2.cursor()
+    con.autocommit = True
+    db_cursor = con.cursor()
     get_files = queries.get_files.format(settings.project_id)
     logger1.info(get_files)
     db_cursor.execute(get_files)
     files = db_cursor.fetchall()
     for file in files:
-        #file_exists = os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1]))
-        #if file_exists == True:
         if os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1])) == True:
             logger1.info("File {}/{}/{}.tif was found".format(file[2], settings.tif_files_path, file[1]))
             q_foundfile = queries.file_exists.format(file[0])
@@ -643,8 +687,9 @@ def check_deleted():
             q_delfile = queries.delete_file.format(file[0])
             logger1.info(q_delfile)
             db_cursor.execute(q_delfile)
-    conn2.close()
+    con.close()
     return True
+
 
 
 def main():
@@ -676,10 +721,16 @@ def main():
         for entry in os.scandir(project_path):
             if entry.is_dir():
                 folders.append(entry.path)
+        shuffle(folders)
         #Check each folder
         for folder in folders:
             folder_path = folder
             folder_name = os.path.basename(folder)
+            #tmp folder
+            tmp_folder = "/tmp/tmp_{}".format(folder_name)
+            if os.path.isdir(tmp_folder):
+                shutil.rmtree(tmp_folder, ignore_errors = True)
+            os.mkdir(tmp_folder)
             folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
             q_folderreset = queries.update_folder_status0.format(folder_id)
             logger1.info(q_folderreset)
@@ -711,24 +762,22 @@ def main():
                 ##############################
                 #Check the tifs in parallel
                 ##############################
-                os.chdir(folder_path + "/" + settings.tif_files_path)
+                folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
+                os.chdir(folder_full_path)
                 files = glob.glob("*.tif")
                 #Remove temp files
                 if settings.ignore_string != None:
                     files = [ x for x in files if settings.ignore_string not in x ]
+                shuffle(files)
                 #Parallel
                 pool = mp.Pool(settings.no_workers)
-                res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id)))
+                res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id), repeat(folder_full_path), repeat(tmp_folder)))
                 pool.close()
                 #MD5
                 for file in glob.glob("*.md5"):
                     q_md5 = queries.update_folders_md5.format("tif", folder_id)
                     logger1.info(q_md5)
                     db_cursor.execute(q_md5)
-                #for file in os.scandir(folder_path + "/" + settings.raw_files_path):
-                #    if file.is_file():
-                #        if settings.ignore_string != None:
-                #           files = [ x for x in files if settings.ignore_string not in x ]
                 with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
                     for file in files:
                         if settings.ignore_string not in file.name and file.is_file():
@@ -736,7 +785,7 @@ def main():
                             #TIF Files
                             if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
                                 #If the file matches the raw extension
-                                process_raw(filename, folder_path, folder_id, settings.raw_files)
+                                process_raw(filename, folder_path, folder_id, settings.raw_files, tmp_folder)
                             elif (Path(filename).suffix.lower() == ".md5"):
                                 #MD5 file
                                 q_md5 = queries.update_folders_md5.format("raw", folder_id)
@@ -752,6 +801,7 @@ def main():
                                     q_md5 = queries.update_folders_md5.format("jpg", folder_id)
                                     logger1.info(q_md5)
                                     db_cursor.execute(q_md5)
+            shutil.rmtree(tmp_folder, ignore_errors = True)
             folder_updated_at(folder_id, db_cursor)
     #Check for deleted files
     check_deleted()
@@ -773,11 +823,9 @@ if __name__=="__main__":
         try:
             main()
         except KeyboardInterrupt:
-            logger1.info("Ctrl-C detected. Leaving program.")
+            logger1.info("Ctrl-c detected. Leaving program.")
             sys.exit(0)
-        except Exception as e:
-            logger1.error("There was an error: {}".format(e))
-            sys.exit(1)
+
 
 
 sys.exit(0)
