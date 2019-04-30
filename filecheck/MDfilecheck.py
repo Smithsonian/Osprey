@@ -781,6 +781,8 @@ def main():
                     logger1.info(q_md5)
                     db_cursor.execute(q_md5)
                 with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
+                    folder_full_path = "{}/{}".format(folder_path, settings.raw_files_path)
+                    os.chdir(folder_full_path)
                     for file in files:
                         if settings.ignore_string not in file.name and file.is_file():
                             filename = file.name
