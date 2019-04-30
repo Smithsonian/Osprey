@@ -5,6 +5,7 @@ library(dplyr)
 library(DBI)
 library(RPostgres)
 library(DT)
+library(futile.logger)
 
 
 # Settings ----
@@ -12,6 +13,14 @@ source("settings.R")
 app_name <- "MassDigi FileCheck Dashboard"
 app_ver <- "0.3.8"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
+
+options(stringsAsFactors = FALSE)
+options(encoding = 'UTF-8')
+
+#Logfile----
+try(dir.create("logs"), silent = TRUE)
+logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
+flog.logger("dashboard", INFO, appender=appender.file(logfile))
 
 
 #Connect to the database ----
@@ -73,7 +82,9 @@ server <- function(input, output, session) {
                   host = pg_host, port = 5432,
                   user = pg_user, password = pg_pass)
   
-  file_checks_list <<- dbGetQuery(db, paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id))
+  file_checks_q <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
+  flog.info(paste0("file_checks_q: ", file_checks_q), name = "dashboard")
+  file_checks_list <<- dbGetQuery(db, file_checks_q)
   file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
   
   #box_error ----
@@ -99,6 +110,7 @@ server <- function(input, output, session) {
                             (SELECT count(*) AS count_total FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) t,
                            (SELECT count(DISTINCT item_no) as item_count FROM files WHERE folder_id in (select folder_id from folders where project_id = ", project_id, ")) i")
     
+    flog.info(paste0("status_query: ", status_query), name = "dashboard")
     files_status <<- dbGetQuery(db, status_query)
     
     if (files_status$count_total == 0){
@@ -160,12 +172,14 @@ server <- function(input, output, session) {
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
-    folders <- dbGetQuery(db, paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC"))
+    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
+    flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
+    folders <- dbGetQuery(db, folders_q)
     
     #Only display if it is an active project, from settings
     if (project_active == TRUE){
-      last_update <- as.numeric(dbGetQuery(db, paste0(
-                  "SELECT 
+      last_update_q <- paste0(
+        "SELECT 
                        round(EXTRACT(epoch FROM NOW() - last_update))
                        AS last_update 
                   FROM
@@ -173,7 +187,10 @@ server <- function(input, output, session) {
                         UNION
                         SELECT last_update AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
 						ORDER BY last_update DESC LIMIT 1)
-                        a")))
+                        a")
+        
+      flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
+      last_update <- as.numeric(dbGetQuery(db, last_update_q))
       
       if (last_update > 180){
         last_update_m <- ceiling(last_update / 60)
@@ -202,11 +219,14 @@ server <- function(input, output, session) {
         
         #Count files
         count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
+        flog.info(paste0("count_files: ", count_files), name = "dashboard")
         folder_files <- dbGetQuery(db, count_files)
         this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span> ")
         
         #Check subfolders
-        folder_subdirs <- dbGetQuery(db, paste0("SELECT status from folders where folder_id = ", folders$folder_id[i]))
+        folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
+        flog.info(paste0("folder_subdirs_q: ", folder_subdirs_q), name = "dashboard")
+        folder_subdirs <- dbGetQuery(db, folder_subdirs_q)
         if (folder_subdirs == 9){
           this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
         }
@@ -221,6 +241,7 @@ server <- function(input, output, session) {
           
           error_files_query <- stringr::str_sub(error_files_query, 0, -5)
           error_files_query <- paste0(error_files_query, ")")
+          flog.info(paste0("error_files_query: ", error_files_query), name = "dashboard")
           error_files <- dbGetQuery(db, error_files_query)
           if (error_files == 0){
             #Check if all have been checked
@@ -232,6 +253,7 @@ server <- function(input, output, session) {
             
             checked_files_query <- stringr::str_sub(checked_files_query, 0, -5)
             checked_files_query <- paste0(checked_files_query, ")")
+            flog.info(paste0("checked_files_query: ", checked_files_query), name = "dashboard")
             checked_files <- dbGetQuery(db, checked_files_query)
             if (checked_files == 0){
               this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">OK</span> ")
@@ -278,8 +300,9 @@ server <- function(input, output, session) {
     if (which_folder == "NULL"){
       p("Select a folder from the list on the left")
     }else{
-      
-      folder_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted FROM folders WHERE folder_id = ", which_folder))
+      folder_info_q <- paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted FROM folders WHERE folder_id = ", which_folder)
+      flog.info(paste0("folder_info_q: ", folder_info_q), name = "dashboard")
+      folder_info <- dbGetQuery(db, folder_info_q)
       if (dim(folder_info)[1] == 0){
         p("Select a folder from the list on the left")
       }else{
@@ -357,7 +380,7 @@ server <- function(input, output, session) {
     }
     
     files_data_query <- paste0(files_data_query, " file_timestamp DESC")
-    
+    flog.info(paste0("files_data_query: ", files_data_query), name = "dashboard")
     files_data <<- dbGetQuery(db, files_data_query)
     files_data_table <- dplyr::select(files_data, -file_id)
 
@@ -397,7 +420,9 @@ server <- function(input, output, session) {
     
     req(input$files_table_rows_selected)
     
-    file_info <- dbGetQuery(db, paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_id = ", files_data[input$files_table_rows_selected, ]$file_id))
+    file_info_q <- paste0("SELECT *, to_char(timestamp, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_id = ", files_data[input$files_table_rows_selected, ]$file_id)
+    flog.info(paste0("file_info_q: ", file_info_q), name = "dashboard")
+    file_info <- dbGetQuery(db, file_info_q)
     print(input$files_table_rows_selected)
     
     file_id <- files_data[input$files_table_rows_selected, ]$file_id
@@ -497,7 +522,9 @@ server <- function(input, output, session) {
     #unique_file ----
     if (stringr::str_detect(file_checks_list, "unique_file")){
       if (file_info$unique_file[1] > 0){
-        other_folders <- dbGetQuery(db, paste0("SELECT project_folder FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, "))"))
+        other_folders_q <- paste0("SELECT project_folder FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND folder_id != ", which_folder," AND folder_id in (select folder_id from folders where project_id = ", project_id, "))")
+        flog.info(paste0("other_folders_q: ", other_folders_q), name = "dashboard")
+        other_folders <- dbGetQuery(db, other_folders_q)
         if (dim(other_folders)[1] > 0){
           html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
           for (j in 1:dim(other_folders)[1]){
@@ -507,7 +534,11 @@ server <- function(input, output, session) {
         }
         
         #old_names
-        other_folders <- dbGetQuery(db, paste0("SELECT file_folder FROM old_names WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND project_id = ", project_id, " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = ", which_folder, ")"))
+        otherf_query <- paste0("SELECT file_folder FROM old_names WHERE file_name = '", files_data[input$files_table_rows_selected, ]$file_name, "' AND project_id = ", project_id, " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = ", which_folder, ")")
+        flog.info(paste0("otherf_query: ", otherf_query), name = "dashboard")
+        other_folders <- dbGetQuery(db, otherf_query)
+        cat(otherf_query)
+        cat(dim(other_folders)[1])
         if (dim(other_folders)[1] > 0){
           html_to_print <- paste0(html_to_print, "<dt>Duplicate</dt><dd class=\"bg-danger\">")
           for (j in 1:dim(other_folders)[1]){
