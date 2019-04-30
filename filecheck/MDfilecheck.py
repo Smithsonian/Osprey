@@ -576,7 +576,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, tmp_folder):
 
 
 
-def process_raw(filename, folder_path, folder_id, raw, tmp_folder):
+def process_raw(filename, folder_path, folder_id, raw, folder_full_path, tmp_folder):
     """
     Run checks for raw files
     """
@@ -640,7 +640,7 @@ def process_raw(filename, folder_path, folder_id, raw, tmp_folder):
     else:
         #Copy file to tmp folder
         local_tempfile = "{}/{}".format(tmp_folder, filename)
-        shutil.copyfile("{}/{}".format(folder_full_path, ), local_tempfile)
+        shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
         if 'file_pair' in settings.project_checks:
             #FilePair check
             pair_check = file_pair_check(file_id, filename, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
@@ -785,7 +785,7 @@ def main():
                             #TIF Files
                             if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
                                 #If the file matches the raw extension
-                                process_raw(filename, folder_path, folder_id, settings.raw_files, tmp_folder)
+                                process_raw(filename, folder_path, folder_id, settings.raw_files, folder_full_path, tmp_folder)
                             elif (Path(filename).suffix.lower() == ".md5"):
                                 #MD5 file
                                 q_md5 = queries.update_folders_md5.format("raw", folder_id)
