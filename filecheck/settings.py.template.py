@@ -62,3 +62,6 @@ item_id = ""
 
 #Ignore files with this string anywhere in the filename
 ignore_string = ""
+
+
+oldname_subquery = " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = {})"

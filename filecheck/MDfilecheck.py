@@ -563,8 +563,8 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, tmp_folder):
             file_md5 = filemd5(file_id, "{}/{}/{}".format(folder_path, settings.tif_files_path, filename), "tif", db_cursor)
             logger1.info("tif_md5:{}".format(file_md5))
         if 'old_name' in settings.special_checks:
-            filter_substring = " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = {})".format(folder_id)
-            q_checkunique_old = queries.check_unique_old.format(Path(filename).stem, settings.project_id, filter_substring)
+            filter_subquery = settings.oldname_subquery.format(folder_id)
+            q_checkunique_old = queries.check_unique_old.format(Path(filename).stem, settings.project_id, filter_subquery)
             logger1.info(q_checkunique_old)
             db_cursor.execute(q_checkunique_old)
             result = db_cursor.fetchone()
