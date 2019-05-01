@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Validate products from a vendor, usually images
-# Version 0.4.4
+# Version 0.4.5
 
 ############################################
 # Import modules
@@ -657,6 +657,7 @@ def process_raw(filename, folder_path, folder_id, raw, folder_full_path, tmp_fol
             logger1.info("raw_md5:{}".format(file_md5))
         #Disconnect from db
         conn2.close()
+        os.remove(local_tempfile)
         return True
 
 
