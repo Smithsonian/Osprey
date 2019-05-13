@@ -521,7 +521,14 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, tmp_folder):
     else:
         #Copy file to tmp folder
         local_tempfile = "{}/{}".format(tmp_folder, filename)
-        shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
+        try:
+            shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
+        except:
+            query = settings.delete_file.format(folder_id)
+            logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
+            logger1.info(query)
+            db_cursor.execute(query)
+            return False
         if 'file_pair' in settings.project_checks:
             #FilePair check
             pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
@@ -642,7 +649,14 @@ def process_raw(filename, folder_path, folder_id, raw, folder_full_path, tmp_fol
     else:
         #Copy file to tmp folder
         local_tempfile = "{}/{}".format(tmp_folder, filename)
-        shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
+        try:
+            shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
+        except:
+            query = settings.delete_file.format(folder_id)
+            logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
+            logger1.info(query)
+            db_cursor.execute(query)
+            return False
         if 'file_pair' in settings.project_checks:
             #FilePair check
             pair_check = file_pair_check(file_id, filename, folder_path + "/" + settings.tif_files_path, 'tif', folder_path + "/" + settings.raw_files_path, settings.raw_files, db_cursor)
