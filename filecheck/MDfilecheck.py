@@ -791,7 +791,13 @@ def main():
                     files = [ x for x in files if settings.ignore_string not in x ]
                 shuffle(files)
                 #Parallel
-                pool = mp.Pool(settings.no_workers)
+                #Get time
+                now = datetime.now()
+                #Get hour and run the alternative number of workers during the night
+                if now.hour > 17 and now.hour < 7:
+                    pool = mp.Pool(settings.no_workers_night)
+                else:
+                    pool = mp.Pool(settings.no_workers)
                 res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id), repeat(folder_full_path), repeat(tmp_folder)))
                 pool.close()
                 #MD5
@@ -848,6 +854,9 @@ if __name__=="__main__":
         except KeyboardInterrupt:
             logger1.info("Ctrl-c detected. Leaving program.")
             sys.exit(0)
+        except Exception as e:
+            logger1.error("There was an error: {}".format(e))
+            sys.exit(1)
 
 
 

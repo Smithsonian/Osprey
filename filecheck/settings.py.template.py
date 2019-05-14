@@ -50,6 +50,7 @@ jhove_path = ""
 
 #How many parallel workers
 no_workers = 1
+no_workers_night = 4
 
 
 #JPG location
