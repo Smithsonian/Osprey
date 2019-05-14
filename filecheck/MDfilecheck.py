@@ -748,7 +748,11 @@ def main():
             if os.path.isdir(tmp_folder):
                 shutil.rmtree(tmp_folder, ignore_errors = True)
             os.mkdir(tmp_folder)
-            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+            try:
+                folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+            except:
+                logger1.error("Folder {} had an error".format(folder_name))
+                continue
             q_folderreset = queries.update_folder_status0.format(folder_id)
             logger1.info(q_folderreset)
             db_cursor.execute(q_folderreset)
