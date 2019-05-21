@@ -93,7 +93,7 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         folder_id = db_cursor.fetchone()
     if settings.folder_date != "":
         #Update to set date of folder
-        query_date = queries.folder_date.format(settings.folder_date, project_id)
+        query_date = queries.folder_date.format(settings.folder_date, folder_id[0])
         logger1.info(query_date)
         db_cursor.execute(query_date)
     return folder_id[0]

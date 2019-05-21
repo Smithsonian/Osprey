@@ -4,7 +4,7 @@ select_folderid = "SELECT folder_id FROM folders WHERE project_folder='{}' and p
 
 new_folder = "INSERT INTO folders (project_folder, path, status, md5_tif, md5_raw, md5_jpg, project_id) VALUES ('{}', '{}', 0, 9, 9, 9, {}) RETURNING folder_id"
 
-folder_date = "UPDATE folders SET date = {} where project_id={}"
+folder_date = "UPDATE folders SET date = {} where folder_id = {}"
 
 folder_updated_at = "UPDATE folders SET updated_at = NOW() where folder_id={}"
 
