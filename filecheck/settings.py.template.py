@@ -21,6 +21,7 @@ raw_files = "IIQ"
 tif_files_path = "tifs"
 raw_files_path = "raws"
 jpg_files_path = "jpgs"
+wav_files_path = "wavs"
 
 
 #Should the names match a db?
@@ -66,3 +67,10 @@ ignore_string = ""
 
 
 oldname_subquery = " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = {})"
+
+
+#Wav files
+wav_filetype = "wav"
+wav_samprate = ""
+wav_channels = ""
+wav_bits = ""

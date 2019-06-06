@@ -448,13 +448,24 @@ server <- function(input, output, session) {
     }
     
     #TIF MD5
-    if (!is.null(file_info$tif_md5)){
-      html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", file_info$tif_md5, "</dd>")
+    if (project_type == "tif"){
+      if (!is.null(file_info$tif_md5)){
+        html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", file_info$tif_md5, "</dd>")
+      }
     }
     
     #RAW MD5
-    if (!is.null(file_info$raw_md5)){
-      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", file_info$raw_md5, "</dd>")
+    if (project_type == "tif"){
+      if (!is.null(file_info$raw_md5)){
+        html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", file_info$raw_md5, "</dd>")
+      }
+    }
+    
+    #RAW MD5
+    if (project_type == "sound"){
+      if (!is.null(file_info$wav_md5)){
+        html_to_print <- paste0(html_to_print, "<dt>WAV MD5</dt><dd>", file_info$wav_md5, "</dd>")
+      }
     }
     
     #if JPG, show md5
@@ -571,26 +582,79 @@ server <- function(input, output, session) {
     }
     
     #tifpages ----
-    if (stringr::str_detect(file_checks_list, "tifpages")){
-      if (file_info$tifpages[1] == 1){
-        html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-danger\">Failed, there are multiple pages in the TIF</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd>No</dd>")
+    if (project_type == "tif"){
+      if (stringr::str_detect(file_checks_list, "tifpages")){
+        if (file_info$tifpages[1] == 1){
+          html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-danger\">Failed, there are multiple pages in the TIF</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd>No</dd>")
+        }
       }
     }
     
     #ImageMagick ----
-    if (stringr::str_detect(file_checks_list, "magick")){
-      if (!is.na(file_info$magick_info[1])){
-        if (file_info$magick[1] == 0){
-          html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd>OK</dd><dt>Imagemagick details</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
+    if (project_type == "tif"){
+      if (stringr::str_detect(file_checks_list, "magick")){
+        if (!is.na(file_info$magick_info[1])){
+          if (file_info$magick[1] == 0){
+            html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd>OK</dd><dt>Imagemagick details</dt><dd><pre>", file_info$magick_info, "</pre></dd>")
+          }else{
+            html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd class=\"bg-danger\">Failed</dd><dt>Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
+          }
+        }
+      }
+    }
+    
+    
+    #filetype ----
+    if (stringr::str_detect(file_checks_list, "filetype")){
+      if (!is.na(file_info$filetype[1])){
+        if (file_info$filetype[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>Filetype</dt><dd>", file_info$filetype_info, "</dd>")
         }else{
-          html_to_print <- paste0(html_to_print, "<dt>Imagemagick validation</dt><dd class=\"bg-danger\">Failed</dd><dt>Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$magick_info, "</pre></dd>")
+          html_to_print <- paste0(html_to_print, "<dt>Filetype</dt><dd class=\"bg-danger\">", file_info$filetype_info, "</dd>")
+        }
+      }
+    }
+    
+    
+    #samprate ----
+    if (stringr::str_detect(file_checks_list, "samprate")){
+      if (!is.na(file_info$samprate[1])){
+        if (file_info$samprate[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>Sampling rate</dt><dd>", file_info$samprate_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>Sampling rate</dt><dd class=\"bg-danger\">", file_info$samprate_info, "</dd>")
+        }
+      }
+    }
+    
+    
+    #channels ----
+    if (stringr::str_detect(file_checks_list, "channels")){
+      if (!is.na(file_info$channels[1])){
+        if (file_info$channels[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>No. of channels</dt><dd>", file_info$channels_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>No. of channels</dt><dd class=\"bg-danger\">", file_info$channels_info, "</dd>")
+        }
+      }
+    }
+    
+    
+    #bits ----
+    if (stringr::str_detect(file_checks_list, "bits")){
+      if (!is.na(file_info$bits[1])){
+        if (file_info$bits[1] == 0){
+          html_to_print <- paste0(html_to_print, "<dt>Bits</dt><dd>", file_info$bits_info, "</dd>")
+        }else{
+          html_to_print <- paste0(html_to_print, "<dt>Bits</dt><dd class=\"bg-danger\">", file_info$bits_info, "</dd>")
         }
       }
     }
     
     html_to_print <- paste0(html_to_print, "</dl>")
+    
     
     #Image preview ----
     if (stringr::str_detect(file_checks_list, "jpg")){
@@ -612,7 +676,9 @@ server <- function(input, output, session) {
       tagList(
         fluidRow(
           column(width = 12,
-                 HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+                 if (project_type == "tif"){
+                   HTML(paste0("<p>TIF preview:</p><a href=\"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" target = _blank><img src = \"previews/", stringr::str_sub(file_id, 1, 2), "/", file_id, ".jpg\" width = \"160px\" height = \"auto\"></a><br>"))
+                 }
           )
         ),
         hr(),

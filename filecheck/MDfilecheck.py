@@ -167,6 +167,52 @@ def jhove_validate(file_id, filename, tmp_folder, db_cursor):
 
 
 
+
+def jhove_validate_wav(file_id, filename, tmp_folder, db_cursor):
+    """
+    Validate the file with JHOVE
+    """
+    #Get the file name without the path
+    base_filename = Path(filename).name
+    #Where to write the results
+    xml_file = "{}/mdpp_{}.xml".format(tmp_folder, base_filename)
+    if os.path.isfile(xml_file):
+        os.unlink(xml_file)
+    #Run JHOVE
+    subprocess.run([jhove_path, "-m", "wave-hul", "-h", "xml", "-o", xml_file, filename])
+    #Open and read the results xml
+    try:
+        with open(xml_file) as fd:
+            doc = xmltodict.parse(fd.read())
+    except:
+        error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
+        logger1.error(error_msg)
+        q_jhove = queries.jhove.format(1, error_msg, file_id)
+        logger1.info(q_jhove)
+        db_cursor.execute(q_jhove)
+        return False
+    if os.path.isfile(xml_file):
+        os.unlink(xml_file)
+    #Get file status
+    file_status = doc['jhove']['repInfo']['status']
+    if file_status == "Well-Formed and valid":
+        jhove_val = 0
+    else:
+        jhove_val = 1
+        if len(doc['jhove']['repInfo']['messages']) == 1:
+            #If the only error is with the WhiteBalance, ignore
+            # Issue open at Github, seems will be fixed in future release
+            # https://github.com/openpreserve/jhove/issues/364
+            if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
+                jhove_val = 0
+        file_status = doc['jhove']['repInfo']['messages']['message']['#text']
+    q_jhove = queries.jhove.format(jhove_val, file_status, file_id)
+    logger1.info(q_jhove)
+    db_cursor.execute(q_jhove)
+    return file_status
+
+
+
 def magick_validate(file_id, filename, db_cursor, paranoid = False):
     """
     Validate the file with Imagemagick
@@ -306,6 +352,62 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
     logger1.info(q_pair)
     db_cursor.execute(q_pair)
     return (os.path.isfile(tif_file), os.path.isfile(raw_file))
+
+
+
+def soxi_check(file_id = "0", filename = "", file_check = "filetype", expected_val = "", db_cursor = ""):
+    """
+    Get the tech info of a wav file
+    """
+    if file_check == "filetype":
+        fcheck = "t"
+    elif file_check == "samprate":
+        fcheck = "r"
+    elif file_check == "channels":
+        fcheck = "c"
+    elif file_check == "duration":
+        fcheck = "D"
+    elif file_check == "bits":
+        fcheck = "b"
+    p = subprocess.Popen(['soxi', '-{}'.format(fcheck), filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    result = out.decode("utf-8").replace('\n','')
+    err = err.decode("utf-8").replace('\n','')
+    if file_check == "filetype":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "samprate":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "channels":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "duration":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "bits":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    # if p.returncode == 0:
+    #     res_val = 0
+    #     return_code = True
+    # else:
+    #     res_val = 1
+    #     return_code = False
+    q_soxi = queries.soxi.format(file_id = file_id, field = file_check, res_value = result_code, result = result)
+    logger1.info(q_soxi)
+    db_cursor.execute(q_soxi)
+    return result_code
 
 
 
@@ -676,6 +778,121 @@ def process_raw(filename, folder_path, folder_id, raw, folder_full_path, tmp_fol
 
 
 
+def process_wav(filename, folder_path, folder_id, folder_full_path, tmp_folder):
+    """
+    Run checks for wav files
+    """
+    folder_id = int(folder_id)
+    #Connect to the database
+    try:
+        logger1.info("Connecting to database")
+        conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
+    except:
+        logger1.error("Could not connect to server.")
+        sys.exit(1)
+    conn2.autocommit = True
+    db_cursor = conn2.cursor()
+    #Check if file exists, insert if not
+    logger1.info("WAV file {}".format(filename))
+    q_checkfile = queries.select_file_id.format(Path(filename).stem, folder_id)
+    logger1.info(q_checkfile)
+    db_cursor.execute(q_checkfile)
+    file_id = db_cursor.fetchone()
+    if file_id == None:
+        q_checkunique = queries.check_unique.format(Path(filename).stem, folder_id, settings.project_id)
+        logger1.info(q_checkunique)
+        db_cursor.execute(q_checkunique)
+        result = db_cursor.fetchone()
+        if result[0] > 0:
+            unique_file = 1
+        else:
+            unique_file = 0
+        if unique_file == 0:        
+            #Check for unique filename in table with old names      
+            filter_substring = " AND file_folder NOT IN (SELECT split_part(project_folder, '/', 2) FROM folders WHERE folder_id = {})".format(folder_id)
+            q_checkunique = queries.check_unique_old.format(Path(filename).stem, settings.project_id, filter_substring)
+            logger1.info(q_checkunique)     
+            db_cursor.execute(q_checkunique)        
+            result = db_cursor.fetchone()       
+            if result[0] > 0:       
+                unique_file = 1     
+            else:       
+                unique_file = 0
+        #Get modified date for file
+        file_timestamp_float = os.path.getmtime("{}/{}".format(folder_path, filename))
+        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+        q_insert = queries.insert_file.format(folder_id, Path(filename).stem, unique_file, file_timestamp)
+        logger1.info(q_insert)
+        db_cursor.execute(q_insert)
+        file_id = db_cursor.fetchone()[0]
+        if settings.use_item_id == True:
+            q_insert = queries.update_item_no.format(settings.item_id, file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
+        else:
+            q_insert = queries.update_item_no.format("file_name", file_id)
+            logger1.info(q_insert)
+            db_cursor.execute(q_insert)
+    else:
+        file_id = file_id[0]
+    print("file_id: {}".format(file_id))
+    #Check if file is OK
+    file_checks = 0
+    for filecheck in settings.project_checks:
+        q_checkfile = queries.select_check_file.format(filecheck, file_id)
+        logger1.info(q_checkfile)
+        db_cursor.execute(q_checkfile)
+        result = db_cursor.fetchone()
+        if result[0] != None:
+            file_checks = file_checks + result[0]
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger1.info("File with ID {} is OK, skipping".format(file_id))
+        #Disconnect from db
+        conn2.close()
+        return True
+    else:
+        #Copy file to tmp folder
+        local_tempfile = "{}/{}".format(tmp_folder, filename)
+        try:
+            shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
+        except:
+            query = settings.delete_file.format(folder_id)
+            logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
+            logger1.info(query)
+            db_cursor.execute(query)
+            return False
+        if 'filetype' in settings.project_checks:
+            #FilePair check
+            tech_info = soxi_check(file_id, filename, "filetype", settings.wav_filetype, db_cursor)
+            logger1.info("tech_info:{}".format(tech_info))
+        if 'samprate' in settings.project_checks:
+            #FilePair check
+            tech_info = soxi_check(file_id, filename, "samprate", settings.wav_samprate, db_cursor)
+            logger1.info("tech_info:{}".format(tech_info))
+        if 'channels' in settings.project_checks:
+            #FilePair check
+            tech_info = soxi_check(file_id, filename, "channels", settings.wav_channels, db_cursor)
+            logger1.info("tech_info:{}".format(tech_info))
+        if 'bits' in settings.project_checks:
+            #FilePair check
+            tech_info = soxi_check(file_id, filename, "bits", settings.wav_bits, db_cursor)
+            logger1.info("tech_info:{}".format(tech_info))
+        if 'jhove' in settings.project_checks:
+            #JHOVE check
+            jhove_check = jhove_validate_wav(file_id, local_tempfile, tmp_folder, db_cursor)
+            logger1.info("jhove_check:{}".format(jhove_check))
+        #Store MD5
+        file_md5 = filemd5(file_id, "{}/{}".format(folder_path, filename), "wav", db_cursor)
+        logger1.info("wav_md5:{}".format(file_md5))
+        #Disconnect from db
+        file_updated_at(file_id, db_cursor)
+        conn2.close()
+        os.remove(local_tempfile)
+        return True
+
+
+
 def check_deleted():
     """
     Deleted files are tagged in the database
@@ -756,80 +973,119 @@ def main():
             q_folderreset = queries.update_folder_status0.format(folder_id)
             logger1.info(q_folderreset)
             db_cursor.execute(q_folderreset)
-            if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
-                logger1.info("Missing TIF and RAW folders")
-                q = queries.update_folder_status9.format("both", folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
-                logger1.info("Missing TIF folder")
-                q = queries.update_folder_status9.format(settings.tif_files_path, folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
-                logger1.info("Missing RAW folder")
-                q = queries.update_folder_status9.format(settings.raw_files_path, folder_id)
-                logger1.info(q)
-                db_cursor.execute(q)
-                delete_folder_files(folder_id, db_cursor)
-            else:
-                logger1.info("Both folders present")
+            if 'wavs' in settings.special_checks:
                 q = queries.update_folder_0.format(folder_id)
                 logger1.info(q)
                 db_cursor.execute(q)
-                #Both folders present
                 ##############################
-                #Check the tifs in parallel
+                #Check the files in parallel
                 ##############################
-                folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
+                logger1.info(folder_path)
+                folder_full_path = folder_path
                 os.chdir(folder_full_path)
-                files = glob.glob("*.tif")
+                files = glob.glob("*.wav")
+                logger1.info(files)
                 #Remove temp files
                 if settings.ignore_string != None:
                     files = [ x for x in files if settings.ignore_string not in x ]
-                shuffle(files)
+                logger1.info(files)
+                #shuffle(files)
                 #Parallel
                 #Get time
                 now = datetime.now()
-                #Get hour and run the alternative number of workers during the night
-                if now.hour > 17 and now.hour < 7:
-                    pool = mp.Pool(settings.no_workers_night)
-                else:
-                    pool = mp.Pool(settings.no_workers)
-                res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id), repeat(folder_full_path), repeat(tmp_folder)))
-                pool.close()
+                for file in files:
+                    logger1.info("Running checks on file {}".format(file))
+                    process_wav(file, folder_path, folder_id, folder_full_path, tmp_folder)
+                # #Get hour and run the alternative number of workers during the night
+                # if now.hour > 17 and now.hour < 7:
+                #     pool = mp.Pool(settings.no_workers_night)
+                # else:
+                #     pool = mp.Pool(settings.no_workers)
+                # res = pool.starmap(process_wav, zip(files, repeat(folder_path), repeat(folder_id), repeat(folder_full_path), repeat(tmp_folder)))
+                # pool.close()
                 #MD5
                 for file in glob.glob("*.md5"):
-                    q_md5 = queries.update_folders_md5.format("tif", folder_id)
+                    q_md5 = queries.update_folders_md5.format("wav", folder_id)
                     logger1.info(q_md5)
                     db_cursor.execute(q_md5)
-                with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
-                    folder_full_path = "{}/{}".format(folder_path, settings.raw_files_path)
+            else:
+                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
+                    logger1.info("Missing TIF and RAW folders")
+                    q = queries.update_folder_status9.format("both", folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
+                    logger1.info("Missing TIF folder")
+                    q = queries.update_folder_status9.format(settings.tif_files_path, folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
+                    logger1.info("Missing RAW folder")
+                    q = queries.update_folder_status9.format(settings.raw_files_path, folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                else:
+                    logger1.info("Both folders present")
+                    q = queries.update_folder_0.format(folder_id)
+                    logger1.info(q)
+                    db_cursor.execute(q)
+                    #Both folders present
+                    ##############################
+                    #Check the tifs in parallel
+                    ##############################
+                    folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
                     os.chdir(folder_full_path)
-                    for file in files:
-                        if settings.ignore_string not in file.name and file.is_file():
-                            filename = file.name
-                            #TIF Files
-                            if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
-                                #If the file matches the raw extension
-                                process_raw(filename, folder_path, folder_id, settings.raw_files, folder_full_path, tmp_folder)
-                            elif (Path(filename).suffix.lower() == ".md5"):
-                                #MD5 file
-                                q_md5 = queries.update_folders_md5.format("raw", folder_id)
-                                logger1.info(q_md5)
-                                db_cursor.execute(q_md5)
-                if 'jpg' in settings.project_checks:
-                    with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
+                    files = glob.glob("*.tif")
+                    #Remove temp files
+                    if settings.ignore_string != None:
+                        files = [ x for x in files if settings.ignore_string not in x ]
+                    shuffle(files)
+                    #Parallel
+                    #Get time
+                    now = datetime.now()
+                    #Get hour and run the alternative number of workers during the night
+                    if now.hour > 17 and now.hour < 7:
+                        pool = mp.Pool(settings.no_workers_night)
+                    else:
+                        pool = mp.Pool(settings.no_workers)
+                    res = pool.starmap(process_tif, zip(files, repeat(folder_path), repeat(folder_id), repeat(folder_full_path), repeat(tmp_folder)))
+                    pool.close()
+                    #MD5
+                    for file in glob.glob("*.md5"):
+                        q_md5 = queries.update_folders_md5.format("tif", folder_id)
+                        logger1.info(q_md5)
+                        db_cursor.execute(q_md5)
+                    with os.scandir(folder_path + "/" + settings.raw_files_path) as files:
+                        folder_full_path = "{}/{}".format(folder_path, settings.raw_files_path)
+                        os.chdir(folder_full_path)
                         for file in files:
                             if settings.ignore_string not in file.name and file.is_file():
                                 filename = file.name
-                                if (Path(filename).suffix.lower() == ".md5"):
+                                #TIF Files
+                                if Path(filename).suffix.lower() == '.{}'.format(settings.raw_files).lower():
+                                    #If the file matches the raw extension
+                                    process_raw(filename, folder_path, folder_id, settings.raw_files, folder_full_path, tmp_folder)
+                                elif (Path(filename).suffix.lower() == ".md5"):
                                     #MD5 file
-                                    q_md5 = queries.update_folders_md5.format("jpg", folder_id)
+                                    q_md5 = queries.update_folders_md5.format("raw", folder_id)
                                     logger1.info(q_md5)
                                     db_cursor.execute(q_md5)
+                    if 'jpg' in settings.project_checks:
+                        with os.scandir(folder_path + "/" + settings.jpg_files_path) as files:
+                            for file in files:
+                                if settings.ignore_string not in file.name and file.is_file():
+                                    filename = file.name
+                                    if (Path(filename).suffix.lower() == ".md5"):
+                                        #MD5 file
+                                        q_md5 = queries.update_folders_md5.format("jpg", folder_id)
+                                        logger1.info(q_md5)
+                                        db_cursor.execute(q_md5)
             shutil.rmtree(tmp_folder, ignore_errors = True)
             folder_updated_at(folder_id, db_cursor)
     #Check for deleted files
