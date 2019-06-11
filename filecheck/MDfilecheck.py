@@ -626,7 +626,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, tmp_folder):
         try:
             shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
         except:
-            query = settings.delete_file.format(folder_id)
+            query = queries.delete_file.format(folder_id)
             logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
             logger1.info(query)
             db_cursor.execute(query)
@@ -754,7 +754,7 @@ def process_raw(filename, folder_path, folder_id, raw, folder_full_path, tmp_fol
         try:
             shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
         except:
-            query = settings.delete_file.format(folder_id)
+            query = queries.delete_file.format(folder_id)
             logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
             logger1.info(query)
             db_cursor.execute(query)
@@ -857,7 +857,7 @@ def process_wav(filename, folder_path, folder_id, folder_full_path, tmp_folder):
         try:
             shutil.copyfile("{}/{}".format(folder_full_path, filename), local_tempfile)
         except:
-            query = settings.delete_file.format(folder_id)
+            query = queries.delete_file.format(folder_id)
             logger1.error("Could not copy file {}/{} to local tmp".format(folder_full_path, filename))
             logger1.info(query)
             db_cursor.execute(query)
