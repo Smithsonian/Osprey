@@ -74,3 +74,6 @@ wav_filetype = "wav"
 wav_samprate = ""
 wav_channels = ""
 wav_bits = ""
+
+
+tmp_folder = "/tmp"

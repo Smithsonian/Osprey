@@ -49,10 +49,11 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 ############################################
 # Logging
 ############################################
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+if not os.path.exists('{}/logs'.format(filecheck_dir)):
+    os.makedirs('{}/logs'.format(filecheck_dir))
 current_time = strftime("%Y%m%d%H%M%S", localtime())
-logfile = 'logs/' + current_time + '.log'
+logfile_name = '{}.log'.format(current_time)
+logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
 # from http://stackoverflow.com/a/9321890
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
@@ -72,6 +73,13 @@ logger1 = logging.getLogger("vendor")
 ############################################
 # Functions
 ############################################
+def compress_log():
+    os.chdir('{}/logs'.format(filecheck_dir))
+    subprocess.run(["zip", "{}.zip".format(logfile_name), "{}".format(logfile_name)])
+    os.remove(logfile)
+    os.chdir(filecheck_dir)
+
+
 
 def check_folder(folder_name, folder_path, project_id, db_cursor):
     """
@@ -882,6 +890,10 @@ def process_wav(filename, folder_path, folder_id, folder_full_path, tmp_folder):
             #JHOVE check
             jhove_check = jhove_validate_wav(file_id, local_tempfile, tmp_folder, db_cursor)
             logger1.info("jhove_check:{}".format(jhove_check))
+        if 'valid_name' in settings.project_checks:
+            #valid name in file
+            valname = valid_name(file_id, local_tempfile, db_cursor)
+            logger1.info("valid_name:{}".format(valname))
         #Store MD5
         file_md5 = filemd5(file_id, "{}/{}".format(folder_path, filename), "wav", db_cursor)
         logger1.info("wav_md5:{}".format(file_md5))
@@ -893,7 +905,7 @@ def process_wav(filename, folder_path, folder_id, folder_full_path, tmp_folder):
 
 
 
-def check_deleted():
+def check_deleted(filetype = 'tif'):
     """
     Deleted files are tagged in the database
     """
@@ -911,16 +923,28 @@ def check_deleted():
     db_cursor.execute(get_files)
     files = db_cursor.fetchall()
     for file in files:
-        if os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1])) == True:
-            logger1.info("File {}/{}/{}.tif was found".format(file[2], settings.tif_files_path, file[1]))
-            q_foundfile = queries.file_exists.format(file[0])
-            logger1.info(q_foundfile)
-            db_cursor.execute(q_foundfile)
-        else:
-            logger1.error("File {}/{}/{}.tif was not found".format(file[2], settings.tif_files_path, file[1]))
-            q_delfile = queries.delete_file.format(file[0])
-            logger1.info(q_delfile)
-            db_cursor.execute(q_delfile)
+        if filetype == 'tif':
+            if os.path.isfile("{}/{}/{}.tif".format(file[2], settings.tif_files_path, file[1])) == True:
+                logger1.info("File {}/{}/{}.tif was found".format(file[2], settings.tif_files_path, file[1]))
+                q_foundfile = queries.file_exists.format(file[0])
+                logger1.info(q_foundfile)
+                db_cursor.execute(q_foundfile)
+            else:
+                logger1.error("File {}/{}/{}.tif was not found".format(file[2], settings.tif_files_path, file[1]))
+                q_delfile = queries.delete_file.format(file[0])
+                logger1.info(q_delfile)
+                db_cursor.execute(q_delfile)
+        elif filetype == 'wav':
+            if os.path.isfile("{}/{}/{}.wav".format(file[2], settings.tif_files_path, file[1])) == True:
+                logger1.info("File {}/{}/{}.wav was found".format(file[2], settings.tif_files_path, file[1]))
+                q_foundfile = queries.file_exists.format(file[0])
+                logger1.info(q_foundfile)
+                db_cursor.execute(q_foundfile)
+            else:
+                logger1.error("File {}/{}/{}.wav was not found".format(file[2], settings.tif_files_path, file[1]))
+                q_delfile = queries.delete_file.format(file[0])
+                logger1.info(q_delfile)
+                db_cursor.execute(q_delfile)
     con.close()
     return True
 
@@ -961,7 +985,7 @@ def main():
             folder_path = folder
             folder_name = os.path.basename(folder)
             #tmp folder
-            tmp_folder = "/tmp/tmp_{}".format(folder_name)
+            tmp_folder = "{}/tmp_{}".format(settings.tmp_folder, folder_name)
             if os.path.isdir(tmp_folder):
                 shutil.rmtree(tmp_folder, ignore_errors = True)
             os.mkdir(tmp_folder)
@@ -1008,6 +1032,8 @@ def main():
                     q_md5 = queries.update_folders_md5.format("wav", folder_id)
                     logger1.info(q_md5)
                     db_cursor.execute(q_md5)
+                #Check for deleted files
+                check_deleted('wavs')
             else:
                 if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
                     logger1.info("Missing TIF and RAW folders")
@@ -1086,10 +1112,10 @@ def main():
                                         q_md5 = queries.update_folders_md5.format("jpg", folder_id)
                                         logger1.info(q_md5)
                                         db_cursor.execute(q_md5)
+                #Check for deleted files
+                check_deleted()
             shutil.rmtree(tmp_folder, ignore_errors = True)
             folder_updated_at(folder_id, db_cursor)
-    #Check for deleted files
-    check_deleted()
     os.chdir(filecheck_dir)
     #Disconnect from db
     conn.close()
@@ -1109,9 +1135,11 @@ if __name__=="__main__":
             main()
         except KeyboardInterrupt:
             logger1.info("Ctrl-c detected. Leaving program.")
+            compress_log()
             sys.exit(0)
         except Exception as e:
             logger1.error("There was an error: {}".format(e))
+            compress_log()
             sys.exit(1)
 
 
