@@ -8,3 +8,7 @@ project_id <- 101
 jpg_previews <- "/mnt/machine"
 
 project_active <- TRUE
+
+project_type <- "tif"
+
+project_qc <- FALSE
