@@ -45,7 +45,6 @@ filecheck_dir = os.getcwd()
 ############################################
 if not os.path.exists('{}/logs'.format(filecheck_dir)):
     os.makedirs('{}/logs'.format(filecheck_dir))
-
 current_time = strftime("%Y%m%d%H%M%S", localtime())
 logfile_name = '{}.log'.format(current_time)
 logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
@@ -436,118 +435,6 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
 
 
 
-def main():
-    #Check that the paths are mounted
-    for p_path in settings.project_paths:
-        if os.path.ismount(p_path) == False:
-            logger1.error("Path not found: {}".format(p_path))
-            continue
-    #Connect to the database
-    logger1.info("Connecting to database")
-    conn = psycopg2.connect(
-                host = settings.db_host, 
-                    database = settings.db_db, 
-                    user = settings.db_user, 
-                    connect_timeout = 60)
-    conn.autocommit = True
-    db_cursor = conn.cursor()
-    #Update project
-    db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks), 'project_id': settings.project_id})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    #Run in each project path
-    for project_path in settings.project_paths:
-        logger1.info('project_path: {}'.format(project_path))
-        #Generate list of folders in the path
-        folders = []
-        for entry in os.scandir(project_path):
-            if entry.is_dir():
-                folders.append(entry.path)
-        #Run each folder
-        for folder in folders:
-            folder_path = folder
-            logger1.info(folder_path)
-            folder_name = os.path.basename(folder)
-            #Check if the folder exists in the database
-            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-            if folder_id == None:
-                logger1.error("Folder {} had an error".format(folder_name))
-                continue
-            os.chdir(folder_path)
-            files = glob.glob("*.wav")
-            logger1.info("Files in {}: {}".format(folder_path, ','.join(files)))
-            logger1.info(files)
-            #Remove temp files
-            if settings.ignore_string != None:
-                files = [ x for x in files if settings.ignore_string not in x ]
-                logger1.info("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
-            ###########################
-            #WAV files
-            ###########################
-            if settings.project_type == 'wav':
-                #Check each wav file
-                for file in files:
-                    logger1.info("Running checks on file {}".format(file))
-                    process_wav(file, folder_path, folder_id, folder_path, db_cursor)
-                #MD5
-                if len(glob.glob1("*.md5")) == 1:
-                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'wav', 'md5': 0})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                #Check for deleted files
-                check_deleted('wavs')
-            ###########################
-            #TIF Files
-            ###########################
-            elif settings.project_type == 'tif':
-                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
-                    logger1.info("Missing TIF and RAW folders")
-                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing TIF and RAW folders", 'folder_id': folder_id})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor)
-                    continue
-                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
-                    logger1.info("Missing TIF folder")
-                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing TIF folder", 'folder_id': folder_id})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor)
-                    continue
-                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
-                    logger1.info("Missing RAW folder")
-                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing RAW folder", 'folder_id': folder_id})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor)
-                    continue
-                else:
-                    logger1.info("Both folders present")
-                    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                    folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
-                    os.chdir(folder_full_path)
-                    files = glob.glob("*.tif")
-                    logger1.info(files)
-                    #Remove temp files
-                    if settings.ignore_string != None:
-                        files = [ x for x in files if settings.ignore_string not in x ]
-                        logger1.info("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
-                    for file in files:
-                        logger1.info("Running checks on file {}".format(file))
-                        process_tif(file, folder_path, folder_id, folder_full_path, db_cursor)
-                    #MD5
-                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-                    logger1.info(db_cursor.query.decode("utf-8"))
-                #Check for deleted files
-                check_deleted('tifs')
-            folder_updated_at(folder_id, db_cursor)
-    os.chdir(filecheck_dir)
-    #Disconnect from db
-    conn.close()
-    logger1.info("Sleeping for {} secs".format(settings.sleep))
-    #Sleep before trying again
-    time.sleep(settings.sleep)
-
-
-############################################
-############################################
-
 
 def check_requirements(program):
     """
@@ -588,13 +475,16 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         db_cursor.execute(queries.new_folder, {'project_folder': folder_name, 'folder_path': folder_path, 'project_id': project_id})
         logger1.info(db_cursor.query.decode("utf-8"))
         folder_id = db_cursor.fetchone()
-        print(folder_id)
-    if settings.folder_date != "":
-        folder_date = folder_path.split(settings.folder_date)[1]
-        folder_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
-        #Update to set date of folder
-        db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
-        logger1.info(db_cursor.query.decode("utf-8"))
+        logger1.info("folder_id:{}".format(folder_id[0]))
+    # if settings.folder_date != "":
+    #     folder_date = folder_path.split(settings.folder_date)[1]
+    #     folder_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
+    #     #Update to set date of folder
+    #     db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
+    #     logger1.info(db_cursor.query.decode("utf-8"))
+    folder_date = settings.folder_date(folder_name)
+    db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
+    logger1.info(db_cursor.query.decode("utf-8"))
     return folder_id[0]
 
 
@@ -1009,6 +899,115 @@ def check_jpg(file_id, filename, db_cursor):
     return True
 
 
+
+
+def main():
+    #Check that the paths are mounted
+    for p_path in settings.project_paths:
+        if os.path.ismount(p_path) == False:
+            logger1.error("Path not found: {}".format(p_path))
+            continue
+    #Connect to the database
+    logger1.info("Connecting to database")
+    conn = psycopg2.connect(
+                host = settings.db_host, 
+                    database = settings.db_db, 
+                    user = settings.db_user, 
+                    connect_timeout = 60)
+    conn.autocommit = True
+    db_cursor = conn.cursor()
+    #Update project
+    db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks), 'project_id': settings.project_id})
+    logger1.info(db_cursor.query.decode("utf-8"))
+    #Run in each project path
+    for project_path in settings.project_paths:
+        logger1.info('project_path: {}'.format(project_path))
+        #Generate list of folders in the path
+        folders = []
+        for entry in os.scandir(project_path):
+            if entry.is_dir():
+                folders.append(entry.path)
+        #Run each folder
+        for folder in folders:
+            folder_path = folder
+            logger1.info(folder_path)
+            folder_name = os.path.basename(folder)
+            #Check if the folder exists in the database
+            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
+            if folder_id == None:
+                logger1.error("Folder {} had an error".format(folder_name))
+                continue
+            os.chdir(folder_path)
+            files = glob.glob("*.wav")
+            logger1.info("Files in {}: {}".format(folder_path, ','.join(files)))
+            logger1.info(files)
+            #Remove temp files
+            if settings.ignore_string != None:
+                files = [ x for x in files if settings.ignore_string not in x ]
+                logger1.info("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
+            ###########################
+            #WAV files
+            ###########################
+            if settings.project_type == 'wav':
+                #Check each wav file
+                for file in files:
+                    logger1.info("Running checks on file {}".format(file))
+                    process_wav(file, folder_path, folder_id, folder_path, db_cursor)
+                #MD5
+                if len(glob.glob1("*.md5")) == 1:
+                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'wav', 'md5': 0})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                #Check for deleted files
+                check_deleted('wavs')
+            ###########################
+            #TIF Files
+            ###########################
+            elif settings.project_type == 'tif':
+                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) == False and os.path.isdir(folder_path + "/" + settings.tif_files_path) == False):
+                    logger1.info("Missing TIF and RAW folders")
+                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing TIF and RAW folders", 'folder_id': folder_id})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) == False:
+                    logger1.info("Missing TIF folder")
+                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing TIF folder", 'folder_id': folder_id})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) == False:
+                    logger1.info("Missing RAW folder")
+                    db_cursor.execute(queries.update_folder_status9, {'error_info': "Missing RAW folder", 'folder_id': folder_id})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    delete_folder_files(folder_id, db_cursor)
+                    continue
+                else:
+                    logger1.info("Both folders present")
+                    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
+                    os.chdir(folder_full_path)
+                    files = glob.glob("*.tif")
+                    logger1.info(files)
+                    #Remove temp files
+                    if settings.ignore_string != None:
+                        files = [ x for x in files if settings.ignore_string not in x ]
+                        logger1.info("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
+                    for file in files:
+                        logger1.info("Running checks on file {}".format(file))
+                        process_tif(file, folder_path, folder_id, folder_full_path, db_cursor)
+                    #MD5
+                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                #Check for deleted files
+                check_deleted('tifs')
+            folder_updated_at(folder_id, db_cursor)
+    os.chdir(filecheck_dir)
+    #Disconnect from db
+    conn.close()
+    logger1.info("Sleeping for {} secs".format(settings.sleep))
+    #Sleep before trying again
+    time.sleep(settings.sleep)
 
 
 

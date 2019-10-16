@@ -61,8 +61,12 @@ special_checks = []
 
 folder_name = ""
 
-#How to split to parse the date
-folder_date = ""
+#How to split to parse the date, return the date in format 'YYYY-MM-DD'
+def folder_date(folder_name):
+    folder_date = folder_name.split('SG-CGA-Druse-')[1]
+    formatted_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
+    return formatted_date
+
 
 
 #Raw files extension
