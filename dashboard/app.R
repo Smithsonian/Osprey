@@ -455,7 +455,9 @@ server <- function(input, output, session) {
           }
         }
         
-        
+        if (!exists("project_qc")){
+          project_qc = FALSE
+        }
         if (project_qc == TRUE){
           folder_qc <- paste0("SELECT qc_pass from qc_lots l, qc_lots_folders f where l.qc_lot_id = f.qc_lot_id AND f.folder_id = ", which_folder)
           flog.info(paste0("folder_qc: ", folder_qc), name = "dashboard")
