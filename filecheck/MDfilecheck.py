@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 #
+# Osprey script 
+#
 # Validate products from a vendor, usually images
-# Version 0.5.1
+# Version 0.5.2
 #
 ############################################
 # Import modules
@@ -90,15 +92,6 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     tmp_folder = "{}/mdpp_{}".format(settings.tmp_folder, str(folder_id))
     if os.path.isdir(tmp_folder) == False:
         os.mkdir(tmp_folder)
-    #Connect to the database
-    logger1.info("Connecting to database")
-    # conn2 = psycopg2.connect(
-    #                 host = settings.db_host, 
-    #                 database = settings.db_db, 
-    #                 user = settings.db_user,
-    #                 connect_timeout = 60)
-    # conn2.autocommit = True
-    # db_cursor = conn2.cursor()
     #Check if file exists, insert if not
     logger1.info("TIF file {}".format(filename))
     db_cursor.execute(queries.select_file_id, {'file_name': Path(filename).stem, 'folder_id': folder_id})
@@ -436,6 +429,9 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
 
 
 
+
+
+
 def check_requirements(program):
     """
     Check if required programs are installed
@@ -592,15 +588,15 @@ def tifpages(file_id, filename, db_cursor, paranoid = False):
     """
     Check if TIF has multiple pages
     """
-    p = subprocess.Popen(['identify', '-format', '%n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(['identify', '-quiet', '-format', '%p', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out,err) = p.communicate()
     try:
-        if int(out) == 1:
+        if len(out) == 1:
             pages_vals = 0
-            no_pages = str(int(out)) + " page"
+            no_pages = str(len(out)) + " page"
         else:
             pages_vals = 1
-            no_pages = str(int(out)) + " pages"
+            no_pages = str(len(out)) + " pages"
     except:
         no_pages = "Unknown"
         pages_vals = 1
@@ -827,6 +823,8 @@ def jpgpreview(file_id, filename):
     """
     Create preview image
     """
+    if settings.jpg_previews == "":
+        logger1.error("JPG preview folder is not set in settings file")
     preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
     #Create subfolder if it doesn't exists
@@ -927,6 +925,9 @@ def main():
         for entry in os.scandir(project_path):
             if entry.is_dir():
                 folders.append(entry.path)
+        #No folders found
+        if len(folders) == 0:
+            continue
         #Run each folder
         for folder in folders:
             folder_path = folder

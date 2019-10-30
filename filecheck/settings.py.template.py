@@ -115,7 +115,6 @@ jpg_previews = ""
 previews_size = 1000
 
 
-
 #Ignore files with this string anywhere in the filename
 ignore_string = None
 

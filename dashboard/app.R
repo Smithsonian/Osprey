@@ -12,8 +12,8 @@ library(shinydashboard)
 
 # Settings ----
 source("settings.R")
-app_name <- "MassDigi FileCheck Dashboard"
-app_ver <- "0.4.0"
+app_name <- "Osprey Dashboard"
+app_ver <- "0.4.1"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
@@ -49,10 +49,14 @@ dbDisconnect(db)
 
 # UI ----
 ui <- dashboardPage(
+  
   #header
-  dashboardHeader(title = proj_name),
+  dashboardHeader(title = paste0(proj_name, " - Project Dashboard")),
+  
   dashboardSidebar(disable = TRUE),
   #Body
+  
+
   dashboardBody(
     fluidRow(
       shinycssloaders::withSpinner(valueBoxOutput("box_ok", width = 3)),
@@ -93,7 +97,9 @@ ui <- dashboardPage(
     #Footer
     hr(),
     uiOutput("footer")
-  )
+  ),
+  #Refresh every 60 seconds
+  tags$head(HTML('<meta http-equiv="refresh" content="60">'))
 )
 
 
@@ -537,7 +543,7 @@ server <- function(input, output, session) {
     
     file_name <- fileslist_df[input$files_table_rows_selected, ]$file_name
     
-    file_info_q <- paste0("SELECT *, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")")
+    file_info_q <- paste0("SELECT *, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id = ", which_folder)
     flog.info(paste0("file_info_q: ", file_info_q), name = "dashboard")
     file_info <- dbGetQuery(db, file_info_q)
 

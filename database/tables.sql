@@ -294,3 +294,16 @@ CREATE INDEX qc_users_un_idx ON qc_users USING BTREE(username);
 CREATE INDEX qc_users_up_idx ON qc_users USING BTREE(pass);
 CREATE INDEX qc_users_ua_idx ON qc_users USING BTREE(user_active);
 CREATE INDEX qc_users_pid_idx ON qc_users USING BTREE(project_id);
+
+
+
+
+--qc_users_cookies
+DROP TABLE IF EXISTS qc_users_cookies CASCADE;
+CREATE TABLE qc_users_cookies (
+    user_id serial REFERENCES qc_users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    cookie text,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX qc_users_cookies_un_idx ON qc_users_cookies USING BTREE(user_id);
+CREATE INDEX qc_users_cookies_c_idx ON qc_users_cookies USING BTREE(cookie);
