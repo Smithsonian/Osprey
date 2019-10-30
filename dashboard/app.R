@@ -510,7 +510,9 @@ server <- function(input, output, session) {
     fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results") 
     
     #Sort to put errors on the top
-    fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
+    if (dim(files_list)[1] > 0){
+      fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
+    }
     
     no_cols <- dim(fileslist_df)[2]
     
