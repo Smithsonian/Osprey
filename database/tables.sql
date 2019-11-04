@@ -233,7 +233,7 @@ create table qc_lots (
     qc_lot_id integer NOT NULL DEFAULT nextval('qc_lots_id_seq') PRIMARY KEY,
     project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
     qc_lot_title text NOT NULL,
-    qc_lot_date date NOT NULL,
+    qc_lot_date date[] NOT NULL,
     qc_lot_percent numeric DEFAULT 10,
     qc_pass boolean,
     qc_level text DEFAULT 'Normal',

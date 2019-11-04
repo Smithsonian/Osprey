@@ -94,14 +94,15 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         os.mkdir(tmp_folder)
     #Check if file exists, insert if not
     logger1.info("TIF file {}".format(filename))
-    db_cursor.execute(queries.select_file_id, {'file_name': Path(filename).stem, 'folder_id': folder_id})
+    filename_stem = Path(filename).stem
+    db_cursor.execute(queries.select_file_id, {'file_name': filename_stem, 'folder_id': folder_id})
     logger1.info(db_cursor.query.decode("utf-8"))
     file_id = db_cursor.fetchone()
     if file_id == None:
         #Get modified date for file
         file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.tif_files_path, filename))
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-        db_cursor.execute(queries.insert_file, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
+        db_cursor.execute(queries.insert_file, {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
         logger1.info(db_cursor.query.decode("utf-8"))
         file_id = db_cursor.fetchone()[0]
     else:
@@ -149,7 +150,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                 #FilePair check
                 pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.tif_files_path), 'tif', "{}/{}".format(folder_path, settings.raw_files_path), settings.raw_files, db_cursor)
                 logger1.info("pair_check:{}".format(pair_check))
-                file_md5 = filemd5("{}/{}.{}".format("{}/{}".format(folder_path, settings.raw_files_path), Path(filename).stem, settings.raw_files))
+                file_md5 = filemd5("{}/{}.{}".format("{}/{}".format(folder_path, settings.raw_files_path), filename_stem, settings.raw_files))
                 db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
@@ -170,7 +171,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                db_cursor.execute(queries.check_unique, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchone()
                 if result[0] > 0:
@@ -187,7 +188,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                db_cursor.execute(queries.check_unique_old, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
                 if len(result) > 0:
@@ -262,7 +263,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #JPG check
-                check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, Path(filename).stem), db_cursor)
+                check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, filename_stem), db_cursor)
         if 'tifpages' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
             logger1.info(db_cursor.query.decode("utf-8"))
@@ -291,30 +292,22 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
     if os.path.isdir(tmp_folder):
         shutil.rmtree(tmp_folder, ignore_errors = True)
     os.mkdir(tmp_folder)
-    #Connect to the database
-    # logger1.info("Connecting to database")
-    # conn2 = psycopg2.connect(
-    #                 host = settings.db_host, 
-    #                 database = settings.db_db, 
-    #                 user = settings.db_user, 
-    #                 connect_timeout = 60)
-    # conn2.autocommit = True
-    # db_cursor = conn2.cursor()
+    filename_stem = Path(filename).stem
     #Check if file exists, insert if not
     logger1.info("WAV file {}".format(filename))
-    q_checkfile = queries.select_file_id.format(Path(filename).stem, folder_id)
+    q_checkfile = queries.select_file_id.format(filename_stem, folder_id)
     logger1.info(q_checkfile)
     db_cursor.execute(q_checkfile)
     file_id = db_cursor.fetchone()
     if file_id == None:
         file_timestamp_float = os.path.getmtime("{}/{}".format(folder_path, filename))
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-        db_cursor.execute(queries.insert_file, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'unique_file': unique_file, 'file_timestamp': file_timestamp})
+        db_cursor.execute(queries.insert_file, {'file_name': filename_stem, 'folder_id': folder_id, 'unique_file': unique_file, 'file_timestamp': file_timestamp})
         logger1.info(db_cursor.query.decode("utf-8"))
         file_id = db_cursor.fetchone()[0]
     else:
         file_id = file_id[0]
-    logger1.info("filename: {} with file_id {}".format(Path(filename).stem, file_id))
+    logger1.info("filename: {} with file_id {}".format(filename_stem, file_id))
     #Check if file is OK
     file_checks = 0
     for filecheck in settings.project_file_checks:
@@ -343,7 +336,7 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                db_cursor.execute(queries.check_unique, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchone()
                 if result[0] > 0:
@@ -357,7 +350,7 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                db_cursor.execute(queries.check_unique_old, {'file_name': Path(filename).stem, 'folder_id': folder_id, 'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
                 if len(result) > 0:
@@ -570,14 +563,15 @@ def valid_name(file_id, filename, db_cursor, paranoid = False):
     """
     Check if filename in database of accepted names
     """
-    db_cursor.execute(settings.filename_pattern_query.format(Path(filename).stem))
+    filename_stem = Path(filename).stem
+    db_cursor.execute(settings.filename_pattern_query.format(filename_stem))
     valid_names = db_cursor.fetchone()[0]
     if valid_names == 0:
         filename_check = 1
-        filename_check_info = "Filename {} not in list".format(Path(filename).stem)
+        filename_check_info = "Filename {} not in list".format(filename_stem)
     else:
         filename_check = 0
-        filename_check_info = "Filename {} in list".format(Path(filename).stem)
+        filename_check_info = "Filename {} in list".format(filename_stem)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
     logger1.info(db_cursor.query.decode("utf-8"))
     return True

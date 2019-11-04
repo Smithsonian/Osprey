@@ -32,7 +32,7 @@ project_type = "tif"
 ##################################
 #Project checks to run
 ##################################
-project_file_checks = ["raw_pair","magick","jhove","unique_file","tifpages","old_name"]
+project_file_checks = ["raw_pair","magick","jhove","unique_file","tifpages"]
 #For TIFS:
 # - raw_pair: The raw file with the extension in 'raw_files' paired to the tif
 # - tif_size: Size of the tif file

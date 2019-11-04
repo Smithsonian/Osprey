@@ -56,7 +56,6 @@ ui <- dashboardPage(
   dashboardSidebar(disable = TRUE),
   #Body
   
-
   dashboardBody(
     fluidRow(
       shinycssloaders::withSpinner(valueBoxOutput("box_ok", width = 3)),
@@ -99,7 +98,9 @@ ui <- dashboardPage(
     uiOutput("footer")
   ),
   #Refresh every 60 seconds
-  tags$head(HTML('<meta http-equiv="refresh" content="60">'))
+  if (project_active == TRUE){
+    tags$head(HTML('<meta http-equiv="refresh" content="60">'))
+  }
 )
 
 
