@@ -112,6 +112,7 @@ jhove_path = "/home/villanueval/jhove/jhove"
 
 #JPG Previews location and size
 jpg_previews = ""
+#Set previews_size = 'full' to keep the same size as the TIF
 previews_size = 1000
 
 

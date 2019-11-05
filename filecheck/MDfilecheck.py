@@ -829,13 +829,13 @@ def jpgpreview(file_id, filename):
         logger1.info("JPG preview {} exists".format(preview_image))
         return True
     logger1.info("creating preview_image:{}".format(preview_image))
-    try:
-        p = subprocess.run(['convert', "{}[0]".format(filename), '-resize', '{imgsize}x{imgsize}'.format(imgsize = settings.previews_size), preview_image], stdout=PIPE,stderr=PIPE)
-        (out,err) = p.communicate()
-        logger1.info(out)
-        if p.returncode == 0:
-            return True
-    except:
+    if settings.previews_size == "full":
+        p = subprocess.Popen(['convert', "{}[0]".format(filename), preview_image], stdout=PIPE, stderr=PIPE)
+    else:
+        p = subprocess.Popen(['convert', "{}[0]".format(filename), '-resize', '{imgsize}x{imgsize}'.format(imgsize = settings.previews_size), preview_image], stdout=PIPE, stderr=PIPE)
+    if p.returncode == 0:
+        return True
+    else:
         return False
 
 
