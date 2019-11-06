@@ -3,7 +3,6 @@
 # Osprey script 
 #
 # Validate products from a vendor, usually images
-# Version 0.5.2
 #
 ############################################
 # Import modules
@@ -22,6 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
+ver = "0.5.3"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -63,6 +63,7 @@ formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
 console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
 logger1 = logging.getLogger("filecheck")
+logger1.info("osprey version {}".format(ver))
 
 
 
