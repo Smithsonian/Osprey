@@ -21,7 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
-ver = "0.5.3"
+ver = "0.5.4"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -126,6 +126,12 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             if result == 9:
                 result = 1
         file_checks = file_checks + result
+    #Check if JPG preview exists
+    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
+    preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+    if os.path.isfile(preview_image) == False:
+        logger1.info("jpg_preview {} does not exist for file_id:{}".format(preview_image, file_id))
+        file_checks = file_checks + 1
     #Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
     logger1.info(db_cursor.query.decode("utf-8"))
@@ -211,7 +217,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         try:
             shutil.copyfile("{}/{}/{}".format(folder_path, settings.tif_files_path, filename), local_tempfile)
         except:
-            logger1.error("Could not copy file {}/{} to local tmp".format(folder_path, filename))
+            logger1.error("Could not copy file {}/{}/{} to local tmp".format(folder_path, settings.tif_files_path, filename))
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger1.info(db_cursor.query.decode("utf-8"))
             return False
@@ -279,7 +285,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         #Disconnect from db
         # db_cursor.close()
         # conn2.close()
-        os.remove(local_tempfile)
+        #os.remove(local_tempfile)
         return True
 
 
@@ -369,7 +375,7 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
         try:
             shutil.copyfile("{}/{}/{}".format(folder_path, wav_files_path, filename), local_tempfile)
         except:
-            logger1.error("Could not copy file {}/{} to local tmp".format(folder_path, filename))
+            logger1.error("Could not copy file {}/{}/{} to local tmp".format(folder_path, wav_files_path, filename))
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger1.info(db_cursor.query.decode("utf-8"))
             return False
@@ -831,12 +837,15 @@ def jpgpreview(file_id, filename):
         return True
     logger1.info("creating preview_image:{}".format(preview_image))
     if settings.previews_size == "full":
-        p = subprocess.Popen(['convert', "{}[0]".format(filename), preview_image], stdout=PIPE, stderr=PIPE)
+        p = subprocess.Popen(['convert', '-quiet', "{}[0]".format(filename), preview_image], stdout=PIPE, stderr=PIPE)
     else:
-        p = subprocess.Popen(['convert', "{}[0]".format(filename), '-resize', '{imgsize}x{imgsize}'.format(imgsize = settings.previews_size), preview_image], stdout=PIPE, stderr=PIPE)
-    if p.returncode == 0:
+        p = subprocess.Popen(['convert', '-quiet', "{}[0]".format(filename), '-resize', '{imgsize}x{imgsize}'.format(imgsize = settings.previews_size), preview_image], stdout=PIPE, stderr=PIPE)
+    out = p.communicate()
+    if os.path.isfile(preview_image):
+        logger1.info(out)
         return True
     else:
+        logger1.error("File:{}|msg:{}".format(filename, out))
         return False
 
 
@@ -891,6 +900,31 @@ def check_jpg(file_id, filename, db_cursor):
         logger1.info(db_cursor.query.decode("utf-8"))
     return True
 
+
+
+
+def check_stitched_jpg(file_id, filename, db_cursor):
+    """
+    Run checks for jpg files that were stitched from 2 images
+    """
+    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    if p.returncode == 0:
+        magick_identify = 0
+        magick_identify_info = out
+        magick_return = True
+    else:
+        magick_identify = 1
+        magick_identify_info = err
+        magick_return = False
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
+    logger1.info(db_cursor.query.decode("utf-8"))
+    if magick_return:
+        #Store MD5
+        file_md5 = filemd5(filename)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
+        logger1.info(db_cursor.query.decode("utf-8"))
+    return True
 
 
 
