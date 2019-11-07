@@ -10,7 +10,6 @@ library(shinycssloaders)
 library(shinyjs)
 
 
-
 # Settings ----
 source("settings.R")
 app_name <- "Osprey QC"
@@ -19,6 +18,8 @@ github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
 options(encoding = 'UTF-8')
+source("functions.R")
+
 
 #Logfile----
 dir.create("logs", showWarnings = FALSE)
@@ -33,7 +34,6 @@ if (Sys.info()["nodename"] == "shiny.si.edu"){
 }else{
   pg_driver = "PostgreSQL Unicode"
 }
-
 db <- dbConnect(odbc::odbc(),
                 driver = pg_driver,
                 database = pg_db,
@@ -42,12 +42,9 @@ db <- dbConnect(odbc::odbc(),
                 server = pg_host,
                 port = 5432)
 
+
 project <- dbGetQuery(db, paste0("SELECT project_acronym FROM projects WHERE project_id = ", project_id))
 proj_name <- paste0(project$project_acronym, " - QC page")
-
-dbDisconnect(db)
-
-#addResourcePath("js", "www")
 
 jsCode <- '
             shinyjs.getcookie = function(params) {
@@ -70,18 +67,8 @@ jsCode <- '
           '
 
 
-
-
-
 # UI ----
 ui <- fluidPage(
-  
-  # tags$head(
-  #   tags$style(HTML("
-  #     #folder_id {
-  #       display: none;
-  #     }"))
-  # ),
   
   tags$head(
     tags$script(src = "js.cookie.min.js")
@@ -89,50 +76,43 @@ ui <- fluidPage(
   useShinyjs(),
   extendShinyjs(text = jsCode),
   
-  #ImageZoom scripts
-  tags$script(src = "imgViewer.min.js"),
-  tags$script(src = "jquery.mousewheel.min.js"),
-  tags$link(rel = "stylesheet", type = "text/css", href = "imgViewer.min.css"),
-  tags$script(src = "image_zoom.js"),
-  #Add class zoomimage to image to zoom in
-  
+  tags$script(src = "jquery.elevateZoom-3.0.8.min.js"),
+    
   #header
-  titlePanel(proj_name),
+  #titlePanel(proj_name),
+  title = proj_name,
   #Body
-  #User login
   fluidRow(
-    column(width = 3,
-           br()
+    column(width = 4,
+           h2(proj_name)
     ),
-    column(width = 6,
-           uiOutput("userlogin")
+    column(width = 7,
+           p("")
     ),
-    column(width = 3,
-           uiOutput("userinfo"),
-           #verbatimTextOutput("output"),
-           br()
+    column(width = 1,
+           uiOutput("userinfo")
     )
   ),
-  uiOutput("folderlisth"),
   fluidRow(
-    column(width = 3,
-           uiOutput("folderlist1")
+    column(width = 2,
+           uiOutput("userlogin"),
+           uiOutput("lotlisth"),
+           uiOutput("lotlist1")
+    ),
+    column(width = 10,
+           uiOutput("tableheading"),
+           DT::dataTableOutput("lotqctable"),
+           uiOutput("runqc"),
+           br(),br(),br(),br(),br()
     )
   ),
-  uiOutput("tableheading"),
-  DT::dataTableOutput("folderqc"),
-  uiOutput("passfail"),
   #Footer
-  hr(),
   uiOutput("footer")
 )
 
 
 # Server ----
 server <- function(input, output, session) {
-  
-  #cat(session$userData)
-  
   
   status <- reactiveVal(value = NULL)
   # check if a cookie is present and matching our super random sessionid
@@ -146,32 +126,10 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  
-  #Connect to the database ----
-  if (Sys.info()["nodename"] == "shiny.si.edu"){
-    #For RHEL7 odbc driver
-    pg_driver = "PostgreSQL"
-  }else{
-    #Ubuntu odbc driver
-    pg_driver = "PostgreSQL Unicode"
-  }
-  
-  db <- dbConnect(odbc::odbc(),
-                  driver = pg_driver,
-                  database = pg_db,
-                  uid = pg_user,
-                  pwd = pg_pass,
-                  server = pg_host,
-                  port = 5432)
-
-  
-  
   status <- reactiveVal(value = NULL)
   # check if a cookie is present and matching our super random sessionid  
   observe({
     js$getcookie()
-    
     if (!is.null(input$jscookie)) {
       user_id <- dbGetQuery(db, paste0("SELECT c.user_id FROM qc_users_cookies c, qc_users u WHERE c.user_id = u.user_id AND u.project_id = ", project_id, " AND c.cookie = '", input$jscookie, "'"))
       
@@ -180,13 +138,8 @@ server <- function(input, output, session) {
         js$rmcookie()
       }
     }
-    
   })
   
-  
-  # output$output <- renderText({
-  #   paste0('You are logged ', status())}
-  # )
   
   
   #userlogin----
@@ -201,25 +154,24 @@ server <- function(input, output, session) {
       )
     }else{
       user_id <- dbGetQuery(db, paste0("SELECT c.user_id, u.username FROM qc_users_cookies c, qc_users u WHERE c.user_id = u.user_id AND u.project_id = ", project_id, " AND c.cookie = '", input$jscookie, "'"))
-      #cat(dim(user_id)[1])
+
       if (dim(user_id)[1] == 0){
         js$rmcookie()
-        tagList(
-          br(),br(),br(),br(),
-          textInput("username", "Username:", value = 'villanueval'),
-          passwordInput("password", "Password:", value = 'qccontrol'),
-          actionButton("login", "Login")
-        )
+        #runqc_refresh----
+        output$runqc <- renderUI({
+          HTML("<script>$(location).attr('href', './')</script>")
+        })
       }else{
         session$userData$user_id <- user_id$user_id
         session$userData$username <- user_id$username
         HTML("&nbsp;")
       }
     }
-    
   })
   
   
+  
+  #observeEvent_login----
   observeEvent(input$login, {
     is_user <- dbGetQuery(db, paste0("SELECT user_id FROM qc_users WHERE project_id = ", project_id, " AND username = '", input$username, "' AND pass = MD5('", input$password, "')"))
     if (dim(is_user)[1] == 0){
@@ -228,7 +180,7 @@ server <- function(input, output, session) {
       }) 
     }else{
       user_id <- dbGetQuery(db, paste0("SELECT c.user_id FROM qc_users_cookies c, qc_users u WHERE c.user_id = u.user_id AND u.project_id = ", project_id, " AND c.cookie = '", input$jscookie, "'"))
-      #cat(dim(user_id)[1])
+
       if (dim(user_id)[1] == 0){
         sessionid <- paste(
           collapse = '',
@@ -241,9 +193,8 @@ server <- function(input, output, session) {
         session$userData$user_id <- is_user$user_id
         session$userData$username <- input$username
       }else{
-      
-      session$userData$user_id <- is_user$user_id
-      session$userData$username <- input$username
+        session$userData$user_id <- is_user$user_id
+        session$userData$username <- input$username
       }
       
       output$userlogin <- renderUI({
@@ -253,19 +204,20 @@ server <- function(input, output, session) {
   })
   
 
+  
   #userinfo----
   output$userinfo <- renderUI({
     js$getcookie()
     req(input$jscookie)
     tagList(
-      p(session$userData$username),
-      actionButton('logout', 'Logout')
+      tags$small(session$userData$username, "  ", actionLink('logout', '[Logout]'))
     )
   }) 
   
   
-  #folderlisth----
-  output$folderlisth <- renderUI({
+  
+  #lotlisth----
+  output$lotlisth <- renderUI({
     js$getcookie()
     req(input$jscookie)
     
@@ -273,110 +225,374 @@ server <- function(input, output, session) {
     which_folder <- query['folder']
     
     if(which_folder == "NULL"){
-      HTML("<br><h4>List of folders for QC:</h4>")
+      HTML("<a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a><br><br><br><h4>List of folders for QC:</h4><small>Only the first lot with pending QC can be opened</small>")
     }
   })
   
   
-  #folderlist1----
-  output$folderlist1 <- renderUI({
+  
+  #lotlist1----
+  output$lotlist1 <- renderUI({
     js$getcookie()
     req(input$jscookie)
     
     query <- parseQueryString(session$clientData$url_search)
     which_lot <- query['lot_id']
     
-    #if(which_lot == "NULL"){
-      #None selected, show all
-      qclots_q <- paste0("SELECT *, array_to_string(qc_lot_dates, ',') AS qc_lot_dates_f FROM qc_lots WHERE project_id = ", project_id, " ORDER BY qc_lot_date ASC")
-      flog.info(paste0("qclots_q: ", qclots_q), name = "qc")
-      qc_lots <- dbGetQuery(db, qclots_q)
-      
-      list_of_lots <- ""
-      
-      if (dim(qc_lots)[1] > 0){
+    qclots_q <- paste0("SELECT *, array_to_string(qc_lot_dates, ',') AS qc_lot_dates_f FROM qc_lots WHERE project_id = ", project_id, " ORDER BY qc_lot_id ASC")
+    flog.info(paste0("qclots_q: ", qclots_q), name = "qc")
+    qc_lots <- dbGetQuery(db, qclots_q)
+    
+    list_of_lots <- ""
+    
+    if (dim(qc_lots)[1] > 0){
+
+      qc_next = FALSE
+              
+      for (i in 1:dim(qc_lots)[1]){
         
-        for (i in 1:dim(qc_lots)[1]){
-          
-          if (which_lot != "NULL"){
-            if (qc_lots$qc_lot_id[i] == which_lot){
-              is_active <- "active"
-            }else{
-              is_active <- ""
-            }
+        if (which_lot != "NULL"){
+          if (qc_lots$qc_lot_id[i] == which_lot){
+            is_active <- "active"
           }else{
             is_active <- ""
           }
-          
-          this_folder <- paste0("<a href=\"./?lot_id=", qc_lots$qc_lot_id[i], "\" class=\"list-group-item ", is_active, "\">", qc_lots$qc_lot_title[i])
-          
-          lot_qc_status <- qc_lots$qc_pass[i]
-          
-          if (is.na(lot_qc_status)){
-            this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
-          }else{
-            if (lot_qc_status == 0){
-              this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Folder passed QC\">QC OK</span> ")
-            }else if (lot_qc_status == 1){
-              this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Folder failed QC\">QC Failed</span> ")
-            }
-          }
-          
-          this_folder <- paste0(this_folder, "<p>Dates: ", qc_lots$qc_lot_dates_f[i], "</p>")
-          
-          this_folder <- paste0(this_folder, "</a>")
-          list_of_lots <- paste0(list_of_lots, this_folder)
+        }else{
+          is_active <- ""
         }
+        
+        if (qc_next == TRUE){
+          this_folder <- paste0("<a class=\"list-group-item ", is_active, "\">", qc_lots$qc_lot_title[i])
+        }else{
+          this_folder <- paste0("<a href=\"./?lot_id=", qc_lots$qc_lot_id[i], "\" class=\"list-group-item ", is_active, "\">", qc_lots$qc_lot_title[i])
+        }
+
+        lot_qc_status <- qc_lots$qc_pass[i]
+        
+        if (is.na(lot_qc_status)){
+          this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
+          if (qc_next == FALSE){
+            qc_next = TRUE
+          }
+        }else{
+          if (lot_qc_status == 1){
+            this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Folder passed QC\">QC OK</span> ")
+          }else if (lot_qc_status == 0){
+            this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Folder failed QC\">QC Failed</span> ")
+          }
+        }
+        
+        this_folder <- paste0(this_folder, "<p>Dates: ", qc_lots$qc_lot_dates_f[i], "</p>")
+        this_folder <- paste0(this_folder, "</a>")
+        list_of_lots <- paste0(list_of_lots, this_folder)
       }
+    }
     
     list_of_lots <- paste0(list_of_lots, "</div><br><br><br>")
     HTML(list_of_lots)
   })
   
+
   
+  #observeEvent_logout----
   observeEvent(input$logout, {
     js$rmcookie()
+    #runqc_refresh----
+    output$runqc <- renderUI({
+      HTML("<script>$(location).attr('href', './')</script>")
+    })
   })
   
   
-  #folderqc----
-  output$folderqc <- DT::renderDataTable({
+  
+  #runqc----
+  output$runqc <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
-    which_folder <- query['folder']
+    lot_id <- query['lot_id']
+    qc <- query['runqc']
     
-    if (which_folder == "NULL"){
+    if (qc == "NULL"){req(FALSE)}
+    
+    if (lot_id == "NULL"){req(FALSE)}
+    
+    q <- paste0("SELECT count(*) as done_files FROM qc_lots_files WHERE qc_lot_id = ", lot_id, " AND qc_critical IS NOT NULL")
+    flog.info(paste0("qc_file: ", q), name = "qc")
+    done_files <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_lot_id = ", lot_id)
+    flog.info(paste0("qc_file: ", q), name = "qc")
+    no_files <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    percent_done <- done_files/no_files
+    
+    progress0 <- shiny::Progress$new()
+    progress0$set(message = paste0("QC progress for lot: ", done_files, " out of ", no_files, " files"), value = percent_done)
+    
+    #QC process here
+    q <- paste0("SELECT f.*, fs.path FROM files f, folders fs WHERE f.folder_id = fs.folder_id AND f.file_id IN (SELECT file_id FROM qc_lots_files WHERE qc_lot_id = ", lot_id, " AND qc_critical IS NULL ORDER BY RANDOM() LIMIT 1)")
+    flog.info(paste0("qc_file: ", q), name = "qc")
+    this_file <- dbGetQuery(db, q)
+    
+    if (dim(this_file)[1] == 0){
+      
+      progress0$close()
+      
+      q <- paste0("SELECT * FROM qc_lots WHERE qc_lot_id = ", lot_id)
+      flog.info(paste0("qc_lot_final: ", q), name = "qc")
+      lot_info <- dbGetQuery(db, q)
+      
+      q <- paste0("SELECT * FROM qc_settings WHERE project_id = ", project_id)
+      flog.info(paste0("qc_lot_final: ", q), name = "qc")
+      qc_settings <- dbGetQuery(db, q)
+      
+      #Critical
+      q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_critical = 'f' AND qc_lot_id = ", lot_id)
+      flog.info(paste0("qc_lot_final: ", q), name = "qc")
+      qc_critical <- as.integer(dbGetQuery(db, q)[1,1])
+      
+      qc_critical_per <- round(qc_critical/no_files, 2)
+      
+      lot_qc <- "Passed"
+      
+      if (qc_critical_per > qc_settings$qc_threshold_critical){
+        qc_critical_lot_res <- "Failed"
+        qc_critical_lot_res_col <- "danger"
+        lot_qc <- "Failed"
+      }else{
+        qc_critical_lot_res <- "Passed"
+        qc_critical_lot_res_col <- "success"
+      }
+      qc_critical_lot <- paste0("<span class=\"label label-", qc_critical_lot_res_col, "\" title=\"QC Critical ", qc_critical_lot_res, "\">", qc_critical_lot_res, " (", qc_critical_per, "%)</span>")
+      
+      #Major
+      q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_major = 'f' AND qc_lot_id = ", lot_id)
+      flog.info(paste0("qc_lot_final: ", q), name = "qc")
+      qc_major <- as.integer(dbGetQuery(db, q)[1,1])
+      
+      qc_major_per <- round(qc_major/no_files, 2)
+      
+      if (qc_major_per > qc_settings$qc_threshold_major){
+        qc_major_lot_res <- "Failed"
+        qc_major_lot_res_col <- "danger"
+        lot_qc <- "Failed"
+      }else{
+        qc_major_lot_res <- "Passed"
+        qc_major_lot_res_col <- "success"
+      }
+      qc_major_lot <- paste0("<span class=\"label label-", qc_major_lot_res_col, "\" title=\"QC Critical ", qc_major_lot_res, "\">", qc_major_lot_res, " (", qc_major_per, "%)</span>")
+      
+      #Minor
+      q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_minor = 'f' AND qc_lot_id = ", lot_id)
+      flog.info(paste0("qc_lot_final: ", q), name = "qc")
+      qc_minor <- as.integer(dbGetQuery(db, q)[1,1])
+      
+      qc_minor_per <- round(qc_minor/no_files, 2)
+      
+      if (qc_minor_per > qc_settings$qc_threshold_minor){
+        qc_minor_lot_res <- "Failed"
+        qc_minor_lot_res_col <- "danger"
+        lot_qc <- "Failed"
+      }else{
+        qc_minor_lot_res <- "Passed"
+        qc_minor_lot_res_col <- "success"
+      }
+      qc_minor_lot <- paste0("<span class=\"label label-", qc_minor_lot_res_col, "\" title=\"QC Critical ", qc_minor_lot_res, "\">", qc_minor_lot_res, " (", qc_minor_per, "%)</span>")
+      
+      tagList(
+                 HTML(paste0("<p>Lot: <strong>", lot_info$qc_lot_title, "</strong><p>Lot QC result: <strong>", lot_qc, "</strong>")),
+                 HTML(paste0("<dl class=\"dl-horizontal\">
+                      <dt>Critical Issues:</dt><dd>", qc_critical_lot, "</dd>
+                      <dt>Major Issues:</dt><dd>", qc_major_lot, "</dd>
+                      <dt>Minor Issues:</dt><dd>", qc_minor_lot, "</dd>
+                    </dl>")),
+                 textInput("qc_info", "Notes about the lot"),
+                 actionButton("qc_done", "Save Results")
+      )
+    }else{
+      tagList(
+        fluidRow(
+          column(width = 3,
+                 HTML("<p>Filename: <strong>", this_file$file_name, "</strong>"),
+                 p("File timestamp: ", this_file$file_timestamp),
+                 shinyWidgets::radioGroupButtons(
+                        inputId = "qc_critical", label = "Critical Issues:", 
+                        choices = c("Pass", "Fail"), 
+                        justified = TRUE, status = "primary",
+                        checkIcon = list(yes = icon("ok", lib = "glyphicon"))),
+                 shinyWidgets::radioGroupButtons(
+                        inputId = "qc_major", label = "Major Issues:", 
+                        choices = c("Pass", "Fail"), 
+                        justified = TRUE, status = "primary",
+                        checkIcon = list(yes = icon("ok", lib = "glyphicon"))),
+                 shinyWidgets::radioGroupButtons(
+                        inputId = "qc_minor", label = "Minor Issues:", 
+                        choices = c("Pass", "Fail"), 
+                        justified = TRUE, status = "primary",
+                        checkIcon = list(yes = icon("ok", lib = "glyphicon"))),
+                 textInput("qc_text", "QC Issues"),
+                 disabled(textInput("qc_fileid", "File ID", value = this_file$file_id)),
+                 actionButton("qc_submit", "Submit"),
+                 HTML("<br><br><br><br><p>Full path of original file: ", this_file$path, "</p>")
+          ),
+          column(width = 9,
+                 HTML(paste0("<p>JPG export</p>
+                          <p>Move the mouse over the image to zoom in [<a href=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" target = _blank>Open image in a new window</a>]</p>
+                          <img id=\"zoom_01\" src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" width = \"860\" height = \"auto\" data-zoom-image=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id,  "\"/>
+                           
+                          	<script>
+                          	  $('#zoom_01').elevateZoom({
+                                    zoomType  : \"lens\",
+                                    lensShape : \"circle\",
+                                    lensSize  : 360,
+                                    scrollZoom: true
+                                });
+                          </script>
+                "))
+          )
+        )
+      )
+    }
+  })
+  
+  
+  
+  #observeEvent_qc_submit-----
+  observeEvent(input$qc_submit, {
+    
+    if (input$qc_critical == "Pass"){
+      qc_critical = "True"
+    }else{
+      qc_critical = "False"
+    }
+    
+    if (input$qc_major == "Pass"){
+      qc_major = "True"
+    }else{
+      qc_major = "False"
+    }
+    
+    if (input$qc_minor == "Pass"){
+      qc_minor = "True"
+    }else{
+      qc_minor = "False"
+    }
+    
+    query <- parseQueryString(session$clientData$url_search)
+    lot_id <- query['lot_id']
+    
+    qc_text <- input$qc_text
+    file_id <- input$qc_fileid
+    
+    query <- paste0("UPDATE qc_lots_files SET qc_critical = '", qc_critical, "', qc_major = '", qc_major, "', qc_minor = '", qc_minor, "' WHERE file_id = ", file_id, " AND qc_lot_id = ", lot_id)
+    
+    flog.info(paste0("query: ", query), name = "dashboard")
+    
+    n <- dbSendQuery(db, query)
+    dbClearResult(n)
+    
+    #runqc_refresh----
+    output$runqc <- renderUI({
+      query <- parseQueryString(session$clientData$url_search)
+      lot_id <- query['lot_id']
+      HTML(paste0("<script>$(location).attr('href', './?lot_id=", lot_id, "&runqc=1')</script>"))
+    })
+  })
+  
+  
+  
+  #observeEvent_qc_done----
+  observeEvent(input$qc_done, {
+    query <- parseQueryString(session$clientData$url_search)
+    lot_id <- query['lot_id']
+    
+    q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_lot_id = ", lot_id)
+    flog.info(paste0("qc_file: ", q), name = "qc")
+    no_files <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    #Critical
+    q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_critical = 'f' AND qc_lot_id = ", lot_id)
+    flog.info(paste0("qc_lot_final: ", q), name = "qc")
+    qc_critical <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    qc_critical_per <- round(qc_critical/no_files, 2)
+    
+    lot_qc <- "True"
+    
+    if (qc_critical_per > qc_settings$qc_threshold_critical){
+      lot_qc <- "False"
+    }
+    
+    #Major
+    q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_major = 'f' AND qc_lot_id = ", lot_id)
+    flog.info(paste0("qc_lot_final: ", q), name = "qc")
+    qc_major <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    qc_major_per <- round(qc_major/no_files, 2)
+    
+    if (qc_major_per > qc_settings$qc_threshold_major){
+      lot_qc <- "False"
+    }
+    
+    #Minor
+    q <- paste0("SELECT count(*) as no_files FROM qc_lots_files WHERE qc_minor = 'f' AND qc_lot_id = ", lot_id)
+    flog.info(paste0("qc_lot_final: ", q), name = "qc")
+    qc_minor <- as.integer(dbGetQuery(db, q)[1,1])
+    
+    qc_minor_per <- round(qc_minor/no_files, 2)
+    
+    if (qc_minor_per > qc_settings$qc_threshold_minor){
+      lot_qc <- "False"
+    }
+
+    query <- paste0("UPDATE qc_lots SET qc_pass = '", lot_qc, "', qc_reason = '", input$qc_text, "', qc_approved_by = ", session$userData$user_id, " WHERE qc_lot_id = ", lot_id)
+    flog.info(paste0("query: ", query), name = "dashboard")
+    n <- dbSendQuery(db, query)
+    dbClearResult(n)
+    
+    #runqc----
+    output$runqc <- renderUI({
+      HTML(paste0("<script>$(location).attr('href', './')</script>"))
+    })
+  })
+  
+  
+  
+  #lotqctable----
+  output$lotqctable <- DT::renderDataTable({
+    query <- parseQueryString(session$clientData$url_search)
+    lot_id <- query['lot_id']
+    runqc <- query['runqc']
+    
+    if (runqc == "NULL"){
+      runqc = 0
+    }
+    
+    if (lot_id == "NULL"){
       req(FALSE)
     }else{
+      if (runqc == 1){
+        req(FALSE)
+      }
       
-      folder_info_q <- paste0("SELECT f.*, qc.qc_status, qc.qc_percent FROM folders f LEFT JOIN folders_qc qc ON f.folder_id = qc.folder_id WHERE f.folder_id = ", which_folder)
-      flog.info(paste0("folder_info_q: ", folder_info_q), name = "qc")
-      folder_info <- dbGetQuery(db, folder_info_q)
-      if (dim(folder_info)[1] == 0){
+      lot_info_q <- paste0("SELECT * FROM qc_lots WHERE qc_lot_id = ", lot_id)
+      flog.info(paste0("lot_info_q: ", lot_info_q), name = "qc")
+      lot_info <- dbGetQuery(db, lot_info_q)
+      if (dim(lot_info)[1] == 0){
         req(FALSE)
       }else{
-        HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3><p>Local path: ", folder_info$path, "</p><p>QC Percentage: ", folder_info$qc_percent))
+        HTML(paste0("<h3><span class=\"label label-primary\">", lot_info$qc_lot_title, "</span></h3><p>QC Percentage: ", lot_info$qc_lot_percent))
         
-        file_count <- dbGetQuery(db, paste0("SELECT count(*) AS no_files FROM folders_qc_files WHERE folder_id = ", which_folder))
+        #ADD check for level and adjust percent and lot dates accordingly
+        check_lot(lot_id, db)
+        
+        file_count <- dbGetQuery(db, paste0("SELECT count(*) AS no_files FROM qc_lots_files WHERE qc_lot_id = ", lot_id))
         
         if (file_count$no_files == 0){
           #Nothing to QC yet, setup
-          qc_percent_q <- paste0("SELECT qc_percent FROM folders_qc WHERE folder_id = ", which_folder)
-          flog.info(paste0("qc_percent_q: ", qc_percent_q), name = "qc")
-          qc_percent <- dbGetQuery(db, qc_percent_q)
-          
-          qc_files_q <- paste0("SELECT count(*) as no_files FROM files WHERE folder_id = ", which_folder)
-          flog.info(paste0("qc_files_q: ", qc_files_q), name = "qc")
-          qc_files <- dbGetQuery(db, qc_files_q)
-          
-          qc_limit <- ceiling(as.integer(qc_files$no_files) * (as.integer(qc_percent$qc_percent)/100))
-          
-          qc_q <- paste0("INSERT INTO folders_qc_files (folder_id, file_id) (SELECT folder_id, file_id FROM files WHERE folder_id = ", which_folder, " ORDER BY RANDOM() LIMIT ", qc_limit, ")")
-          flog.info(paste0("qc_q: ", qc_q), name = "qc")
-          n <- dbSendQuery(db, qc_q)
-          dbClearResult(n)
+          add_files_to_lot(lot_id, db)
         }
         
-        files_qc <- paste0("SELECT f.file_id, f.file_name FROM folders_qc_files q, files f WHERE f.file_id = q.file_id AND q.folder_id = ", which_folder)
+        files_qc <- paste0("SELECT f.file_id, f.file_name FROM qc_lots_files q, files f WHERE f.file_id = q.file_id AND q.qc_lot_id = ", lot_id)
         flog.info(paste0("files_qc: ", files_qc), name = "qc")
         files_qc <- dbGetQuery(db, files_qc)
         
@@ -388,37 +604,72 @@ server <- function(input, output, session) {
         files <- data.frame()
         
         for (i in 1:dim(files_qc)[1]){
+          #Manual QC
+          fileqc_q <- paste0("SELECT *, COALESCE(qc_info, 'NA') AS qc_info_f FROM qc_lots_files WHERE file_id = ", files_qc$file_id[i])
+          flog.info(paste0("fileqc_q: ", fileqc_q), name = "dashboard")
+          fileqc_res <- dbGetQuery(db, fileqc_q)
+          
+          fileqc <- "<p><strong>Critical</strong>: "
+          
+          if (is.na(fileqc_res$qc_critical)){
+            fileqc <- paste0(fileqc, "<span class=\"label label-default\">Pending</span>")
+          }else if (fileqc_res$qc_critical == 0){
+            fileqc <- paste0(fileqc, "<span class=\"label label-danger\">Failed</span>")
+          }else if (fileqc_res$qc_critical == 1){
+            fileqc <- paste0(fileqc, "<span class=\"label label-success\">Passed</span>")
+          }
+          
+          fileqc <- paste0(fileqc, "<br><strong>Major</strong>: ")
+          
+          if (is.na(fileqc_res$qc_major)){
+            fileqc <- paste0(fileqc, "<span class=\"label label-default\">Pending</span>")
+          }else if (fileqc_res$qc_major == 0){
+            fileqc <- paste0(fileqc, "<span class=\"label label-danger\">Failed</span>")
+          }else if (fileqc_res$qc_major == 1){
+            fileqc <- paste0(fileqc, "<span class=\"label label-success\">Passed</span>")
+          }
+          
+          fileqc <- paste0(fileqc, "<br><strong>Minor</strong>: ")
+          
+          if (is.na(fileqc_res$qc_minor)){
+            fileqc <- paste0(fileqc, "<span class=\"label label-default\">Pending</span>")
+          }else if (fileqc_res$qc_minor == 0){
+            fileqc <- paste0(fileqc, "<span class=\"label label-danger\">Failed</span>")
+          }else if (fileqc_res$qc_minor == 1){
+            fileqc <- paste0(fileqc, "<span class=\"label label-success\">Passed</span>")
+          }
+                     
+          fileqc <- paste0(fileqc, "</p>")
+
+          #Technical qc
           file_checks_q <- paste0("SELECT file_check, CASE WHEN check_results = 0 THEN 'OK' WHEN check_results = 1 THEN 'Failed' WHEN check_results = 9 THEN 'Pending' END as check_results FROM file_checks WHERE file_id = ", files_qc$file_id[i])
           flog.info(paste0("file_checks_q: ", file_checks_q), name = "dashboard")
           file_checks_list <- dbGetQuery(db, file_checks_q)
           
-          checks <- "<dl class=\"dl-horizontal\">"
+          checks <- "<p>"
           for (j in seq(1, length(file_checks))){
-            checks <- paste0(checks, "<dt>", file_checks_list$file_check[j], "</dt><dd>")
+            checks <- paste0(checks, "<strong>", file_checks_list$file_check[j], "</strong>: ")
             
             if (file_checks_list$check_results[j] == "OK"){
-              checks <- paste0(checks, "<span class=\"label label-success\">", file_checks_list$check_results[j], "</span></dd>")
+              checks <- paste0(checks, "<span class=\"label label-success\">", file_checks_list$check_results[j], "</span>")
             }else if (file_checks_list$check_results[j] == "Failed"){
-              checks <- paste0(checks, "<span class=\"label label-danger\">", file_checks_list$check_results[j], "</span></dd>")
+              checks <- paste0(checks, "<span class=\"label label-danger\">", file_checks_list$check_results[j], "</span>")
             }else if (file_checks_list$check_results[j] == "Pending"){
-              checks <- paste0(checks, "<span class=\"label label-default\">", file_checks_list$check_results[j], "</span></dd>")
+              checks <- paste0(checks, "<span class=\"label label-default\">", file_checks_list$check_results[j], "</span>")
             }
-            
+            checks <- paste0(checks, "<br>")
           }
-          checks <- paste0(checks, "</dl>")
+          checks <- paste0(checks, "</p>")
           
-          files <- rbind(files, cbind(files_qc$file_name[i], checks, paste0("<img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" width = \"160px\" height = \"auto\"> <a href = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" target = \"_blank\">[Open image]</a>")))
+          files <- rbind(files, cbind(files_qc$file_name[i], checks, fileqc, fileqc_res$qc_info_f, paste0("<a href = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" target = \"_blank\"><img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" width = \"100px\" height = \"auto\"></a>")))
         }
         
-        names(files) <- c("Filename", "Checks", "Preview")
-        
+        names(files) <- c("Filename", "Technical QC", "QC", "Notes", "Preview (Click to open)")
         files <<- files
-        
         no_rows <- dim(files)[1]
         
         DT::datatable(
           files, 
-          #class = c('compact', 'table-stripe', 'table-hover'),
           escape = FALSE, 
           options = list(
             searching = FALSE, 
@@ -428,7 +679,7 @@ server <- function(input, output, session) {
             dom = 't'
           ),
           rownames = FALSE, 
-          selection = 'multiple')
+          selection = 'none')
       }
     }
   })
@@ -438,87 +689,60 @@ server <- function(input, output, session) {
   #tableheading ----
   output$tableheading <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
-    which_folder <- query['folder']
+    lot_id <- query['lot_id']
     
-    if (which_folder != "NULL"){
-      
-      folder <- dbGetQuery(db, paste0("SELECT *, to_char(date, 'Mon DD, YYYY') as date_f FROM folders WHERE folder_id = ", which_folder))
-      
-      tagList(
-        fluidRow(
-          column(width = 10,
-                 HTML(paste0("<h4><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> List of folders for QC</a></h4>")),
-                 h3(folder$project_folder),
-                 HTML(paste0("<p>Local path: ", folder$path)),
-                 HTML(paste0("<p>Date: ", folder$date_f))
-          ),
-          column(width = 2,
-                 uiOutput("goback")
-          )
-        ),
-        h4("Click on rows with errors, if any")
-      )
-      
-    }
-  })
-  
-  
-  #passfail----
-  output$passfail <- renderUI({
-    query <- parseQueryString(session$clientData$url_search)
-    which_folder <- query['folder']
+    qc <- query['runqc']
     
-    if(which_folder == "NULL"){
+    if (qc != "NULL"){
       req(FALSE)
     }
     
-    tagList(
-      br(),
-      fluidRow(
-        column(width = 3,
-               textInput("folder_id", "", value = which_folder),
-               textInput("user", "User:"),
-               passwordInput("password", "Password:"),
-               br(),
-               br(),
-               br(),
-               HTML(paste0("<h4><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> List of folders for QC</a></h4>")),
-               br(),
-               br(),
-               br()
-        ),
-        column(width = 3,
-               radioButtons("qc_status_f", "QC Results:", 
-                            choiceNames = list(
-                              HTML("<p><span class=\"label label-danger\">Folder failed QC</span>"),
-                              HTML("<p><span class=\"label label-success\">Folder passed QC</span>")
-                            ),
-                            choiceValues = c("1", "0")),
-               textAreaInput("qc_reason", "Reasons for failure:", value = if(!is.null(input$folderqc_rows_selected)){paste0("\n\n\nFiles with issues: ", paste(files[input$folderqc_rows_selected, ]$Filename, collapse = ","))}else{""}, rows = 4),
-               actionButton("submitqc", "Submit"),
-               br(),
-               br(),
-               br()
-        ),
-        column(width = 6,
-               uiOutput("message"),
-               DT::dataTableOutput("folderhist")
+    if (lot_id != "NULL"){
+      
+      lot <- dbGetQuery(db, paste0("SELECT l.*, array_to_string(l.qc_lot_dates, ',') AS qc_lot_dates_f, u.username FROM qc_lots l LEFT JOIN qc_users u ON (l.qc_approved_by = u.user_id) WHERE l.qc_lot_id = ", lot_id))
+      
+      if (is.na(lot$qc_pass)){
+        lotqc_pass <- "<span class=\"label label-default\">QC Pending</span></dd>"
+        lotqc_pass_by <- ""
+        qc_todo <- paste0("<h2><a href=\"./?runqc=1&lot_id=", lot_id, "\" class=\"btn btn-primary\" role=\"button\">Run QC</a></h2>")
+      }else if (lot$qc_pass == 0){
+        lotqc_pass <- "<span class=\"label label-danger\">Failed</span></dd>"
+        lotqc_pass_by <- lot$username
+        qc_todo <- ""
+      }else if (lot$qc_pass == 1){
+        lotqc_pass <- "<span class=\"label label-success\">Passed</span></dd>"
+        lotqc_pass_by <- lot$username
+        qc_todo <- ""
+      }
+      
+      tagList(
+        fluidRow(
+          column(width = 1,
+                 HTML(qc_todo)
+          ),
+          column(width = 8,
+                 HTML(paste0("<h3>", lot$qc_lot_title)),
+                 HTML(paste0("<br>Dates: ", lot$qc_lot_dates_f, "</h3>"))
+          ),
+          column(width = 3,
+                 HTML(paste0("<p>", lotqc_pass)),
+                 HTML(paste0("<br>Approved by: ", lotqc_pass_by, "</h3>"))
+          )
         )
       )
-    )
+    }
   })
   
+
   
+  #observeEvent_submitqc----
   observeEvent(input$submitqc, {
     
     check_user_q <- paste0("SELECT count(*) AS user_found FROM qc_users WHERE project_id = ", project_id, " AND username = '", input$user, "' AND pass = MD5('", input$password, "') AND user_active = 't'")
     check_user <- dbGetQuery(db, check_user_q)
       
     if (check_user == 1){
-      
-      insert_q <- paste0("INSERT INTO folders_qc 
-                          (folder_id, qc_status, qc_reason, qc_approved_by) 
-                        VALUES 
+      insert_q <- paste0("INSERT INTO folders_qc (folder_id, qc_status, qc_reason, qc_approved_by) VALUES 
                           (", input$folder_id, ", ", input$qc_status_f, ", '", input$qc_reason, "', '", input$user, "')")
       n <- dbSendQuery(db, insert_q)
       dbClearResult(n)
@@ -532,78 +756,13 @@ server <- function(input, output, session) {
         HTML("<div class=\"alert alert-danger\" role=\"alert\">Username or password error.</div>")
       })
     }
-    
-    #folderhist----
-    output$folderhist <- DT::renderDataTable({
-      query <- parseQueryString(session$clientData$url_search)
-      which_folder <- query['folder']
-      
-      if(which_folder == "NULL"){
-        req(FALSE)
-      }
-      
-      folder_hist <- dbGetQuery(db, paste0("SELECT CASE WHEN qc_status = 0 THEN 'Pass' WHEN qc_status = 1 THEN 'Failed' END as qc_status, qc_percent, qc_approved_by, qc_reason, TO_CHAR(updated_at, 'Mon dd, yyyy HH:MM:SS') as timestamp FROM folders_qc WHERE qc_status != 9 AND folder_id = ", which_folder))
-      
-      no_rows <- dim(folder_hist)[1]
-      
-      if (no_rows > 0){
-        
-        names(folder_hist) <- c("Status", "QC Percent", "QC Approved by", "Text of issues", "Timestamp")
-        
-        DT::datatable(
-          folder_hist, 
-          class = c('compact'),
-          escape = FALSE, 
-          options = list(
-            searching = FALSE, 
-            ordering = FALSE, 
-            pageLength = no_rows, 
-            paging = FALSE,
-            dom = 't'
-          ),
-          rownames = FALSE, 
-          selection = 'none')
-      }
-    })
-    
   })
-  #folderhist----
-  output$folderhist <- DT::renderDataTable({
-    query <- parseQueryString(session$clientData$url_search)
-    which_folder <- query['folder']
-    
-    if(which_folder == "NULL"){
-      req(FALSE)
-    }
-    
-    folder_hist <- dbGetQuery(db, paste0("SELECT CASE WHEN qc_status = 0 THEN 'Pass' WHEN qc_status = 1 THEN 'Failed' END as qc_status, qc_percent, qc_approved_by, qc_reason, TO_CHAR(updated_at, 'Mon dd, yyyy HH:MM:SS') as timestamp FROM folders_qc WHERE qc_status != 9 AND folder_id = ", which_folder))
-    
-    no_rows <- dim(folder_hist)[1]
-    
-    if (no_rows > 0){
-      
-      names(folder_hist) <- c("Status", "QC Percent", "QC Approved by", "Text of issues", "Timestamp")
-      
-      DT::datatable(
-        folder_hist, 
-        class = c('compact'),
-        escape = FALSE, 
-        options = list(
-          searching = FALSE, 
-          ordering = FALSE, 
-          pageLength = no_rows, 
-          paging = FALSE,
-          dom = 't'
-        ),
-        rownames = FALSE, 
-        selection = 'none')
-    }
-  })
+
   
   
   #footer----
   output$footer <- renderUI({
-      HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+      HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
     })
   }
 

@@ -47,16 +47,19 @@ proj_name <- project$project_acronym
 dbDisconnect(db)
 
 
+title = paste0(proj_name, " - Project Dashboard")
+
 # UI ----
 ui <- dashboardPage(
-  
+
   #header
-  dashboardHeader(title = paste0(proj_name, " - Project Dashboard")),
+  dashboardHeader(title = title),
   
   dashboardSidebar(disable = TRUE),
   #Body
   
   dashboardBody(
+    
     fluidRow(
       shinycssloaders::withSpinner(valueBoxOutput("box_ok", width = 3)),
       shinycssloaders::withSpinner(valueBoxOutput("box_error", width = 3)),
@@ -97,10 +100,12 @@ ui <- dashboardPage(
     hr(),
     uiOutput("footer")
   ),
+  
   #Refresh every 60 seconds
   if (project_active == TRUE){
     tags$head(HTML('<meta http-equiv="refresh" content="60">'))
   }
+  
 )
 
 
