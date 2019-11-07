@@ -71,14 +71,16 @@ logger1.info("osprey version {}".format(ver))
 # Check requirements
 ############################################
 if check_requirements(settings.jhove_path) == False:
-    logger1.error("JHOVE was not found")
-    sys.exit(1)
-if check_requirements('identify') == False:
-    logger1.error("Imagemagick was not found")
-    sys.exit(1)
-if check_requirements('soxi') == False:
-    logger1.error("SoX was not found")
-    sys.exit(1)
+        logger1.error("JHOVE was not found")
+        sys.exit(1)
+if settings.project_type == 'wav':
+    if check_requirements('soxi') == False:
+        logger1.error("SoX was not found")
+        sys.exit(1)
+elif settings.project_type == 'tif':
+    if check_requirements('identify') == False:
+        logger1.error("Imagemagick was not found")
+        sys.exit(1)
 
 
 
