@@ -14,7 +14,7 @@ library(shinyWidgets)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.4.1"
+app_ver <- "0.5.0"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
@@ -296,7 +296,7 @@ server <- function(input, output, session) {
       last_update_text <- ""
     }
     
-    list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<br>")
+    list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<p>")
     
     #Shares----
     if (project_active == TRUE){
