@@ -21,7 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
-ver = "0.5.4"
+ver = "0.5.5"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -47,6 +47,7 @@ filecheck_dir = os.getcwd()
 ############################################
 if not os.path.exists('{}/logs'.format(filecheck_dir)):
     os.makedirs('{}/logs'.format(filecheck_dir))
+
 current_time = strftime("%Y%m%d%H%M%S", localtime())
 logfile_name = '{}.log'.format(current_time)
 logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
@@ -92,9 +93,10 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     Run checks for tif files
     """
     folder_id = int(folder_id)
-    tmp_folder = "{}/mdpp_{}".format(settings.tmp_folder, str(folder_id))
-    if os.path.isdir(tmp_folder) == False:
-        os.mkdir(tmp_folder)
+    #tmp_folder = "{}/mdpp_{}".format(settings.tmp_folder, str(folder_id))
+    tmp_folder = settings.tmp_folder
+    # if os.path.isdir(tmp_folder) == False:
+    #     os.mkdir(tmp_folder)
     #Check if file exists, insert if not
     logger1.info("TIF file {}".format(filename))
     filename_stem = Path(filename).stem
@@ -110,20 +112,29 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         file_id = db_cursor.fetchone()[0]
     else:
         file_id = file_id[0]
+        # if settings.keep_deleted == False:
+        #     db_cursor.execute(queries.get_filename, {'file_id': file_id})
+        #     logger1.info(db_cursor.query.decode("utf-8"))
+        #     filename = db_cursor.fetchone()[0]
+        #     if os.path.isfile("{}/{}/{}".format(folder_path, settings.tif_files_path, filename)) == False:
+        #         logger1.error("File {} ({}) is gone".format(filename, file_id))
+        #         db_cursor.execute(queries.delete_file, {'file_id': file_id})
+        #         logger1.info(db_cursor.query.decode("utf-8"))
+        #         return True
     print("file_id: {}".format(file_id))
     #Check if file is OK
     file_checks = 0
     for filecheck in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-        logger1.info(db_cursor.query.decode("utf-8"))
+        #logger1.info(db_cursor.query.decode("utf-8"))
         result = db_cursor.fetchone()
         if result == None:
-            logger1.info("file_id:{};file_checks:{};result:None".format(file_id, filecheck))
+            #logger1.info("file_id:{};file_checks:{};result:None".format(file_id, filecheck))
             db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
-            logger1.info(db_cursor.query.decode("utf-8"))
+            #logger1.info(db_cursor.query.decode("utf-8"))
             result = 1
         else:
-            logger1.info("file_id:{};file_checks:{};result:{}".format(file_id, filecheck, result[0]))
+            #logger1.info("file_id:{};file_checks:{};result:{}".format(file_id, filecheck, result[0]))
             result = result[0]
             if result == 9:
                 result = 1
@@ -180,14 +191,21 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchone()
-                if result[0] > 0:
+                if result == None:
+                    unique_file = 0
+                    folder_dupe = ""
+                elif result[0] > 0:
                     unique_file = 1
+                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    folder_dupe = db_cursor.fetchone()[0]
                 else:
                     unique_file = 0
-                db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': ''})
+                    folder_dupe = ""
+                db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': "File with same name in {}".format(folder_dupe)})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if file_checks == 0:
@@ -210,12 +228,16 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                 logger1.info(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if file_checks == 0:
+            logger1.info("file_checks: {};skipping file {}".format(file_checks, file_id))
             return True
         ##Checks that DO need a local copy
         logger1.info("file_checks: {}".format(file_checks))
         logger1.info("Copying file {} to local tmp".format(filename))
         #Copy file to tmp folder
         local_tempfile = "{}/{}".format(tmp_folder, filename)
+        #Check if file already exists
+        if os.path.isfile(local_tempfile):
+            os.remove(local_tempfile)
         try:
             shutil.copyfile("{}/{}/{}".format(folder_path, settings.tif_files_path, filename), local_tempfile)
         except:
@@ -223,6 +245,8 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger1.info(db_cursor.query.decode("utf-8"))
             return False
+        #Generate jpg preview, if needed
+        jpg_prev = jpgpreview(file_id, local_tempfile)
         #Compare MD5 between source and copy
         db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
         logger1.info(db_cursor.query.decode("utf-8"))
@@ -280,9 +304,8 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             if result != 0:
                 #check if tif has multiple pages
                 tifpages(file_id, local_tempfile, db_cursor)
-        #Generate jpg preview
-        jpg_prev = jpgpreview(file_id, local_tempfile)
         logger1.info("jpg_prev:{}".format(jpg_prev))
+        os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor)
         #Disconnect from db
         # db_cursor.close()
@@ -945,6 +968,12 @@ def main():
                     connect_timeout = 60)
     conn.autocommit = True
     db_cursor = conn.cursor()
+    #Check project shares
+    for share in settings.project_shares:
+        share_disk = shutil.disk_usage(share[0])
+        share_percent = round(share_disk.used/share_disk.total, 4) * 100
+        db_cursor.execute(queries.update_share, {'project_id': settings.project_id, 'share': share[1], 'localpath': share[0], 'used': share_percent})
+        logger1.info(db_cursor.query.decode("utf-8"))
     #Update project
     db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks), 'project_id': settings.project_id})
     logger1.info(db_cursor.query.decode("utf-8"))

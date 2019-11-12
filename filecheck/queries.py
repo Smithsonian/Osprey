@@ -24,11 +24,17 @@ select_tif_md5 = "SELECT fd.md5, f.file_name FROM files f, file_md5 fd WHERE f.f
 
 select_file_id = "SELECT file_id FROM files WHERE file_name = %(file_name)s AND folder_id = %(folder_id)s"
 
-check_unique = "SELECT count(*) as dupes FROM files WHERE file_name = %(file_name)s AND folder_id != %(folder_id)s and folder_id in (SELECT folder_id from folders where project_id = %(project_id)s)"
+get_filename = "SELECT file_name FROM files WHERE file_id = %(file_id)s"
+
+check_unique = "SELECT file_id FROM files WHERE file_name = %(file_name)s AND folder_id != %(folder_id)s and folder_id in (SELECT folder_id from folders where project_id = %(project_id)s) AND file_id != %(file_id)s"
+
+not_unique = "SELECT project_folder FROM folders WHERE folder_id in (SELECT folder_id FROM files WHERE file_id != %(file_id)s AND file_name = %(file_name)s)"
 
 check_unique_old = "SELECT folder FROM old_names WHERE file_name = %(file_name)s AND project_id = %(project_id)s AND folder NOT IN (SELECT project_folder FROM folders WHERE folder_id = %(folder_id)s)"
 
 insert_file = "INSERT INTO files (folder_id, file_name, file_timestamp) VALUES (%(folder_id)s, %(file_name)s, %(file_timestamp)s) RETURNING file_id"
+
+delete_file = "DELETE FROM files WHERE file_id = %(file_id)s"
 
 select_check_file = "SELECT check_results FROM file_checks WHERE file_id = %(file_id)s and file_check = %(filecheck)s"
 
@@ -39,6 +45,8 @@ update_folder_status9 = "UPDATE folders SET status = 9, error_info = %(error_inf
 update_folder_0 = "UPDATE folders SET status = 0 WHERE folder_id = %(folder_id)s"
 
 update_folders_md5 = "INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%(folder_id)s, %(filetype)s, %(md5)s) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = %(md5)s"
+
+update_share = "INSERT INTO projects_shares (project_id, share, localpath, used, updated_at) VALUES (%(project_id)s, %(share)s, %(localpath)s, %(used)s, NOW()) ON CONFLICT (project_id, share) DO UPDATE SET used = %(used)s, localpath = %(localpath)s, updated_at = NOW()"
 
 file_exists = "UPDATE files SET file_exists = %(file_exists)s WHERE file_id = %(file_id)s"
 

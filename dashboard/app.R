@@ -8,6 +8,7 @@ library(reshape)
 library(stringr)
 library(shinycssloaders)
 library(shinydashboard)
+library(shinyWidgets)
 
 
 # Settings ----
@@ -295,7 +296,34 @@ server <- function(input, output, session) {
       last_update_text <- ""
     }
     
-    list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<br><div class=\"list-group\">")
+    list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<br>")
+    
+    #Shares----
+    if (project_active == TRUE){
+      shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
+      flog.info(paste0("shares_q: ", shares_q), name = "dashboard")
+      shares <- dbGetQuery(db, shares_q)
+      if (dim(shares)[1] > 0){
+        for (i in seq(1, dim(shares)[1])){
+          per_used <- shares$used[i]
+          if (per_used > 90){
+            prog_class <- "danger"
+          }else if (per_used > 60){
+            prog_class <- "warning"
+          }else{
+            prog_class <- "success"
+          }
+          list_of_folders <- paste0(list_of_folders, "Space used in share ", shares$share,":<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+    ", shares$used[i], "%
+  </div>
+</div>")
+          
+        }
+      }
+      
+    }
+    
+    list_of_folders <- paste0(list_of_folders, "<div class=\"list-group\">")
     
     if (dim(folders)[1] > 0){
       for (i in 1:dim(folders)[1]){

@@ -4,6 +4,10 @@ project_id = ""
 #List of paths where the folders to check are
 project_paths = []
 
+#List of shares used in the project,
+# each in its own list: ["mount point", "server"]
+project_shares = []
+
 tmp_folder = "/tmp"
 
 
