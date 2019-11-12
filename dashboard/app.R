@@ -313,7 +313,8 @@ server <- function(input, output, session) {
           }else{
             prog_class <- "success"
           }
-          list_of_folders <- paste0(list_of_folders, "Space used in share ", shares$share,":<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+          share <- shares$share[i]
+          list_of_folders <- paste0(list_of_folders, "Space used in share ", share, ":<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
     ", shares$used[i], "%
   </div>
 </div>")
