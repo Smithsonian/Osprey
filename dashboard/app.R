@@ -233,8 +233,7 @@ server <- function(input, output, session) {
                                         FROM 
                                             folders 
                                         WHERE project_id = ", project_id, ")
-                                        ) 
-                          GROUP BY file_id")
+                                        )")
     pending_files_count <- dbGetQuery(db, pending_count)
 
     if (dim(pending_files_count)[1] == 0){
@@ -693,7 +692,7 @@ server <- function(input, output, session) {
   
     #unique_file ----
     if (stringr::str_detect(file_checks_list, "unique_file")){
-      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'file_pair' AND file_id = ", file_id)
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'unique_file' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
