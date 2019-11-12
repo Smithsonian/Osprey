@@ -67,14 +67,13 @@ CREATE INDEX projects_edan_pid_idx ON projects_edan USING BTREE(project_id);
 
 
 --Shares for the project
-
---folders_md5
+--projects_shares
 DROP TABLE IF EXISTS projects_shares CASCADE;
 CREATE TABLE projects_shares (
     project_id      integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
     share           text, 
     localpath       text,
-    free            text,
+    used            text,
     updated_at      timestamp with time zone DEFAULT NOW()
 );
 ALTER TABLE projects_shares ADD CONSTRAINT projects_shares_proj_and_share UNIQUE (project_id, share);

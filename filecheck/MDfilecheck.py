@@ -970,6 +970,7 @@ def main():
     db_cursor = conn.cursor()
     #Check project shares
     for share in settings.project_shares:
+        logger1.info("Share: {} ({})".format(share[0], share[1]))
         share_disk = shutil.disk_usage(share[0])
         share_percent = round(share_disk.used/share_disk.total, 4) * 100
         db_cursor.execute(queries.update_share, {'project_id': settings.project_id, 'share': share[1], 'localpath': share[0], 'used': share_percent})

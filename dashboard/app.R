@@ -305,7 +305,7 @@ server <- function(input, output, session) {
       shares <- dbGetQuery(db, shares_q)
       if (dim(shares)[1] > 0){
         for (i in seq(1, dim(shares)[1])){
-          per_used <- shares$used[i]
+          per_used <- round(as.numeric(shares$used[i]), 2)
           if (per_used > 90){
             prog_class <- "danger"
           }else if (per_used > 60){
