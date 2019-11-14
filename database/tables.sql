@@ -236,7 +236,10 @@ create table qc_settings (
     qc_percent numeric DEFAULT 10,
     qc_critical_threshold numeric DEFAULT 0,
     qc_major_threshold numeric DEFAULT 0.015,
-    qc_minor_threshold numeric DEFAULT 0.04
+    qc_minor_threshold numeric DEFAULT 0.04,
+    qc_normal_percent numeric DEFAULT 10,
+    qc_reduced_percent numeric DEFAULT 5,
+    qc_tightened_percent numeric DEFAULT 40
 );
 CREATE INDEX qc_settings_pid_idx ON qc_settings USING BTREE(project_id);
 
