@@ -21,7 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
-ver = "0.5.5"
+ver = "0.5.6"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -191,6 +191,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             logger1.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
+                #Check in project
                 db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchone()
@@ -199,13 +200,34 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                     folder_dupe = ""
                 elif result[0] > 0:
                     unique_file = 1
-                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem})
+                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem, 'project_id': project_id})
                     logger1.info(db_cursor.query.decode("utf-8"))
                     folder_dupe = db_cursor.fetchone()[0]
                 else:
                     unique_file = 0
                     folder_dupe = ""
                 db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': "File with same name in {}".format(folder_dupe)})
+                logger1.info(db_cursor.query.decode("utf-8"))
+                file_checks = file_checks - 1
+                #Check in other projects
+                db_cursor.execute(queries.check_unique_all, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
+                logger1.info(db_cursor.query.decode("utf-8"))
+                result = db_cursor.fetchone()
+                if result == None:
+                    unique_file = 0
+                    check_info = ""
+                elif result[0] > 0:
+                    unique_file = 1
+                    db_cursor.execute(queries.not_unique_all, {'file_id': file_id, 'file_name': filename_stem, 'project_id': project_id})
+                    logger1.info(db_cursor.query.decode("utf-8"))
+                    folder_check = db_cursor.fetchone()
+                    folder_dupe = folder_check[0]
+                    alt_project_id = folder_check[1]
+                    check_info = "File with same name in {} of project {}".format(folder_check[0], folder_check[1])
+                else:
+                    unique_file = 0
+                    check_info = ""
+                db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': check_info})
                 logger1.info(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if file_checks == 0:
