@@ -56,3 +56,6 @@ file_exists = "UPDATE files SET file_exists = %(file_exists)s WHERE file_id = %(
 
 get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s"
 
+check_exif = "SELECT count(*) as entries from files_exif WHERE file_id = %(file_id)s"
+
+save_exif = "INSERT INTO files_exif (file_id, tag, value) VALUES (%(file_id)s, %(tag)s, %(value)s) ON CONFLICT (file_id, tag) DO UPDATE SET value = %(value)s"

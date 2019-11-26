@@ -8,7 +8,7 @@
 # Import modules
 ############################################
 import os, sys, shutil, subprocess, locale, logging, glob
-import xmltodict, bitmath, pandas, time, glob
+import xmltodict, bitmath, pandas, time, glob, re
 #import exifread
 from random import randint
 #For Postgres
@@ -21,7 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
-ver = "0.5.6"
+ver = "0.6.0"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -145,6 +145,13 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     if os.path.isfile(preview_image) == False:
         logger1.info("jpg_preview {} does not exist for file_id:{}".format(preview_image, file_id))
         file_checks = file_checks + 1
+    #Get exif from RAW
+    db_cursor.execute(queries.check_exif, {'file_id': file_id})
+    check_exif = db_cursor.fetchone()[0]
+    logger1.info("check_exif: {}".format(check_exif))
+    if check_exif == 0:
+        logger1.info("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
+        raw_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), db_cursor)
     #Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
     logger1.info(db_cursor.query.decode("utf-8"))
@@ -609,6 +616,25 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     magick_identify_info = out + err
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('UTF-8')})
     logger1.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+def raw_exif(file_id, filename, db_cursor):
+    """
+    Extract the EXIF info from the RAW file
+    """
+    p = subprocess.Popen(['exiftool', '-t', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    if p.returncode == 0:
+        exif_read = 0
+    else:
+        exif_read = 1
+    exif_info = out
+    for line in exif_info.splitlines():
+        tag = re.split(r'\t+', line.decode('UTF-8'))
+        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'tag': tag[0], 'value': tag[1]})
+        logger1.info(db_cursor.query.decode("utf-8"))
     return True
 
 
