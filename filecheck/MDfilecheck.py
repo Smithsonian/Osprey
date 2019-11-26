@@ -9,7 +9,7 @@
 ############################################
 import os, sys, shutil, subprocess, locale, logging, glob
 import xmltodict, bitmath, pandas, time, glob, re
-#import exifread
+import random
 from random import randint
 #For Postgres
 import psycopg2
@@ -1037,6 +1037,7 @@ def main():
         for entry in os.scandir(project_path):
             if entry.is_dir():
                 folders.append(entry.path)
+        random.shuffle(folders)
         #No folders found
         if len(folders) == 0:
             continue
@@ -1052,6 +1053,7 @@ def main():
                 continue
             os.chdir(folder_path)
             files = glob.glob("*.wav")
+            random.shuffle(files)
             logger1.info("Files in {}: {}".format(folder_path, ','.join(files)))
             logger1.info(files)
             #Remove temp files
