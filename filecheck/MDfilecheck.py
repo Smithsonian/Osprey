@@ -82,6 +82,9 @@ elif settings.project_type == 'tif':
     if check_requirements('identify') == False:
         logger1.error("Imagemagick was not found")
         sys.exit(1)
+    if check_requirements('exiftool') == False:
+        logger1.error("exiftool was not found")
+        sys.exit(1)
 
 
 
