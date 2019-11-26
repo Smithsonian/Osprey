@@ -9,6 +9,7 @@ library(stringr)
 library(shinycssloaders)
 library(shinydashboard)
 library(shinyWidgets)
+library(ggplot2)
 
 
 # Settings ----
@@ -47,8 +48,7 @@ proj_name <- project$project_acronym
 
 dbDisconnect(db)
 
-
-title = paste0(proj_name, " - Project Dashboard")
+title = paste0(proj_name)
 
 # UI ----
 ui <- dashboardPage(
@@ -104,7 +104,7 @@ ui <- dashboardPage(
   
   #Refresh every 60 seconds
   if (project_active == TRUE){
-    tags$head(HTML('<meta http-equiv="refresh" content="60">'))
+    tags$head(HTML('<meta http-equiv="refresh" content="600">'))
   }
   
 )
@@ -298,6 +298,8 @@ server <- function(input, output, session) {
     
     list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<p>")
     
+    list_of_folders <- paste0(list_of_folders, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
+    
     #Shares----
     if (project_active == TRUE){
       shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
@@ -445,6 +447,71 @@ server <- function(input, output, session) {
     }
   })
   
+  
+  
+  #Folder progress----
+  observeEvent(input$dayprogress, {
+    
+    showModal(modalDialog(
+      size = "l",
+      title = "Progress by Day",
+      uiOutput("proj_dates"),
+      plotOutput("dayplot"),
+      br(),
+      downloadButton("downloadData1", "Download as CSV", class = "btn-primary"),
+      easyClose = TRUE
+    ))
+  })
+  
+  
+  output$proj_dates <- renderUI({
+    dates_q <- paste0("SELECT DISTINCT date_trunc('day', created_at) AS date FROM files WHERE folder_id in (SELECT folder_id from folders where project_id = ", project_id, ") ORDER BY date DESC")
+    flog.info(paste0("dates_q: ", dates_q), name = "dashboard")
+    proj_dates <- dbGetQuery(db, dates_q)
+    
+    proj_dates <- na.omit(proj_dates)
+    print(proj_dates)
+    selectInput('this_date', "Select a date", choices = proj_dates$date)
+  
+  })
+  
+  output$dayplot <- renderPlot({
+    req(input$this_date)
+    folder_progress_q <- paste0("with t as (
+                          select
+                            generate_series(mifile_timestamp,mafile_timestamp,'5 minutes') as int
+                          from
+                            (select min(created_at) mifile_timestamp, max(created_at) as mafile_timestamp from files where date_trunc('day', created_at) = '", input$this_date, "' AND folder_id in (select folder_id from folders where project_id = ", project_id, ")) a
+                        )
+                        select
+                          int as time,
+                          count(*)::int as no_files
+                        from
+                           t
+                           left join files tmp on 
+                                 (tmp.created_at >= t.int and 
+                                  tmp.created_at < (t.int + interval '5 minutes'))
+                        where date_trunc('day', tmp.created_at) = '", input$this_date, "'
+                        group by
+                          int
+                        order by
+                          int")
+    flog.info(paste0("folder_progress_q: ", folder_progress_q), name = "dashboard")
+    folder_progress <<- dbGetQuery(db, folder_progress_q)
+    
+    ggplot(folder_progress, mapping = aes(x = as.POSIXct(time), y = no_files)) + geom_col() + labs(x = "Time", y = "No. of files") + scale_x_datetime(name = "Time", date_breaks = "15 min", date_labels = "%H:%M") + theme(axis.text.x = element_text(angle = 90))
+  })
+  
+  
+  #downloadData1----
+  output$downloadData1 <- downloadHandler(
+    filename = function() {
+      paste(input$this_date, ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(folder_progress, file, row.names = FALSE)
+    }
+  )
   
   
   #folderinfo2----

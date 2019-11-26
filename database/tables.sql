@@ -126,6 +126,7 @@ CREATE TABLE files (
     file_exists        integer,
     file_timestamp     timestamp with time zone,
     item_no            text,
+    created_at         timestamp with time zone DEFAULT NULL,
     updated_at         timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX files_fileid_idx ON files USING BTREE(file_id);
@@ -148,6 +149,20 @@ create table file_md5 (
 ALTER TABLE file_md5 ADD CONSTRAINT file_and_type UNIQUE (file_id, filetype);
 CREATE INDEX file_md5_file_id_idx ON file_md5 USING BTREE(file_id);
 CREATE INDEX file_md5_filetype_idx ON file_md5 USING BTREE(filetype);
+
+
+
+--files_exif
+DROP TABLE IF EXISTS files_exif CASCADE;
+create table files_exif (
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
+    tag text, 
+    value text,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+ALTER TABLE files_exif ADD CONSTRAINT file_and_tag UNIQUE (file_id, tag);
+CREATE INDEX files_exif_file_id_idx ON files_exif USING BTREE(file_id);
+CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
 
 
 --file_checks
