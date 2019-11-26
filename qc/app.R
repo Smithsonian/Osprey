@@ -787,7 +787,7 @@ server <- function(input, output, session) {
   
   #footer----
   output$footer <- renderUI({
-      HTML(paste0("<h4 style=\"position: fixed; bottom: -2px; width: 100%; padding: 10px; background: white;\"> <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a> | ", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a></h4>"))
+      HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; padding: 10px; background: white;\"> <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a> | ", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a></h4>"))
     })
   }
 
