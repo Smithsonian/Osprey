@@ -210,7 +210,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                     folder_dupe = ""
                 elif result[0] > 0:
                     unique_file = 1
-                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem, 'project_id': project_id})
+                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem, 'project_id': settings.project_id})
                     logger1.info(db_cursor.query.decode("utf-8"))
                     folder_dupe = db_cursor.fetchone()[0]
                 else:
@@ -228,7 +228,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                     check_info = ""
                 elif result[0] > 0:
                     unique_file = 1
-                    db_cursor.execute(queries.not_unique_all, {'file_id': file_id, 'file_name': filename_stem, 'project_id': project_id})
+                    db_cursor.execute(queries.not_unique_all, {'file_id': file_id, 'file_name': filename_stem, 'project_id': settings.project_id})
                     logger1.info(db_cursor.query.decode("utf-8"))
                     folder_check = db_cursor.fetchone()
                     folder_dupe = folder_check[0]
