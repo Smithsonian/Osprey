@@ -282,15 +282,19 @@ server <- function(input, output, session) {
       flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
       last_update <- as.numeric(dbGetQuery(db, last_update_q))
       
-      if (last_update > 180){
-        last_update_m <- ceiling(last_update / 60)
-        if (last_update > 3600){
-          last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
+      if (!is.na(last_update)){
+        if (last_update > 180){
+          last_update_m <- ceiling(last_update / 60)
+          if (last_update > 3600){
+            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
+          }else{
+            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago</p>")
+          }
         }else{
-          last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago</p>")
+          last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago</p>")
         }
       }else{
-        last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago</p>")
+        last_update_text <- ""
       }
     }else{
       last_update_text <- ""
@@ -479,9 +483,7 @@ server <- function(input, output, session) {
     req(input$this_date)
     folder_progress_q <- paste0("with t as (
                           select
-                            generate_series(mifile_timestamp,mafile_timestamp,'5 minutes') as int
-                          from
-                            (select min(created_at) mifile_timestamp, max(created_at) as mafile_timestamp from files where date_trunc('day', created_at) = '", input$this_date, "' AND folder_id in (select folder_id from folders where project_id = ", project_id, ")) a
+                            generate_series('", input$this_date, " 06:00:00'::timestamp, '", input$this_date, " 19:00:00'::timestamp, '5 minutes') as int
                         )
                         select
                           int as time,
