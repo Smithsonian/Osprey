@@ -18,7 +18,7 @@ CREATE TABLE projects (
     project_id integer NOT NULL DEFAULT nextval('projects_project_id_seq') PRIMARY KEY,
     project_title text,
     project_unit  text,    
-    project_checks text,
+    project_checks text DEFAULT 'raw_pair,magick,jhove,tifpages,unique_file',
     project_acronym text,
     project_status text,
     project_description text,

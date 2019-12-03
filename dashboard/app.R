@@ -142,9 +142,11 @@ server <- function(input, output, session) {
     total_count <- total_count + old_count
   }
   
+  err_count <- 0
+  
   for (f in 1:length(file_checks)){
     check_count <- paste0("SELECT count(*) FROM file_checks WHERE check_results = 1 AND file_check = '", file_checks[f], "' AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
-    err_count <- dbGetQuery(db, check_count)[1]
+    err_count <- err_count + dbGetQuery(db, check_count)[1]
   }
   
   #box_error ----
@@ -738,19 +740,19 @@ server <- function(input, output, session) {
       }
     }
     
-    #file_pair
-    if (stringr::str_detect(file_checks_list, "file_pair")){
-      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'file_pair' AND file_id = ", file_id)
+    #raw_pair
+    if (stringr::str_detect(file_checks_list, "raw_pair")){
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'raw_pair' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
         if (check_res$check_results == 0){
-          html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd>", check_res$check_info, "</dd>")  
+          html_to_print <- paste0(html_to_print, "<dt>Raw file</dt><dd>", check_res$check_info, "</dd>")  
         }else if (check_res$check_results == 1){
-          html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
+          html_to_print <- paste0(html_to_print, "<dt>Raw file</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
         }else if (check_res$check_results == 9){
-          html_to_print <- paste0(html_to_print, "<dt>File pair</dt><dd class=\"bg-warning\">Not checked yet</dd>")
+          html_to_print <- paste0(html_to_print, "<dt>Raw file</dt><dd class=\"bg-warning\">Not checked yet</dd>")
         }
       }
     }
