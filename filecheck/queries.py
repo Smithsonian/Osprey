@@ -52,6 +52,8 @@ update_folders_md5 = "INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES 
 
 update_share = "INSERT INTO projects_shares (project_id, share, localpath, used, updated_at) VALUES (%(project_id)s, %(share)s, %(localpath)s, %(used)s, NOW()) ON CONFLICT (project_id, share) DO UPDATE SET used = %(used)s, localpath = %(localpath)s, updated_at = NOW()"
 
+remove_shares = "DELETE FROM projects_shares WHERE project_id = %(project_id)s"
+
 file_exists = "UPDATE files SET file_exists = %(file_exists)s WHERE file_id = %(file_id)s"
 
 get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s"

@@ -806,11 +806,14 @@ def filemd5(filepath):
     Get MD5 hash of a file
     """
     md5_hash = hashlib.md5()
-    with open(filepath, "rb") as f:
-        # Read and update hash in chunks of 4K
-        for byte_block in iter(lambda: f.read(4096), b""):
-            md5_hash.update(byte_block)
-    file_md5 = md5_hash.hexdigest()
+    if os.path.isfile(filepath):
+        with open(filepath, "rb") as f:
+            # Read and update hash in chunks of 4K
+            for byte_block in iter(lambda: f.read(4096), b""):
+                md5_hash.update(byte_block)
+        file_md5 = md5_hash.hexdigest()
+    else:
+        file_md5 = ""
     return file_md5
 
 
@@ -1019,6 +1022,9 @@ def main():
                     connect_timeout = 60)
     conn.autocommit = True
     db_cursor = conn.cursor()
+    #Clear project shares
+    db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
+    logger1.info(db_cursor.query.decode("utf-8"))
     #Check project shares
     for share in settings.project_shares:
         logger1.info("Share: {} ({})".format(share[0], share[1]))
