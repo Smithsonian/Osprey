@@ -153,7 +153,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     check_exif = db_cursor.fetchone()[0]
     logger1.info("check_exif: {}".format(check_exif))
     if check_exif == 0:
-        logger1.info("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
+        logger1.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
         raw_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), db_cursor)
     #Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
@@ -633,6 +633,7 @@ def raw_exif(file_id, filename, db_cursor):
         exif_read = 0
     else:
         exif_read = 1
+        logger1.error("{}: {}".format(file_id, err))
     exif_info = out
     for line in exif_info.splitlines():
         tag = re.split(r'\t+', line.decode('UTF-8'))

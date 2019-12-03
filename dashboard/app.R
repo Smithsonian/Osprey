@@ -316,7 +316,7 @@ server <- function(input, output, session) {
           per_used <- round(as.numeric(shares$used[i]), 2)
           if (per_used > 90){
             prog_class <- "danger"
-          }else if (per_used > 60){
+          }else if (per_used > 75){
             prog_class <- "warning"
           }else{
             prog_class <- "success"
