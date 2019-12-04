@@ -15,7 +15,7 @@ library(ggplot2)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.5.0"
+app_ver <- "0.5.1"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
@@ -263,10 +263,25 @@ server <- function(input, output, session) {
   output$folderlist <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
+    page <- query['p']
     
-    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
+    if (page == "NULL"){
+      page = 0
+    }
+    
+    page <- as.numeric(page)
+    folders_per_page <- 15
+    
+    offset = page * folders_per_page
+    
+    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
     flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
     folders <- dbGetQuery(db, folders_q)
+    
+    no_folders_q <- paste0("SELECT count(*) as no_folders FROM folders WHERE project_id = ", project_id)
+    flog.info(paste0("no_folders_q: ", no_folders_q), name = "dashboard")
+    no_folders <- dbGetQuery(db, no_folders_q)[1]
+    no_folders <- as.integer(no_folders[1,1])
     
     #Only display if it is an active project, from settings
     if (project_active == TRUE){
@@ -427,6 +442,19 @@ server <- function(input, output, session) {
         this_folder <- paste0(this_folder, "</p></a>")
         list_of_folders <- paste0(list_of_folders, this_folder)
       }
+    }
+    
+    if (no_folders > folders_per_page){
+      if (page > 0){
+        if (no_folders > (page * folders_per_page)){
+          list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
+        }else{
+          list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a>")
+        }
+      }else{
+        list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
+      }
+      
     }
     
     list_of_folders <- paste0(list_of_folders, "</div>")

@@ -30,7 +30,7 @@ check_unique = "SELECT file_id FROM files WHERE file_name = %(file_name)s AND fo
 
 check_unique_all = "SELECT file_id FROM files WHERE file_name = %(file_name)s AND folder_id != %(folder_id)s and folder_id in (SELECT folder_id from folders where project_id != %(project_id)s) AND file_id != %(file_id)s"
 
-not_unique = "SELECT project_folder FROM folders WHERE project_id = %(project_id)s) AND folder_id in (SELECT folder_id FROM files WHERE file_id != %(file_id)s AND file_name = %(file_name)s)"
+not_unique = "SELECT project_folder FROM folders WHERE project_id = %(project_id)s AND folder_id in (SELECT folder_id FROM files WHERE file_id != %(file_id)s AND file_name = %(file_name)s)"
 
 not_unique_all = "SELECT f.project_folder, p.project_title FROM folders f, projects p WHERE f.project_id = p.project_id AND f.project_id != %(project_id)s) AND f.folder_id in (SELECT folder_id FROM files WHERE file_id != %(file_id)s AND file_name = %(file_name)s)"
 
