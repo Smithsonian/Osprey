@@ -149,7 +149,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         logger1.info("jpg_preview {} does not exist for file_id:{}".format(preview_image, file_id))
         file_checks = file_checks + 1
     #Get exif from RAW
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, filetype: 'RAW'})
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'RAW'})
     check_exif = db_cursor.fetchone()[0]
     logger1.info("check_exif_raw: {}".format(check_exif))
     if check_exif == 0:
