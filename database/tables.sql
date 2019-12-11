@@ -52,6 +52,17 @@ CREATE TABLE projects_media (
 CREATE INDEX projects_media_pid_idx ON projects_media USING BTREE(project_id);
 
 
+--Budget by project
+DROP TABLE IF EXISTS projects_budget CASCADE;
+CREATE TABLE projects_budget (
+    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    budget_type text DEFAULT 'production',
+    budget_source text,
+    budget_amount numeric
+);
+CREATE INDEX projects_budget_pid_idx ON projects_budget USING BTREE(project_id);
+
+
 --items in edan for each project, if available
 DROP TABLE IF EXISTS projects_edan CASCADE;
 CREATE TABLE projects_edan (
@@ -156,12 +167,14 @@ CREATE INDEX file_md5_filetype_idx ON file_md5 USING BTREE(filetype);
 DROP TABLE IF EXISTS files_exif CASCADE;
 create table files_exif (
     file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
+    filetype text default 'RAW',
     tag text, 
     value text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
-ALTER TABLE files_exif ADD CONSTRAINT file_and_tag UNIQUE (file_id, tag);
+ALTER TABLE files_exif ADD CONSTRAINT file_and_tag_andtype UNIQUE (file_id, tag, filetype);
 CREATE INDEX files_exif_file_id_idx ON files_exif USING BTREE(file_id);
+CREATE INDEX files_exif_filetype_idx ON files_exif USING BTREE(filetype);
 CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
 
 
