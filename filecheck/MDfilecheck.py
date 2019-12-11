@@ -645,7 +645,7 @@ def file_exif(file_id, filename, filetype, db_cursor):
     exif_info = out
     for line in exif_info.splitlines():
         tag = re.split(r'\t+', line.decode('UTF-8'))
-        db_cursor.execute(queries.save_exif, {'file_id': file_id, filetype: 'filetype', 'tag': tag[0], 'value': tag[1]})
+        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'tag': tag[0], 'value': tag[1]})
         logger1.info(db_cursor.query.decode("utf-8"))
     return True
 
