@@ -153,10 +153,11 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     check_exif = db_cursor.fetchone()[0]
     logger1.info("check_exif_raw: {}".format(check_exif))
     if check_exif == 0:
-        logger1.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
-        file_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), 'RAW', db_cursor)
+        if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
+            logger1.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
+            file_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), 'RAW', db_cursor)
     #Get exif from TIF
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, filetype: 'TIF'})
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'TIF'})
     check_exif = db_cursor.fetchone()[0]
     logger1.info("check_exif_tif: {}".format(check_exif))
     if check_exif == 0:
