@@ -345,7 +345,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
                 #check if tif has multiple pages
                 tifpages(file_id, local_tempfile, db_cursor)
         logger1.info("jpg_prev:{}".format(jpg_prev))
-        os.path.isfile(local_tempfile):
+        if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor)
         #Disconnect from db
