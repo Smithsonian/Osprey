@@ -524,6 +524,7 @@ server <- function(input, output, session) {
   })
   
   
+  
   output$proj_dates <- renderUI({
     dates_q <- paste0("SELECT DISTINCT date_trunc('day', created_at) AS date FROM files WHERE folder_id in (SELECT folder_id from folders where project_id = ", project_id, ") ORDER BY date DESC")
     flog.info(paste0("dates_q: ", dates_q), name = "dashboard")
@@ -973,6 +974,58 @@ server <- function(input, output, session) {
         }
       }
     }
+    
+    #EXIF data----
+    html_to_print <- paste0(html_to_print, "<dt>EXIF</dt><dd>", actionLink("exiftif", label = "Display TIF File EXIF Metadata"))
+    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "Display RAW File EXIF Metadata"), "</dd>")
+    
+    tifexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id)
+    flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
+    tifexif <- dbGetQuery(db, tifexif_q)
+    
+    display_tifexif <- "<dl class=\"dl-horizontal\">"
+    
+    for (t in seq(1, dim(tifexif)[1])){
+      display_tifexif <- paste0(display_tifexif, "<dt>", tifexif$tag[t], "</dt>", "<dd>", tifexif$value[t], "</dd>")
+    }
+    
+    display_tifexif <- paste0(display_tifexif, "</dl>")
+    
+    #exiftif----
+    observeEvent(input$exiftif, {
+      
+      showModal(modalDialog(
+        size = "l",
+        title = "TIF EXIF Metadata",
+        HTML(display_tifexif),
+        easyClose = TRUE
+      ))
+    })
+    
+    
+    rawexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id)
+    flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
+    rawexif <- dbGetQuery(db, rawexif_q)
+    
+    display_rawexif <- "<dl class=\"dl-horizontal\">"
+    
+    for (t in seq(1, dim(rawexif)[1])){
+      display_rawexif <- paste0(display_rawexif, "<dt>", rawexif$tag[t], "</dt>", "<dd>", rawexif$value[t], "</dd>")
+    }
+    
+    display_rawexif <- paste0(display_rawexif, "</dl>")
+    
+    #exifraw----
+    observeEvent(input$exifraw, {
+      
+      showModal(modalDialog(
+        size = "l",
+        title = "RAW EXIF Metadata",
+        HTML(display_rawexif),
+        easyClose = TRUE
+      ))
+    })
+    
     
     
     #WAVS ----
