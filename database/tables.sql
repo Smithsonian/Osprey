@@ -85,6 +85,7 @@ CREATE TABLE projects_shares (
     share           text, 
     localpath       text,
     used            text,
+    total           text,
     updated_at      timestamp with time zone DEFAULT NOW()
 );
 ALTER TABLE projects_shares ADD CONSTRAINT projects_shares_proj_and_share UNIQUE (project_id, share);

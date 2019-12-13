@@ -15,7 +15,7 @@ library(ggplot2)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.5.1"
+app_ver <- "0.5.3"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
@@ -69,6 +69,14 @@ ui <- dashboardPage(
       ),
     fluidRow(
       column(width = 2,
+             box(
+               title = "Main", width = NULL, solidHeader = TRUE, status = "primary",
+               uiOutput("projectmain")
+             ),
+             box(
+               title = "Project Shares", width = NULL, solidHeader = TRUE, status = "primary",
+               uiOutput("shares")
+             ),
              box(
                title = "Folders", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("folderlist")
@@ -259,6 +267,88 @@ server <- function(input, output, session) {
   })
     
   
+  #projectmain----
+  output$projectmain <- renderUI({
+    projectmain_html <- "<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>"
+    #Only display if it is an active project, from settings
+    if (project_active == TRUE){
+      last_update_q <- paste0(
+        "SELECT 
+                       round(EXTRACT(epoch FROM NOW() - last_update))
+                       AS last_update 
+                  FROM
+                        (SELECT updated_at AS last_update FROM folders WHERE project_id = ", project_id, "
+                        UNION
+                        SELECT updated_at AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
+						ORDER BY last_update DESC LIMIT 1)
+                        a")
+      
+      flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
+      last_update <- as.numeric(dbGetQuery(db, last_update_q))
+      
+      if (!is.na(last_update)){
+        if (last_update > 180){
+          last_update_m <- ceiling(last_update / 60)
+          if (last_update > 3600){
+            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
+          }else{
+            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago</p>")
+          }
+        }else{
+          last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago</p>")
+        }
+      }else{
+        last_update_text <- ""
+      }
+    }else{
+      last_update_text <- ""
+    }
+    
+    projectmain_html <- paste0(projectmain_html, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
+    
+    
+    #Disk used----
+    filesize_q <- paste0("SELECT sum(filesize) as total_size FROM files_size WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))")
+    flog.info(paste0("filesize_q: ", filesize_q), name = "dashboard")
+    total_size <- dbGetQuery(db, filesize_q)
+    total_size_formatted <- utils:::format.object_size(total_size, "auto")
+    
+    projectmain_html <- paste0(projectmain_html, "<p>Total diskspace of files: ", total_size_formatted, "</p>")
+    
+    HTML(projectmain_html)
+  })
+  
+  
+  
+  #shares----
+  output$shares <- renderUI({
+    if (project_active != TRUE){
+      req(FALSE)
+    }
+    
+    shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
+    flog.info(paste0("shares_q: ", shares_q), name = "dashboard")
+    shares <- dbGetQuery(db, shares_q)
+    if (dim(shares)[1] > 0){
+      for (i in seq(1, dim(shares)[1])){
+        per_used <- round(as.numeric(shares$used[i]), 2)
+        if (per_used > 90){
+          prog_class <- "danger"
+        }else if (per_used > 75){
+          prog_class <- "warning"
+        }else{
+          prog_class <- "success"
+        }
+        share <- shares$share[i]
+        shares_html <- paste0("Space used in share ", share, " (", utils:::format.object_size(as.numeric(shares$total[i]), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+    ", per_used, "%</div>
+</div>")
+      }
+    }
+    
+    HTML(shares_html)
+  })
+  
   #folderlist----
   output$folderlist <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
@@ -283,71 +373,7 @@ server <- function(input, output, session) {
     no_folders <- dbGetQuery(db, no_folders_q)[1]
     no_folders <- as.integer(no_folders[1,1])
     
-    #Only display if it is an active project, from settings
-    if (project_active == TRUE){
-      last_update_q <- paste0(
-        "SELECT 
-                       round(EXTRACT(epoch FROM NOW() - last_update))
-                       AS last_update 
-                  FROM
-                        (SELECT updated_at AS last_update FROM folders WHERE project_id = ", project_id, "
-                        UNION
-                        SELECT updated_at AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
-						ORDER BY last_update DESC LIMIT 1)
-                        a")
-        
-      flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
-      last_update <- as.numeric(dbGetQuery(db, last_update_q))
-      
-      if (!is.na(last_update)){
-        if (last_update > 180){
-          last_update_m <- ceiling(last_update / 60)
-          if (last_update > 3600){
-            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago <span class=\"label label-danger\" title=\"Is MDFilecheck running?\">Error</span></p>")
-          }else{
-            last_update_text <- paste0("<p>Last update: ", last_update_m, " minutes ago</p>")
-          }
-        }else{
-          last_update_text <- paste0("<p>Last update: ", last_update, " seconds ago</p>")
-        }
-      }else{
-        last_update_text <- ""
-      }
-    }else{
-      last_update_text <- ""
-    }
-    
-    list_of_folders <- paste0("<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>", last_update_text, "<p>")
-    
-    list_of_folders <- paste0(list_of_folders, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
-    
-    #Shares----
-    if (project_active == TRUE){
-      shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
-      flog.info(paste0("shares_q: ", shares_q), name = "dashboard")
-      shares <- dbGetQuery(db, shares_q)
-      if (dim(shares)[1] > 0){
-        for (i in seq(1, dim(shares)[1])){
-          per_used <- round(as.numeric(shares$used[i]), 2)
-          if (per_used > 90){
-            prog_class <- "danger"
-          }else if (per_used > 75){
-            prog_class <- "warning"
-          }else{
-            prog_class <- "success"
-          }
-          share <- shares$share[i]
-          list_of_folders <- paste0(list_of_folders, "Space used in share ", share, ":<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
-    ", per_used, "%
-  </div>
-</div>")
-          
-        }
-      }
-      
-    }
-    
-    list_of_folders <- paste0(list_of_folders, "<div class=\"list-group\">")
+    list_of_folders <- paste0("<div class=\"list-group\">")
     
     if (dim(folders)[1] > 0){
       for (i in 1:dim(folders)[1]){
@@ -637,15 +663,36 @@ server <- function(input, output, session) {
     files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
     files_list <- dbGetQuery(db, files_query)
     
-    folder_check_query <- paste0("SELECT f.file_name, fc.file_check, CASE WHEN fc.check_results = 0 THEN 'OK' WHEN fc.check_results = 1 THEN 'Failed' WHEN fc.check_results = 9 THEN 'Pending' ELSE fc.check_results::text END FROM file_checks fc, files f WHERE f.file_id = fc.file_id AND f.folder_id = ", which_folder)
-    files_list <- dbGetQuery(db, folder_check_query)
+    checks_query <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
+    checks_list <- strsplit(dbGetQuery(db, checks_query)[1,1], ",")[[1]]
+    
+    folder_check_query <- paste0("
+                  SELECT *
+                  FROM crosstab(
+                    'SELECT f.file_name, fc.file_check, 
+                          CASE WHEN fc.check_results = 0 THEN ''OK'' WHEN fc.check_results = 1 THEN ''Failed'' WHEN fc.check_results = 9 THEN ''Pending'' ELSE fc.check_results::text END 
+                          FROM 
+                            file_checks fc, 
+                            files f 
+                          WHERE 
+                            f.file_id = fc.file_id AND
+                            f.folder_id = ", which_folder, "')
+                AS ct(file_name text, ")
+    
+    for (c in seq(1, length(checks_list))){
+      folder_check_query <- paste0(folder_check_query, checks_list[c], " text,")
+    }
+    
+    folder_check_query <- paste0(substring(folder_check_query, 1, nchar(folder_check_query) - 1), ")")
 
-    fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results") 
+    files_list <- dbGetQuery(db, folder_check_query)
+    fileslist_df <<- files_list
+    #fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
     
     #Sort to put errors on the top
-    if (dim(files_list)[1] > 0){
-      fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
-    }
+    # if (dim(files_list)[1] > 0){
+    #   fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
+    # }
     
     no_cols <- dim(fileslist_df)[2]
     

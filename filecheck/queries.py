@@ -50,7 +50,7 @@ update_folder_0 = "UPDATE folders SET status = 0 WHERE folder_id = %(folder_id)s
 
 update_folders_md5 = "INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%(folder_id)s, %(filetype)s, %(md5)s) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = %(md5)s"
 
-update_share = "INSERT INTO projects_shares (project_id, share, localpath, used, updated_at) VALUES (%(project_id)s, %(share)s, %(localpath)s, %(used)s, NOW()) ON CONFLICT (project_id, share) DO UPDATE SET used = %(used)s, localpath = %(localpath)s, updated_at = NOW()"
+update_share = "INSERT INTO projects_shares (project_id, share, localpath, used, total, updated_at) VALUES (%(project_id)s, %(share)s, %(localpath)s, %(used)s, %(total)s, NOW()) ON CONFLICT (project_id, share) DO UPDATE SET used = %(used)s, localpath = %(localpath)s, updated_at = NOW()"
 
 remove_shares = "DELETE FROM projects_shares WHERE project_id = %(project_id)s"
 
