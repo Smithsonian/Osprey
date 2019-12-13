@@ -110,7 +110,7 @@ ui <- dashboardPage(
     uiOutput("footer")
   ),
   
-  #Refresh every 60 seconds
+  #Refresh every 600 seconds
   if (project_active == TRUE){
     tags$head(HTML('<meta http-equiv="refresh" content="600">'))
   }
@@ -304,7 +304,7 @@ server <- function(input, output, session) {
       last_update_text <- ""
     }
     
-    projectmain_html <- paste0(projectmain_html, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
+    projectmain_html <- paste0(projectmain_html, last_update_text, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
     
     
     #Disk used----
