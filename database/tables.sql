@@ -178,6 +178,21 @@ CREATE INDEX files_exif_filetype_idx ON files_exif USING BTREE(filetype);
 CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
 
 
+
+--files_size
+DROP TABLE IF EXISTS files_size CASCADE;
+create table files_size (
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
+    filetype text DEFAULT 'TIF', 
+    filesize numeric,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+ALTER TABLE files_size ADD CONSTRAINT filesize_fileid_filetype UNIQUE (file_id, filetype);
+CREATE INDEX files_size_file_id_idx ON files_size USING BTREE(file_id);
+CREATE INDEX files_size_filetype_idx ON files_size USING BTREE(filetype);
+
+
+
 --file_checks
 DROP TABLE IF EXISTS file_checks CASCADE;
 CREATE TABLE file_checks (
