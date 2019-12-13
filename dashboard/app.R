@@ -667,29 +667,34 @@ server <- function(input, output, session) {
     checks_query <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
     checks_list <- strsplit(dbGetQuery(db, checks_query)[1,1], ",")[[1]]
     
+    # folder_check_query <- paste0("
+    #               SELECT *
+    #               FROM crosstab(
+    #                 'SELECT f.file_name, fc.file_check, 
+    #                       CASE WHEN fc.check_results = 0 THEN ''OK'' WHEN fc.check_results = 1 THEN ''Failed'' WHEN fc.check_results = 9 THEN ''Pending'' ELSE fc.check_results::text END 
+    #                       FROM 
+    #                         file_checks fc, 
+    #                         files f 
+    #                       WHERE 
+    #                         f.file_id = fc.file_id AND
+    #                         f.folder_id = ", which_folder, "')
+    #             AS ct(file_name text, ")
+    
     folder_check_query <- paste0("
-                  SELECT *
-                  FROM crosstab(
-                    'SELECT f.file_name, fc.file_check, 
-                          CASE WHEN fc.check_results = 0 THEN ''OK'' WHEN fc.check_results = 1 THEN ''Failed'' WHEN fc.check_results = 9 THEN ''Pending'' ELSE fc.check_results::text END 
-                          FROM 
-                            file_checks fc, 
-                            files f 
-                          WHERE 
-                            f.file_id = fc.file_id AND
-                            f.folder_id = ", which_folder, "')
-                AS ct(file_name text, ")
+                  SELECT f.file_name, fc.file_check, CASE WHEN fc.check_results = 0 THEN 'OK' WHEN fc.check_results = 9 THEN 'Pending' WHEN fc.check_results = 1 THEN 'Failed' END as check_results, fc.check_info 
+                  FROM files f, file_checks fc where f.file_id = fc.file_id AND f.folder_id = ", which_folder)
+                  
     
-    for (c in seq(1, length(checks_list))){
-      folder_check_query <- paste0(folder_check_query, checks_list[c], " text,")
-    }
+    # for (c in seq(1, length(checks_list))){
+    #   folder_check_query <- paste0(folder_check_query, checks_list[c], " text,")
+    # }
     
-    folder_check_query <- paste0(substring(folder_check_query, 1, nchar(folder_check_query) - 1), ")")
+    #folder_check_query <- paste0(substring(folder_check_query, 1, nchar(folder_check_query) - 1), ")")
 
     files_list <- dbGetQuery(db, folder_check_query)
-    fileslist_df <<- files_list
-    #fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
-    
+    #fileslist_df <<- files_list
+    fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
+
     #Sort to put errors on the top
     # if (dim(files_list)[1] > 0){
     #   fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
@@ -976,8 +981,8 @@ server <- function(input, output, session) {
     }
     
     #EXIF data----
-    html_to_print <- paste0(html_to_print, "<dt>EXIF</dt><dd>", actionLink("exiftif", label = "Display TIF File EXIF Metadata"))
-    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "Display RAW File EXIF Metadata"), "</dd>")
+    html_to_print <- paste0(html_to_print, "<dt>EXIF</dt><dd>", actionLink("exiftif", label = "TIF File EXIF Metadata"))
+    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File EXIF Metadata"), "</dd>")
     
     tifexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id)
     flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
