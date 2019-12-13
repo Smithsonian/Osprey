@@ -1139,6 +1139,18 @@ def main():
                 check_deleted('tifs')
             folder_updated_at(folder_id, db_cursor)
     os.chdir(filecheck_dir)
+    #Check if folders have dissapeared
+    if settings.del_folders:
+        db_cursor.execute(queries.get_folders, {'project_id': project_id})
+        logger1.info(db_cursor.query)
+        folders = db_cursor.fetchall()
+        for folder in folders:
+            if os.path.isdir(folder['path']) == False:
+                #db_cursor.execute(queries.del_folder, {'folder_id': project_id})
+                #logger1.info(db_cursor.query)
+                logger1.info("DELETE {}".format(folder['path']))
+            else:
+                logger1.info("OK {}".format(folder['path']))
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))

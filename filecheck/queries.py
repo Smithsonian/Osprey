@@ -65,3 +65,5 @@ save_exif = "INSERT INTO files_exif (file_id, tag, filetype, value) VALUES (%(fi
 check_size = "SELECT filesize from files_size WHERE file_id = %(file_id)s and filetype = %(filetype)s"
 
 save_filesize = "INSERT INTO files_size (file_id, filetype, filesize) VALUES (%(file_id)s, %(filetype)s, %(filesize)s) ON CONFLICT (file_id, filetype) DO UPDATE SET filesize = %(filesize)s"
+
+get_folders = "SELECT folder_id, path FROM folders WHERE project_id = %(project_id)s"

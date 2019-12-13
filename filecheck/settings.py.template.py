@@ -130,3 +130,5 @@ ignore_string = None
 # wav_channels = ""
 # wav_bits = ""
 
+
+del_folders = True
