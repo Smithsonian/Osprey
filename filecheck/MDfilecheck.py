@@ -148,6 +148,22 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     if os.path.isfile(preview_image) == False:
         logger1.info("jpg_preview {} does not exist for file_id:{}".format(preview_image, file_id))
         file_checks = file_checks + 1
+    #Get filesize from TIF:
+    file_size = os.path.getsize("{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
+    db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': 'TIF', 'filesize': file_size})
+    logger1.info(db_cursor.query.decode("utf-8"))
+    #Get filesize from RAW:
+    if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
+        file_size = os.path.getsize("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
+        db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': 'RAW', 'filesize': file_size})
+        logger1.info(db_cursor.query.decode("utf-8"))
+    #Get exif from TIF
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'TIF'})
+    check_exif = db_cursor.fetchone()[0]
+    logger1.info("check_exif_tif: {}".format(check_exif))
+    if check_exif == 0:
+        logger1.info("Getting EXIF from {}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
+        file_exif(file_id, "{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem), 'TIF', db_cursor)
     #Get exif from RAW
     db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'RAW'})
     check_exif = db_cursor.fetchone()[0]
@@ -156,13 +172,6 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
             logger1.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
             file_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), 'RAW', db_cursor)
-    #Get exif from TIF
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'TIF'})
-    check_exif = db_cursor.fetchone()[0]
-    logger1.info("check_exif_tif: {}".format(check_exif))
-    if check_exif == 0:
-        logger1.info("Getting EXIF from {}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
-        file_exif(file_id, "{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem), 'TIF', db_cursor)
     #Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
     logger1.info(db_cursor.query.decode("utf-8"))
@@ -348,10 +357,6 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor)
-        #Disconnect from db
-        # db_cursor.close()
-        # conn2.close()
-        #os.remove(local_tempfile)
         return True
 
 
