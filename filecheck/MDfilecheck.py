@@ -1141,16 +1141,15 @@ def main():
     os.chdir(filecheck_dir)
     #Check if folders have dissapeared
     if settings.del_folders:
-        db_cursor.execute(queries.get_folders, {'project_id': project_id})
+        db_cursor.execute(queries.get_folders, {'project_id': settings.project_id})
         logger1.info(db_cursor.query)
         folders = db_cursor.fetchall()
         for folder in folders:
-            if os.path.isdir(folder['path']) == False:
-                #db_cursor.execute(queries.del_folder, {'folder_id': project_id})
-                #logger1.info(db_cursor.query)
-                logger1.info("DELETE {}".format(folder['path']))
+            if os.path.isdir(folder[1]) == False:
+                db_cursor.execute(queries.del_folder, {'folder_id': folder[0]})
+                logger1.info(db_cursor.query)
             else:
-                logger1.info("OK {}".format(folder['path']))
+                logger1.info("Folder {} OK".format(folder[1]))
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
