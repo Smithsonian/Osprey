@@ -35,17 +35,14 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         len_server_folder_path = len(server_folder_path)
         folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
     db_cursor.execute(queries.select_folderid, {'project_folder': folder_name, 'project_id': project_id})
-    logger1.info(db_cursor.query)
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
         db_cursor.execute(queries.new_folder, {'folder_name': folder_name, 'folder_path': folder_path, 'project_id': project_id})
-        logger1.info(db_cursor.query)
         folder_id = db_cursor.fetchone()
     if settings.folder_date != "":
         #Update to set date of folder
         db_cursor.execute(queries.folder_date, {'datequery': settings.folder_date, 'folder_id': folder_id[0]})
-        logger1.info(db_cursor.query)
     return folder_id[0]
 
 
@@ -55,7 +52,6 @@ def folder_updated_at(folder_id, db_cursor):
     Update the last time the folder was checked
     """
     db_cursor.execute(queries.folder_updated_at, {'folder_id': folder_id})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -65,7 +61,6 @@ def file_updated_at(file_id, db_cursor):
     Update the last time the file was checked
     """
     db_cursor.execute(queries.file_updated_at, {'file_id': file_id})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -87,7 +82,6 @@ def jhove_validate(file_id, filename, db_cursor):
     except:
         error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': 1, 'check_info': error_msg})
-        logger1.info(db_cursor.query.decode("utf-8"))
         return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
@@ -165,15 +159,15 @@ def tifpages(file_id, filename, db_cursor, paranoid = False):
     """
     Check if TIF has multiple pages
     """
-    p = subprocess.Popen(['identify', '-format', '%n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(['identify', '-format', '%n\\n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out,err) = p.communicate()
     try:
-        if int(out) == 1:
+        if int(len(out.split())) == 1:
             pages_vals = 0
-            no_pages = str(int(out)) + " page"
+            no_pages = str(int(len(out.split()))) + " page"
         else:
             pages_vals = 1
-            no_pages = str(int(out)) + " pages"
+            no_pages = str(int(len(out.split()))) + " pages"
     except:
         no_pages = "Unknown"
         pages_vals = 1
@@ -196,7 +190,6 @@ def valid_name(file_id, filename, db_cursor, paranoid = False):
         filename_check = 0
         filename_check_info = "Filename {} in list".format(filename_stem)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
-    logger1.info(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -211,7 +204,6 @@ def file_exif(file_id, filename, filetype, db_cursor):
         exif_read = 0
     else:
         exif_read = 1
-        logger1.error("{}: {}".format(file_id, err))
     exif_info = out
     for line in exif_info.splitlines():
         tag = re.split(r'\t+', line.decode('UTF-8'))
@@ -237,9 +229,7 @@ def itpc_validate(file_id, filename, db_cursor):
     #     return_code = False
     # #for meta in metadata.exif_keys:
     # #    print(metadata[meta].value)
-    # #logger1.info(meta_check)
     # q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
-    # logger1.info(q_meta)
     # db_cursor.execute(q_meta)
     return False
 
@@ -292,7 +282,6 @@ def soxi_check(file_id = "0", filename = "", file_check = "filetype", expected_v
         else:
             result_code = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -331,7 +320,6 @@ def file_size_check(filename, filetype, file_id, db_cursor):
 
 def delete_folder_files(folder_id, db_cursor):
     db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -361,10 +349,8 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor):
     md5_error = ""
     if filetype == "tif":
         db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id})
-        logger1.info(db_cursor.query)
     elif filetype == "raw":
         db_cursor.execute(queries.select_raw_md5, {'folder_id': folder_id})
-        logger1.info(db_cursor.query)
     vendor = pandas.DataFrame(db_cursor.fetchall(), columns = ['md5_1', 'filename'])
     md5file = pandas.read_csv(md5_file, header = None, names = ['md5_2', 'filename'], index_col = False, sep = "  ")
     #Remove suffix
@@ -411,15 +397,12 @@ def check_deleted(filetype = 'tif'):
     else:
         return False
     try:
-        logger1.info("Connecting to database")
         con = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
     except:
-        logger1.error("Could not connect to server.")
         sys.exit(1)
     con.autocommit = True
     db_cursor = con.cursor()
     db_cursor.execute(queries.get_files, {'project_id': settings.project_id})
-    logger1.info(cur.query)
     files = db_cursor.fetchall()
     for file in files:
         if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)) == True:
@@ -429,7 +412,6 @@ def check_deleted(filetype = 'tif'):
             file_exists = 1
             file_exists_info = "File {}/{}/{}.{} was not found".format(file[2], files_path, file[1], filetype)
         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'file_exists', 'check_results': file_exists, 'check_info': file_exists_info})
-        logger1.info(db_cursor.query)
     con.close()
     return True
 
@@ -447,7 +429,6 @@ def jpgpreview(file_id, filename):
     #Delete old image, if exists
     if os.path.isfile(preview_image):
         os.unlink(preview_image)
-    logger1.info("preview_image:{}".format(preview_image))
     try:
         p = subprocess.run(['convert', "{}[0]".format(filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
         return True
@@ -478,7 +459,6 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
         file_pair = 0
         file_pair_info = "tif and {} found".format(settings.raw_files)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair, 'check_info': file_pair_info})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -498,11 +478,9 @@ def check_jpg(file_id, filename, db_cursor):
         magick_identify_info = err
         magick_return = False
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    logger1.info(db_cursor.query)
     if magick_return:
         #Store MD5
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        logger1.info(db_cursor.query)
     return True
 
