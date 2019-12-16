@@ -15,7 +15,7 @@ library(ggplot2)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.5.3"
+app_ver <- "0.6.0"
 github_link <- "https://github.com/Smithsonian/MDFileCheck"
 
 options(stringsAsFactors = FALSE)
@@ -907,21 +907,47 @@ server <- function(input, output, session) {
       }
     }
     
-    #EXIF data----
-    html_to_print <- paste0(html_to_print, "<dt>EXIF</dt><dd>", actionLink("exiftif", label = "TIF File EXIF Metadata"))
-    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File EXIF Metadata"), "</dd>")
+    #Metadata----
+    html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>", actionLink("exiftif", label = "TIF File Metadata"))
+    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
     
-    tifexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id)
+    tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
     tifexif <- dbGetQuery(db, tifexif_q)
     
-    display_tifexif <- "<dl class=\"dl-horizontal\">"
+    # display_tifexif <- "<dl class=\"dl-horizontal\">"
+    # 
+    # if (dim(tifexif)[1] == 0){
+    #   display_tifexif <- paste0(display_tifexif, "<dt>Data pending</dt><dd>Metadata has not been exported yet.</dd>")
+    # }else{
+    #   for (t in seq(1, dim(tifexif)[1])){
+    #     display_tifexif <- paste0(display_tifexif, "<dt>", tifexif$taggroup[t], " - ", tifexif$tag[t], "</dt>", "<dd>", tifexif$value[t], "</dd>")
+    #   }
+    # }
+    # 
+    # 
+    # display_tifexif <- paste0(display_tifexif, "</dl>")
     
-    for (t in seq(1, dim(tifexif)[1])){
-      display_tifexif <- paste0(display_tifexif, "<dt>", tifexif$tag[t], "</dt>", "<dd>", tifexif$value[t], "</dd>")
-    }
+    output$tifexif_dt <- DT::renderDataTable({
     
-    display_tifexif <- paste0(display_tifexif, "</dl>")
+      tifexif <- tifexif %>% dplyr::rename("Tag Group" = taggroup) %>% 
+        dplyr::rename("Tag" = tag) %>% 
+        dplyr::rename("Value" = value)
+      
+      DT::datatable(
+        tifexif, 
+        class = 'compact',
+        escape = FALSE, 
+        options = list(
+          searching = TRUE, 
+          ordering = TRUE, 
+          pageLength = 50, 
+          paging = TRUE, 
+          scrollX = TRUE
+        ),
+        rownames = FALSE)
+    })
+    
     
     #exiftif----
     observeEvent(input$exiftif, {
@@ -929,23 +955,52 @@ server <- function(input, output, session) {
       showModal(modalDialog(
         size = "l",
         title = "TIF EXIF Metadata",
-        HTML(display_tifexif),
+        #HTML(display_tifexif),
+        DT::dataTableOutput("tifexif_dt"),
         easyClose = TRUE
       ))
     })
     
     
-    rawexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id)
+    # rawexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+    # flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
+    # rawexif <- dbGetQuery(db, rawexif_q)
+    # 
+    # display_rawexif <- "<dl class=\"dl-horizontal\">"
+    # 
+    # if (dim(rawexif)[1] == 0){
+    #   display_rawexif <- paste0(display_rawexif, "<dt>Data pending</dt><dd>Metadata has not been exported yet.</dd>")
+    # }else{
+    #   for (t in seq(1, dim(rawexif)[1])){
+    #     display_rawexif <- paste0(display_rawexif, "<dt>", rawexif$taggroup[t], " - ", rawexif$tag[t], "</dt>", "<dd>", rawexif$value[t], "</dd>")
+    #   }
+    # }
+    # 
+    # display_rawexif <- paste0(display_rawexif, "</dl>")
+    
+    rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
     rawexif <- dbGetQuery(db, rawexif_q)
     
-    display_rawexif <- "<dl class=\"dl-horizontal\">"
-    
-    for (t in seq(1, dim(rawexif)[1])){
-      display_rawexif <- paste0(display_rawexif, "<dt>", rawexif$tag[t], "</dt>", "<dd>", rawexif$value[t], "</dd>")
-    }
-    
-    display_rawexif <- paste0(display_rawexif, "</dl>")
+    output$rawexif_dt <- DT::renderDataTable({
+      
+      rawexif <- rawexif %>% dplyr::rename("Tag Group" = taggroup) %>% 
+        dplyr::rename("Tag" = tag) %>% 
+        dplyr::rename("Value" = value)
+      
+      DT::datatable(
+        rawexif, 
+        class = 'compact',
+        escape = FALSE, 
+        options = list(
+          searching = TRUE, 
+          ordering = TRUE, 
+          pageLength = 50, 
+          paging = TRUE, 
+          scrollX = TRUE
+        ),
+        rownames = FALSE)
+    })
     
     #exifraw----
     observeEvent(input$exifraw, {
@@ -953,7 +1008,8 @@ server <- function(input, output, session) {
       showModal(modalDialog(
         size = "l",
         title = "RAW EXIF Metadata",
-        HTML(display_rawexif),
+        #HTML(display_rawexif),
+        DT::dataTableOutput("rawexif_dt"),
         easyClose = TRUE
       ))
     })
