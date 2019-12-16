@@ -60,7 +60,7 @@ get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as fi
 
 check_exif = "SELECT count(*) as entries from files_exif WHERE file_id = %(file_id)s and filetype = %(filetype)s"
 
-save_exif = "INSERT INTO files_exif (file_id, tag, filetype, value) VALUES (%(file_id)s, %(tag)s, %(filetype)s, %(value)s) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET value = %(value)s"
+save_exif = "INSERT INTO files_exif (file_id, tagid, taggroup, tag, filetype, value) VALUES (%(file_id)s, %(tagid)s, %(taggroup)s, %(tag)s, %(filetype)s, %(value)s) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET value = %(value)s"
 
 check_size = "SELECT filesize from files_size WHERE file_id = %(file_id)s and filetype = %(filetype)s"
 

@@ -8,13 +8,10 @@
 # Import modules
 ############################################
 import os, sys, shutil, subprocess, locale, logging, glob
-import xmltodict, bitmath, pandas, time, glob, re
+import xmltodict, bitmath, pandas, time, glob
 import random
-from random import randint
 #For Postgres
 import psycopg2
-#For MD5
-import hashlib
 from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE

@@ -189,15 +189,16 @@ server <- function(input, output, session) {
 
     ok_count <- paste0("WITH data AS 
                     (SELECT 
-                      file_id, 
-                      sum(check_results) as check_results 
+                      file_id, sum(check_results) as check_results 
                     FROM 
                       file_checks 
                     WHERE 
                       file_id in (SELECT 
                                 file_id 
                               FROM files
-                              WHERE folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, ")) GROUP BY file_id)
+                              WHERE folder_id IN 
+                                (SELECT folder_id from folders WHERE project_id = ", project_id, ")) 
+                                  GROUP BY file_id)
                   SELECT count(file_id) FROM data WHERE check_results = 0")
     ok_list_count <- dbGetQuery(db, ok_count)
     
@@ -226,25 +227,16 @@ server <- function(input, output, session) {
   #itemcount----
   output$itemcount <- renderValueBox({
     
-    pending_count <- paste0("SELECT 
-                          count(distinct file_id)
-                        FROM 
-                          file_checks 
-                        WHERE 
-                            check_results = 9 AND
+    pending_count <- paste0("SELECT count(distinct file_id)
+                        FROM file_checks 
+                        WHERE check_results = 9 AND
                             file_id in (
-                                SELECT 
-                                    file_id 
-                                FROM 
-                                  files
-                                WHERE 
-                                  folder_id IN (
-                                        SELECT 
-                                            folder_id 
-                                        FROM 
-                                            folders 
-                                        WHERE project_id = ", project_id, ")
-                                        )")
+                                SELECT file_id 
+                                FROM files
+                                WHERE folder_id IN (
+                                        SELECT folder_id 
+                                        FROM folders 
+                                        WHERE project_id = ", project_id, "))")
     pending_files_count <- dbGetQuery(db, pending_count)
 
     if (dim(pending_files_count)[1] == 0){
@@ -273,15 +265,12 @@ server <- function(input, output, session) {
     #Only display if it is an active project, from settings
     if (project_active == TRUE){
       last_update_q <- paste0(
-        "SELECT 
-                       round(EXTRACT(epoch FROM NOW() - last_update))
-                       AS last_update 
-                  FROM
-                        (SELECT updated_at AS last_update FROM folders WHERE project_id = ", project_id, "
-                        UNION
-                        SELECT updated_at AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
-						ORDER BY last_update DESC LIMIT 1)
-                        a")
+        "SELECT round(EXTRACT(epoch FROM NOW() - last_update)) AS last_update 
+          FROM
+            (SELECT updated_at AS last_update FROM folders WHERE project_id = ", project_id, "
+            UNION
+            SELECT updated_at AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
+					ORDER BY last_update DESC LIMIT 1) a")
       
       flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
       last_update <- as.numeric(dbGetQuery(db, last_update_q))
@@ -539,22 +528,16 @@ server <- function(input, output, session) {
   output$dayplot <- renderPlot({
     req(input$this_date)
     folder_progress_q <- paste0("with t as (
-                          select
-                            generate_series('", input$this_date, " 06:00:00'::timestamp, '", input$this_date, " 19:00:00'::timestamp, '5 minutes') as int
-                        )
-                        select
-                          int as time,
-                          count(*)::int as no_files
-                        from
-                           t
+                          select generate_series('", input$this_date, " 06:00:00'::timestamp, '", input$this_date, " 19:00:00'::timestamp, '5 minutes') as int)
+                        select int as time,
+                            count(*)::int as no_files
+                        from t
                            left join files tmp on 
                                  (tmp.created_at >= t.int and 
                                   tmp.created_at < (t.int + interval '5 minutes'))
                         where date_trunc('day', tmp.created_at) = '", input$this_date, "'
-                        group by
-                          int
-                        order by
-                          int")
+                        group by int
+                        order by int")
     flog.info(paste0("folder_progress_q: ", folder_progress_q), name = "dashboard")
     folder_progress <<- dbGetQuery(db, folder_progress_q)
     
@@ -667,39 +650,14 @@ server <- function(input, output, session) {
     checks_query <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
     checks_list <- strsplit(dbGetQuery(db, checks_query)[1,1], ",")[[1]]
     
-    # folder_check_query <- paste0("
-    #               SELECT *
-    #               FROM crosstab(
-    #                 'SELECT f.file_name, fc.file_check, 
-    #                       CASE WHEN fc.check_results = 0 THEN ''OK'' WHEN fc.check_results = 1 THEN ''Failed'' WHEN fc.check_results = 9 THEN ''Pending'' ELSE fc.check_results::text END 
-    #                       FROM 
-    #                         file_checks fc, 
-    #                         files f 
-    #                       WHERE 
-    #                         f.file_id = fc.file_id AND
-    #                         f.folder_id = ", which_folder, "')
-    #             AS ct(file_name text, ")
-    
     folder_check_query <- paste0("
                   SELECT f.file_name, fc.file_check, CASE WHEN fc.check_results = 0 THEN 'OK' WHEN fc.check_results = 9 THEN 'Pending' WHEN fc.check_results = 1 THEN 'Failed' END as check_results, fc.check_info 
                   FROM files f, file_checks fc where f.file_id = fc.file_id AND f.folder_id = ", which_folder)
                   
-    
-    # for (c in seq(1, length(checks_list))){
-    #   folder_check_query <- paste0(folder_check_query, checks_list[c], " text,")
-    # }
-    
-    #folder_check_query <- paste0(substring(folder_check_query, 1, nchar(folder_check_query) - 1), ")")
-
     files_list <- dbGetQuery(db, folder_check_query)
-    #fileslist_df <<- files_list
+
     fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
 
-    #Sort to put errors on the top
-    # if (dim(files_list)[1] > 0){
-    #   fileslist_df <- dplyr::arrange_at(fileslist_df, .vars = file_checks)
-    # }
-    
     no_cols <- dim(fileslist_df)[2]
     
     DT::datatable(
@@ -759,7 +717,6 @@ server <- function(input, output, session) {
       html_to_print <- paste0(html_to_print, "</dd>")
     }
     
-    
     #TIF md5----
     if (project_type == "tif"){
       info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
@@ -797,13 +754,6 @@ server <- function(input, output, session) {
       }
     }
     
-    # #if JPG, show md5
-    # if (stringr::str_detect(file_checks_list, "jpg")){
-    #   if (!is.null(file_info$jpg_md5)){
-    #     html_to_print <- paste0(html_to_print, "<dt>JPG MD5</dt><dd>", file_info$jpg_md5, "</dd>")
-    #   }
-    # }
-      
     #valid_name
     if (stringr::str_detect(file_checks_list, "valid_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'valid_name' AND file_id = ", file_id)
@@ -837,39 +787,6 @@ server <- function(input, output, session) {
         }
       }
     }
-  
-    # #itpc ----
-    # if (stringr::str_detect(file_checks_list, "itpc")){
-    #   if (!is.na(file_info$iptc_metadata_info[1])){
-    #     if (file_info$iptc_metadata[1] == 0){
-    #       html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd>", file_info$iptc_metadata_info, "</dd>")
-    #     }else{
-    #       html_to_print <- paste0(html_to_print, "<dt>IPTC metadata</dt><dd class=\"bg-danger\">", file_info$iptc_metadata_info, "</dd>")
-    #     }
-    #   }
-    # }
-  
-    # #tif_size ----
-    # if (stringr::str_detect(file_checks_list, "tif_size")){
-    #   if (!is.na(file_info$tif_size_info[1])){
-    #     if (file_info$tif_size[1] == 0){
-    #       html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd>", file_info$tif_size_info, "</dd>")
-    #     }else{
-    #       html_to_print <- paste0(html_to_print, "<dt>TIF file size</dt><dd class=\"bg-danger\">", file_info$tif_size_info, "</dd>")
-    #     }
-    #   }
-    # }
-    # 
-    # #raw_size ----
-    # if (stringr::str_detect(file_checks_list, "raw_size")){
-    #   if (!is.na(file_info$raw_size_info[1])){
-    #     if (file_info$raw_size[1] == 0){
-    #       html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd>", file_info$raw_size_info, "</dd>")
-    #     }else{
-    #       html_to_print <- paste0(html_to_print, "<dt>RAW file size</dt><dd class=\"bg-danger\">", file_info$raw_size_info, "</dd>")
-    #     }
-    #   }
-    # }
   
     #unique_file ----
     if (stringr::str_detect(file_checks_list, "unique_file")){
@@ -921,15 +838,6 @@ server <- function(input, output, session) {
         }
       }
     }
-    
-    # #JPG ----
-    # if (stringr::str_detect(file_checks_list, "jpg")){
-    #   if (file_info$jpg[1] == 1){
-    #     html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd class=\"bg-danger\">Failed</dd><dt>JPG Imagemagick details</dt><dd class=\"bg-danger\"><pre>", file_info$jpg_info, "</pre></dd>")
-    #   }else{
-    #     html_to_print <- paste0(html_to_print, "<dt>JPG validation</dt><dd>OK</dd>")
-    #   }
-    # }
     
     #tifpages ----
     if (project_type == "tif"){
@@ -1051,7 +959,6 @@ server <- function(input, output, session) {
     })
     
     
-    
     #WAVS ----
     if (project_type == "wav"){
       #filetype ----
@@ -1103,7 +1010,6 @@ server <- function(input, output, session) {
         }
       }
       
-      
       if (stringr::str_detect(file_checks_list, "bits")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'bits' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
@@ -1123,7 +1029,6 @@ server <- function(input, output, session) {
     
     html_to_print <- paste0(html_to_print, "</dl>")
     
-    
     #Image preview ----
     tagList(
       fluidRow(
@@ -1137,7 +1042,6 @@ server <- function(input, output, session) {
       HTML(html_to_print)
     )
   })
-  
   
   
   #footer----

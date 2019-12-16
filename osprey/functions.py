@@ -1,8 +1,11 @@
 #Functions for MDfilecheck.py
 
-import os, subprocess
+import os, subprocess, re
 import settings
+from random import randint
 import queries
+#For MD5
+import hashlib
 
 def check_requirements(program):
     """
@@ -202,7 +205,7 @@ def file_exif(file_id, filename, filetype, db_cursor):
     """
     Extract the EXIF info from the RAW file
     """
-    p = subprocess.Popen(['exiftool', '-t', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(['exiftool', '-t', '-a', '-U', '-u', '-D', '-G1', '-s',  filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out,err) = p.communicate()
     if p.returncode == 0:
         exif_read = 0
@@ -212,8 +215,7 @@ def file_exif(file_id, filename, filetype, db_cursor):
     exif_info = out
     for line in exif_info.splitlines():
         tag = re.split(r'\t+', line.decode('UTF-8'))
-        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'tag': tag[0], 'value': tag[1]})
-        logger1.info(db_cursor.query.decode("utf-8"))
+        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1], 'tag': tag[2], 'value': tag[3]})
     return True
 
 

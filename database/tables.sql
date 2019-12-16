@@ -170,6 +170,8 @@ create table files_exif (
     file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
     filetype text default 'RAW',
     tag text, 
+    taggroup text,
+    tagid text,
     value text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
@@ -177,6 +179,8 @@ ALTER TABLE files_exif ADD CONSTRAINT file_and_tag_andtype UNIQUE (file_id, tag,
 CREATE INDEX files_exif_file_id_idx ON files_exif USING BTREE(file_id);
 CREATE INDEX files_exif_filetype_idx ON files_exif USING BTREE(filetype);
 CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
+CREATE INDEX files_exif_tagid_idx ON files_exif USING BTREE(tagid);
+CREATE INDEX files_exif_taggroup_idx ON files_exif USING BTREE(taggroup);
 
 
 
