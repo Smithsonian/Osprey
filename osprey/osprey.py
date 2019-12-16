@@ -21,7 +21,7 @@ from subprocess import Popen,PIPE
 from datetime import datetime
 
 
-ver = "0.6.1"
+ver = "0.7.0"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -182,9 +182,6 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
     if file_checks == 0:
         file_updated_at(file_id, db_cursor)
         logger1.info("File with ID {} is OK, skipping".format(file_id))
-        # #Disconnect from db
-        # db_cursor.close()
-        # conn2.close()
         return True
     else:
         logger1.info("file_checks: {} file_id: {}".format(file_checks, file_id))
@@ -353,6 +350,13 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             if result != 0:
                 #check if tif has multiple pages
                 tifpages(file_id, local_tempfile, db_cursor)
+        if 'tif_compression' in settings.project_file_checks:
+            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
+            logger1.info(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchone()[0]
+            if result != 0:
+                #check if tif is compressed
+                tif_compression(file_id, local_tempfile, db_cursor)
         logger1.info("jpg_prev:{}".format(jpg_prev))
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
@@ -499,10 +503,6 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
 
 
 
-
-
-
-
 def check_requirements(program):
     """
     Check if required programs are installed
@@ -543,12 +543,6 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         logger1.info(db_cursor.query.decode("utf-8"))
         folder_id = db_cursor.fetchone()
         logger1.info("folder_id:{}".format(folder_id[0]))
-    # if settings.folder_date != "":
-    #     folder_date = folder_path.split(settings.folder_date)[1]
-    #     folder_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
-    #     #Update to set date of folder
-    #     db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
-    #     logger1.info(db_cursor.query.decode("utf-8"))
     folder_date = settings.folder_date(folder_name)
     db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
     logger1.info(db_cursor.query.decode("utf-8"))
@@ -576,149 +570,11 @@ def file_updated_at(file_id, db_cursor):
 
 
 
-def jhove_validate(file_id, filename, db_cursor):
-    """
-    Validate the file with JHOVE
-    """
-    #Where to write the results
-    xml_file = "{}/mdpp_{}.xml".format(settings.tmp_folder, randint(100, 100000))
-    if os.path.isfile(xml_file):
-        os.unlink(xml_file)
-    #Run JHOVE
-    subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename])
-    #Open and read the results xml
-    try:
-        with open(xml_file) as fd:
-            doc = xmltodict.parse(fd.read())
-    except:
-        error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
-        logger1.error(error_msg)
-        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': 1, 'check_info': error_msg})
-        logger1.info(db_cursor.query.decode("utf-8"))
-        return False
-    if os.path.isfile(xml_file):
-        os.unlink(xml_file)
-    #Get file status
-    file_status = doc['jhove']['repInfo']['status']
-    if file_status == "Well-Formed and valid":
-        jhove_val = 0
-    else:
-        jhove_val = 1
-        if len(doc['jhove']['repInfo']['messages']) == 1:
-            #If the only error is with the WhiteBalance, ignore
-            # Issue open at Github, seems will be fixed in future release
-            # https://github.com/openpreserve/jhove/issues/364
-            if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
-                jhove_val = 0
-        file_status = doc['jhove']['repInfo']['messages']['message']['#text']
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val, 'check_info': file_status})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def magick_validate(file_id, filename, db_cursor, paranoid = False):
-    """
-    Validate the file with Imagemagick
-    """
-    if paranoid == True:
-        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    else:
-        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out,err) = p.communicate()
-    if p.returncode == 0:
-        magick_identify = 0
-    else:
-        magick_identify = 1
-    magick_identify_info = out + err
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('UTF-8')})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def file_exif(file_id, filename, filetype, db_cursor):
-    """
-    Extract the EXIF info from the RAW file
-    """
-    p = subprocess.Popen(['exiftool', '-t', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out,err) = p.communicate()
-    if p.returncode == 0:
-        exif_read = 0
-    else:
-        exif_read = 1
-        logger1.error("{}: {}".format(file_id, err))
-    exif_info = out
-    for line in exif_info.splitlines():
-        tag = re.split(r'\t+', line.decode('UTF-8'))
-        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'tag': tag[0], 'value': tag[1]})
-        logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def valid_name(file_id, filename, db_cursor, paranoid = False):
-    """
-    Check if filename in database of accepted names
-    """
-    filename_stem = Path(filename).stem
-    db_cursor.execute(settings.filename_pattern_query.format(filename_stem))
-    valid_names = db_cursor.fetchone()[0]
-    if valid_names == 0:
-        filename_check = 1
-        filename_check_info = "Filename {} not in list".format(filename_stem)
-    else:
-        filename_check = 0
-        filename_check_info = "Filename {} in list".format(filename_stem)
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def tifpages(file_id, filename, db_cursor, paranoid = False):
-    """
-    Check if TIF has multiple pages
-    """
-    p = subprocess.Popen(['identify', '-quiet', '-format', '%p', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out,err) = p.communicate()
-    try:
-        if len(out) == 1:
-            pages_vals = 0
-            no_pages = str(len(out)) + " page"
-        else:
-            pages_vals = 1
-            no_pages = str(len(out)) + " pages"
-    except:
-        no_pages = "Unknown"
-        pages_vals = 1
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals, 'check_info': no_pages})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
 def itpc_validate(file_id, filename, db_cursor):
     """
     Check the IPTC Metadata
-    Need to rewrite using exifread
+    Need to rewrite 
     """
-    # metadata = pyexiv2.ImageMetadata(filename)
-    # iptc_metadata = 0
-    # iptc_metadata_info = "IPTC Metadata exists"
-    # return_code = True
-    # try:
-    #     iptc_metadata_info = metadata.read()
-    # except:
-    #     iptc_metadata = 1
-    #     iptc_metadata_info = "Could not read metadata"
-    #     return_code = False
-    # #for meta in metadata.exif_keys:
-    # #    print(metadata[meta].value)
-    # #logger1.info(meta_check)
-    # q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
-    # logger1.info(q_meta)
-    # db_cursor.execute(q_meta)
     return False
 
 
@@ -775,61 +631,10 @@ def soxi_check(file_id = "0", filename = "", file_check = "filetype", expected_v
 
 
 
-def file_size_check(filename, filetype, file_id, db_cursor):
-    """
-    Check if a file is within the size limits
-    """
-    file_size = os.path.getsize(filename)
-    logger1.info(str(file_size))
-    if filetype == "tif":
-        if file_size < settings.tif_size_min:
-            file_size = 1
-            file_size_info = "TIF file is smaller than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
-        elif file_size > settings.tif_size_max:
-            file_size = 1
-            file_size_info = "TIF file is larger than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
-        else:
-            file_size = 0
-            file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
-        file_check = 'tif_size'
-    elif filetype == "raw":
-        if file_size < settings.raw_size_min:
-            file_size = 1
-            file_size_info = "RAW file is smaller than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
-        elif file_size > settings.raw_size_max:
-            file_size = 1
-            file_size_info = "RAW file is larger than expected ({})".format(bitmath.getsize(filename, system=bitmath.SI))
-        else:
-            file_size = 0
-            file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
-        file_check = 'raw_size'
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
 def delete_folder_files(folder_id, db_cursor):
     db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
     logger1.info(db_cursor.query.decode("utf-8"))
     return True
-
-
-
-def filemd5(filepath):
-    """
-    Get MD5 hash of a file
-    """
-    md5_hash = hashlib.md5()
-    if os.path.isfile(filepath):
-        with open(filepath, "rb") as f:
-            # Read and update hash in chunks of 4K
-            for byte_block in iter(lambda: f.read(4096), b""):
-                md5_hash.update(byte_block)
-        file_md5 = md5_hash.hexdigest()
-    else:
-        file_md5 = ""
-    return file_md5
 
 
 
@@ -993,7 +798,6 @@ def check_jpg(file_id, filename, db_cursor):
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
         logger1.info(db_cursor.query.decode("utf-8"))
     return True
-
 
 
 

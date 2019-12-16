@@ -45,6 +45,7 @@ project_file_checks = ["raw_pair","magick","jhove","unique_file","tifpages"]
 # - tifpages: Check the number of pages in the tif
 # - magick: Run imagemagick validation
 # - itpc: Check for valid ITPC metadata, not yet implemented
+# - tif_compression: Check if tif is compressed using LZW
 #
 #For WAVS:
 # - filetype: If the filetype matches 'wav_filetype'

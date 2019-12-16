@@ -950,6 +950,25 @@ server <- function(input, output, session) {
       }
     }
     
+    #tifpages ----
+    if (project_type == "tif"){
+      if (stringr::str_detect(file_checks_list, "tif_compression")){
+        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tif_compression' AND file_id = ", file_id)
+        flog.info(paste0("info_q: ", info_q), name = "dashboard")
+        check_res <- dbGetQuery(db, info_q)
+        
+        if (dim(check_res)[1] == 1){
+          if (check_res$check_results == 0){
+            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd>", check_res$check_info, "</dd>")
+          }else if (check_res$check_results == 1){
+            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
+          }else if (check_res$check_results == 9){
+            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-warning\">Not checked yet</dd>")
+          }
+        }
+      }
+    }
+    
     #ImageMagick ----
     if (project_type == "tif"){
       if (stringr::str_detect(file_checks_list, "magick")){

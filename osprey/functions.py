@@ -72,7 +72,7 @@ def jhove_validate(file_id, filename, db_cursor):
     Validate the file with JHOVE
     """
     #Where to write the results
-    xml_file = "/tmp/mdpp_{}.xml".format(randint(100, 100000))
+    xml_file = "{}/mdpp_{}.xml".format(settings.tmp_folder, randint(100, 100000))
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     #Run JHOVE
@@ -83,9 +83,8 @@ def jhove_validate(file_id, filename, db_cursor):
             doc = xmltodict.parse(fd.read())
     except:
         error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
-        logger1.error(error_msg)
         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': 1, 'check_info': error_msg})
-        logger1.info(db_cursor.query)
+        logger1.info(db_cursor.query.decode("utf-8"))
         return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
@@ -103,7 +102,6 @@ def jhove_validate(file_id, filename, db_cursor):
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val, 'check_info': file_status})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -122,8 +120,23 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
     else:
         magick_identify = 1
     magick_identify_info = out + err
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info})
-    logger1.info(db_cursor.query)
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('UTF-8')})
+    return True
+
+
+
+def tif_compression(file_id, filename, db_cursor):
+    """
+    Check if the image has compression
+    """
+    p = subprocess.Popen(['exiftool', '-T', '-compression', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    compressed_info = out.decode('UTF-8').replace('\n','')
+    if compressed_info == "LZW":
+        f_compressed = 0
+    else:
+        f_compressed = 1
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tif_compression', 'check_results': f_compressed, 'check_info': compressed_info})
     return True
 
 
@@ -141,7 +154,6 @@ def valid_name(file_id, filename, db_cursor, paranoid = False):
         filename_check = 0
         filename_check_info = "Filename {} in list".format(Path(filename).stem)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -163,7 +175,45 @@ def tifpages(file_id, filename, db_cursor, paranoid = False):
         no_pages = "Unknown"
         pages_vals = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals, 'check_info': no_pages})
-    logger1.info(db_cursor.query)
+    return True
+
+
+
+def valid_name(file_id, filename, db_cursor, paranoid = False):
+    """
+    Check if filename in database of accepted names
+    """
+    filename_stem = Path(filename).stem
+    db_cursor.execute(settings.filename_pattern_query.format(filename_stem))
+    valid_names = db_cursor.fetchone()[0]
+    if valid_names == 0:
+        filename_check = 1
+        filename_check_info = "Filename {} not in list".format(filename_stem)
+    else:
+        filename_check = 0
+        filename_check_info = "Filename {} in list".format(filename_stem)
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
+    logger1.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+def file_exif(file_id, filename, filetype, db_cursor):
+    """
+    Extract the EXIF info from the RAW file
+    """
+    p = subprocess.Popen(['exiftool', '-t', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    if p.returncode == 0:
+        exif_read = 0
+    else:
+        exif_read = 1
+        logger1.error("{}: {}".format(file_id, err))
+    exif_info = out
+    for line in exif_info.splitlines():
+        tag = re.split(r'\t+', line.decode('UTF-8'))
+        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'tag': tag[0], 'value': tag[1]})
+        logger1.info(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -250,7 +300,6 @@ def file_size_check(filename, filetype, file_id, db_cursor):
     Check if a file is within the size limits
     """
     file_size = os.path.getsize(filename)
-    logger1.info(str(file_size))
     if filetype == "tif":
         if file_size < settings.tif_size_min:
             file_size = 1
@@ -274,7 +323,6 @@ def file_size_check(filename, filetype, file_id, db_cursor):
             file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
         file_check = 'raw_size'
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    logger1.info(db_cursor.query)
     return True
 
 
@@ -291,11 +339,14 @@ def filemd5(filepath):
     Get MD5 hash of a file
     """
     md5_hash = hashlib.md5()
-    with open(filepath, "rb") as f:
-        # Read and update hash in chunks of 4K
-        for byte_block in iter(lambda: f.read(4096), b""):
-            md5_hash.update(byte_block)
-    file_md5 = md5_hash.hexdigest()
+    if os.path.isfile(filepath):
+        with open(filepath, "rb") as f:
+            # Read and update hash in chunks of 4K
+            for byte_block in iter(lambda: f.read(4096), b""):
+                md5_hash.update(byte_block)
+        file_md5 = md5_hash.hexdigest()
+    else:
+        file_md5 = ""
     return file_md5
 
 
