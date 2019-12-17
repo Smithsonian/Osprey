@@ -287,7 +287,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor):
             logger1.error("Could not copy file {}/{}/{} to local tmp".format(folder_path, settings.tif_files_path, filename))
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger1.info(db_cursor.query.decode("utf-8"))
-            return False
+            sys.exit(1)
         #Generate jpg preview, if needed
         jpg_prev = jpgpreview(file_id, local_tempfile)
         #Compare MD5 between source and copy
@@ -441,6 +441,11 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
                 db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'old_name', 'check_results': old_name, 'check_info': folders})
                 logger1.info(db_cursor.query.decode("utf-8"))
         ##Checks that DO need a local copy
+        #Check if there is enough space first
+        local_disk = shutil.disk_usage(settings.tmp_folder)
+        if (local_disk.free/local_disk.total < 0.1):
+            logger1.error("Disk is running out of space {} ({})".format(local_disk.free/local_disk.total, settings.tmp_folder))
+            sys.exit(1)
         logger1.info("Copying file {} to local tmp".format(filename))
         #Copy file to tmp folder
         local_tempfile = "{}/{}".format(tmp_folder, filename)
@@ -450,7 +455,8 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
             logger1.error("Could not copy file {}/{}/{} to local tmp".format(folder_path, wav_files_path, filename))
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger1.info(db_cursor.query.decode("utf-8"))
-            return False
+            #return False
+            sys.exit(1)
         #Compare MD5 between source and copy
         sourcefile_md5 = filemd5("{}/{}".format(folder_path, filename))
         #Store MD5

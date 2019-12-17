@@ -1,11 +1,12 @@
 #Functions for MDfilecheck.py
 
-import os, subprocess, re
+import os, subprocess, re, xmltodict
 import settings
 from random import randint
 import queries
 #For MD5
 import hashlib
+
 
 def check_requirements(program):
     """
