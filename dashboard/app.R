@@ -150,12 +150,14 @@ server <- function(input, output, session) {
     total_count <- total_count + old_count
   }
   
-  err_count <- 0
+  #err_count <- 0
+  check_count <- paste0("SELECT count(distinct file_id) FROM file_checks WHERE check_results = 1 AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
+  err_count <- dbGetQuery(db, check_count)[1]
   
-  for (f in 1:length(file_checks)){
-    check_count <- paste0("SELECT count(*) FROM file_checks WHERE check_results = 1 AND file_check = '", file_checks[f], "' AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
-    err_count <- err_count + dbGetQuery(db, check_count)[1]
-  }
+  # for (f in 1:length(file_checks)){
+  #   check_count <- paste0("SELECT count(*) FROM file_checks WHERE check_results = 1 AND file_check = '", file_checks[f], "' AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
+  #   err_count <- err_count + dbGetQuery(db, check_count)[1]
+  # }
   
   #box_error ----
   output$box_error <- renderValueBox({
