@@ -141,6 +141,7 @@ CREATE TABLE files (
     created_at         timestamp with time zone DEFAULT NULL,
     updated_at         timestamp with time zone DEFAULT NOW()
 );
+ALTER TABLE files ADD CONSTRAINT files_constr UNIQUE (file_name, folder_id);
 CREATE INDEX files_fileid_idx ON files USING BTREE(file_id);
 CREATE INDEX files_folderid_idx ON files USING BTREE(folder_id);
 
