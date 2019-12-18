@@ -75,6 +75,16 @@ CREATE TABLE projects_edan (
 CREATE INDEX projects_edan_pid_idx ON projects_edan USING BTREE(project_id);
 
  
+--Alerts for the dashboard
+DROP TABLE IF EXISTS projects_alerts CASCADE;
+CREATE TABLE projects_alerts (
+    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    project_message text,
+    active boolean DEFAULT 't',
+    updated_at timestamp with time zone
+);
+CREATE INDEX projects_alerts_pid_idx ON projects_alerts USING BTREE(project_id);
+
 
 
 --Shares for the project

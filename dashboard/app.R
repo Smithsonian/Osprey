@@ -83,6 +83,7 @@ ui <- dashboardPage(
              )
         ),
       column(width = 6,
+             uiOutput("project_alert"),
              box(
                title = "Folder details", width = NULL, solidHeader = TRUE, status = "primary",
                fluidRow(
@@ -478,6 +479,27 @@ server <- function(input, output, session) {
     HTML(list_of_folders)
   })
   
+
+  #project_alert----
+  output$project_alert <- renderUI({
+  
+    proj_alert_q <- paste0("SELECT project_message, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as date FROM projects_alerts WHERE active = 't' AND project_id = ", project_id)
+    flog.info(paste0("proj_alert_q: ", proj_alert_q), name = "dashboard")
+    proj_alert <- dbGetQuery(db, proj_alert_q)
+    if (dim(proj_alert)[1] > 0){
+      to_print <- "<div class=\"alert alert-warning\" role=\"alert\"><strong>Notice:</strong> "
+      for (a in seq(1, dim(proj_alert)[1])){
+        to_print <- paste0(to_print, proj_alert$project_message[a], "<br>")
+      }
+      to_print <- paste0(to_print, "</div>")
+      HTML(to_print)
+    }else{
+      req(FALSE)
+    }
+    
+  })
+  
+  
   
   #folderinfo1----
   output$folderinfo1 <- renderUI({
@@ -499,7 +521,7 @@ server <- function(input, output, session) {
   })
   
   
-  
+
   #Folder progress----
   observeEvent(input$dayprogress, {
     
