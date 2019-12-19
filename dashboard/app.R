@@ -462,9 +462,17 @@ server <- function(input, output, session) {
       }
     }
     
+    cat('\n')
+    cat(no_folders)
+    cat('\n')
+    cat(page)
+    cat('\n')
+    cat(folders_per_page)
+    cat('\n')
+    
     if (no_folders > folders_per_page){
       if (page > 0){
-        if (no_folders > (page * folders_per_page)){
+        if (no_folders > ((page + 1) * folders_per_page)){
           list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
         }else{
           list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a>")
