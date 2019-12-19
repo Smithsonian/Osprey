@@ -457,18 +457,22 @@ server <- function(input, output, session) {
           }
         }
         
+        #Check if delivered to DAMS
+        delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", folders$folder_id[i])
+        flog.info(paste0("delivered_dams_q: ", delivered_dams_q), name = "dashboard")
+        delivered_dams <- dbGetQuery(db, delivered_dams_q)
+        
+        print(delivered_dams[1])
+        if (delivered_dams[1] == 1){
+          this_folder <- paste0(this_folder, "<br><span class=\"label label-success\" title=\"Folder in DAMS\">Delivered to DAMS</span> ")
+          }
+        
+        
         this_folder <- paste0(this_folder, "</p></a>")
         list_of_folders <- paste0(list_of_folders, this_folder)
       }
     }
     
-    cat('\n')
-    cat(no_folders)
-    cat('\n')
-    cat(page)
-    cat('\n')
-    cat(folders_per_page)
-    cat('\n')
     
     if (no_folders > folders_per_page){
       if (page > 0){
