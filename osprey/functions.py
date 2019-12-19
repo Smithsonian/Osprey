@@ -6,6 +6,8 @@ from random import randint
 import queries
 #For MD5
 import hashlib
+import glob
+
 
 
 def check_requirements(program):
@@ -18,10 +20,14 @@ def check_requirements(program):
 
 
 
-def compress_log(filecheck_dir, logfile_name):
+def compress_log(filecheck_dir):
+    """
+    Compress log files
+    """
     os.chdir('{}/logs'.format(filecheck_dir))
-    subprocess.run(["zip", "{}.zip".format(logfile_name), logfile_name])
-    os.remove(logfile_name)
+    for file in glob.glob('*.log'):
+        subprocess.run(["zip", "{}.zip".format(file), file])
+        os.remove(file)
     os.chdir(filecheck_dir)
     return True
 
@@ -39,11 +45,10 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create
-        db_cursor.execute(queries.new_folder, {'folder_name': folder_name, 'folder_path': folder_path, 'project_id': project_id})
+        db_cursor.execute(queries.new_folder, {'project_folder': folder_name, 'folder_path': folder_path, 'project_id': project_id})
         folder_id = db_cursor.fetchone()
-    if settings.folder_date != "":
-        #Update to set date of folder
-        db_cursor.execute(queries.folder_date, {'datequery': settings.folder_date, 'folder_id': folder_id[0]})
+    folder_date = settings.folder_date(folder_name)
+    db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
     return folder_id[0]
 
 
@@ -216,22 +221,8 @@ def file_exif(file_id, filename, filetype, db_cursor):
 def itpc_validate(file_id, filename, db_cursor):
     """
     Check the IPTC Metadata
-    Need to rewrite using exifread
+    Need to rewrite 
     """
-    # metadata = pyexiv2.ImageMetadata(filename)
-    # iptc_metadata = 0
-    # iptc_metadata_info = "IPTC Metadata exists"
-    # return_code = True
-    # try:
-    #     iptc_metadata_info = metadata.read()
-    # except:
-    #     iptc_metadata = 1
-    #     iptc_metadata_info = "Could not read metadata"
-    #     return_code = False
-    # #for meta in metadata.exif_keys:
-    # #    print(metadata[meta].value)
-    # q_meta = "UPDATE files SET iptc_metadata = {}, iptc_metadata_info = '{}' WHERE file_id = {}".format(iptc_metadata, iptc_metadata_info, file_id)
-    # db_cursor.execute(q_meta)
     return False
 
 

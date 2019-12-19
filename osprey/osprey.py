@@ -16,6 +16,7 @@ from time import localtime, strftime
 from pathlib import Path
 from subprocess import Popen,PIPE
 from datetime import datetime
+from PIL import Image
 
 
 ver = "0.7.0"
@@ -506,82 +507,6 @@ def process_wav(filename, folder_path, folder_id, db_cursor):
 
 
 
-def check_requirements(program):
-    """
-    Check if required programs are installed
-    """
-    #From https://stackoverflow.com/a/34177358
-    from shutil import which 
-    return which(program) is not None
-
-
-
-def compress_log(filecheck_dir, logfile_name):
-    """
-    Check if a folder exists, add if it does not
-    """
-    os.chdir('{}/logs'.format(filecheck_dir))
-    for file in glob.glob('*.log'):
-        subprocess.run(["zip", "{}.zip".format(file), file])
-        os.remove(file)
-    os.chdir(filecheck_dir)
-    return True
-
-
-
-def check_folder(folder_name, folder_path, project_id, db_cursor):
-    """
-    Check if a folder exists, add if it does not
-    """
-    if settings.folder_name == "server_folder":
-        server_folder_path = folder_path.split("/")
-        len_server_folder_path = len(server_folder_path)
-        folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
-    db_cursor.execute(queries.select_folderid, {'project_folder': folder_name, 'project_id': project_id})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    folder_id = db_cursor.fetchone()
-    if folder_id == None:
-        #Folder does not exists, create
-        db_cursor.execute(queries.new_folder, {'project_folder': folder_name, 'folder_path': folder_path, 'project_id': project_id})
-        logger1.info(db_cursor.query.decode("utf-8"))
-        folder_id = db_cursor.fetchone()
-        logger1.info("folder_id:{}".format(folder_id[0]))
-    folder_date = settings.folder_date(folder_name)
-    db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return folder_id[0]
-
-
-
-def folder_updated_at(folder_id, db_cursor):
-    """
-    Update the last time the folder was checked
-    """
-    db_cursor.execute(queries.folder_updated_at, {'folder_id': folder_id})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def file_updated_at(file_id, db_cursor):
-    """
-    Update the last time the file was checked
-    """
-    db_cursor.execute(queries.file_updated_at, {'file_id': file_id})
-    logger1.info(db_cursor.query.decode("utf-8"))
-    return True
-
-
-
-def itpc_validate(file_id, filename, db_cursor):
-    """
-    Check the IPTC Metadata
-    Need to rewrite 
-    """
-    return False
-
-
-
 def soxi_check(file_id = "0", filename = "", file_check = "filetype", expected_val = "", db_cursor = ""):
     """
     Get the tech info of a wav file
@@ -728,6 +653,7 @@ def jpgpreview(file_id, filename):
     """
     if settings.jpg_previews == "":
         logger1.error("JPG preview folder is not set in settings file")
+        return False
     preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
     #Create subfolder if it doesn't exists
@@ -735,8 +661,14 @@ def jpgpreview(file_id, filename):
         os.makedirs(preview_file_path)
     #Delete old image, if exists
     if os.path.isfile(preview_image):
-        logger1.info("JPG preview {} exists".format(preview_image))
-        return True
+        im = Image.open(filename)
+        width, height = im.size
+        if width != settings.previews_size and height != settings.previews_size:
+            #Size in settings changed, create new image
+            os.remove(preview_image)
+        else:
+            logger1.info("JPG preview {} exists".format(preview_image))
+            return True
     logger1.info("creating preview_image:{}".format(preview_image))
     if settings.previews_size == "full":
         p = subprocess.Popen(['convert', '-quiet', "{}[0]".format(filename), preview_image], stdout=PIPE, stderr=PIPE)
@@ -940,8 +872,18 @@ def main():
                         logger1.info("Running checks on file {}".format(file))
                         process_tif(file, folder_path, folder_id, folder_full_path, db_cursor)
                     #MD5
-                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-                    logger1.info(db_cursor.query.decode("utf-8"))
+                    if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
+                        db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                        logger1.info(db_cursor.query.decode("utf-8"))
+                    else:
+                        db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
+                        logger1.info(db_cursor.query.decode("utf-8"))
+                    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+                        db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
+                        logger1.info(db_cursor.query.decode("utf-8"))
+                    else:
+                        db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+                        logger1.info(db_cursor.query.decode("utf-8"))
                 #Check for deleted files
                 check_deleted('tifs')
             folder_updated_at(folder_id, db_cursor)
@@ -977,11 +919,11 @@ if __name__=="__main__":
             main()
         except KeyboardInterrupt:
             logger1.info("Ctrl-c detected. Leaving program.")
-            compress_log(filecheck_dir, logfile_name)
+            compress_log(filecheck_dir)
             sys.exit(0)
         except Exception as e:
             logger1.error("There was an error: {}".format(e))
-            compress_log(filecheck_dir, logfile_name)
+            compress_log(filecheck_dir)
             sys.exit(1)
 
 
