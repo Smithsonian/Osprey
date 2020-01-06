@@ -387,9 +387,9 @@ server <- function(input, output, session) {
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
         }else{
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
         }
         
         #Count files
@@ -750,21 +750,22 @@ server <- function(input, output, session) {
     
     files_list <- dbGetQuery(db, folder_check_query)
     
-    fileslist_df <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
+    fileslist_df2 <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
+    print(head(fileslist_df2))
     
-    list_names <- names(fileslist_df)
+    list_names <- names(fileslist_df2)
     
     list_names <- list_names[list_names != "file_name"]
     list_names <- list_names[list_names != "ready_for_dams"]
     list_names <- list_names[list_names != "in_dams"]
     list_names <- list_names[list_names != "md5_matches"]
     
-    fileslist_df <- fileslist_df[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
+    fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
     
-    no_cols <- dim(fileslist_df)[2]
+    no_cols <- dim(fileslist_df2)[2]
     
     DT::datatable(
-      fileslist_df, 
+      fileslist_df2, 
       class = 'compact',
       escape = FALSE, 
       options = list(
