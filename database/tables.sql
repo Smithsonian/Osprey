@@ -19,6 +19,7 @@ CREATE TABLE projects (
     project_title text,
     project_unit  text,    
     project_checks text DEFAULT 'raw_pair,magick,jhove,tifpages,unique_file',
+    project_postprocessing text DEFAULT NULL,
     project_acronym text,
     project_status text,
     project_description text,
@@ -116,7 +117,7 @@ create table folders (
     notes text,
     error_info text,    
     date date,
-    delivered_to_dams boolean DEFAULT 'f',
+    delivered_to_dams integer default 9,
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX folders_fid_idx ON folders USING BTREE(folder_id);
@@ -134,6 +135,22 @@ CREATE TABLE folders_md5 (
 );
 ALTER TABLE folders_md5 ADD CONSTRAINT folderid_and_type UNIQUE (folder_id, md5_type);
 CREATE INDEX folders_md5_fid_idx ON folders_md5 USING BTREE(folder_id);
+
+
+
+--files_to_dams
+DROP TABLE IF EXISTS files_to_dams CASCADE;
+CREATE TABLE files_to_dams (
+    tableID         serial,
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    step_order      integer,
+    step            text,
+    notes           text,
+    updated_at      timestamp with time zone DEFAULT NOW()
+);
+ALTER TABLE files_to_dams ADD CONSTRAINT fileid_and_step UNIQUE (file_id, step);
+CREATE INDEX files_to_dams_fid_idx ON files_to_dams USING BTREE(file_id);
+
 
 
 --files main table
@@ -223,6 +240,23 @@ ALTER TABLE file_checks ADD CONSTRAINT fileid_and_filecheck UNIQUE (file_id, fil
 CREATE INDEX file_checks_file_id_idx ON file_checks USING BTREE(file_id);
 CREATE INDEX file_checks_file_check_idx ON file_checks USING BTREE(file_check);
 CREATE INDEX file_checks_check_results_idx ON file_checks USING BTREE(check_results);
+
+
+
+--file_postprocessing
+DROP TABLE IF EXISTS file_postprocessing CASCADE;
+CREATE TABLE file_postprocessing (
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    post_step text,
+    post_results integer,
+    post_info text,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+ALTER TABLE file_postprocessing ADD CONSTRAINT fpp_fileid_and_poststep UNIQUE (file_id, post_step);
+CREATE INDEX file_postprocessing_file_id_idx ON file_postprocessing USING BTREE(file_id);
+CREATE INDEX file_postprocessing_post_step_idx ON file_postprocessing USING BTREE(post_step);
+CREATE INDEX file_postprocessing_check_results_idx ON file_postprocessing USING BTREE(post_results);
+
 
 
 --file_names - valid filenames for a project

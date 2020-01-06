@@ -15,8 +15,8 @@ library(ggplot2)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.6.0"
-github_link <- "https://github.com/Smithsonian/MDFileCheck"
+app_ver <- "0.7.0"
+github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
 options(encoding = 'UTF-8')
@@ -82,7 +82,7 @@ ui <- dashboardPage(
                uiOutput("folderlist")
              )
         ),
-      column(width = 6,
+      column(width = 8,
              uiOutput("project_alert"),
              box(
                title = "Folder details", width = NULL, solidHeader = TRUE, status = "primary",
@@ -96,10 +96,10 @@ ui <- dashboardPage(
                ),
                hr(),
                uiOutput("tableheading"),
-               DT::dataTableOutput("files_table")
+               uiOutput("filetable")
              )
       ),
-      column(width = 4,
+      column(width = 2,
              box(
                title = "File details", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("fileinfo")
@@ -154,11 +154,6 @@ server <- function(input, output, session) {
   #err_count <- 0
   check_count <- paste0("SELECT count(distinct file_id) FROM file_checks WHERE check_results = 1 AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
   err_count <- dbGetQuery(db, check_count)[1]
-  
-  # for (f in 1:length(file_checks)){
-  #   check_count <- paste0("SELECT count(*) FROM file_checks WHERE check_results = 1 AND file_check = '", file_checks[f], "' AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
-  #   err_count <- err_count + dbGetQuery(db, check_count)[1]
-  # }
   
   #box_error ----
   output$box_error <- renderValueBox({
@@ -262,6 +257,27 @@ server <- function(input, output, session) {
   })
     
   
+  
+  output$filetable <- renderUI({
+    query <- parseQueryString(session$clientData$url_search)
+    which_folder <- query['folder']
+    req(which_folder != "NULL")
+    
+    postp_q <- paste0("SELECT project_postprocessing FROM projects WHERE project_id = ", project_id)
+    flog.info(paste0("postp_q: ", postp_q), name = "dashboard")
+    postprocess <- dbGetQuery(db, postp_q)
+    
+    if (is.na(postprocess)){
+      DT::dataTableOutput("files_table")
+    }else{
+      tabsetPanel(
+        tabPanel("Production", DT::dataTableOutput("files_table")),
+        tabPanel("Post-Processing", DT::dataTableOutput("pp_table"))
+      )
+    }
+  })
+  
+  
   #projectmain----
   output$projectmain <- renderUI({
     projectmain_html <- "<p><strong><a href=\"./\"><span class=\"glyphicon glyphicon-home\" aria-hidden=\"true\"></span> Home</a></strong></p>"
@@ -332,7 +348,7 @@ server <- function(input, output, session) {
           prog_class <- "success"
         }
         share <- shares$share[i]
-        shares_html <- paste0("Space used in share ", share, " (", utils:::format.object_size(as.numeric(shares$total[i]), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, " progress-bar-striped active\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+        shares_html <- paste0("Space used in share ", share, " (", utils:::format.object_size(as.numeric(shares$total[i]), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
     ", per_used, "%</div>
 </div>")
       }
@@ -371,16 +387,16 @@ server <- function(input, output, session) {
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i], "<p class=\"list-group-item-text\">")
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
         }else{
-          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i], "<p class=\"list-group-item-text\">")
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
         }
         
         #Count files
         count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
         flog.info(paste0("count_files: ", count_files), name = "dashboard")
         folder_files <- dbGetQuery(db, count_files)
-        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span> ")
+        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span><p class=\"list-group-item-text\">")
         
         #Check subfolders
         folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
@@ -461,12 +477,12 @@ server <- function(input, output, session) {
         delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", folders$folder_id[i])
         flog.info(paste0("delivered_dams_q: ", delivered_dams_q), name = "dashboard")
         delivered_dams <- dbGetQuery(db, delivered_dams_q)
-        
-        print(delivered_dams[1])
+
         if (delivered_dams[1] == 1){
-          this_folder <- paste0(this_folder, "<br><span class=\"label label-success\" title=\"Folder in DAMS\">Delivered to DAMS</span> ")
+          this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">Delivered to DAMS</span>")
+          }else if (delivered_dams[1] == 0){
+            this_folder <- paste0(this_folder, "</p><p><span class=\"label label-warning\" title=\"Ready for DAMS\">Ready for DAMS</span>")
           }
-        
         
         this_folder <- paste0(this_folder, "</p></a>")
         list_of_folders <- paste0(list_of_folders, this_folder)
@@ -717,6 +733,56 @@ server <- function(input, output, session) {
   })
   
   
+  #pp_table----
+  output$pp_table <- DT::renderDataTable({
+    query <- parseQueryString(session$clientData$url_search)
+    which_folder <- query['folder']
+    req(which_folder != "NULL")
+    
+    files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
+    files_list <- dbGetQuery(db, files_query)
+    
+    checks_query <- paste0("SELECT project_postprocessing FROM projects WHERE project_id = ", project_id)
+    checks_list <- strsplit(dbGetQuery(db, checks_query)[1,1], ",")[[1]]
+    
+    folder_check_query <- paste0("SELECT f.file_name, fp.post_step, CASE WHEN fp.post_results = 0 THEN 'Completed' WHEN fp.post_results = 9 THEN 'Pending' WHEN fp.post_results = 1 THEN 'Failed' END as post_results, fp.post_info
+                  FROM files f, file_postprocessing fp where f.file_id = fp.file_id AND f.folder_id = ", which_folder)
+    
+    files_list <- dbGetQuery(db, folder_check_query)
+    
+    fileslist_df <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
+    
+    list_names <- names(fileslist_df)
+    
+    list_names <- list_names[list_names != "file_name"]
+    list_names <- list_names[list_names != "ready_for_dams"]
+    list_names <- list_names[list_names != "in_dams"]
+    
+    fileslist_df <- fileslist_df[c("file_name", list_names, "ready_for_dams", "in_dams")]
+    
+    no_cols <- dim(fileslist_df)[2]
+    
+    DT::datatable(
+      fileslist_df, 
+      class = 'compact',
+      escape = FALSE, 
+      options = list(
+        searching = TRUE, 
+        ordering = TRUE, 
+        pageLength = 50, 
+        paging = TRUE, 
+        language = list(zeroRecords = "Nothing yet"),
+        scrollX = TRUE
+      ),
+      rownames = FALSE, 
+      selection = 'single') %>% DT::formatStyle(
+        2:no_cols,
+        backgroundColor = DT::styleEqual(c("Completed", "Failed", "Pending"), c('#00a65a', '#d9534f', '#777')),
+        color = 'white'
+      )
+  })
+  
+  
   #fileinfo ----
   output$fileinfo <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
@@ -733,7 +799,7 @@ server <- function(input, output, session) {
 
     file_id <- file_info$file_id
     
-    html_to_print <- "<h4>File info</h4><dl class=\"dl-horizontal\">"
+    html_to_print <- "<h4>File info</h4><dl>"
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>File ID</dt><dd>", file_info$file_id, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>Item number</dt><dd>", file_info$item_no, "</dd>")
