@@ -757,8 +757,9 @@ server <- function(input, output, session) {
     list_names <- list_names[list_names != "file_name"]
     list_names <- list_names[list_names != "ready_for_dams"]
     list_names <- list_names[list_names != "in_dams"]
+    list_names <- list_names[list_names != "md5_matches"]
     
-    fileslist_df <- fileslist_df[c("file_name", list_names, "ready_for_dams", "in_dams")]
+    fileslist_df <- fileslist_df[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
     
     no_cols <- dim(fileslist_df)[2]
     
