@@ -7,7 +7,8 @@ import queries
 #For MD5
 import hashlib
 import glob
-
+from PIL import Image
+from subprocess import Popen,PIPE
 
 
 def check_requirements(program):
@@ -51,6 +52,39 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     db_cursor.execute(queries.folder_date, {'datequery': folder_date, 'folder_id': folder_id[0]})
     return folder_id[0]
 
+
+
+def delete_folder_files(folder_id, db_cursor, logger):
+    db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
+    logger.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor, logger):
+    """
+    Check if a file has a pair (tif + raw)
+    """
+    #base_filename = Path(filename).name
+    #path_filename = Path(filename).parent
+    file_stem = Path(filename).stem
+    #Check if file pair is present
+    tif_file = "{}/{}.{}".format(tif_path, file_stem, file_tif)
+    raw_file = "{}/{}.{}".format(raw_path, file_stem, file_raw)
+    if os.path.isfile(tif_file) != True:
+        #Tif file is missing
+        file_pair = 1
+        file_pair_info = "Missing tif"
+    elif os.path.isfile(raw_file) != True:
+        #Raw file is missing
+        file_pair = 1
+        file_pair_info = "Missing {} file".format(settings.raw_files)
+    else:
+        file_pair = 0
+        file_pair_info = "tif and {} found".format(settings.raw_files)
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair, 'check_info': file_pair_info})
+    logger.info(db_cursor.query.decode("utf-8"))
+    return True
 
 
 def folder_updated_at(folder_id, db_cursor):
@@ -373,42 +407,6 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor):
 
 
 
-def check_deleted(filetype = 'tif'):
-    """
-    Deleted files are tagged in the database
-    """
-    #Connect to the database
-    if filetype == 'tif':
-        files_path = settings.tif_files_path
-    elif filetype == 'wav':
-        files_path = settings.wav_files_path
-    elif filetype == 'raw':
-        files_path = settings.raw_files_path
-    elif filetype == 'jpg':
-        files_path = settings.jpg_files_path
-    else:
-        return False
-    try:
-        con = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, password = settings.db_password, connect_timeout = 60)
-    except:
-        sys.exit(1)
-    con.autocommit = True
-    db_cursor = con.cursor()
-    db_cursor.execute(queries.get_files, {'project_id': settings.project_id})
-    files = db_cursor.fetchall()
-    for file in files:
-        if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)) == True:
-            file_exists = 0
-            file_exists_info = "File {}/{}/{}.{} was found".format(file[2], files_path, file[1], filetype)
-        else:
-            file_exists = 1
-            file_exists_info = "File {}/{}/{}.{} was not found".format(file[2], files_path, file[1], filetype)
-        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'file_exists', 'check_results': file_exists, 'check_info': file_exists_info})
-    con.close()
-    return True
-
-
-
 def jpgpreview(file_id, filename):
     """
     Create preview image
@@ -475,4 +473,223 @@ def check_jpg(file_id, filename, db_cursor):
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
     return True
+
+
+
+
+def soxi_check(file_id, filename, file_check, expected_val, db_cursor, loggerfile):
+    """
+    Get the tech info of a wav file
+    """
+    if file_check == "filetype":
+        fcheck = "t"
+    elif file_check == "samprate":
+        fcheck = "r"
+    elif file_check == "channels":
+        fcheck = "c"
+    elif file_check == "duration":
+        fcheck = "D"
+    elif file_check == "bits":
+        fcheck = "b"
+    else:
+        #Unkown check
+        return False
+    p = subprocess.Popen(['soxi', '-{}'.format(fcheck), filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    result = out.decode("utf-8").replace('\n','')
+    err = err.decode("utf-8").replace('\n','')
+    if file_check == "filetype":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "samprate":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "channels":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "duration":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    elif file_check == "bits":
+        if result == expected_val:
+            result_code = 0
+        else:
+            result_code = 1
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+
+def check_jpg(file_id, filename, db_cursor, loggerfile):
+    """
+    Run checks for jpg files
+    """
+    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    if p.returncode == 0:
+        magick_identify = 0
+        magick_identify_info = out
+        magick_return = True
+    else:
+        magick_identify = 1
+        magick_identify_info = err
+        magick_return = False
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
+    if magick_return:
+        #Store MD5
+        file_md5 = filemd5(filename)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
+        loggerfile.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+def checkmd5file(md5_file, folder_id, filetype, db_cursor, loggerfile):
+    """
+    Check if md5 hashes match with the files
+    -In progress
+    """
+    md5_error = ""
+    if filetype == "tif":
+        db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': 'tif'})
+    elif filetype == "raw":
+        db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': 'raw'})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
+    vendor = pandas.DataFrame(db_cursor.fetchall(), columns = ['md5_1', 'filename'])
+    md5file = pandas.read_csv(md5_file, header = None, names = ['md5_2', 'filename'], index_col = False, sep = "  ")
+    #Remove suffix
+    if filetype == "tif":
+        md5file['filename'] = md5file['filename'].str.replace(".tif", "")
+        md5file['filename'] = md5file['filename'].str.replace(".TIF", "")
+    elif filetype == "raw":
+        md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.lower()), "")
+        md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.upper()), "")
+    md5check = pandas.merge(vendor, md5file, how = "outer", on = "filename")
+    ##MD5 hashes don't match
+    #Get rows where MD5 don't match
+    md5check_match = md5check[md5check.md5_1 != md5check.md5_2]
+    #Ignore NAs
+    md5check_match = md5check_match.dropna()
+    #check if there are any mismatches
+    nrows = len(md5check_match)
+    if nrows > 0:
+        md5_error = md5_error + "There were {} files where the MD5 hash did not match:".format(nrows)
+        for i in range(0, nrows):
+            md5_error = md5_error + "\n - File: {}, MD5 of file: {}, hash in file: {}".format(md5check_match['filename'][i], md5check_match['md5_2'], md5check_match['md5_1'])
+    #
+    ##Extra files in vendor mount
+    vendor_extras = vendor[~vendor.filename.isin(md5file.filename)]['filename']
+    ##Extra files in md5file
+    md5file_extras = md5file[~md5file.filename.isin(vendor.filename)]['filename']
+    return True
+
+
+
+
+
+def check_deleted(filetype, db_cursor, loggerfile):
+    """
+    Deleted files are tagged in the database
+    """
+    #Connect to the database
+    if filetype == 'tif':
+        files_path = settings.tif_files_path
+    elif filetype == 'wav':
+        files_path = settings.wav_files_path
+    elif filetype == 'raw':
+        files_path = settings.raw_files_path
+    elif filetype == 'jpg':
+        files_path = settings.jpg_files_path
+    else:
+        return False
+    db_cursor.execute(queries.get_files, {'project_id': settings.project_id})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
+    files = db_cursor.fetchall()
+    for file in files:
+        if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)) == True:
+            file_exists = 0
+            file_exists_info = "File {}/{}/{}.{} was found".format(file[2], files_path, file[1], filetype)
+        else:
+            file_exists = 1
+            file_exists_info = "File {}/{}/{}.{} was not found".format(file[2], files_path, file[1], filetype)
+        db_cursor.execute(queries.file_check, {'file_id': file[0], 'file_check': 'file_exists', 'check_results': file_exists, 'check_info': file_exists_info})
+        loggerfile.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+
+def check_stitched_jpg(file_id, filename, db_cursor, loggerfile):
+    """
+    Run checks for jpg files that were stitched from 2 images
+    """
+    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (out,err) = p.communicate()
+    if p.returncode == 0:
+        magick_identify = 0
+        magick_identify_info = out
+        magick_return = True
+    else:
+        magick_identify = 1
+        magick_identify_info = err
+        magick_return = False
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
+    logger1.info(db_cursor.query.decode("utf-8"))
+    if magick_return:
+        #Store MD5
+        file_md5 = filemd5(filename)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
+        logger1.info(db_cursor.query.decode("utf-8"))
+    return True
+
+
+
+
+
+def jpgpreview(file_id, filename, loggerfile):
+    """
+    Create preview image
+    """
+    if settings.jpg_previews == "":
+        loggerfile.error("JPG preview folder is not set in settings file")
+        return False
+    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
+    preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+    #Create subfolder if it doesn't exists
+    if not os.path.exists(preview_file_path):
+        os.makedirs(preview_file_path)
+    #Delete old image, if exists
+    if os.path.isfile(preview_image):
+        im = Image.open(filename)
+        width, height = im.size
+        if width != settings.previews_size and height != settings.previews_size:
+            #Size in settings changed, create new image
+            os.remove(preview_image)
+        else:
+            loggerfile.info("JPG preview {} exists".format(preview_image))
+            return True
+    loggerfile.info("creating preview_image:{}".format(preview_image))
+    if settings.previews_size == "full":
+        p = subprocess.Popen(['convert', '-quiet', "{}[0]".format(filename), preview_image], stdout=PIPE, stderr=PIPE)
+    else:
+        p = subprocess.Popen(['convert', '-quiet', "{}[0]".format(filename), '-resize', '{imgsize}x{imgsize}'.format(imgsize = settings.previews_size), preview_image], stdout=PIPE, stderr=PIPE)
+    out = p.communicate()
+    if os.path.isfile(preview_image):
+        loggerfile.info(out)
+        return True
+    else:
+        loggerfile.error("File:{}|msg:{}".format(filename, out))
+        return False
+
 
