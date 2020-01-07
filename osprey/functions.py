@@ -61,30 +61,6 @@ def delete_folder_files(folder_id, db_cursor, logger):
 
 
 
-def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor, logger):
-    """
-    Check if a file has a pair (tif + raw)
-    """
-    #base_filename = Path(filename).name
-    #path_filename = Path(filename).parent
-    file_stem = Path(filename).stem
-    #Check if file pair is present
-    tif_file = "{}/{}.{}".format(tif_path, file_stem, file_tif)
-    raw_file = "{}/{}.{}".format(raw_path, file_stem, file_raw)
-    if os.path.isfile(tif_file) != True:
-        #Tif file is missing
-        file_pair = 1
-        file_pair_info = "Missing tif"
-    elif os.path.isfile(raw_file) != True:
-        #Raw file is missing
-        file_pair = 1
-        file_pair_info = "Missing {} file".format(settings.raw_files)
-    else:
-        file_pair = 0
-        file_pair_info = "tif and {} found".format(settings.raw_files)
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair, 'check_info': file_pair_info})
-    logger.info(db_cursor.query.decode("utf-8"))
-    return True
 
 
 def folder_updated_at(folder_id, db_cursor):
@@ -427,12 +403,12 @@ def jpgpreview(file_id, filename):
 
 
 
-def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor):
+def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, db_cursor, loggerfile):
     """
     Check if a file has a pair (tif + raw)
     """
-    base_filename = Path(filename).name
-    path_filename = Path(filename).parent
+    #base_filename = Path(filename).name
+    #path_filename = Path(filename).parent
     file_stem = Path(filename).stem
     #Check if file pair is present
     tif_file = "{}/{}.{}".format(tif_path, file_stem, file_tif)
@@ -449,6 +425,7 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
         file_pair = 0
         file_pair_info = "tif and {} found".format(settings.raw_files)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair, 'check_info': file_pair_info})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 

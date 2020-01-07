@@ -14,9 +14,7 @@ import random
 import psycopg2
 from time import localtime, strftime
 from pathlib import Path
-from subprocess import Popen,PIPE
 from datetime import datetime
-
 
 
 ver = "0.7.1"
@@ -38,8 +36,6 @@ import settings
 
 ##Save current directory
 filecheck_dir = os.getcwd()
-
-
 
 
 
