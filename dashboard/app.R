@@ -334,6 +334,8 @@ server <- function(input, output, session) {
       req(FALSE)
     }
     
+    shares_html <- ""
+    
     shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
     flog.info(paste0("shares_q: ", shares_q), name = "dashboard")
     shares <- dbGetQuery(db, shares_q)
@@ -479,7 +481,7 @@ server <- function(input, output, session) {
         delivered_dams <- dbGetQuery(db, delivered_dams_q)
 
         if (delivered_dams[1] == 1){
-          this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">Delivered to DAMS</span>")
+          this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">In DAMS</span>")
           }else if (delivered_dams[1] == 0){
             this_folder <- paste0(this_folder, "</p><p><span class=\"label label-warning\" title=\"Ready for DAMS\">Ready for DAMS</span>")
           }
@@ -751,7 +753,7 @@ server <- function(input, output, session) {
     files_list <- dbGetQuery(db, folder_check_query)
     
     fileslist_df2 <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
-    print(head(fileslist_df2))
+    #print(head(fileslist_df2))
     
     list_names <- names(fileslist_df2)
     
