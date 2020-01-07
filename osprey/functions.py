@@ -9,6 +9,7 @@ import hashlib
 import glob
 from PIL import Image
 from subprocess import Popen,PIPE
+from pathlib import Path
 
 
 def check_requirements(program):
@@ -407,8 +408,6 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
     """
     Check if a file has a pair (tif + raw)
     """
-    #base_filename = Path(filename).name
-    #path_filename = Path(filename).parent
     file_stem = Path(filename).stem
     #Check if file pair is present
     tif_file = "{}/{}.{}".format(tif_path, file_stem, file_tif)
