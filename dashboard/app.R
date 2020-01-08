@@ -48,13 +48,12 @@ proj_name <- project$project_acronym
 
 dbDisconnect(db)
 
-title = paste0(proj_name)
+site_title = paste0(proj_name)
 
 # UI ----
 ui <- dashboardPage(
-
   #header
-  dashboardHeader(title = title),
+  dashboardHeader(title = site_title),
   
   dashboardSidebar(disable = TRUE),
   #Body
@@ -105,14 +104,13 @@ ui <- dashboardPage(
     ),
     #Footer
     hr(),
-    uiOutput("footer")
-  ),
-  
-  #Refresh every 600 seconds
-  if (project_active == TRUE){
-    tags$head(HTML('<meta http-equiv="refresh" content="600">'))
-  }
-  
+    uiOutput("footer"),
+    
+    # #Refresh every 600 seconds
+    if (project_active == TRUE){
+      tags$head(HTML('<meta http-equiv="refresh" content="600">'))
+    }
+  )
 )
 
 

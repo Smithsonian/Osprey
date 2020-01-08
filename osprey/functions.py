@@ -55,34 +55,36 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
 
 
 
-def delete_folder_files(folder_id, db_cursor, logger):
+def delete_folder_files(folder_id, db_cursor, loggerfile):
     db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
-    logger.info(db_cursor.query.decode("utf-8"))
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
 
 
 
-def folder_updated_at(folder_id, db_cursor):
+def folder_updated_at(folder_id, db_cursor, loggerfile):
     """
     Update the last time the folder was checked
     """
     db_cursor.execute(queries.folder_updated_at, {'folder_id': folder_id})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
 
-def file_updated_at(file_id, db_cursor):
+def file_updated_at(file_id, db_cursor, loggerfile):
     """
     Update the last time the file was checked
     """
     db_cursor.execute(queries.file_updated_at, {'file_id': file_id})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
 
-def jhove_validate(file_id, filename, db_cursor):
+def jhove_validate(file_id, filename, db_cursor, loggerfile):
     """
     Validate the file with JHOVE
     """
@@ -116,11 +118,12 @@ def jhove_validate(file_id, filename, db_cursor):
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val, 'check_info': file_status})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
 
-def magick_validate(file_id, filename, db_cursor, paranoid = False):
+def magick_validate(file_id, filename, db_cursor, loggerfile, paranoid = False):
     """
     Validate the file with Imagemagick
     """
@@ -135,6 +138,7 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
         magick_identify = 1
     magick_identify_info = out + err
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('UTF-8')})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -156,7 +160,7 @@ def tif_compression(file_id, filename, db_cursor, loggerfile):
 
 
 
-def valid_name(file_id, filename, db_cursor, paranoid = False):
+def valid_name(file_id, filename, db_cursor, loggerfile, paranoid = False):
     """
     Check if filename in database of accepted names
     """
@@ -169,11 +173,12 @@ def valid_name(file_id, filename, db_cursor, paranoid = False):
         filename_check = 0
         filename_check_info = "Filename {} in list".format(Path(filename).stem)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
 
-def tifpages(file_id, filename, db_cursor, paranoid = False):
+def tifpages(file_id, filename, db_cursor, loggerfile, paranoid = False):
     """
     Check if TIF has multiple pages
     """
@@ -190,25 +195,9 @@ def tifpages(file_id, filename, db_cursor, paranoid = False):
         no_pages = "Unknown"
         pages_vals = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals, 'check_info': no_pages})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
-
-
-def valid_name(file_id, filename, db_cursor, paranoid = False):
-    """
-    Check if filename in database of accepted names
-    """
-    filename_stem = Path(filename).stem
-    db_cursor.execute(settings.filename_pattern_query.format(filename_stem))
-    valid_names = db_cursor.fetchone()[0]
-    if valid_names == 0:
-        filename_check = 1
-        filename_check_info = "Filename {} not in list".format(filename_stem)
-    else:
-        filename_check = 0
-        filename_check_info = "Filename {} in list".format(filename_stem)
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
-    return True
 
 
 
@@ -245,58 +234,7 @@ def itpc_validate(file_id, filename, db_cursor):
 
 
 
-def soxi_check(file_id = "0", filename = "", file_check = "filetype", expected_val = "", db_cursor = ""):
-    """
-    Get the tech info of a wav file
-    """
-    if file_check == "filetype":
-        fcheck = "t"
-    elif file_check == "samprate":
-        fcheck = "r"
-    elif file_check == "channels":
-        fcheck = "c"
-    elif file_check == "duration":
-        fcheck = "D"
-    elif file_check == "bits":
-        fcheck = "b"
-    else:
-        #Unkown check
-        return False
-    p = subprocess.Popen(['soxi', '-{}'.format(fcheck), filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out,err) = p.communicate()
-    result = out.decode("utf-8").replace('\n','')
-    err = err.decode("utf-8").replace('\n','')
-    if file_check == "filetype":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "samprate":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "channels":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "duration":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "bits":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    return True
-
-
-
-def file_size_check(filename, filetype, file_id, db_cursor):
+def file_size_check(filename, filetype, file_id, db_cursor, loggerfile):
     """
     Check if a file is within the size limits
     """
@@ -324,13 +262,9 @@ def file_size_check(filename, filetype, file_id, db_cursor):
             file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
         file_check = 'raw_size'
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
-
-
-def delete_folder_files(folder_id, db_cursor):
-    db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
-    return True
 
 
 
@@ -349,65 +283,6 @@ def filemd5(filepath):
         file_md5 = ""
     return file_md5
 
-
-
-def checkmd5file(md5_file, folder_id, filetype, db_cursor):
-    """
-    Check if md5 hashes match with the files
-    -In progress
-    """
-    md5_error = ""
-    if filetype == "tif":
-        db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id})
-    elif filetype == "raw":
-        db_cursor.execute(queries.select_raw_md5, {'folder_id': folder_id})
-    vendor = pandas.DataFrame(db_cursor.fetchall(), columns = ['md5_1', 'filename'])
-    md5file = pandas.read_csv(md5_file, header = None, names = ['md5_2', 'filename'], index_col = False, sep = "  ")
-    #Remove suffix
-    if filetype == "tif":
-        md5file['filename'] = md5file['filename'].str.replace(".tif", "")
-        md5file['filename'] = md5file['filename'].str.replace(".TIF", "")
-    elif filetype == "raw":
-        md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.lower()), "")
-        md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.upper()), "")
-    md5check = pandas.merge(vendor, md5file, how = "outer", on = "filename")
-    ##MD5 hashes don't match
-    #Get rows where MD5 don't match
-    md5check_match = md5check[md5check.md5_1 != md5check.md5_2]
-    #Ignore NAs
-    md5check_match = md5check_match.dropna()
-    #check if there are any mismatches
-    nrows = len(md5check_match)
-    if nrows > 0:
-        md5_error = md5_error + "There were {} files where the MD5 hash did not match:".format(nrows)
-        for i in range(0, nrows):
-            md5_error = md5_error + "\n - File: {}, MD5 of file: {}, hash in file: {}".format(md5check_match['filename'][i], md5check_match['md5_2'], md5check_match['md5_1'])
-    #
-    ##Extra files in vendor mount
-    vendor_extras = vendor[~vendor.filename.isin(md5file.filename)]['filename']
-    ##Extra files in md5file
-    md5file_extras = md5file[~md5file.filename.isin(vendor.filename)]['filename']
-    return True
-
-
-
-def jpgpreview(file_id, filename):
-    """
-    Create preview image
-    """
-    preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
-    preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
-    #Create subfolder if it doesn't exists
-    if not os.path.exists(preview_file_path):
-        os.makedirs(preview_file_path)
-    #Delete old image, if exists
-    if os.path.isfile(preview_image):
-        os.unlink(preview_image)
-    try:
-        p = subprocess.run(['convert', "{}[0]".format(filename), '-resize', '1000x1000', preview_image], stdout=PIPE,stderr=PIPE)
-        return True
-    except:
-        return False
 
 
 
@@ -652,5 +527,3 @@ def jpgpreview(file_id, filename, loggerfile):
     else:
         loggerfile.error("File:{}|msg:{}".format(filename, out))
         return False
-
-

@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.1"
+ver = "0.7.2"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -127,7 +127,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
         loggerfile.info("file_id:{};file_checks:{};result:None".format(file_id, 'md5'))
         file_checks = file_checks + 1
     if file_checks == 0:
-        file_updated_at(file_id, db_cursor)
+        file_updated_at(file_id, db_cursor, loggerfile)
         loggerfile.info("File with ID {} is OK, skipping".format(file_id))
         return True
     else:
@@ -153,7 +153,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #valid name in file
-                valid_name(file_id, local_tempfile, db_cursor)
+                valid_name(file_id, local_tempfile, db_cursor, loggerfile)
                 file_checks = file_checks - 1
         if file_checks == 0:
             return True
@@ -266,7 +266,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #JHOVE check
-                jhove_validate(file_id, local_tempfile, db_cursor)
+                jhove_validate(file_id, local_tempfile, db_cursor, loggerfile)
         if 'itpc' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'itpc'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -280,14 +280,14 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #File size check
-                file_size_check(local_tempfile, "tif", file_id, db_cursor)
+                file_size_check(local_tempfile, "tif", file_id, db_cursor, loggerfile)
         if 'magick' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #Imagemagick check
-                magick_validate(file_id, local_tempfile, db_cursor)
+                magick_validate(file_id, local_tempfile, db_cursor, loggerfile)
         if 'jpg' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jpg'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -310,7 +310,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #check if tif has multiple pages
-                tifpages(file_id, local_tempfile, db_cursor)
+                tifpages(file_id, local_tempfile, db_cursor, loggerfile)
         if 'tif_compression' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -336,7 +336,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
         loggerfile.info("jpg_prev:{}".format(jpg_prev))
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
-        file_updated_at(file_id, db_cursor)
+        file_updated_at(file_id, db_cursor, loggerfile)
         return True
 
 
@@ -375,7 +375,7 @@ def process_wav(filename, folder_path, folder_id, db_cursor, loggerfile):
         if result[0] != None:
             file_checks = file_checks + result[0]
     if file_checks == 0:
-        file_updated_at(file_id, db_cursor)
+        file_updated_at(file_id, db_cursor, loggerfile)
         loggerfile.info("File with ID {} is OK, skipping".format(file_id))
         return True
     else:
@@ -385,7 +385,7 @@ def process_wav(filename, folder_path, folder_id, db_cursor, loggerfile):
             loggerfile.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                valid_name(file_id, local_tempfile, db_cursor)
+                valid_name(file_id, local_tempfile, db_cursor, loggerfile)
         if 'unique_file' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -472,8 +472,8 @@ def process_wav(filename, folder_path, folder_id, db_cursor, loggerfile):
             loggerfile.info(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
-                jhove_validate(file_id, local_tempfile, tmp_folder, db_cursor)
-        file_updated_at(file_id, db_cursor)
+                jhove_validate(file_id, local_tempfile, tmp_folder, db_cursor, loggerfile)
+        file_updated_at(file_id, db_cursor, loggerfile)
         os.remove(local_tempfile)
         return True
 
@@ -623,7 +623,7 @@ def main():
                         logger1.info(db_cursor.query.decode("utf-8"))
                 #Check for deleted files
                 check_deleted('tif', db_cursor, logger1)
-            folder_updated_at(folder_id, db_cursor)
+            folder_updated_at(folder_id, db_cursor, logger1)
     os.chdir(filecheck_dir)
     #Check if folders have dissapeared
     if settings.del_folders:
