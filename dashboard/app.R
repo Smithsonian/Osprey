@@ -755,17 +755,20 @@ server <- function(input, output, session) {
     
     files_list <- dbGetQuery(db, folder_check_query)
     
-    fileslist_df2 <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
-    #print(head(fileslist_df2))
-    
-    list_names <- names(fileslist_df2)
-    
-    list_names <- list_names[list_names != "file_name"]
-    list_names <- list_names[list_names != "ready_for_dams"]
-    list_names <- list_names[list_names != "in_dams"]
-    list_names <- list_names[list_names != "md5_matches"]
-    
-    fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
+    if (dim(files_list)[1] > 0){
+      fileslist_df2 <- reshape::cast(files_list, file_name ~ post_step, value = "post_results")
+      
+      list_names <- names(fileslist_df2)
+      
+      list_names <- list_names[list_names != "file_name"]
+      list_names <- list_names[list_names != "ready_for_dams"]
+      list_names <- list_names[list_names != "in_dams"]
+      list_names <- list_names[list_names != "md5_matches"]
+      
+      fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
+    }else{
+      fileslist_df2 <- files_list
+    }
     
     no_cols <- dim(fileslist_df2)[2]
     
@@ -778,7 +781,7 @@ server <- function(input, output, session) {
         ordering = TRUE, 
         pageLength = 50, 
         paging = TRUE, 
-        language = list(zeroRecords = "Nothing yet"),
+        language = list(zeroRecords = "Not ready yet"),
         scrollX = TRUE
       ),
       rownames = FALSE, 
