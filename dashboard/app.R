@@ -319,9 +319,10 @@ server <- function(input, output, session) {
     filesize_q <- paste0("SELECT sum(filesize) as total_size FROM files_size WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))")
     flog.info(paste0("filesize_q: ", filesize_q), name = "dashboard")
     total_size <- dbGetQuery(db, filesize_q)
-    total_size_formatted <- utils:::format.object_size(total_size, "auto")
-    
-    projectmain_html <- paste0(projectmain_html, "<p>Total diskspace of files: ", total_size_formatted, "</p>")
+    if (!is.na(total_size)){
+      total_size_formatted <- utils:::format.object_size(total_size, "auto")
+      projectmain_html <- paste0(projectmain_html, "<p>Total diskspace of files: ", total_size_formatted, "</p>")
+    }
     
     HTML(projectmain_html)
   })
