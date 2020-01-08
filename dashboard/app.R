@@ -15,7 +15,7 @@ library(ggplot2)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.7.0"
+app_ver <- "0.7.1"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -809,6 +809,23 @@ server <- function(input, output, session) {
     file_id <- file_info$file_id
     
     html_to_print <- "<h4>File info</h4><dl>"
+    
+    #Image preview ----
+    observeEvent(input$showpreview, {
+      showModal(modalDialog(
+        size = "l",
+        title = "Preview Image",
+        HTML(paste0("<img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"100%\">")),
+        easyClose = TRUE
+      ))
+    })
+    
+    
+    if (project_type == "tif"){
+        html_to_print <- paste0(html_to_print, HTML("<dt>TIF preview:</dt><dd>"))
+        html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
+    }
+    
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>File ID</dt><dd>", file_info$file_id, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>Item number</dt><dd>", file_info$item_no, "</dd>")
@@ -1018,6 +1035,36 @@ server <- function(input, output, session) {
       }
     }
     
+    #stitched_jpg ----
+    if (project_type == "tif"){
+      if (stringr::str_detect(file_checks_list, "stitched_jpg")){
+        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
+        flog.info(paste0("info_q: ", info_q), name = "dashboard")
+        check_res <- dbGetQuery(db, info_q)
+        
+        observeEvent(input$showjpg, {
+          showModal(modalDialog(
+            size = "l",
+            title = "Imagemagick Info",
+            pre(check_res$check_info),
+            easyClose = TRUE
+          ))
+        })
+        
+        if (dim(check_res)[1] == 1){
+          if (check_res$check_results == 0){
+            
+            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd>OK ", actionLink("showjpg", label = "[More info]"), "</dd>")
+            
+          }else if (check_res$check_results == 1){
+            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
+          }else if (check_res$check_results == 9){
+            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-warning\">Not checked yet</dd>")
+          }
+        }
+      }
+    }
+    
     #Metadata----
     html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>", actionLink("exiftif", label = "TIF File Metadata"))
     html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
@@ -1026,18 +1073,6 @@ server <- function(input, output, session) {
     flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
     tifexif <- dbGetQuery(db, tifexif_q)
     
-    # display_tifexif <- "<dl class=\"dl-horizontal\">"
-    # 
-    # if (dim(tifexif)[1] == 0){
-    #   display_tifexif <- paste0(display_tifexif, "<dt>Data pending</dt><dd>Metadata has not been exported yet.</dd>")
-    # }else{
-    #   for (t in seq(1, dim(tifexif)[1])){
-    #     display_tifexif <- paste0(display_tifexif, "<dt>", tifexif$taggroup[t], " - ", tifexif$tag[t], "</dt>", "<dd>", tifexif$value[t], "</dd>")
-    #   }
-    # }
-    # 
-    # 
-    # display_tifexif <- paste0(display_tifexif, "</dl>")
     
     output$tifexif_dt <- DT::renderDataTable({
     
@@ -1072,22 +1107,6 @@ server <- function(input, output, session) {
       ))
     })
     
-    
-    # rawexif_q <- paste0("SELECT * FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
-    # flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
-    # rawexif <- dbGetQuery(db, rawexif_q)
-    # 
-    # display_rawexif <- "<dl class=\"dl-horizontal\">"
-    # 
-    # if (dim(rawexif)[1] == 0){
-    #   display_rawexif <- paste0(display_rawexif, "<dt>Data pending</dt><dd>Metadata has not been exported yet.</dd>")
-    # }else{
-    #   for (t in seq(1, dim(rawexif)[1])){
-    #     display_rawexif <- paste0(display_rawexif, "<dt>", rawexif$taggroup[t], " - ", rawexif$tag[t], "</dt>", "<dd>", rawexif$value[t], "</dd>")
-    #   }
-    # }
-    # 
-    # display_rawexif <- paste0(display_rawexif, "</dl>")
     
     rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
@@ -1196,18 +1215,7 @@ server <- function(input, output, session) {
     
     html_to_print <- paste0(html_to_print, "</dl>")
     
-    #Image preview ----
-    tagList(
-      fluidRow(
-        column(width = 12,
-               if (project_type == "tif"){
-                 HTML(paste0("<p>TIF preview:</p><a href=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" target = _blank><img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"160px\" height = \"auto\"></a><br>"))
-               }
-        )
-      ),
-      hr(),
-      HTML(html_to_print)
-    )
+    HTML(html_to_print)
   })
   
   
