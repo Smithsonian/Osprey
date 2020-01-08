@@ -1012,19 +1012,24 @@ server <- function(input, output, session) {
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
-        observeEvent(input$show, {
+        m_info <- check_res$check_info
+        
+        observeEvent(input$showmagic, {
           showModal(modalDialog(
             size = "l",
             title = "Imagemagick Info",
-            pre(check_res$check_info),
+            p("magick"),
+            pre(m_info),
             easyClose = TRUE
           ))
         })
         
+        cat(check_res$check_info)
+        
         if (dim(check_res)[1] == 1){
           if (check_res$check_results == 0){
             
-            html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd>OK ", actionLink("show", label = "[More info]"), "</dd>")
+            html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd>OK ", actionLink("showmagic", label = "[More info]"), "</dd>")
             
           }else if (check_res$check_results == 1){
             html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
@@ -1033,20 +1038,21 @@ server <- function(input, output, session) {
           }
         }
       }
-    }
-    
-    #stitched_jpg ----
-    if (project_type == "tif"){
+      
+      #stitched_jpg ----
       if (stringr::str_detect(file_checks_list, "stitched_jpg")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
+        j_info <- check_res$check_info
+        
         observeEvent(input$showjpg, {
           showModal(modalDialog(
             size = "l",
-            title = "Imagemagick Info",
-            pre(check_res$check_info),
+            title = "Imagemagick Info of Stitched JPG",
+            p("stitched"),
+            pre(j_info),
             easyClose = TRUE
           ))
         })
@@ -1064,6 +1070,9 @@ server <- function(input, output, session) {
         }
       }
     }
+    
+    
+    
     
     #Metadata----
     html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>", actionLink("exiftif", label = "TIF File Metadata"))

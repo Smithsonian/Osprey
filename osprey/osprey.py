@@ -317,7 +317,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             result = db_cursor.fetchone()[0]
             if result != 0:
                 #check if tif is compressed
-                tif_compression(file_id, local_tempfile, db_cursor)
+                tif_compression(file_id, local_tempfile, db_cursor, loggerfile)
         #Get exif from TIF
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'TIF'})
         check_exif = db_cursor.fetchone()[0]
@@ -501,9 +501,9 @@ def main():
     logger1.info("osprey version {}".format(ver))
     #Check that the paths are mounted
     for p_path in settings.project_paths:
-        if os.path.ismount(p_path) == False:
+        if os.path.isdir(p_path) == False:
             logger1.error("Path not found: {}".format(p_path))
-            continue
+            sys.exit(1)
     #Connect to the database
     logger1.info("Connecting to database")
     conn = psycopg2.connect(

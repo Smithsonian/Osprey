@@ -139,7 +139,7 @@ def magick_validate(file_id, filename, db_cursor, paranoid = False):
 
 
 
-def tif_compression(file_id, filename, db_cursor):
+def tif_compression(file_id, filename, db_cursor, loggerfile):
     """
     Check if the image has compression
     """
@@ -151,6 +151,7 @@ def tif_compression(file_id, filename, db_cursor):
     else:
         f_compressed = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tif_compression', 'check_results': f_compressed, 'check_info': compressed_info})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 
