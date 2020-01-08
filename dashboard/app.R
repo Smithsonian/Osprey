@@ -1024,8 +1024,6 @@ server <- function(input, output, session) {
           ))
         })
         
-        cat(check_res$check_info)
-        
         if (dim(check_res)[1] == 1){
           if (check_res$check_results == 0){
             
@@ -1081,7 +1079,6 @@ server <- function(input, output, session) {
     tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
     tifexif <- dbGetQuery(db, tifexif_q)
-    
     
     output$tifexif_dt <- DT::renderDataTable({
     
