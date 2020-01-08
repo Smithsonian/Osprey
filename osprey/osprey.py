@@ -118,16 +118,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
     check_exif = db_cursor.fetchone()[0]
     loggerfile.info("check_exif_tif: {}".format(check_exif))
     if check_exif == 0:
-        loggerfile.info("Getting EXIF from {}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
-        file_exif(file_id, "{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem), 'TIF', db_cursor)
-    #Get exif from RAW
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'RAW'})
-    check_exif = db_cursor.fetchone()[0]
-    loggerfile.info("check_exif_raw: {}".format(check_exif))
-    if check_exif == 0:
-        if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
-            loggerfile.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
-            file_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), 'RAW', db_cursor)
+        file_checks = file_checks + 1
     #Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
     loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -304,6 +295,15 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             if result != 0:
                 #JPG check
                 check_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, filename_stem), db_cursor, loggerfile)
+        if 'stitched_jpg' in settings.project_file_checks:
+            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
+            loggerfile.info(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchone()[0]
+            if result != 0:
+                #JPG check
+                stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
+                stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
+                check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name), db_cursor, loggerfile)                
         if 'tifpages' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
@@ -318,6 +318,21 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             if result != 0:
                 #check if tif is compressed
                 tif_compression(file_id, local_tempfile, db_cursor)
+        #Get exif from TIF
+        db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'TIF'})
+        check_exif = db_cursor.fetchone()[0]
+        loggerfile.info("check_exif_tif: {}".format(check_exif))
+        if check_exif == 0:
+            loggerfile.info("Getting EXIF from {}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
+            file_exif(file_id, "{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem), 'TIF', db_cursor, loggerfile)
+        #Get exif from RAW
+        db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'RAW'})
+        check_exif = db_cursor.fetchone()[0]
+        loggerfile.info("check_exif_raw: {}".format(check_exif))
+        if check_exif == 0:
+            if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
+                loggerfile.info("Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
+                file_exif(file_id, "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files), 'RAW', db_cursor, loggerfile)
         loggerfile.info("jpg_prev:{}".format(jpg_prev))
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
@@ -644,10 +659,10 @@ if __name__=="__main__":
         try:
             main()
         except KeyboardInterrupt:
-            logger1.info("Ctrl-c detected. Leaving program.")
+            print("Ctrl-c detected. Leaving program.")
             sys.exit(0)
         except Exception as e:
-            logger1.error("There was an error: {}".format(e))
+            print("There was an error: {}".format(e))
             sys.exit(1)
 
 

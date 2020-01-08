@@ -45,6 +45,7 @@ project_file_checks = ["raw_pair","magick","jhove","unique_file","tifpages"]
 # - tifpages: Check the number of pages in the tif
 # - magick: Run imagemagick validation
 # - itpc: Check for valid ITPC metadata, not yet implemented
+# - stitched_jpg: There is a stitched JPG of two other files
 # - tif_compression: Check if tif is compressed using LZW
 #
 #For WAVS:
@@ -133,3 +134,9 @@ ignore_string = None
 
 
 del_folders = True
+
+
+#stitched_jpg
+jpgstitch_original_1 = ""
+jpgstitch_original_2 = ""
+jpgstitch_new = ""

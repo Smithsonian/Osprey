@@ -211,7 +211,7 @@ def valid_name(file_id, filename, db_cursor, paranoid = False):
 
 
 
-def file_exif(file_id, filename, filetype, db_cursor):
+def file_exif(file_id, filename, filetype, db_cursor, loggerfile):
     """
     Extract the EXIF info from the RAW file
     """
@@ -223,8 +223,14 @@ def file_exif(file_id, filename, filetype, db_cursor):
         exif_read = 1
     exif_info = out
     for line in exif_info.splitlines():
-        tag = re.split(r'\t+', line.decode('UTF-8'))
-        db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1], 'tag': tag[2], 'value': tag[3]})
+        #Non utf, ignore for now
+        try:
+            tag = re.split(r'\t+', line.decode('UTF-8'))
+            db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1], 'tag': tag[2], 'value': tag[3]})
+            loggerfile.info(db_cursor.query.decode("utf-8"))
+        except:
+            loggerfile.error("Tag not in utf-8 for file {}, {} {} {}".format(file_id, tag[0], tag[1], tag[2]))
+            continue
     return True
 
 
@@ -429,28 +435,6 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
 
 
 
-def check_jpg(file_id, filename, db_cursor):
-    """
-    Run checks for jpg files
-    """
-    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out,err) = p.communicate()
-    if p.returncode == 0:
-        magick_identify = 0
-        magick_identify_info = out
-        magick_return = True
-    else:
-        magick_identify = 1
-        magick_identify_info = err
-        magick_return = False
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    if magick_return:
-        #Store MD5
-        file_md5 = filemd5(filename)
-        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-    return True
-
-
 
 
 def soxi_check(file_id, filename, file_check, expected_val, db_cursor, loggerfile):
@@ -620,13 +604,13 @@ def check_stitched_jpg(file_id, filename, db_cursor, loggerfile):
         magick_identify = 1
         magick_identify_info = err
         magick_return = False
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    logger1.info(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'stitched_jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
+    loggerfile.info(db_cursor.query.decode("utf-8"))
     if magick_return:
         #Store MD5
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        logger1.info(db_cursor.query.decode("utf-8"))
+        loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
 

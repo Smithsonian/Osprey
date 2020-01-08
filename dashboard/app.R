@@ -73,10 +73,7 @@ ui <- dashboardPage(
                title = "Main", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("projectmain")
              ),
-             box(
-               title = "Project Shares", width = NULL, solidHeader = TRUE, status = "primary",
-               uiOutput("shares")
-             ),
+             uiOutput("shares"),
              box(
                title = "Folders", width = NULL, solidHeader = TRUE, status = "primary",
                uiOutput("folderlist")
@@ -312,8 +309,10 @@ server <- function(input, output, session) {
       last_update_text <- ""
     }
     
-    projectmain_html <- paste0(projectmain_html, last_update_text, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
-    
+    #Not quite ready
+    # if (project_active == TRUE){
+    #   projectmain_html <- paste0(projectmain_html, last_update_text, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
+    # }
     
     #Disk used----
     filesize_q <- paste0("SELECT sum(filesize) as total_size FROM files_size WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))")
@@ -357,7 +356,12 @@ server <- function(input, output, session) {
       }
     }
     
-    HTML(shares_html)
+    tagList(
+      box(
+        title = "Project Shares", width = NULL, solidHeader = TRUE, status = "primary",
+        HTML(shares_html)
+      )
+    )
   })
   
   #folderlist----
