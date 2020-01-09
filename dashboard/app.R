@@ -776,7 +776,12 @@ server <- function(input, output, session) {
       list_names <- list_names[list_names != "in_dams"]
       list_names <- list_names[list_names != "md5_matches"]
       
-      fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
+      if ("md5" %in% list_names){
+        list_names <- list_names[list_names != "md5"]
+        fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "md5", "ready_for_dams", "in_dams")]
+      }else{
+        fileslist_df2 <- fileslist_df2[c("file_name", "md5_matches", list_names, "ready_for_dams", "in_dams")]
+      }
     }else{
       fileslist_df2 <- files_list
     }
