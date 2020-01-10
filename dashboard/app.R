@@ -819,7 +819,7 @@ server <- function(input, output, session) {
     
     file_name <- fileslist_df[input$files_table_rows_selected, ]$file_name
     
-    file_info_q <- paste0("SELECT *, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id = ", which_folder)
+    file_info_q <- paste0("SELECT *, to_char(coalesce(created_at, updated_at), 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id = ", which_folder)
     flog.info(paste0("file_info_q: ", file_info_q), name = "dashboard")
     file_info <- dbGetQuery(db, file_info_q)
 

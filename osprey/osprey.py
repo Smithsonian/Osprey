@@ -44,18 +44,18 @@ filecheck_dir = os.getcwd()
 # Check requirements
 ############################################
 if check_requirements(settings.jhove_path) == False:
-        logger1.error("JHOVE was not found")
+        print("JHOVE was not found")
         sys.exit(1)
 if settings.project_type == 'wav':
     if check_requirements('soxi') == False:
-        logger1.error("SoX was not found")
+        print("SoX was not found")
         sys.exit(1)
 elif settings.project_type == 'tif':
     if check_requirements('identify') == False:
-        logger1.error("Imagemagick was not found")
+        print("Imagemagick was not found")
         sys.exit(1)
     if check_requirements('exiftool') == False:
-        logger1.error("exiftool was not found")
+        print("exiftool was not found")
         sys.exit(1)
 
 
@@ -180,27 +180,28 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
                 db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': "File with same name in {}".format(folder_dupe)})
                 loggerfile.info(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
-                #Check in other projects
-                db_cursor.execute(queries.check_unique_all, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
+        if 'unique_file_all' in settings.project_file_checks:
+            #Check in other projects
+            db_cursor.execute(queries.check_unique_all, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
+            loggerfile.info(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchone()
+            if result == None:
+                unique_file = 0
+                check_info = ""
+            elif result[0] > 0:
+                unique_file = 1
+                db_cursor.execute(queries.not_unique_all, {'file_id': file_id, 'file_name': filename_stem, 'project_id': settings.project_id})
                 loggerfile.info(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchone()
-                if result == None:
-                    unique_file = 0
-                    check_info = ""
-                elif result[0] > 0:
-                    unique_file = 1
-                    db_cursor.execute(queries.not_unique_all, {'file_id': file_id, 'file_name': filename_stem, 'project_id': settings.project_id})
-                    loggerfile.info(db_cursor.query.decode("utf-8"))
-                    folder_check = db_cursor.fetchone()
-                    folder_dupe = folder_check[0]
-                    alt_project_id = folder_check[1]
-                    check_info = "File with same name in {} of project {}".format(folder_check[0], folder_check[1])
-                else:
-                    unique_file = 0
-                    check_info = ""
-                db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': check_info})
-                loggerfile.info(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
+                folder_check = db_cursor.fetchone()
+                folder_dupe = folder_check[0]
+                alt_project_id = folder_check[1]
+                check_info = "File with same name in {} of project {}".format(folder_check[0], folder_check[1])
+            else:
+                unique_file = 0
+                check_info = ""
+            db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file_all', 'check_results': unique_file, 'check_info': check_info})
+            loggerfile.info(db_cursor.query.decode("utf-8"))
+            file_checks = file_checks - 1
         if file_checks == 0:
             return True
         if 'old_name' in settings.project_file_checks:
@@ -324,7 +325,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
         loggerfile.info("check_exif_tif: {}".format(check_exif))
         if check_exif == 0:
             loggerfile.info("Getting EXIF from {}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem))
-            file_exif(file_id, "{}/{}/{}.tif".format(folder_path, settings.tif_files_path, filename_stem), 'TIF', db_cursor, loggerfile)
+            file_exif(file_id, local_tempfile, 'TIF', db_cursor, loggerfile)
         #Get exif from RAW
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'RAW'})
         check_exif = db_cursor.fetchone()[0]

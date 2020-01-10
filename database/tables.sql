@@ -166,7 +166,7 @@ CREATE TABLE files (
     file_exists        integer,
     file_timestamp     timestamp with time zone,
     item_no            text,
-    created_at         timestamp with time zone DEFAULT NULL,
+    created_at         timestamp with time zone DEFAULT NOW(),
     updated_at         timestamp with time zone DEFAULT NOW()
 );
 ALTER TABLE files ADD CONSTRAINT files_constr UNIQUE (file_name, folder_id);
