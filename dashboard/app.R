@@ -414,7 +414,7 @@ server <- function(input, output, session) {
         #Only if there are any files
         if (folder_files$no_files > 0){
           
-          file_checks_all <- paste(file_checks, collapse = ",")
+          file_checks_all <- paste0(paste(file_checks, collapse = ","), ",file_exists")
           
           error_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 1 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
           error_list <- dbGetQuery(db, error_list)
