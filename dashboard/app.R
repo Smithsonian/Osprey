@@ -10,6 +10,7 @@ library(shinycssloaders)
 library(shinydashboard)
 library(shinyWidgets)
 library(ggplot2)
+library(sqldf)
 
 
 # Settings ----
@@ -724,8 +725,21 @@ server <- function(input, output, session) {
                   
     files_list <- dbGetQuery(db, folder_check_query)
 
-    fileslist_df <<- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
-
+    fileslist_tosort <- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
+    
+    file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
+    
+    for (f in seq(1, length(file_checks))){
+      
+      check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_df WHERE ", file_checks[f], " != 'OK'"))
+      
+      if (check1 > 0){
+        fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
+      }
+    }
+    
+    fileslist_df <<- fileslist_tosort
+      
     no_cols <- dim(fileslist_df)[2]
     
     DT::datatable(
