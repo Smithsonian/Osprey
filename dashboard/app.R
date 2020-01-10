@@ -731,7 +731,7 @@ server <- function(input, output, session) {
     
     for (f in seq(1, length(file_checks))){
       
-      check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_df WHERE ", file_checks[f], " != 'OK'"))
+      check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_tosort WHERE ", file_checks[f], " != 'OK'"))
       
       if (check1 > 0){
         fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
