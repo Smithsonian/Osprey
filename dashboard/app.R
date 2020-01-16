@@ -16,7 +16,7 @@ library(sqldf)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.7.1"
+app_ver <- "0.7.3"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -32,6 +32,9 @@ flog.logger("dashboard", INFO, appender=appender.file(logfile))
 if (Sys.info()["nodename"] == "shiny.si.edu"){
   #For RHEL7 odbc driver
   pg_driver = "PostgreSQL"
+}else if (Sys.info()["nodename"] == "OCIO-2SJKVD22"){
+  #For RHEL7 odbc driver
+  pg_driver = "PostgreSQL Unicode(x64)"
 }else{
   pg_driver = "PostgreSQL Unicode"
 }
@@ -98,7 +101,7 @@ ui <- dashboardPage(
       ),
       column(width = 2,
              box(
-               title = "File details", width = NULL, solidHeader = TRUE, status = "primary",
+               title = "File details", width = NULL, solidHeader = TRUE, status = "primary", #style = "position: fixed; margin-top: 0px;",
                uiOutput("fileinfo")
              )
       )
@@ -121,6 +124,9 @@ server <- function(input, output, session) {
   if (Sys.info()["nodename"] == "shiny.si.edu"){
     #For RHEL7 odbc driver
     pg_driver = "PostgreSQL"
+  }else if (Sys.info()["nodename"] == "OCIO-2SJKVD22"){
+    #For RHEL7 odbc driver
+    pg_driver = "PostgreSQL Unicode(x64)"
   }else{
     pg_driver = "PostgreSQL Unicode"
   }
@@ -135,7 +141,8 @@ server <- function(input, output, session) {
   
   file_checks_q <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
   flog.info(paste0("file_checks_q: ", file_checks_q), name = "dashboard")
-  file_checks_list <<- dbGetQuery(db, file_checks_q)
+  file_checks_list <- dbGetQuery(db, file_checks_q)
+  session$userData$file_checks_list <- file_checks_list
   file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
   
   check_count <- paste0("SELECT count(*) from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, ")")
@@ -597,7 +604,9 @@ server <- function(input, output, session) {
                         group by int
                         order by int")
     flog.info(paste0("folder_progress_q: ", folder_progress_q), name = "dashboard")
-    folder_progress <<- dbGetQuery(db, folder_progress_q)
+    folder_progress <- dbGetQuery(db, folder_progress_q)
+    
+    session$clientData$folder_progress <- folder_progress
     
     ggplot(folder_progress, mapping = aes(x = as.POSIXct(time), y = no_files)) + geom_col() + labs(x = "Time", y = "No. of files") + scale_x_datetime(name = "Time", date_breaks = "15 min", date_labels = "%H:%M") + theme(axis.text.x = element_text(angle = 90))
   })
@@ -609,7 +618,7 @@ server <- function(input, output, session) {
       paste(input$this_date, ".csv", sep = "")
     },
     content = function(file) {
-      write.csv(folder_progress, file, row.names = FALSE)
+      write.csv(session$clientData$folder_progress, file, row.names = FALSE)
     }
   )
   
@@ -727,7 +736,7 @@ server <- function(input, output, session) {
 
     fileslist_tosort <- reshape::cast(files_list, file_name ~ file_check, value = "check_results")
     
-    file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
+    file_checks <- stringr::str_split(session$userData$file_checks_list, ",")[[1]]
     
     for (f in seq(1, length(file_checks))){
       
@@ -738,7 +747,9 @@ server <- function(input, output, session) {
       }
     }
     
-    fileslist_df <<- fileslist_tosort
+    fileslist_df <- fileslist_tosort
+    
+    session$clientData$fileslist_df <- fileslist_df
       
     no_cols <- dim(fileslist_df)[2]
     
@@ -831,7 +842,7 @@ server <- function(input, output, session) {
     
     req(input$files_table_rows_selected)
     
-    file_name <- fileslist_df[input$files_table_rows_selected, ]$file_name
+    file_name <- session$clientData$fileslist_df[input$files_table_rows_selected, ]$file_name
     
     file_info_q <- paste0("SELECT *, to_char(coalesce(created_at, updated_at), 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id = ", which_folder)
     flog.info(paste0("file_info_q: ", file_info_q), name = "dashboard")
@@ -851,7 +862,6 @@ server <- function(input, output, session) {
       ))
     })
     
-    
     if (project_type == "tif"){
         html_to_print <- paste0(html_to_print, HTML("<dt>TIF preview:</dt><dd>"))
         html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
@@ -864,7 +874,7 @@ server <- function(input, output, session) {
     html_to_print <- paste0(html_to_print, "<dt>Imported on</dt><dd>", file_info$date, "</dd>")
     
     #file_exists
-    if (stringr::str_detect(file_checks_list, "file_exists")){
+    if (stringr::str_detect(session$userData$file_checks_list, "file_exists")){
       html_to_print <- paste0(html_to_print, "<dt>File exists</dt>")
       if (file_info$file_exists == 0){
         html_to_print <- paste0(html_to_print, "<dd>", file_info$file_exists)
@@ -914,7 +924,7 @@ server <- function(input, output, session) {
     }
     
     #valid_name
-    if (stringr::str_detect(file_checks_list, "valid_name")){
+    if (stringr::str_detect(session$userData$file_checks_list, "valid_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'valid_name' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
@@ -931,7 +941,7 @@ server <- function(input, output, session) {
     }
     
     #raw_pair
-    if (stringr::str_detect(file_checks_list, "raw_pair")){
+    if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'raw_pair' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
@@ -948,7 +958,7 @@ server <- function(input, output, session) {
     }
   
     #unique_file ----
-    if (stringr::str_detect(file_checks_list, "unique_file")){
+    if (stringr::str_detect(session$userData$file_checks_list, "unique_file")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'unique_file' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
@@ -965,7 +975,7 @@ server <- function(input, output, session) {
     }
       
     #old_names ----
-    if (stringr::str_detect(file_checks_list, "old_name")){
+    if (stringr::str_detect(session$userData$file_checks_list, "old_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'old_name' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
@@ -982,7 +992,7 @@ server <- function(input, output, session) {
     }
     
     #JHOVE ----
-    if (stringr::str_detect(file_checks_list, "jhove")){
+    if (stringr::str_detect(session$userData$file_checks_list, "jhove")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'jhove' AND file_id = ", file_id)
       flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
@@ -1000,7 +1010,7 @@ server <- function(input, output, session) {
     
     #tifpages ----
     if (project_type == "tif"){
-      if (stringr::str_detect(file_checks_list, "tifpages")){
+      if (stringr::str_detect(session$userData$file_checks_list, "tifpages")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tifpages' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1019,7 +1029,7 @@ server <- function(input, output, session) {
     
     #tifpages ----
     if (project_type == "tif"){
-      if (stringr::str_detect(file_checks_list, "tif_compression")){
+      if (stringr::str_detect(session$userData$file_checks_list, "tif_compression")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tif_compression' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1038,7 +1048,7 @@ server <- function(input, output, session) {
     
     #ImageMagick ----
     if (project_type == "tif"){
-      if (stringr::str_detect(file_checks_list, "magick")){
+      if (stringr::str_detect(session$userData$file_checks_list, "magick")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'magick' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1069,7 +1079,7 @@ server <- function(input, output, session) {
       }
       
       #stitched_jpg ----
-      if (stringr::str_detect(file_checks_list, "stitched_jpg")){
+      if (stringr::str_detect(session$userData$file_checks_list, "stitched_jpg")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1185,7 +1195,7 @@ server <- function(input, output, session) {
     #WAVS ----
     if (project_type == "wav"){
       #filetype ----
-      if (stringr::str_detect(file_checks_list, "filetype")){
+      if (stringr::str_detect(session$userData$file_checks_list, "filetype")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'filetype' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1201,7 +1211,7 @@ server <- function(input, output, session) {
         }
       }
     
-      if (stringr::str_detect(file_checks_list, "samprate")){
+      if (stringr::str_detect(session$userData$file_checks_list, "samprate")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'samprate' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1217,7 +1227,7 @@ server <- function(input, output, session) {
         }
       }
     
-      if (stringr::str_detect(file_checks_list, "channels")){
+      if (stringr::str_detect(session$userData$file_checks_list, "channels")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'channels' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
@@ -1233,7 +1243,7 @@ server <- function(input, output, session) {
         }
       }
       
-      if (stringr::str_detect(file_checks_list, "bits")){
+      if (stringr::str_detect(session$userData$file_checks_list, "bits")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'bits' AND file_id = ", file_id)
         flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
