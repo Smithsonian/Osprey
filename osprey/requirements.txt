@@ -2,5 +2,4 @@ xmltodict
 exifread
 bitmath
 psycopg2-binary
-bitmath
 pandas
