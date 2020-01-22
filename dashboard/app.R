@@ -356,7 +356,7 @@ server <- function(input, output, session) {
           prog_class <- "success"
         }
         share <- shares$share[i]
-        shares_html <- paste0("Space used in share ", share, " (", utils:::format.object_size(as.numeric(shares$total[i]), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+        shares_html <- paste0("Space used in share ", share, " (", utils:::format.object_size(as.numeric(as.numeric(shares$total[i])*1024), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
     ", per_used, "%</div>
 </div>")
       }
