@@ -43,7 +43,7 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
         server_folder_path = folder_path.split("/")
         len_server_folder_path = len(server_folder_path)
         folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
-    db_cursor.execute(queries.select_folderid, {'project_folder': folder_name, 'project_id': project_id})
+    db_cursor.execute(queries.select_folderid, {'project_folder': folder_name, 'folder_path': folder_path,'project_id': project_id})
     folder_id = db_cursor.fetchone()
     if folder_id == None:
         #Folder does not exists, create

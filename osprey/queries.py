@@ -1,6 +1,6 @@
 #Queries for MDfilecheck.py
 
-select_folderid = "SELECT folder_id FROM folders WHERE project_folder = %(project_folder)s and project_id = %(project_id)s"
+select_folderid = "SELECT folder_id FROM folders WHERE project_folder = %(project_folder)s and path = %(folder_path)s and project_id = %(project_id)s"
 
 new_folder = "INSERT INTO folders (project_folder, path, status, project_id) VALUES (%(project_folder)s, %(folder_path)s, 9, %(project_id)s) RETURNING folder_id"
 
