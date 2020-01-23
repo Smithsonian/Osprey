@@ -271,11 +271,16 @@ server <- function(input, output, session) {
     postprocess <- dbGetQuery(db, postp_q)
     
     if (is.na(postprocess)){
-      DT::dataTableOutput("files_table")
+      #DT::dataTableOutput("files_table")
+      tabsetPanel(
+        tabPanel("Production", DT::dataTableOutput("files_table")),
+        tabPanel("Lightbox", DT::dataTableOutput("files_lightbox"))
+      )
     }else{
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
-        tabPanel("Post-Processing", DT::dataTableOutput("pp_table"))
+        tabPanel("Lightbox", DT::dataTableOutput("files_lightbox")),
+        tabPanel("Post-Production", DT::dataTableOutput("pp_table"))
       )
     }
   })
@@ -702,7 +707,7 @@ server <- function(input, output, session) {
   
   
   
-  #Files table ----
+  #files_table ----
   output$tableheading <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
@@ -833,6 +838,75 @@ server <- function(input, output, session) {
       )
   })
   
+  # 
+  # #lightbox----
+  # output$lightbox <- renderUI({
+  #   query <- parseQueryString(session$clientData$url_search)
+  #   which_folder <- query['folder']
+  #   req(which_folder != "NULL")
+  #   
+  #   files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
+  #   files_list <- dbGetQuery(db, files_query)
+  #   
+  #   no_rows <- ceiling(dim(files_list)[1]/4)
+  #   
+  #   for (i in seq(1, no_rows, 4)){
+  #     for (j in seq(0, 3)){
+  #       tagList(
+  #         fluidRow(
+  #           column(width = 3,
+  #                  tags$img(src = paste0("http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i + j]))
+  #           ),
+  #           column(width = 3,
+  #           ),
+  #           column(width = 3,
+  #           ),
+  #           column(width = 3,
+  #           )
+  #         )
+  #       )
+  #     }
+  #   }
+  #   
+  #   # fluidRow(
+  #   #   column(width = 2,))
+  #   
+  #   
+  #   for (f in seq(1, length(file_checks))){
+  #     
+  #     check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_tosort WHERE ", file_checks[f], " != 'OK'"))
+  #     
+  #     if (check1 > 0){
+  #       fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
+  #     }
+  #   }
+  #   
+  #   fileslist_df <- fileslist_tosort
+  #   
+  #   session$userData$fileslist_df <- fileslist_df
+  #   
+  #   no_cols <- dim(fileslist_df)[2]
+  #   
+  #   DT::datatable(
+  #     fileslist_df, 
+  #     class = 'compact',
+  #     escape = FALSE, 
+  #     options = list(
+  #       searching = TRUE, 
+  #       ordering = TRUE, 
+  #       pageLength = 50, 
+  #       paging = TRUE, 
+  #       language = list(zeroRecords = "Folder has no files yet"),
+  #       scrollX = TRUE
+  #     ),
+  #     rownames = FALSE, 
+  #     selection = 'single') %>% DT::formatStyle(
+  #       2:no_cols,
+  #       backgroundColor = DT::styleEqual(c("OK", "Failed", "Pending"), c('#00a65a', '#d9534f', '#777')),
+  #       color = 'white'
+  #     )
+  # })
+  # 
   
   #fileinfo ----
   output$fileinfo <- renderUI({
