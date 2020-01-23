@@ -571,7 +571,8 @@ def main():
                     db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'wav', 'md5': 0})
                     logger1.info(db_cursor.query.decode("utf-8"))
                 #Check for deleted files
-                check_deleted('wav', db_cursor, logger1)
+                if settings.check_deleted == True:
+                    check_deleted('wav', db_cursor, logger1)
             ###########################
             #TIF Files
             ###########################
@@ -623,7 +624,8 @@ def main():
                         db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
                         logger1.info(db_cursor.query.decode("utf-8"))
                 #Check for deleted files
-                check_deleted('tif', db_cursor, logger1)
+                if settings.check_deleted == True:
+                    check_deleted('tif', db_cursor, logger1)
             folder_updated_at(folder_id, db_cursor, logger1)
     os.chdir(filecheck_dir)
     #Check if folders have dissapeared

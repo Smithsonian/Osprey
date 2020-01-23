@@ -140,3 +140,7 @@ del_folders = True
 jpgstitch_original_1 = ""
 jpgstitch_original_2 = ""
 jpgstitch_new = ""
+
+
+#Check or ignore deleted files
+check_deleted = False
