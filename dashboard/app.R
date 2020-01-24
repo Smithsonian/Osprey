@@ -849,7 +849,7 @@ server <- function(input, output, session) {
     files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
     files_list <- dbGetQuery(db, files_query)
 
-    no_rows <- ceiling(dim(files_list)[1]/4)
+    no_rows <- dim(files_list)[1]
     
     lbox <- ""
     for (i in seq(1, no_rows)){
