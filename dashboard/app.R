@@ -274,12 +274,12 @@ server <- function(input, output, session) {
       #DT::dataTableOutput("files_table")
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
-        tabPanel("Lightbox", DT::dataTableOutput("files_lightbox"))
+        tabPanel("Lightbox", uiOutput("files_lightbox"))
       )
     }else{
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
-        tabPanel("Lightbox", DT::dataTableOutput("files_lightbox")),
+        tabPanel("Lightbox", uiOutput("files_lightbox")),
         tabPanel("Post-Production", DT::dataTableOutput("pp_table"))
       )
     }
@@ -838,75 +838,48 @@ server <- function(input, output, session) {
       )
   })
   
-  # 
-  # #lightbox----
-  # output$lightbox <- renderUI({
-  #   query <- parseQueryString(session$clientData$url_search)
-  #   which_folder <- query['folder']
-  #   req(which_folder != "NULL")
-  #   
-  #   files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
-  #   files_list <- dbGetQuery(db, files_query)
-  #   
-  #   no_rows <- ceiling(dim(files_list)[1]/4)
-  #   
-  #   for (i in seq(1, no_rows, 4)){
-  #     for (j in seq(0, 3)){
-  #       tagList(
-  #         fluidRow(
-  #           column(width = 3,
-  #                  tags$img(src = paste0("http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i + j]))
-  #           ),
-  #           column(width = 3,
-  #           ),
-  #           column(width = 3,
-  #           ),
-  #           column(width = 3,
-  #           )
-  #         )
-  #       )
-  #     }
-  #   }
-  #   
-  #   # fluidRow(
-  #   #   column(width = 2,))
-  #   
-  #   
-  #   for (f in seq(1, length(file_checks))){
-  #     
-  #     check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_tosort WHERE ", file_checks[f], " != 'OK'"))
-  #     
-  #     if (check1 > 0){
-  #       fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
-  #     }
-  #   }
-  #   
-  #   fileslist_df <- fileslist_tosort
-  #   
-  #   session$userData$fileslist_df <- fileslist_df
-  #   
-  #   no_cols <- dim(fileslist_df)[2]
-  #   
-  #   DT::datatable(
-  #     fileslist_df, 
-  #     class = 'compact',
-  #     escape = FALSE, 
-  #     options = list(
-  #       searching = TRUE, 
-  #       ordering = TRUE, 
-  #       pageLength = 50, 
-  #       paging = TRUE, 
-  #       language = list(zeroRecords = "Folder has no files yet"),
-  #       scrollX = TRUE
-  #     ),
-  #     rownames = FALSE, 
-  #     selection = 'single') %>% DT::formatStyle(
-  #       2:no_cols,
-  #       backgroundColor = DT::styleEqual(c("OK", "Failed", "Pending"), c('#00a65a', '#d9534f', '#777')),
-  #       color = 'white'
-  #     )
-  # })
-  # 
+   
+  #files_lightbox----
+  output$files_lightbox <- renderUI({
+    query <- parseQueryString(session$clientData$url_search)
+    which_folder <- query['folder']
+    
+    req(which_folder != "NULL")
+
+    files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
+    files_list <- dbGetQuery(db, files_query)
+
+    no_rows <- ceiling(dim(files_list)[1]/4)
+    
+    lbox <- ""
+    for (i in seq(1, no_rows)){
+        lbox <- paste0(lbox, "<a href=\"#modal", i, "\" data-toggle=\"modal\" data-target=\"#modal", i, "\"><div style=\"display: inline-block;
+position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i], "\" width=\"120px\" height=\"auto\"><br><small>", files_list$file_name[i], "</small></div></a>
+                       
+                       
+          <div class=\"modal fade\" id=\"modal", i, "\" tabindex=\"-1\" role=\"dialog\" aria-labelledby=\"myModalLabel\">
+            <div class=\"modal-dialog modal-lg\" role=\"document\">
+              <div class=\"modal-content\">
+                <div class=\"modal-header\">
+                  <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\"><span aria-hidden=\"true\">&times;</span></button>
+                  <h4 class=\"modal-title\" id=\"myModalLabel\">", files_list$file_name[i], "</h4>
+                </div>
+                <div class=\"modal-body\">
+                  <img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i], "\" width=\"100%\" height=\"auto\">
+                </div>
+                <div class=\"modal-footer\">
+                  <button type=\"button\" class=\"btn btn-default\" data-dismiss=\"modal\">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+                       
+                       ")
+      }
+    
+    HTML(lbox)
+  })
+
   
   #fileinfo ----
   output$fileinfo <- renderUI({
