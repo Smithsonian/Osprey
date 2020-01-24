@@ -644,8 +644,8 @@ def main():
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
     #Close logging
-    logging.shutdown()
     del logging1
+    logging.shutdown()
     #Compress logs
     compress_log(filecheck_dir)
     #Sleep before trying again
