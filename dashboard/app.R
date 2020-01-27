@@ -323,7 +323,8 @@ server <- function(input, output, session) {
     #Not quite ready
     # if (project_active == TRUE){
     #   projectmain_html <- paste0(projectmain_html, last_update_text, "<p>", actionLink("dayprogress", label = "Progress during the day"), "<p>")
-    # }
+    
+    projectmain_html <- paste0(projectmain_html, last_update_text)
     
     #Disk used----
     filesize_q <- paste0("SELECT sum(filesize) as total_size FROM files_size WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))")
@@ -361,7 +362,8 @@ server <- function(input, output, session) {
           prog_class <- "success"
         }
         share <- shares$share[i]
-        shares_html <- paste0(shares_html, "Space used in share ", share, " (", utils:::format.object_size(as.numeric(as.numeric(shares$total[i])), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+        #shares_html <- paste0(shares_html, "Space used in share ", share, " (", utils:::format.object_size(as.numeric(as.numeric(shares$total[i])), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
+        shares_html <- paste0(shares_html, "Space used in share ", share, "<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
     ", per_used, "%</div>
 </div>")
       }
