@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.2"
+ver = "0.7.3"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -57,6 +57,31 @@ elif settings.project_type == 'tif':
     if check_requirements('exiftool') == False:
         print("exiftool was not found")
         sys.exit(1)
+
+
+
+############################################
+# Logging
+############################################
+if not os.path.exists('{}/logs'.format(filecheck_dir)):
+    os.makedirs('{}/logs'.format(filecheck_dir))
+current_time = strftime("%Y%m%d%H%M%S", localtime())
+logfile_name = '{}.log'.format(current_time)
+logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
+# from http://stackoverflow.com/a/9321890
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M:%S',
+                    filename=logfile,
+                    filemode='a')
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+#logging.getLogger('').addHandler(console)
+logger1 = logging.getLogger("filecheck")
+logging.getLogger('filecheck').addHandler(console)
+logger1.info("osprey version {}".format(ver))
 
 
 
@@ -481,25 +506,6 @@ def process_wav(filename, folder_path, folder_id, db_cursor, loggerfile):
 
 
 def main():
-    # Logging
-    if not os.path.exists('{}/logs'.format(filecheck_dir)):
-        os.makedirs('{}/logs'.format(filecheck_dir))
-    current_time = strftime("%Y%m%d%H%M%S", localtime())
-    logfile_name = '{}.log'.format(current_time)
-    logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
-    # from http://stackoverflow.com/a/9321890
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                        datefmt='%m-%d %H:%M:%S',
-                        filename=logfile,
-                        filemode='a')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
-    logger1 = logging.getLogger("filecheck")
-    logger1.info("osprey version {}".format(ver))
     #Check that the paths are mounted
     for p_path in settings.project_paths:
         if os.path.isdir(p_path) == False:
@@ -521,9 +527,13 @@ def main():
     for share in settings.project_shares:
         logger1.info("Share: {} ({})".format(share[0], share[1]))
         share_disk = shutil.disk_usage(share[0])
-        share_percent = round(share_disk.used/share_disk.total, 4) * 100
-        db_cursor.execute(queries.update_share, {'project_id': settings.project_id, 'share': share[1], 'localpath': share[0], 'used': share_percent, 'total': share_disk.total})
-        logger1.info(db_cursor.query.decode("utf-8"))
+        try:
+            share_percent = round(share_disk.used/share_disk.total, 4) * 100
+            db_cursor.execute(queries.update_share, {'project_id': settings.project_id, 'share': share[1], 'localpath': share[0], 'used': share_percent, 'total': share_disk.total})
+            logger1.info(db_cursor.query.decode("utf-8"))
+        except:
+            logger1.error("Share error with {}".format(share[0]))
+            continue        
     #Update project
     db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks), 'project_id': settings.project_id})
     logger1.info(db_cursor.query.decode("utf-8"))
@@ -643,10 +653,6 @@ def main():
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
-    #Close logging
-    logging.shutdown()
-    #Compress logs
-    compress_log(filecheck_dir)
     #Sleep before trying again
     time.sleep(settings.sleep)
 
@@ -664,9 +670,13 @@ if __name__=="__main__":
             main()
         except KeyboardInterrupt:
             print("Ctrl-c detected. Leaving program.")
+            #Compress logs
+            compress_log(filecheck_dir)
             sys.exit(0)
         except Exception as e:
             print("There was an error: {}".format(e))
+            #Compress logs
+            compress_log(filecheck_dir)
             sys.exit(1)
 
 
