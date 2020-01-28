@@ -745,16 +745,20 @@ server <- function(input, output, session) {
     
     file_checks <- stringr::str_split(session$userData$file_checks_list, ",")[[1]]
     
-    for (f in seq(1, length(file_checks))){
-      
-      check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_tosort WHERE ", file_checks[f], " != 'OK'"))
-      
-      if (check1 > 0){
-        fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
+    if (dim(files_list)[1] > 0){
+      for (f in seq(1, length(file_checks))){
+        
+        check1 <- sqldf(paste0("SELECT count(*) FROM fileslist_tosort WHERE ", file_checks[f], " != 'OK'"))
+        
+        if (check1 > 0){
+          fileslist_tosort <- sqldf(paste("SELECT * FROM fileslist_tosort ORDER BY CASE WHEN ", file_checks[f], " = 'OK' THEN 3 WHEN ", file_checks[f], " = 'Pending' THEN 2 WHEN ", file_checks[f], " = 'Failed' THEN 1 END"))
+        }
       }
-    }
     
-    fileslist_df <- fileslist_tosort
+      fileslist_df <- fileslist_tosort
+    }else{
+      fileslist_df <- files_list
+    }
     
     session$userData$fileslist_df <- fileslist_df
     
