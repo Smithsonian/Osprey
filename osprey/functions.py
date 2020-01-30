@@ -137,7 +137,7 @@ def magick_validate(file_id, filename, db_cursor, loggerfile, paranoid = False):
     else:
         magick_identify = 1
     magick_identify_info = out + err
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('UTF-8')})
+    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('latin-1')})
     loggerfile.info(db_cursor.query.decode("utf-8"))
     return True
 
