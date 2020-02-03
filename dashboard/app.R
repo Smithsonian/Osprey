@@ -765,7 +765,8 @@ server <- function(input, output, session) {
     no_cols <- dim(fileslist_df)[2]
     
     DT::datatable(
-      fileslist_df, 
+      fileslist_df,
+      extensions = 'Buttons',
       class = 'compact',
       escape = FALSE, 
       options = list(
@@ -774,7 +775,9 @@ server <- function(input, output, session) {
         pageLength = 50, 
         paging = TRUE, 
         language = list(zeroRecords = "Folder has no files yet"),
-        scrollX = TRUE
+        scrollX = TRUE,
+        dom = 'Bfrtip',
+        buttons = c('csv', 'excel')
       ),
       rownames = FALSE, 
       selection = 'single') %>% DT::formatStyle(
@@ -782,7 +785,7 @@ server <- function(input, output, session) {
         backgroundColor = DT::styleEqual(c("OK", "Failed", "Pending"), c('#00a65a', '#d9534f', '#777')),
         color = 'white'
       )
-  })
+  }, server = FALSE)
   
   
   #pp_table----
