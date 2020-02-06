@@ -9,3 +9,6 @@ The system has two components:
  * [osprey](osprey) - Python3 tool that runs a series of checks on folders. Results are written to a Postgres database.
  * [dashboard](dashboard) - R/Shiny dashboard that reads the Postgres database and displays the results.
 
+A Quality Control component is being built under [qc](qc) for visual inspection of the images.
+
+The database schema is in [database](database).
