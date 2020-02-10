@@ -100,7 +100,7 @@ def jhove_validate(file_id, filename, db_cursor, loggerfile):
             doc = xmltodict.parse(fd.read())
     except:
         error_msg = "Could not find result file from JHOVE ({})".format(xml_file)
-        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': 1, 'check_info': error_msg})
+        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': 9, 'check_info': error_msg})
         return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
