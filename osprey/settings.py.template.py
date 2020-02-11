@@ -58,6 +58,7 @@ project_file_checks = ["raw_pair","magick","jhove","unique_file","tifpages"]
 # - jhove: Run jhove validation
 # - unique_file: Name is not repeated in the project
 # - valid_name: Check if the filename is in the list of allowed names
+# - prefix: Check if the filename has the required prefix
 # - old_name: Check name against the old_names table
 ##################################
 
@@ -144,3 +145,8 @@ jpgstitch_new = ""
 
 #Check or ignore deleted files
 check_deleted = False
+
+
+
+#prefix
+filename_prefix = ""

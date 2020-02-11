@@ -182,6 +182,18 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
                 file_checks = file_checks - 1
         if file_checks == 0:
             return True
+        if 'prefix' in settings.project_file_checks:
+            if filename.startswith(settings.filename_prefix):
+                prefix_check = 0
+                prefix_info = ""
+                file_checks = file_checks - 1
+            else:
+                prefix_check = 1
+                prefix_info = "Filename doesn't start with the required prefix {}".format(settings.filename_prefix)
+            db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_check, 'check_info': prefix_info})
+            loggerfile.info(db_cursor.query.decode("utf-8"))
+        if file_checks == 0:
+            return True
         if 'unique_file' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
             loggerfile.info(db_cursor.query.decode("utf-8"))
