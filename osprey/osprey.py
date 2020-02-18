@@ -202,21 +202,22 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
                 #Check in project
                 db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
                 loggerfile.info(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchone()
-                if result == None:
+                result = db_cursor.fetchall()
+                if len(result) == 0:
                     unique_file = 0
-                    folder_dupe = ""
-                elif result[0] > 0:
-                    unique_file = 1
-                    db_cursor.execute(queries.not_unique, {'file_id': file_id, 'file_name': filename_stem, 'project_id': settings.project_id})
+                    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': ""})
                     loggerfile.info(db_cursor.query.decode("utf-8"))
-                    folder_dupe = db_cursor.fetchone()[0]
                 else:
-                    unique_file = 0
-                    folder_dupe = ""
-                db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': "File with same name in {}".format(folder_dupe)})
-                loggerfile.info(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
+                    unique_file = 1
+                    for dupe in result:
+                        db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
+                        loggerfile.info(db_cursor.query.decode("utf-8"))
+                        folder_dupe = db_cursor.fetchone()
+                        db_cursor.execute(queries.file_check, {'file_id': dupe[0], 'file_check': 'unique_file', 'check_results': 1, 'check_info': "File with same name in {}".format(folder_path)})
+                        loggerfile.info(db_cursor.query.decode("utf-8"))
+                        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file, 'check_info': "File with same name in {}".format(folder_dupe[0])})
+                        loggerfile.info(db_cursor.query.decode("utf-8"))
+            file_checks = file_checks - 1
         if 'unique_file_all' in settings.project_file_checks:
             #Check in other projects
             db_cursor.execute(queries.check_unique_all, {'file_name': filename_stem, 'folder_id': folder_id, 'project_id': settings.project_id, 'file_id': file_id})
