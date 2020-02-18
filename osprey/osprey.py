@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.3"
+ver = "0.7.4"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
