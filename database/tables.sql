@@ -32,6 +32,8 @@ CREATE TABLE projects (
     project_start date,
     project_end date,
     stats_estimated bool DEFAULT 't',
+    images_estimated bool DEFAULT 'f',
+    objects_estimated bool DEFAULT 'f',
     filecheck_link text,
     process_summary text DEFAULT null,
     updated_at timestamp with time zone DEFAULT NOW()
