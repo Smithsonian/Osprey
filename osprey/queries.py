@@ -8,6 +8,12 @@ folder_date = "UPDATE folders SET date = %(datequery)s where folder_id = %(folde
 
 folder_updated_at = "UPDATE folders SET updated_at = NOW() where folder_id = %(folder_id)s"
 
+folder_in_dams = "SELECT delivered_to_dams FROM folders WHERE folder_id = %(folder_id)s"
+
+folder_check_processing = "SELECT processing FROM folders WHERE folder_id = %(folder_id)s"
+
+folder_processing_update = "UPDATE folders SET processing = %(processing)s WHERE folder_id = %(folder_id)s"
+
 file_updated_at = "UPDATE files SET updated_at = NOW() where file_id = %(file_id)s"
 
 file_check = "INSERT INTO file_checks (file_id, file_check, check_results, check_info) VALUES (%(file_id)s, %(file_check)s, %(check_results)s, %(check_info)s) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %(check_results)s, check_info = %(check_info)s"
@@ -56,7 +62,7 @@ remove_shares = "DELETE FROM projects_shares WHERE project_id = %(project_id)s"
 
 file_exists = "UPDATE files SET file_exists = %(file_exists)s WHERE file_id = %(file_id)s"
 
-get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s"
+get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s AND d.delivered_to_dams = 9"
 
 check_exif = "SELECT count(*) as entries from files_exif WHERE file_id = %(file_id)s and filetype = %(filetype)s"
 

@@ -120,6 +120,7 @@ create table folders (
     error_info text,    
     date date,
     delivered_to_dams integer default 9,
+    processing boolean DEFAULT 'f',
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX folders_fid_idx ON folders USING BTREE(folder_id);

@@ -57,10 +57,8 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
 
 def delete_folder_files(folder_id, db_cursor, loggerfile):
     db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
-
 
 
 
@@ -69,7 +67,7 @@ def folder_updated_at(folder_id, db_cursor, loggerfile):
     Update the last time the folder was checked
     """
     db_cursor.execute(queries.folder_updated_at, {'folder_id': folder_id})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -79,7 +77,7 @@ def file_updated_at(file_id, db_cursor, loggerfile):
     Update the last time the file was checked
     """
     db_cursor.execute(queries.file_updated_at, {'file_id': file_id})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -118,7 +116,7 @@ def jhove_validate(file_id, filename, db_cursor, loggerfile):
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val, 'check_info': file_status})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -138,7 +136,7 @@ def magick_validate(file_id, filename, db_cursor, loggerfile, paranoid = False):
         magick_identify = 1
     magick_identify_info = out + err
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify, 'check_info': magick_identify_info.decode('latin-1')})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -155,7 +153,7 @@ def tif_compression(file_id, filename, db_cursor, loggerfile):
     else:
         f_compressed = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tif_compression', 'check_results': f_compressed, 'check_info': compressed_info})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -173,7 +171,7 @@ def valid_name(file_id, filename, db_cursor, loggerfile, paranoid = False):
         filename_check = 0
         filename_check_info = "Filename {} in list".format(Path(filename).stem)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check, 'check_info': filename_check_info})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -195,9 +193,8 @@ def tifpages(file_id, filename, db_cursor, loggerfile, paranoid = False):
         no_pages = "Unknown"
         pages_vals = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals, 'check_info': no_pages})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
 
 
 
@@ -217,7 +214,7 @@ def file_exif(file_id, filename, filetype, db_cursor, loggerfile):
         try:
             tag = re.split(r'\t+', line.decode('UTF-8'))
             db_cursor.execute(queries.save_exif, {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1], 'tag': tag[2], 'value': tag[3]})
-            loggerfile.info(db_cursor.query.decode("utf-8"))
+            loggerfile.debug(db_cursor.query.decode("utf-8"))
         except:
             loggerfile.error("Tag not in utf-8 for file {}, {} {} {}".format(file_id, tag[0], tag[1], tag[2]))
             continue
@@ -228,7 +225,7 @@ def file_exif(file_id, filename, filetype, db_cursor, loggerfile):
 def itpc_validate(file_id, filename, db_cursor):
     """
     Check the IPTC Metadata
-    Need to rewrite 
+    2Do
     """
     return False
 
@@ -262,9 +259,8 @@ def file_size_check(filename, filetype, file_id, db_cursor, loggerfile):
             file_size_info = "{}".format(bitmath.getsize(filename, system=bitmath.SI))
         file_check = 'raw_size'
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
 
 
 
@@ -282,7 +278,6 @@ def filemd5(filepath):
     else:
         file_md5 = ""
     return file_md5
-
 
 
 
@@ -306,10 +301,8 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
         file_pair = 0
         file_pair_info = "tif and {} found".format(settings.raw_files)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair, 'check_info': file_pair_info})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
-
 
 
 
@@ -360,9 +353,8 @@ def soxi_check(file_id, filename, file_check, expected_val, db_cursor, loggerfil
         else:
             result_code = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code, 'check_info': result})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
 
 
 
@@ -381,12 +373,12 @@ def check_jpg(file_id, filename, db_cursor, loggerfile):
         magick_identify_info = err
         magick_return = False
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     if magick_return:
         #Store MD5
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        loggerfile.info(db_cursor.query.decode("utf-8"))
+        loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -401,7 +393,7 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor, loggerfile):
         db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': 'tif'})
     elif filetype == "raw":
         db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': 'raw'})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     vendor = pandas.DataFrame(db_cursor.fetchall(), columns = ['md5_1', 'filename'])
     md5file = pandas.read_csv(md5_file, header = None, names = ['md5_2', 'filename'], index_col = False, sep = "  ")
     #Remove suffix
@@ -423,7 +415,6 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor, loggerfile):
         md5_error = md5_error + "There were {} files where the MD5 hash did not match:".format(nrows)
         for i in range(0, nrows):
             md5_error = md5_error + "\n - File: {}, MD5 of file: {}, hash in file: {}".format(md5check_match['filename'][i], md5check_match['md5_2'], md5check_match['md5_1'])
-    #
     ##Extra files in vendor mount
     vendor_extras = vendor[~vendor.filename.isin(md5file.filename)]['filename']
     ##Extra files in md5file
@@ -432,13 +423,11 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor, loggerfile):
 
 
 
-
-
 def check_deleted(filetype, db_cursor, loggerfile):
     """
     Deleted files are tagged in the database
     """
-    #Connect to the database
+    #Get path
     if filetype == 'tif':
         files_path = settings.tif_files_path
     elif filetype == 'wav':
@@ -450,19 +439,20 @@ def check_deleted(filetype, db_cursor, loggerfile):
     else:
         return False
     db_cursor.execute(queries.get_files, {'project_id': settings.project_id})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     files = db_cursor.fetchall()
     for file in files:
-        if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)) == True:
-            file_exists = 0
-            file_exists_info = "File {}/{}/{}.{} was found".format(file[2], files_path, file[1], filetype)
-        else:
-            file_exists = 1
-            file_exists_info = "File {}/{}/{}.{} was not found".format(file[2], files_path, file[1], filetype)
-        db_cursor.execute(queries.file_check, {'file_id': file[0], 'file_check': 'file_exists', 'check_results': file_exists, 'check_info': file_exists_info})
-        loggerfile.info(db_cursor.query.decode("utf-8"))
+        if os.path.isdir("{}/{}/".format(file[2], files_path)) == True:
+            if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)) == True:
+                file_exists = 0
+                file_exists_info = "File {}/{}/{}.{} was found".format(file[2], files_path, file[1], filetype)
+            else:
+                file_exists = 1
+                file_exists_info = "File {}/{}/{}.{} was not found, deleting".format(file[2], files_path, file[1], filetype)
+                db_cursor.execute(queries.delete_file, {'file_id': file[0]})
+                loggerfile.debug(db_cursor.query.decode("utf-8"))
+            loggerfile.info(file_exists_info)
     return True
-
 
 
 
@@ -481,15 +471,13 @@ def check_stitched_jpg(file_id, filename, db_cursor, loggerfile):
         magick_identify_info = err
         magick_return = False
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'stitched_jpg', 'check_results': magick_identify, 'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    loggerfile.info(db_cursor.query.decode("utf-8"))
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
     if magick_return:
         #Store MD5
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        loggerfile.info(db_cursor.query.decode("utf-8"))
+        loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
-
-
 
 
 
@@ -527,3 +515,4 @@ def jpgpreview(file_id, filename, loggerfile):
     else:
         loggerfile.error("File:{}|msg:{}".format(filename, out))
         return False
+
