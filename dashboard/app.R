@@ -863,7 +863,7 @@ server <- function(input, output, session) {
     lbox <- ""
     for (i in seq(1, no_rows)){
         lbox <- paste0(lbox, "<a href=\"#modal", i, "\" data-toggle=\"modal\" data-target=\"#modal", i, "\"><div style=\"display: inline-block;
-position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i], "\" width=\"120px\" height=\"auto\"><br><small>", files_list$file_name[i], "</small></div></a>
+position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg_previews, files_list$file_id[i], "\" width=\"120px\" height=\"auto\"><br><small>", files_list$file_name[i], "</small></div></a>
                        
                        
           <div class=\"modal fade\" id=\"modal", i, "\" tabindex=\"-1\" role=\"dialog\" aria-labelledby=\"myModalLabel\">
@@ -874,7 +874,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"http:/
                   <h4 class=\"modal-title\" id=\"myModalLabel\">", files_list$file_name[i], "</h4>
                 </div>
                 <div class=\"modal-body\">
-                  <img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_list$file_id[i], "\" width=\"100%\" height=\"auto\">
+                  <img src=\"", jpg_previews, files_list$file_id[i], "\" width=\"100%\" height=\"auto\">
                 </div>
                 <div class=\"modal-footer\">
                   <button type=\"button\" class=\"btn btn-default\" data-dismiss=\"modal\">Close</button>
@@ -913,14 +913,14 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"http:/
       showModal(modalDialog(
         size = "l",
         title = "Preview Image",
-        HTML(paste0("<img src=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"100%\">")),
+        HTML(paste0("<img src=\"", jpg_previews, file_id, "\" width = \"100%\">")),
         easyClose = TRUE
       ))
     })
     
     if (project_type == "tif"){
       html_to_print <- paste0(html_to_print, HTML("<dt>TIF preview:</dt><dd>"))
-      html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
+      html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
     }
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
@@ -1324,7 +1324,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"http:/
   
   #footer----
   output$footer <- renderUI({
-    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"https://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
   })
 }
 

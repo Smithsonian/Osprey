@@ -5,7 +5,7 @@ pg_db <- ""
 
 project_id <- 101
 
-jpg_previews <- "/mnt/machine"
+jpg_previews <- "http://server/service?file_id="
 
 project_active <- TRUE
 
