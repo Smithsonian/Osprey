@@ -393,7 +393,7 @@ server <- function(input, output, session) {
     # offset = page * folders_per_page
     
     #folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
-    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
+    folders_q <- paste0("SELECT project_folder, folder_id, coalesce(no_files, 0) as no_files, file_errors FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
     #flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
     folders <- dbGetQuery(db, folders_q)
     
@@ -416,10 +416,10 @@ server <- function(input, output, session) {
         }
         
         #Count files
-        count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
+        #count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
         #flog.info(paste0("count_files: ", count_files), name = "dashboard")
-        folder_files <- dbGetQuery(db, count_files)
-        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folder_files$no_files, "</span><p class=\"list-group-item-text\">")
+        #folder_files <- dbGetQuery(db, count_files)
+        this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folders$no_files[i], "</span><p class=\"list-group-item-text\">")
         
         #Check subfolders
         folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
@@ -430,28 +430,38 @@ server <- function(input, output, session) {
         }
         
         #Only if there are any files
-        if (folder_files$no_files > 0){
+        if (folders$no_files[i] > 0){
           
-          file_checks_all <- paste0(paste(file_checks, collapse = ","), ",file_exists")
+          # file_checks_all <- paste0(paste(file_checks, collapse = ","), ",file_exists")
+          # 
+          # error_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 1 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
+          # error_list <- dbGetQuery(db, error_list)
+          # error_list_count <- error_list$no_files
           
-          error_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 1 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
-          error_list <- dbGetQuery(db, error_list)
-          error_list_count <- error_list$no_files
+          # if (error_list_count == 0){
+          #   #Check if all have been checked
+          #   check_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 9 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
+          #   
+          #   check_list <- dbGetQuery(db, check_list)
+          #   checked_list_count <- check_list$no_files  
+          #   
+          #   if (checked_list_count == 0){
+          #     this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">Files OK</span> ")
+          #   }
+          #   
+          # }else if (error_list_count > 0){
+          #   this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Files with Errors</span> ")
+          # }
           
-          if (error_list_count == 0){
-            #Check if all have been checked
-            check_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 9 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
-            
-            check_list <- dbGetQuery(db, check_list)
-            checked_list_count <- check_list$no_files  
-            
-            if (checked_list_count == 0){
-              this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">Files OK</span> ")
-            }
-            
-          }else if (error_list_count > 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Files with Errors</span> ")
-          }
+          
+          if (folders$file_errors[i] == 0){
+            this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">Files OK</span> ")
+          }else if (folders$file_errors[i] == 1){
+          this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Files with Errors</span> ")
+        }
+          
+          
+          
           
           #MD5 ----
           if (project_type == "tif"){
