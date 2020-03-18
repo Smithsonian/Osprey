@@ -696,7 +696,6 @@ if __name__=="__main__":
                 db_cursor2 = conn2.cursor()
                 db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
                 conn2.close()
-                conn.close()
             except:
                 print("folder_id not found")
             #Compress logs
@@ -710,7 +709,6 @@ if __name__=="__main__":
                 db_cursor2 = conn2.cursor()
                 db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
                 conn2.close()
-                conn.close()
             except:
                 print("folder_id not found")
             #Compress logs
