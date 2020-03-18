@@ -516,3 +516,22 @@ def jpgpreview(file_id, filename, loggerfile):
         loggerfile.error("File:{}|msg:{}".format(filename, out))
         return False
 
+
+
+def update_folder_stats(folder_id, db_cursor, loggerfile):
+    """
+    Update the stats for the folder
+    """
+    db_cursor.execute(queries.update_nofiles, {'folder_id': folder_id})
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.get_fileserrors, {'folder_id': folder_id})
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
+    no_errors = db_cursor.fetchone()[0]
+    if no_errors > 0:
+        f_errors = 1
+    else:
+        f_errors = 0
+    db_cursor.execute(queries.update_folder_errors, {'folder_id': folder_id})
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
+    return True
+

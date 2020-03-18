@@ -74,3 +74,8 @@ save_filesize = "INSERT INTO files_size (file_id, filetype, filesize) VALUES (%(
 
 get_folders = "SELECT folder_id, path FROM folders WHERE project_id = %(project_id)s"
 
+update_nofiles = "UPDATE folders f SET no_files = d.no_files FROM (SELECT count(*) AS no_files, folder_id FROM files WHERE folder_id = %(folder_id)s GROUP BY folder_id) d WHERE f.folder_id = d.folder_id"
+
+get_fileserrors = "SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE file_id in (SELECT file_id from files where folder_id = %(folder_id)s) AND check_results = 1)"
+
+update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
