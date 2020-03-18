@@ -16,7 +16,7 @@ library(sqldf)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.7.3"
+app_ver <- "0.7.4"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -569,13 +569,24 @@ server <- function(input, output, session) {
     if (which_folder == "NULL"){
       p("Select a folder from the list on the left")
     }else{
-      folder_info_q <- paste0("SELECT *, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted FROM folders WHERE folder_id = ", which_folder)
+      folder_info_q <- paste0("SELECT project_folder, coalesce(no_files, 0) as no_files, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted, file_errors FROM folders WHERE folder_id = ", which_folder)
       #flog.info(paste0("folder_info_q: ", folder_info_q), name = "dashboard")
       folder_info <- dbGetQuery(db, folder_info_q)
+      
+      this_folder_status <- ""
+      if (folder_info$no_files > 0){
+        
+        if (folder_info$file_errors == 0){
+          this_folder_status <- "<span class=\"label label-success\" title=\"Files Passed Validation Tests\">Files OK</span>"
+        }else if (folder_info$file_errors == 1){
+          this_folder_status <- "<span class=\"label label-danger\" title=\"Some Files with Errors\">Some Files with Errors</span>"
+        }
+      }
+      
       if (dim(folder_info)[1] == 0){
         p("Select a folder from the list on the left")
       }else{
-        HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3>"))
+        HTML(paste0("<h3><span class=\"label label-primary\">", folder_info$project_folder, "</span></h3><p><span class=\"badge\" title=\"No. of files\">", folder_info$no_files, "</span> ", this_folder_status, "</p>"))
       }
     }
   })
@@ -654,10 +665,10 @@ server <- function(input, output, session) {
       if (dim(folder_info)[1] > 0){
         this_folder <- ""
         
-        folder_subdirs <- dbGetQuery(db, paste0("SELECT status, error_info from folders where folder_id = '", which_folder, "'"))
+        #folder_subdirs <- dbGetQuery(db, paste0("SELECT status, error_info, coalesce(no_files, 0) as no_files, file_errors from folders where folder_id = '", which_folder, "'"))
         error_msg <- ""
-        if (folder_subdirs$status == 9){
-          this_folder <- paste0(this_folder, "<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_subdirs$error_info, "</span></h4>")
+        if (folder_info$status == 9){
+          this_folder <- paste0(this_folder, "<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_info$error_info, "</span></h4>")
         }
         
         
