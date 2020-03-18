@@ -92,6 +92,7 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
     """
     Run checks for tif files
     """
+    global folder_id
     folder_id = int(folder_id)
     tmp_folder = settings.tmp_folder
     #Check if file exists, insert if not
@@ -689,11 +690,19 @@ if __name__=="__main__":
             main()
         except KeyboardInterrupt:
             print("Ctrl-c detected. Leaving program.")
+            try:
+                release_folder()
+            except:
+                print("folder_id not found")
             #Compress logs
             compress_log(filecheck_dir)
             sys.exit(0)
         except Exception as e:
             print("There was an error: {}".format(e))
+            try:
+                release_folder()
+            except:
+                print("folder_id not found")
             #Compress logs
             compress_log(filecheck_dir)
             sys.exit(1)

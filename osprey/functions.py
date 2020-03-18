@@ -541,3 +541,15 @@ def update_folder_stats(folder_id, db_cursor, loggerfile):
     loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 
+
+
+def release_folder():
+    """
+    Release folder from processing flag
+    """
+    conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+    conn.autocommit = True
+    db_cursor = conn.cursor()
+    db_cursor.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
+    conn.close()
+    return True
