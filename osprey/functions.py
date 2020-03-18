@@ -1,6 +1,6 @@
 #Functions for MDfilecheck.py
 
-import os, subprocess, re, xmltodict
+import os, subprocess, re, xmltodict, psycopg2
 import settings
 from random import randint
 import queries
