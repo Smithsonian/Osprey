@@ -381,18 +381,19 @@ server <- function(input, output, session) {
   output$folderlist <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
-    page <- query['p']
+    # page <- query['p']
+    # 
+    # if (page == "NULL"){
+    #   page = 0
+    # }
+    # 
+    # page <- as.numeric(page)
+    # folders_per_page <- 15
+    # 
+    # offset = page * folders_per_page
     
-    if (page == "NULL"){
-      page = 0
-    }
-    
-    page <- as.numeric(page)
-    folders_per_page <- 15
-    
-    offset = page * folders_per_page
-    
-    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
+    #folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
+    folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
     #flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
     folders <- dbGetQuery(db, folders_q)
     
@@ -401,15 +402,17 @@ server <- function(input, output, session) {
     no_folders <- dbGetQuery(db, no_folders_q)[1]
     no_folders <- as.integer(no_folders[1,1])
     
-    list_of_folders <- paste0("<div class=\"list-group\">")
+    list_of_folders <- paste0("<div class=\"list-group\" style = \"overflow-y: scroll; height: 1000px;\">")
     
     if (dim(folders)[1] > 0){
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
-          this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
+          #this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
         }else{
-          this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
+          #this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
+          this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
         }
         
         #Count files
@@ -510,18 +513,17 @@ server <- function(input, output, session) {
     }
     
     
-    if (no_folders > folders_per_page){
-      if (page > 0){
-        if (no_folders > ((page + 1) * folders_per_page)){
-          list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
-        }else{
-          list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a>")
-        }
-      }else{
-        list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
-      }
-      
-    }
+    # if (no_folders > folders_per_page){
+    #   if (page > 0){
+    #     if (no_folders > ((page + 1) * folders_per_page)){
+    #       list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
+    #     }else{
+    #       list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a>")
+    #     }
+    #   }else{
+    #     list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
+    #   }
+    # }
     
     list_of_folders <- paste0(list_of_folders, "</div>")
     HTML(list_of_folders)
