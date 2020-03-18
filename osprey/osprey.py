@@ -691,7 +691,12 @@ if __name__=="__main__":
         except KeyboardInterrupt:
             print("Ctrl-c detected. Leaving program.")
             try:
-                release_folder()
+                conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+                conn2.autocommit = True
+                db_cursor2 = conn2.cursor()
+                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
+                conn2.close()
+                conn.close()
             except:
                 print("folder_id not found")
             #Compress logs
@@ -700,7 +705,12 @@ if __name__=="__main__":
         except Exception as e:
             print("There was an error: {}".format(e))
             try:
-                release_folder()
+                conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+                conn2.autocommit = True
+                db_cursor2 = conn2.cursor()
+                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
+                conn2.close()
+                conn.close()
             except:
                 print("folder_id not found")
             #Compress logs

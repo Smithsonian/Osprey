@@ -1,6 +1,6 @@
 #Functions for MDfilecheck.py
 
-import os, subprocess, re, xmltodict, psycopg2
+import os, subprocess, re, xmltodict
 import settings
 from random import randint
 import queries
@@ -542,14 +542,3 @@ def update_folder_stats(folder_id, db_cursor, loggerfile):
     return True
 
 
-
-def release_folder():
-    """
-    Release folder from processing flag
-    """
-    conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
-    conn.autocommit = True
-    db_cursor = conn.cursor()
-    db_cursor.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
-    conn.close()
-    return True
