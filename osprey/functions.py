@@ -527,11 +527,17 @@ def update_folder_stats(folder_id, db_cursor, loggerfile):
     db_cursor.execute(queries.get_fileserrors, {'folder_id': folder_id})
     loggerfile.debug(db_cursor.query.decode("utf-8"))
     no_errors = db_cursor.fetchone()[0]
+    db_cursor.execute(queries.get_filespending, {'folder_id': folder_id})
+    loggerfile.debug(db_cursor.query.decode("utf-8"))
+    no_pending = db_cursor.fetchone()[0]
     if no_errors > 0:
         f_errors = 1
     else:
-        f_errors = 0
-    db_cursor.execute(queries.update_folder_errors, {'folder_id': folder_id})
+        if no_pending > 0:
+            f_errors = 9
+        else:
+            f_errors = 0
+    db_cursor.execute(queries.update_folder_errors, {'folder_id': folder_id, 'f_errors': f_errors})
     loggerfile.debug(db_cursor.query.decode("utf-8"))
     return True
 

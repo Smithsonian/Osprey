@@ -664,7 +664,7 @@ def main():
                     check_deleted('tif', db_cursor, logger1)
             folder_updated_at(folder_id, db_cursor, logger1)
             #Update folder stats
-            update_folder_stats(folder_id, db_cursor, loggerfile)
+            update_folder_stats(folder_id, db_cursor, logger1)
             #Set as processing done
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
             logger1.debug(db_cursor.query.decode("utf-8"))
