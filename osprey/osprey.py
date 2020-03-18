@@ -92,7 +92,6 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
     """
     Run checks for tif files
     """
-    global folder_id
     folder_id = int(folder_id)
     tmp_folder = settings.tmp_folder
     #Check if file exists, insert if not
@@ -564,6 +563,7 @@ def main():
             logger1.info(folder_path)
             folder_name = os.path.basename(folder)
             #Check if the folder exists in the database
+            global folder_id
             folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
             if folder_id == None:
                 logger1.error("Folder {} had an error".format(folder_name))
