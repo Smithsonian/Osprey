@@ -393,7 +393,9 @@ server <- function(input, output, session) {
     # offset = page * folders_per_page
     
     #folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
-    folders_q <- paste0("SELECT project_folder, folder_id, coalesce(no_files, 0) as no_files, file_errors FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC")
+    folders_q <- paste0("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, f.file_errors, f.status, mt.md5 as md5_tif, mr.md5 as md5_raw, f.delivered_to_dams FROM folders f LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') WHERE f.project_id = ", project_id, " ORDER BY f.date DESC, f.project_folder DESC")
+    
+    
     #flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
     folders <- dbGetQuery(db, folders_q)
     
@@ -422,10 +424,10 @@ server <- function(input, output, session) {
         this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folders$no_files[i], "</span><p class=\"list-group-item-text\">")
         
         #Check subfolders
-        folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
+        #folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
         #flog.info(paste0("folder_subdirs_q: ", folder_subdirs_q), name = "dashboard")
-        folder_subdirs <- dbGetQuery(db, folder_subdirs_q)
-        if (folder_subdirs == 9){
+        #folder_subdirs <- dbGetQuery(db, folder_subdirs_q)
+        if (folders$status[i] == 9){
           this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
         }
         
@@ -465,12 +467,13 @@ server <- function(input, output, session) {
           
           #MD5 ----
           if (project_type == "tif"){
-            md5_file_tif <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'tif' AND folder_id = ", folders$folder_id[i]))
-            md5_file_raw <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'raw' AND folder_id = ", folders$folder_id[i]))
+            #md5_file_tif <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'tif' AND folder_id = ", folders$folder_id[i]))
+            #md5_file_raw <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'raw' AND folder_id = ", folders$folder_id[i]))
             
-            if (dim(md5_file_tif)[1] == 0 || dim(md5_file_raw)[1] == 0){
-              this_folder <- paste0(this_folder, " <span class=\"label label-default\">MD5 Files pending</span> ")
-            }else if (md5_file_tif$md5 == 0 && md5_file_raw$md5 == 0){
+            # if (dim(md5_file_tif)[1] == 0 || dim(md5_file_raw)[1] == 0){
+            #   this_folder <- paste0(this_folder, " <span class=\"label label-default\">MD5 Files pending</span> ")
+            # }else 
+            if (folders$md5_tif[i] == 0 && folders$md5_raw[i] == 0){
               this_folder <- paste0(this_folder, " <span class=\"label label-success\">MD5 Files OK</span> ")
             }else{
               this_folder <- paste0(this_folder, " <span class=\"label label-warning\">MD5 Files missing</span> ")
@@ -482,8 +485,8 @@ server <- function(input, output, session) {
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
         }
         
-        unknown_file <- dbGetQuery(db, paste0("SELECT status FROM folders WHERE folder_id = ", folders$folder_id[i]))
-        if (unknown_file$status == 1){
+        #unknown_file <- dbGetQuery(db, paste0("SELECT status FROM folders WHERE folder_id = ", folders$folder_id[i]))
+        if (folders$status[i] == 1){
           this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Unknown file found in folder\">Unknown File</span> ")
         }
         
@@ -507,13 +510,13 @@ server <- function(input, output, session) {
         }
         
         #Check if delivered to DAMS
-        delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", folders$folder_id[i])
+        #delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", folders$folder_id[i])
         #flog.info(paste0("delivered_dams_q: ", delivered_dams_q), name = "dashboard")
-        delivered_dams <- dbGetQuery(db, delivered_dams_q)
+        #delivered_dams <- dbGetQuery(db, delivered_dams_q)
         
-        if (delivered_dams[1] == 1){
+        if (folders$delivered_to_dams[i] == 1){
           this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">In DAMS</span>")
-        }else if (delivered_dams[1] == 0){
+        }else if (folders$delivered_to_dams[i] == 0){
           this_folder <- paste0(this_folder, "</p><p><span class=\"label label-warning\" title=\"Ready for DAMS\">Ready for DAMS</span>")
         }
         
