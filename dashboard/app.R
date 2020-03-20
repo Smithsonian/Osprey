@@ -3,20 +3,19 @@ library(shiny)
 library(dplyr)
 library(DBI)
 library(DT)
-#library(futile.logger)
 library(reshape)
 library(stringr)
 library(shinycssloaders)
 library(shinydashboard)
 library(shinyWidgets)
-library(ggplot2)
+#library(ggplot2)
 library(sqldf)
 
 
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.7.4"
+app_ver <- "0.7.5"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -25,7 +24,6 @@ options(encoding = 'UTF-8')
 #Logfile----
 dir.create("logs", showWarnings = FALSE)
 logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-#flog.logger("dashboard", INFO, appender=appender.file(logfile))
 
 
 #Connect to the database ----
@@ -140,7 +138,6 @@ server <- function(input, output, session) {
                   port = 5432)
   
   file_checks_q <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
-  #flog.info(paste0("file_checks_q: ", file_checks_q), name = "dashboard")
   file_checks_list <- dbGetQuery(db, file_checks_q)
   session$userData$file_checks_list <- file_checks_list
   file_checks <- stringr::str_split(file_checks_list, ",")[[1]]
@@ -154,7 +151,6 @@ server <- function(input, output, session) {
     total_count <- total_count + old_count
   }
   
-  #err_count <- 0
   check_count <- paste0("SELECT count(distinct file_id) FROM file_checks WHERE check_results = 1 AND file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = ", project_id, "))")
   err_count <- dbGetQuery(db, check_count)[1]
   
@@ -267,11 +263,9 @@ server <- function(input, output, session) {
     req(which_folder != "NULL")
     
     postp_q <- paste0("SELECT project_postprocessing FROM projects WHERE project_id = ", project_id)
-    #flog.info(paste0("postp_q: ", postp_q), name = "dashboard")
     postprocess <- dbGetQuery(db, postp_q)
     
     if (is.na(postprocess)){
-      #DT::dataTableOutput("files_table")
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
         tabPanel("Lightbox", uiOutput("files_lightbox"))
@@ -299,7 +293,6 @@ server <- function(input, output, session) {
             SELECT updated_at AS last_update FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = ", project_id, ")
 					ORDER BY last_update DESC LIMIT 1) a")
       
-      #flog.info(paste0("last_update_q: ", last_update_q), name = "dashboard")
       last_update <- as.numeric(dbGetQuery(db, last_update_q))
       
       if (!is.na(last_update)){
@@ -328,7 +321,6 @@ server <- function(input, output, session) {
     
     #Disk used----
     filesize_q <- paste0("SELECT sum(filesize) as total_size FROM files_size WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = ", project_id, "))")
-    #flog.info(paste0("filesize_q: ", filesize_q), name = "dashboard")
     total_size <- dbGetQuery(db, filesize_q)
     if (!is.na(total_size)){
       total_size_formatted <- utils:::format.object_size(total_size, "auto")
@@ -349,7 +341,6 @@ server <- function(input, output, session) {
     shares_html <- ""
     
     shares_q <- paste0("SELECT * FROM projects_shares WHERE project_id = ", project_id)
-    #flog.info(paste0("shares_q: ", shares_q), name = "dashboard")
     shares <- dbGetQuery(db, shares_q)
     if (dim(shares)[1] > 0){
       for (i in seq(1, dim(shares)[1])){
@@ -362,7 +353,6 @@ server <- function(input, output, session) {
           prog_class <- "success"
         }
         share <- shares$share[i]
-        #shares_html <- paste0(shares_html, "Space used in share ", share, " (", utils:::format.object_size(as.numeric(as.numeric(shares$total[i])), "auto"), "):<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
         shares_html <- paste0(shares_html, "Space used in share ", share, "<div class=\"progress\"><div class=\"progress-bar progress-bar-", prog_class, "\" role=\"progressbar\" aria-valuenow=", per_used, " aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"width: ", per_used, "%\">
     ", per_used, "%</div>
 </div>")
@@ -381,26 +371,12 @@ server <- function(input, output, session) {
   output$folderlist <- renderUI({
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
-    # page <- query['p']
-    # 
-    # if (page == "NULL"){
-    #   page = 0
-    # }
-    # 
-    # page <- as.numeric(page)
-    # folders_per_page <- 15
-    # 
-    # offset = page * folders_per_page
     
-    #folders_q <- paste0("SELECT project_folder, folder_id FROM folders WHERE project_id = ", project_id, " ORDER BY date DESC, project_folder DESC LIMIT ", folders_per_page, " OFFSET ", offset)
     folders_q <- paste0("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, f.file_errors, f.status, mt.md5 as md5_tif, mr.md5 as md5_raw, f.delivered_to_dams FROM folders f LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') WHERE f.project_id = ", project_id, " ORDER BY f.date DESC, f.project_folder DESC")
     
-    
-    #flog.info(paste0("folders_q: ", folders_q), name = "dashboard")
     folders <- dbGetQuery(db, folders_q)
     
     no_folders_q <- paste0("SELECT count(*) as no_folders FROM folders WHERE project_id = ", project_id)
-    #flog.info(paste0("no_folders_q: ", no_folders_q), name = "dashboard")
     no_folders <- dbGetQuery(db, no_folders_q)[1]
     no_folders <- as.integer(no_folders[1,1])
     
@@ -410,133 +386,73 @@ server <- function(input, output, session) {
       for (i in 1:dim(folders)[1]){
         
         if (as.character(folders$folder_id[i]) == as.character(which_folder)){
-          #this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
           this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item active\">", folders$project_folder[i])
         }else{
-          #this_folder <- paste0("<a href=\"./?p=", page, "&folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
           this_folder <- paste0("<a href=\"./?folder=", folders$folder_id[i], "\" class=\"list-group-item\">", folders$project_folder[i])
         }
         
         #Count files
-        #count_files <- paste0("SELECT count(*) as no_files from files where folder_id = ", folders$folder_id[i])
-        #flog.info(paste0("count_files: ", count_files), name = "dashboard")
-        #folder_files <- dbGetQuery(db, count_files)
         this_folder <- paste0(this_folder, " <span class=\"badge\" title=\"No. of files\">", folders$no_files[i], "</span><p class=\"list-group-item-text\">")
         
         #Check subfolders
-        #folder_subdirs_q <- paste0("SELECT status from folders where folder_id = ", folders$folder_id[i])
-        #flog.info(paste0("folder_subdirs_q: ", folder_subdirs_q), name = "dashboard")
-        #folder_subdirs <- dbGetQuery(db, folder_subdirs_q)
         if (folders$status[i] == 9){
           this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Missing subfolders\">Error</span> ")
         }
         
         #Only if there are any files
         if (folders$no_files[i] > 0){
-          
-          # file_checks_all <- paste0(paste(file_checks, collapse = ","), ",file_exists")
-          # 
-          # error_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 1 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
-          # error_list <- dbGetQuery(db, error_list)
-          # error_list_count <- error_list$no_files
-          
-          # if (error_list_count == 0){
-          #   #Check if all have been checked
-          #   check_list <- paste0("SELECT COUNT(DISTINCT file_id) as no_files FROM file_checks WHERE check_results = 9 AND file_check = ANY('{", file_checks_all, "}'::text[]) AND file_id in (SELECT file_id from files where folder_id = ", folders$folder_id[i], ")")
-          #   
-          #   check_list <- dbGetQuery(db, check_list)
-          #   checked_list_count <- check_list$no_files  
-          #   
-          #   if (checked_list_count == 0){
-          #     this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">Files OK</span> ")
-          #   }
-          #   
-          # }else if (error_list_count > 0){
-          #   this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Files with Errors</span> ")
-          # }
-          
-          
           if (folders$file_errors[i] == 0){
             this_folder <- paste0(this_folder, " <span class=\"label label-success\" title=\"Files passed validation tests\">Files OK</span> ")
           }else if (folders$file_errors[i] == 1){
           this_folder <- paste0(this_folder, " <span class=\"label label-danger\" title=\"Files with errors\">Files with Errors</span> ")
-        }
-          
-          
-          
-          
+          }
+  
           #MD5 ----
           if (project_type == "tif"){
-            #md5_file_tif <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'tif' AND folder_id = ", folders$folder_id[i]))
-            #md5_file_raw <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'raw' AND folder_id = ", folders$folder_id[i]))
-            
-            # if (dim(md5_file_tif)[1] == 0 || dim(md5_file_raw)[1] == 0){
-            #   this_folder <- paste0(this_folder, " <span class=\"label label-default\">MD5 Files pending</span> ")
-            # }else 
             if (folders$md5_tif[i] == 0 && folders$md5_raw[i] == 0){
               this_folder <- paste0(this_folder, " <span class=\"label label-success\">MD5 Files OK</span> ")
             }else{
               this_folder <- paste0(this_folder, " <span class=\"label label-warning\">MD5 Files missing</span> ")
             }
           }
-          
-          
+
         }else{
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
-        }
+          }
         
-        #unknown_file <- dbGetQuery(db, paste0("SELECT status FROM folders WHERE folder_id = ", folders$folder_id[i]))
-        if (folders$status[i] == 1){
-          this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Unknown file found in folder\">Unknown File</span> ")
-        }
-        
-        #QC
-        if (!exists("project_qc")){
-          project_qc = FALSE
-        }
-        if (project_qc == TRUE){
-          folder_qc <- paste0("SELECT qc_pass from qc_lots l, qc_lots_folders f where l.qc_lot_id = f.qc_lot_id AND f.folder_id = ", folders$folder_id[i])
-          #flog.info(paste0("folder_qc: ", folder_qc), name = "dashboard")
-          folder_qc_status <- dbGetQuery(db, folder_qc)
-          if (dim(folder_qc_status)[1] == 0){
-            this_folder <- paste0(this_folder, "<span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
-          }else if (dim(folder_qc_status)[1] == 1){
-            if (folder_qc_status == TRUE){
-              this_folder <- paste0(this_folder, "<span class=\"label label-success\" title=\"Folder passed QC\">QC OK</span> ")
-            }else if (folder_qc_status == FALSE){
-              this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Folder failed QC\">QC Failed</span> ")
+          if (folders$status[i] == 1){
+            this_folder <- paste0(this_folder, " <span class=\"label label-warning\" title=\"Unknown file found in folder\">Unknown File</span> ")
+          }
+          
+          #QC
+          if (!exists("project_qc")){
+            project_qc = FALSE
+          }
+          if (project_qc == TRUE){
+            folder_qc <- paste0("SELECT qc_pass from qc_lots l, qc_lots_folders f where l.qc_lot_id = f.qc_lot_id AND f.folder_id = ", folders$folder_id[i])
+            folder_qc_status <- dbGetQuery(db, folder_qc)
+            if (dim(folder_qc_status)[1] == 0){
+              this_folder <- paste0(this_folder, "<span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
+            }else if (dim(folder_qc_status)[1] == 1){
+              if (folder_qc_status == TRUE){
+                this_folder <- paste0(this_folder, "<span class=\"label label-success\" title=\"Folder passed QC\">QC OK</span> ")
+              }else if (folder_qc_status == FALSE){
+                this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Folder failed QC\">QC Failed</span> ")
+              }
             }
           }
-        }
-        
-        #Check if delivered to DAMS
-        #delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", folders$folder_id[i])
-        #flog.info(paste0("delivered_dams_q: ", delivered_dams_q), name = "dashboard")
-        #delivered_dams <- dbGetQuery(db, delivered_dams_q)
-        
-        if (folders$delivered_to_dams[i] == 1){
-          this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">In DAMS</span>")
-        }else if (folders$delivered_to_dams[i] == 0){
-          this_folder <- paste0(this_folder, "</p><p><span class=\"label label-warning\" title=\"Ready for DAMS\">Ready for DAMS</span>")
-        }
-        
-        this_folder <- paste0(this_folder, "</p></a>")
-        list_of_folders <- paste0(list_of_folders, this_folder)
+          
+          #Check if delivered to DAMS
+          if (folders$delivered_to_dams[i] == 1){
+            this_folder <- paste0(this_folder, "</p><p><span class=\"label label-success\" title=\"Folder in DAMS\">In DAMS</span>")
+          }else if (folders$delivered_to_dams[i] == 0){
+            this_folder <- paste0(this_folder, "</p><p><span class=\"label label-warning\" title=\"Ready for DAMS\">Ready for DAMS</span>")
+          }
+          
+          this_folder <- paste0(this_folder, "</p></a>")
+          list_of_folders <- paste0(list_of_folders, this_folder)
       }
     }
-    
-    
-    # if (no_folders > folders_per_page){
-    #   if (page > 0){
-    #     if (no_folders > ((page + 1) * folders_per_page)){
-    #       list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
-    #     }else{
-    #       list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page - 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-left\"><span class=\"glyphicon glyphicon-backward\" aria-hidden=\"true\"></span> Prev page</a>")
-    #     }
-    #   }else{
-    #     list_of_folders <- paste0(list_of_folders, "<br><a href=\"./?p=", page + 1, "\" type=\"button\" class=\"btn btn-primary btn-xs pull-right\"><span class=\"glyphicon glyphicon-forward\" aria-hidden=\"true\"></span> Next page</a>")
-    #   }
-    # }
     
     list_of_folders <- paste0(list_of_folders, "</div>")
     HTML(list_of_folders)
@@ -547,7 +463,6 @@ server <- function(input, output, session) {
   output$project_alert <- renderUI({
     
     proj_alert_q <- paste0("SELECT project_message, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as date FROM projects_alerts WHERE active = 't' AND project_id = ", project_id)
-    #flog.info(paste0("proj_alert_q: ", proj_alert_q), name = "dashboard")
     proj_alert <- dbGetQuery(db, proj_alert_q)
     if (dim(proj_alert)[1] > 0){
       to_print <- "<div class=\"alert alert-warning\" role=\"alert\"><strong>Notice:</strong> "
@@ -559,7 +474,6 @@ server <- function(input, output, session) {
     }else{
       req(FALSE)
     }
-    
   })
   
   
@@ -573,7 +487,6 @@ server <- function(input, output, session) {
       p("Select a folder from the list on the left")
     }else{
       folder_info_q <- paste0("SELECT project_folder, coalesce(no_files, 0) as no_files, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted, file_errors FROM folders WHERE folder_id = ", which_folder)
-      #flog.info(paste0("folder_info_q: ", folder_info_q), name = "dashboard")
       folder_info <- dbGetQuery(db, folder_info_q)
       
       this_folder_status <- ""
@@ -614,7 +527,6 @@ server <- function(input, output, session) {
   
   output$proj_dates <- renderUI({
     dates_q <- paste0("SELECT DISTINCT date_trunc('day', created_at) AS date FROM files WHERE folder_id in (SELECT folder_id from folders where project_id = ", project_id, ") ORDER BY date DESC")
-    #flog.info(paste0("dates_q: ", dates_q), name = "dashboard")
     proj_dates <- dbGetQuery(db, dates_q)
     
     proj_dates <- na.omit(proj_dates)
@@ -636,7 +548,6 @@ server <- function(input, output, session) {
                         where date_trunc('day', tmp.created_at) = '", input$this_date, "'
                         group by int
                         order by int")
-    #flog.info(paste0("folder_progress_q: ", folder_progress_q), name = "dashboard")
     folder_progress <- dbGetQuery(db, folder_progress_q)
     
     session$userData$folder_progress <- folder_progress
@@ -663,12 +574,10 @@ server <- function(input, output, session) {
     
     if (which_folder != "NULL"){
       folder_info_q <- paste0("SELECT *, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as import_date, to_char(updated_at, 'Mon DD, YYYY HH24:MI:SS') as updated_at_formatted FROM folders WHERE folder_id = ", which_folder)
-      #flog.info(paste0("folder_info_q: ", folder_info_q), name = "dashboard")
       folder_info <- dbGetQuery(db, folder_info_q)
       if (dim(folder_info)[1] > 0){
         this_folder <- ""
         
-        #folder_subdirs <- dbGetQuery(db, paste0("SELECT status, error_info, coalesce(no_files, 0) as no_files, file_errors from folders where folder_id = '", which_folder, "'"))
         error_msg <- ""
         if (folder_info$status == 9){
           this_folder <- paste0(this_folder, "<h4><span class=\"label label-danger\" title=\"Missing subfolders\">", folder_info$error_info, "</span></h4>")
@@ -703,7 +612,6 @@ server <- function(input, output, session) {
         }
         if (project_qc == TRUE){
           folder_qc <- paste0("SELECT qc_pass from qc_lots l, qc_lots_folders f where l.qc_lot_id = f.qc_lot_id AND f.folder_id = ", which_folder)
-          #flog.info(paste0("folder_qc: ", folder_qc), name = "dashboard")
           folder_qc_status <- dbGetQuery(db, folder_qc)
           if (dim(folder_qc_status)[1] == 0){
             this_folder <- paste0(this_folder, "<span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
@@ -718,7 +626,6 @@ server <- function(input, output, session) {
         
         #Check if delivered to DAMS
         delivered_dams_q <- paste0("SELECT delivered_to_dams from folders where folder_id = ", which_folder)
-        #flog.info(paste0("delivered_dams_q: ", delivered_dams_q), name = "dashboard")
         delivered_dams <- dbGetQuery(db, delivered_dams_q)
         
         if (delivered_dams[1] == 1){
@@ -761,8 +668,7 @@ server <- function(input, output, session) {
     checks_query <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
     checks_list <- strsplit(dbGetQuery(db, checks_query)[1,1], ",")[[1]]
     
-    folder_check_query <- paste0("
-                  SELECT f.file_name, fc.file_check, CASE WHEN fc.check_results = 0 THEN 'OK' WHEN fc.check_results = 9 THEN 'Pending' WHEN fc.check_results = 1 THEN 'Failed' END as check_results, fc.check_info 
+    folder_check_query <- paste0("SELECT f.file_name, fc.file_check, CASE WHEN fc.check_results = 0 THEN 'OK' WHEN fc.check_results = 9 THEN 'Pending' WHEN fc.check_results = 1 THEN 'Failed' END as check_results, fc.check_info 
                   FROM files f, file_checks fc where f.file_id = fc.file_id AND f.folder_id = ", which_folder)
     
     files_list <- dbGetQuery(db, folder_check_query)
@@ -908,8 +814,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
               </div>
             </div>
           </div>
-                       
-                       ")
+       ")
       }
     
     HTML(lbox)
@@ -927,7 +832,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     file_name <- session$userData$fileslist_df[input$files_table_rows_selected, ]$file_name
     
     file_info_q <- paste0("SELECT *, to_char(coalesce(created_at, updated_at), 'Mon DD, YYYY HH24:MI:SS') as date, to_char(file_timestamp, 'Mon DD, YYYY HH24:MI:SS') as filedate FROM files WHERE file_name = '", file_name, "' AND folder_id = ", which_folder)
-    #flog.info(paste0("file_info_q: ", file_info_q), name = "dashboard")
     file_info <- dbGetQuery(db, file_info_q)
     
     file_id <- file_info$file_id
@@ -971,7 +875,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #TIF md5----
     if (project_type == "tif"){
       info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       md5 <- dbGetQuery(db, info_q)
       
       if (dim(md5)[1] == 0){
@@ -982,7 +885,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       
       #raw
       info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'raw' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       md5 <- dbGetQuery(db, info_q)
       
       if (dim(md5)[1] == 0){
@@ -995,7 +897,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #WAV MD5
     if (project_type == "sound"){
       info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'wav' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       md5 <- dbGetQuery(db, info_q)
       
       if (dim(md5)[1] == 0){
@@ -1008,7 +909,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #valid_name
     if (stringr::str_detect(session$userData$file_checks_list, "valid_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'valid_name' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
@@ -1025,7 +925,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #raw_pair
     if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'raw_pair' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
@@ -1042,7 +941,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #unique_file ----
     if (stringr::str_detect(session$userData$file_checks_list, "unique_file")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'unique_file' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
@@ -1059,7 +957,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #old_names ----
     if (stringr::str_detect(session$userData$file_checks_list, "old_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'old_name' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
@@ -1076,7 +973,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     #JHOVE ----
     if (stringr::str_detect(session$userData$file_checks_list, "jhove")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'jhove' AND file_id = ", file_id)
-      #flog.info(paste0("info_q: ", info_q), name = "dashboard")
       check_res <- dbGetQuery(db, info_q)
       
       if (dim(check_res)[1] == 1){
@@ -1094,7 +990,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     if (project_type == "tif"){
       if (stringr::str_detect(session$userData$file_checks_list, "tifpages")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tifpages' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
@@ -1113,7 +1008,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     if (project_type == "tif"){
       if (stringr::str_detect(session$userData$file_checks_list, "tif_compression")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tif_compression' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
@@ -1132,7 +1026,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     if (project_type == "tif"){
       if (stringr::str_detect(session$userData$file_checks_list, "magick")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'magick' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         m_info <- check_res$check_info
@@ -1163,7 +1056,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       #stitched_jpg ----
       if (stringr::str_detect(session$userData$file_checks_list, "stitched_jpg")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         j_info <- check_res$check_info
@@ -1193,14 +1085,11 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     }
     
     
-    
-    
     #Metadata----
     html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>", actionLink("exiftif", label = "TIF File Metadata"))
     html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
     
     tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id, " ORDER BY taggroup, tag")
-    #flog.info(paste0("tifexif_q: ", tifexif_q), name = "dashboard")
     tifexif <- dbGetQuery(db, tifexif_q)
     
     output$tifexif_dt <- DT::renderDataTable({
@@ -1230,7 +1119,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       showModal(modalDialog(
         size = "l",
         title = "TIF EXIF Metadata",
-        #HTML(display_tifexif),
         DT::dataTableOutput("tifexif_dt"),
         easyClose = TRUE
       ))
@@ -1238,7 +1126,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
     
     rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
-    #flog.info(paste0("rawexif_q: ", rawexif_q), name = "dashboard")
     rawexif <- dbGetQuery(db, rawexif_q)
     
     output$rawexif_dt <- DT::renderDataTable({
@@ -1267,7 +1154,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       showModal(modalDialog(
         size = "l",
         title = "RAW EXIF Metadata",
-        #HTML(display_rawexif),
         DT::dataTableOutput("rawexif_dt"),
         easyClose = TRUE
       ))
@@ -1279,7 +1165,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       #filetype ----
       if (stringr::str_detect(session$userData$file_checks_list, "filetype")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'filetype' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
@@ -1295,7 +1180,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       
       if (stringr::str_detect(session$userData$file_checks_list, "samprate")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'samprate' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
@@ -1311,7 +1195,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       
       if (stringr::str_detect(session$userData$file_checks_list, "channels")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'channels' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
@@ -1327,7 +1210,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       
       if (stringr::str_detect(session$userData$file_checks_list, "bits")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'bits' AND file_id = ", file_id)
-        #flog.info(paste0("info_q: ", info_q), name = "dashboard")
         check_res <- dbGetQuery(db, info_q)
         
         if (dim(check_res)[1] == 1){
