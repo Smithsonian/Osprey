@@ -523,7 +523,7 @@ def main():
     for p_path in settings.project_paths:
         if os.path.isdir(p_path) == False:
             logger1.error("Path not found: {}".format(p_path))
-            sys.exit(1)
+            continue
     #Connect to the database
     logger1.info("Connecting to database")
     conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
