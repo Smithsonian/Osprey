@@ -121,6 +121,7 @@ create table folders (
     date date,
     delivered_to_dams integer default 9,
     processing boolean DEFAULT 'f',
+    processing_md5 boolean DEFAULT 'f',
     no_files integer,
     file_errors integer DEFAULT 9,
     updated_at timestamp with time zone DEFAULT NOW()
