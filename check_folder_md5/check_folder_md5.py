@@ -26,10 +26,6 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 import queries
 
 
-##Import helper functions
-from functions import *
-
-
 ##Import settings from settings.py file
 import settings
 
@@ -83,10 +79,6 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     """
     Check if a folder exists, add if it does not
     """
-    if settings.folder_name == "server_folder":
-        server_folder_path = folder_path.split("/")
-        len_server_folder_path = len(server_folder_path)
-        folder_name = "{}/{}".format(server_folder_path[len_server_folder_path-2], server_folder_path[len_server_folder_path-1])
     db_cursor.execute(queries.select_folderid, {'project_folder': folder_name, 'folder_path': folder_path,'project_id': project_id})
     folder_id = db_cursor.fetchone()
     if folder_id == None:
@@ -143,10 +135,18 @@ def main():
             if folder_proc[0] == True:
                 logger1.info("Folder checked by another computer, going for the next one {}".format(folder_path))
                 continue
+            #Check if another computer is checking the md5 of the folder
+            db_cursor.execute(queries.folder_check_processing_md5, {'folder_id': folder_id})
+            logger1.debug(db_cursor.query.decode("utf-8"))
+            folder_proc = db_cursor.fetchone()
+            if folder_proc[0] == True:
+                logger1.info("Folder MD5 checked by another computer, going for the next one {}".format(folder_path))
+                continue
             #Set as processing
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
             logger1.debug(db_cursor.query.decode("utf-8"))
             #Check each subfolder
+            checked_ok = 0
             for subfolder in settings.subfolders:
                 if os.path.isdir(folder_path + "/" + subfolder) == False:
                     logger1.info("Missing subfolder: {}".format(subfolder))
@@ -159,13 +159,22 @@ def main():
                     (out,err) = p.communicate()
                     if p.returncode == 0:
                         checked_ok += 1
-                        logger1.info("Files match the md5 file: {}".format(folder_full_path))
-                if checked_ok == len(settings.subfolders)
-                    #Folders were checked and passed
-                    logger1.info("Folder passed: {}".format(folder_path))
-                else:
-                    #Something didn't pass
-                    logger1.error("Folder failed: {}".format(folder_path))
+                        logger1.info("Files match the md5 file: {}/{}".format(folder_name, subfolder))
+                        logger1.debug("Results for {}/{}: {}".format(folder_name, subfolder, out))
+                    else:
+                        logger1.error("Folder did not pass: {}/{}".format(folder_name, subfolder))
+                        logger1.debug("Results for {}/{}: {}".format(folder_name, subfolder, out))
+                        logger1.debug("Error msg for {}/{}: {}".format(folder_name, subfolder, err))
+            if checked_ok == len(settings.subfolders):
+                #Folders were checked and passed
+                logger1.info("Folder passed: {}".format(folder_path))
+                #Update database
+                db_cursor.execute(queries.file_postprocessing1, {'folder_id': folder_id})
+                db_cursor.execute(queries.file_postprocessing2, {'folder_id': folder_id})
+                db_cursor.execute(queries.file_postprocessing3, {'folder_id': folder_id})
+            else:
+                #Something didn't pass
+                logger1.error("Folder failed: {}".format(folder_path))
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
             logger1.debug(db_cursor.query.decode("utf-8"))
     #Disconnect from db
