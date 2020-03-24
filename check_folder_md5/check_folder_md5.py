@@ -142,6 +142,20 @@ def main():
             if folder_proc[0] == True:
                 logger1.info("Folder MD5 checked by another computer, going for the next one {}".format(folder_path))
                 continue
+            #Check if the folder has been fully checked
+            db_cursor.execute(queries.folder_check_filechecks, {'folder_id': folder_id})
+            logger1.debug(db_cursor.query.decode("utf-8"))
+            folder_proc = db_cursor.fetchone()
+            if folder_proc[0] == 0 or folder_proc[1] > 0:
+                logger1.info("Folder empty or not fully checked {}".format(folder_path))
+                continue
+            #Check if the folder has been tagged as OK
+            db_cursor.execute(queries.folder_final_check, {'folder_id': folder_id})
+            logger1.debug(db_cursor.query.decode("utf-8"))
+            folder_proc = db_cursor.fetchone()
+            if folder_proc[0] != 0:
+                logger1.info("Folder not tagged as OK {}".format(folder_path))
+                continue
             #Set as processing
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
             logger1.debug(db_cursor.query.decode("utf-8"))
@@ -168,10 +182,17 @@ def main():
             if checked_ok == len(settings.subfolders):
                 #Folders were checked and passed
                 logger1.info("Folder passed: {}".format(folder_path))
+                #Move folder to DAMS pickup
+                try:
+                    shutil.move(folder_path, settings.move_to_path)
+                except:
+                    logger1.error("Could not move folder {}".format(folder_path))
+                    sys.exit(1)
                 #Update database
                 db_cursor.execute(queries.file_postprocessing1, {'folder_id': folder_id})
                 db_cursor.execute(queries.file_postprocessing2, {'folder_id': folder_id})
                 db_cursor.execute(queries.file_postprocessing3, {'folder_id': folder_id})
+                db_cursor.execute(queries.file_postprocessing4, {'folder_id': folder_id})
             else:
                 #Something didn't pass
                 logger1.error("Folder failed: {}".format(folder_path))
@@ -179,10 +200,7 @@ def main():
             logger1.debug(db_cursor.query.decode("utf-8"))
     #Disconnect from db
     conn.close()
-    logger1.info("Sleeping for {} secs".format(settings.sleep))
-    #Sleep before trying again
-    time.sleep(settings.sleep)
-
+    return
 
 
 
@@ -191,36 +209,35 @@ def main():
 # Main loop
 ############################################
 if __name__=="__main__":
-    while True:
-        #main()
+    #main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Ctrl-c detected. Leaving program.")
         try:
-            main()
-        except KeyboardInterrupt:
-            print("Ctrl-c detected. Leaving program.")
-            try:
-                conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
-                conn2.autocommit = True
-                db_cursor2 = conn2.cursor()
-                db_cursor2.execute("UPDATE folders SET processing_md5 = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
-                conn2.close()
-            except:
-                print("folder_id not found")
-            #Compress logs
-            compress_log(filecheck_dir)
-            sys.exit(0)
-        except Exception as e:
-            print("There was an error: {}".format(e))
-            try:
-                conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
-                conn2.autocommit = True
-                db_cursor2 = conn2.cursor()
-                db_cursor2.execute("UPDATE folders SET processing_md5 = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
-                conn2.close()
-            except:
-                print("folder_id not found")
-            #Compress logs
-            compress_log(filecheck_dir)
-            sys.exit(1)
+            conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+            conn2.autocommit = True
+            db_cursor2 = conn2.cursor()
+            db_cursor2.execute("UPDATE folders SET processing_md5 = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
+            conn2.close()
+        except:
+            print("folder_id not found")
+        #Compress logs
+        compress_log(filecheck_dir)
+        sys.exit(0)
+    except Exception as e:
+        print("There was an error: {}".format(e))
+        try:
+            conn2 = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+            conn2.autocommit = True
+            db_cursor2 = conn2.cursor()
+            db_cursor2.execute("UPDATE folders SET processing_md5 = 'f' WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
+            conn2.close()
+        except:
+            print("folder_id not found")
+        #Compress logs
+        compress_log(filecheck_dir)
+        sys.exit(1)
 
 
 
