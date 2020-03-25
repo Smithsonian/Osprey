@@ -183,6 +183,10 @@ def main():
                 #Folders were checked and passed
                 logger1.info("Folder passed: {}".format(folder_path))
                 #Move folder to DAMS pickup
+                #Check that it doesn't exist first
+                if os.path.isdir("{}/{}".format(settings.move_to_path, folder_name)):
+                    logger1.error("Folder exists in target {}".format(folder_path))
+                    sys.exit(1)
                 try:
                     shutil.move(folder_path, settings.move_to_path)
                 except:
