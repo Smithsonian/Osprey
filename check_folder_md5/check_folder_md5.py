@@ -8,7 +8,7 @@
 # Import modules
 ############################################
 import os, sys, shutil, subprocess, locale, logging, glob
-import xmltodict, bitmath, pandas, time, glob
+import xmltodict, bitmath, pandas, time
 import random
 #For Postgres
 import psycopg2
@@ -146,8 +146,11 @@ def main():
             db_cursor.execute(queries.folder_check_filechecks, {'folder_id': folder_id})
             logger1.debug(db_cursor.query.decode("utf-8"))
             folder_proc = db_cursor.fetchone()
-            if folder_proc[0] == 0 or folder_proc[1] > 0:
-                logger1.info("Folder empty or not fully checked {}".format(folder_path))
+            if folder_proc[0] == 0:
+                logger1.info("Folder empty {}".format(folder_path))
+                continue
+            if folder_proc[1] > 0:
+                logger1.info("Folder not fully checked {}".format(folder_path))
                 continue
             #Check if the folder has been tagged as OK
             db_cursor.execute(queries.folder_final_check, {'folder_id': folder_id})

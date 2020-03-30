@@ -31,6 +31,7 @@ CREATE TABLE projects (
     project_area text,
     project_start date,
     project_end date,
+    dpoir boolean DEFAULT 't',
     stats_estimated bool DEFAULT 't',
     images_estimated bool DEFAULT 'f',
     objects_estimated bool DEFAULT 'f',
@@ -40,6 +41,7 @@ CREATE TABLE projects (
 );
 CREATE INDEX projects_pid_idx ON projects USING BTREE(project_id);
 CREATE INDEX projects_status_idx ON projects USING BTREE(project_status);
+CREATE INDEX projects_dpoir_idx ON projects USING BTREE(dpoir);
 
 ALTER TABLE projects ADD COLUMN project_type text DEFAULT 'production';
 
