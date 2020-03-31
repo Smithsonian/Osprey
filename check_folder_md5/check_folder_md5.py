@@ -180,6 +180,7 @@ def main():
                         logger1.debug("Results for {}/{}: {}".format(folder_name, subfolder, out))
                     else:
                         logger1.error("Folder did not pass: {}/{}".format(folder_name, subfolder))
+                        err_msg = "Folder did not pass MD5 file check: {}/{}".format(folder_name, subfolder)
                         logger1.debug("Results for {}/{}: {}".format(folder_name, subfolder, out))
                         logger1.debug("Error msg for {}/{}: {}".format(folder_name, subfolder, err))
             if checked_ok == len(settings.subfolders):
@@ -203,6 +204,7 @@ def main():
             else:
                 #Something didn't pass
                 logger1.error("Folder failed: {}".format(folder_path))
+                db_cursor.execute(queries.folder_status, {'folder_id': folder_id, 'status': 2, 'error_info': err_msg})
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
             logger1.debug(db_cursor.query.decode("utf-8"))
     #Disconnect from db

@@ -21,3 +21,5 @@ file_postprocessing4 = "UPDATE folders SET delivered_to_dams = 0 WHERE folder_id
 folder_check_filechecks = "SELECT count(DISTINCT file_id) AS no_files, COALESCE(SUM(check_results), 0) AS filechecks FROM file_checks WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = %(folder_id)s)"
 
 folder_final_check = "SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s"
+
+folder_status = "UPDATE folders SET status = %(status)s, error_info = %(error_info)s WHERE folder_id = %(folder_id)s"
