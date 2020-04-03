@@ -174,6 +174,7 @@ CREATE TABLE files (
     file_exists        integer,
     file_timestamp     timestamp with time zone,
     item_no            text,
+    dams_uan           text,
     created_at         timestamp with time zone DEFAULT NOW(),
     updated_at         timestamp with time zone DEFAULT NOW()
 );
