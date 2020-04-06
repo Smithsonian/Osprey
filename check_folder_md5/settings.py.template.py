@@ -7,6 +7,8 @@ project_paths = []
 #Where to move folders that pass all checks
 move_to_path = ""
 
+#Where to move folders to be deleted
+del_path = ""
 
 ##################################
 #Postgres database and rw user

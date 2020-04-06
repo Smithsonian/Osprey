@@ -124,9 +124,14 @@ def main():
             db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
             logger1.debug(db_cursor.query.decode("utf-8"))
             f_in_dams = db_cursor.fetchone()
-            if f_in_dams[0] == 0 or f_in_dams[0] == 1:
-                #Folder ready for dams or in dams already, skip
-                logger1.info("Folder in DAMS, skipping {}".format(folder_path))
+            if f_in_dams[0] == 0:
+                #Folder ready for dams, skip
+                logger1.info("Folder ready for DAMS, skipping {}".format(folder_path))
+                continue
+            elif f_in_dams[0] == 1:
+                #Folder in dams already, move to delete folder
+                shutil.move(folder_path, settings.del_path)
+                logger1.info("Folder in DAMS, moving to delete path {}".format(folder_path))
                 continue
             #Check if another computer is processing the folder
             db_cursor.execute(queries.folder_check_processing, {'folder_id': folder_id})
