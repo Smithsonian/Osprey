@@ -75,6 +75,12 @@ CREATE TABLE projects_edan (
     project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
     edan_id text,
     dams_only bool DEFAULT 'f',
+    title text,
+    link text,
+    credit text,
+    notes text,
+    idsid text,
+    img_file text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX projects_edan_pid_idx ON projects_edan USING BTREE(project_id);
