@@ -439,7 +439,7 @@ server <- function(input, output, session) {
         localpath <- str_replace(this_file$path, localpath$localpath, paste0(localpath$share, "/"))
         localpath <- gsub("/", "\\\\", localpath)
       }else{
-        localpath$localpath <- this_file$path
+        localpath <- this_file$path
       }
       
       tagList(
@@ -468,8 +468,8 @@ server <- function(input, output, session) {
                  HTML("<br><br><br><br><p>Full path of original file: ", localpath, "</p>")
           ),
           column(width = 9,
-                 HTML(paste0("<p>Move the mouse over the image to zoom in [<a href=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" target = _blank>Open image in a new window</a>]</p>
-                          <img id=\"zoom_01\" src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" width = \"860\" height = \"auto\" data-zoom-image=\"http://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id,  "\"/>
+                 HTML(paste0("<p>Move the mouse over the image to zoom in [<a href=\"https://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" target = _blank>Open image in a new window</a>]</p>
+                          <img id=\"zoom_01\" src = \"https://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id, "\" width = \"860\" height = \"auto\" data-zoom-image=\"https://dpogis.si.edu/mdpp/previewimage?file_id=", this_file$file_id,  "\"/>
                            
                           	<script>
                           	  $('#zoom_01').elevateZoom({
@@ -711,7 +711,7 @@ server <- function(input, output, session) {
           }
           checks <- paste0(checks, "</p>")
           
-          files <- rbind(files, cbind(files_qc$file_name[i], checks, fileqc, fileqc_res$qc_info, paste0("<a href = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" target = \"_blank\"><img src = \"http://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" width = \"100px\" height = \"auto\"></a>")))
+          files <- rbind(files, cbind(files_qc$file_name[i], checks, fileqc, fileqc_res$qc_info, paste0("<a href = \"https://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" target = \"_blank\"><img src = \"https://dpogis.si.edu/mdpp/previewimage?file_id=", files_qc$file_id[i], "\" width = \"100px\" height = \"auto\"></a>")))
         }
         
         names(files) <- c("Filename", "Technical QC", "QC", "Notes", "Preview (Click to open)")

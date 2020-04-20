@@ -433,10 +433,10 @@ server <- function(input, output, session) {
             folder_qc_status <- dbGetQuery(db, folder_qc)
             if (dim(folder_qc_status)[1] == 0){
               this_folder <- paste0(this_folder, "<span class=\"label label-default\" title=\"QC Pending\">QC Pending</span> ")
-            }else if (dim(folder_qc_status)[1] == 1){
-              if (folder_qc_status == TRUE){
+            }else{
+              if (folder_qc_status[1,1] == TRUE){
                 this_folder <- paste0(this_folder, "<span class=\"label label-success\" title=\"Folder passed QC\">QC OK</span> ")
-              }else if (folder_qc_status == FALSE){
+              }else if (folder_qc_status[1,1] == FALSE){
                 this_folder <- paste0(this_folder, "<span class=\"label label-danger\" title=\"Folder failed QC\">QC Failed</span> ")
               }
             }
