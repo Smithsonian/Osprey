@@ -111,3 +111,5 @@ settings.py
 dashboard/.Rhistory
 *.jpg
 *.tif
+ento.sql
+paleo.sql
