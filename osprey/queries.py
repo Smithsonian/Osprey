@@ -62,7 +62,7 @@ remove_shares = "DELETE FROM projects_shares WHERE project_id = %(project_id)s"
 
 file_exists = "UPDATE files SET file_exists = %(file_exists)s WHERE file_id = %(file_id)s"
 
-get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s AND d.delivered_to_dams = 9"
+get_files = "SELECT f.file_id AS file_id, f.file_name AS file_name, d.path as files_path FROM files f, folders d WHERE f.folder_id = d.folder_id AND d.project_id = %(project_id)s"
 
 check_exif = "SELECT count(*) as entries from files_exif WHERE file_id = %(file_id)s and filetype = %(filetype)s"
 
