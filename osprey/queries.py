@@ -10,7 +10,7 @@ folder_updated_at = "UPDATE folders SET updated_at = NOW() where folder_id = %(f
 
 folder_in_dams = "SELECT delivered_to_dams FROM folders WHERE folder_id = %(folder_id)s"
 
-folder_check_processing = "SELECT processing FROM folders WHERE folder_id = %(folder_id)s"
+folder_check_processing = "SELECT processing, EXTRACT(EPOCH FROM (NOW() - updated_at)) as seconds_since_update FROM folders WHERE folder_id = %(folder_id)s"
 
 folder_processing_update = "UPDATE folders SET processing = %(processing)s WHERE folder_id = %(folder_id)s"
 

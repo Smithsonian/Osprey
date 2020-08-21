@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.7"
+ver = "0.7.8"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -44,8 +44,9 @@ filecheck_dir = os.getcwd()
 # Check requirements
 ############################################
 if check_requirements(settings.jhove_path) == False:
-        print("JHOVE was not found")
-        sys.exit(1)
+    print("JHOVE was not found")
+    sys.exit(1)
+
 if settings.project_type == 'wav':
     if check_requirements('soxi') == False:
         print("SoX was not found")
@@ -581,8 +582,10 @@ def main():
             logger1.debug(db_cursor.query.decode("utf-8"))
             folder_proc = db_cursor.fetchone()
             if folder_proc[0] == True:
-                logger1.info("Folder checked by another computer, going for the next one {}".format(folder_path))
-                continue
+                #In case process is stuck or crashed, reset setting if its been more than 2 days
+                if folder_proc[1]/(60*60*24) < 2.0:
+                    logger1.info("Folder checked by another computer, going for the next one {}".format(folder_path))
+                    continue
             #Set as processing
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
             logger1.debug(db_cursor.query.decode("utf-8"))
