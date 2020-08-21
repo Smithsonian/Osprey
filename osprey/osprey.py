@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.8"
+ver = "0.7.9"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -562,6 +562,8 @@ def main():
         #No folders found
         if len(folders) == 0:
             continue
+        #Randomize folders
+        random.shuffle(folders)
         #Run each folder
         for folder in folders:
             folder_path = folder
