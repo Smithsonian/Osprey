@@ -111,5 +111,10 @@ settings.py
 dashboard/.Rhistory
 *.jpg
 *.tif
-ento.sql
-paleo.sql
+
+*.sql
+
+check_folder_md5/check_md5.py
+check_folder_md5/logs/
+
+*.txt
