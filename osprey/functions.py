@@ -1,6 +1,6 @@
 #Functions for MDfilecheck.py
 
-import os, subprocess, re, xmltodict
+import os, subprocess, re, xmltodict, sys
 import settings
 from random import randint
 import queries
@@ -10,6 +10,7 @@ import glob
 from PIL import Image
 from subprocess import Popen,PIPE
 from pathlib import Path
+import shutil
 
 
 def check_requirements(program):
@@ -487,7 +488,11 @@ def jpgpreview(file_id, filename, loggerfile):
     """
     if settings.jpg_previews == "":
         loggerfile.error("JPG preview folder is not set in settings file")
-        return False
+        sys.exit(1)
+    disk_check = shutil.disk_usage(settings.jpg_previews)
+    if ((disk_check.free/disk_check.total) < 0.1):
+        loggerfile.error("JPG storage location is running out of space ({}%) - {}".format(round(disk_check.free/disk_check.total, 4) * 100, settings.jpg_previews))
+        sys.exit(1)
     preview_file_path = "{}/{}".format(settings.jpg_previews, str(file_id)[0:2])
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
     #Create subfolder if it doesn't exists
