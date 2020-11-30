@@ -708,7 +708,7 @@ if __name__=="__main__":
             except:
                 print("folder_id not found")
             #Compress logs
-            # compress_log(filecheck_dir)
+            compress_log(filecheck_dir)
             sys.exit(0)
         except Exception as e:
             print("There was an error: {}".format(e))
@@ -721,7 +721,7 @@ if __name__=="__main__":
             except:
                 print("folder_id not found")
             #Compress logs
-            # compress_log(filecheck_dir)
+            compress_log(filecheck_dir)
             sys.exit(1)
 
 
