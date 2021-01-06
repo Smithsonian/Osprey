@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-ver = "0.7.11"
+ver = "0.7.12"
 
 ##Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -60,6 +60,28 @@ elif settings.project_type == 'tif':
         sys.exit(1)
 
 
+
+############################################
+# Logging
+############################################
+if not os.path.exists('{}/logs'.format(filecheck_dir)):
+    os.makedirs('{}/logs'.format(filecheck_dir))
+current_time = strftime("%Y%m%d%H%M%S", localtime())
+logfile_name = '{}.log'.format(current_time)
+logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
+# from http://stackoverflow.com/a/9321890
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M:%S',
+                    filename=logfile,
+                    filemode='a')
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logger1 = logging.getLogger("filecheck")
+logging.getLogger('filecheck').addHandler(console)
+logger1.info("osprey version {}".format(ver))
 
 
 
@@ -501,26 +523,6 @@ def process_wav(filename, folder_path, folder_id, db_cursor, loggerfile):
 
 
 def main():
-    # Logging
-    if not os.path.exists('{}/logs'.format(filecheck_dir)):
-        os.makedirs('{}/logs'.format(filecheck_dir))
-    current_time = strftime("%Y%m%d%H%M%S", localtime())
-    logfile_name = '{}.log'.format(current_time)
-    logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir = filecheck_dir, logfile_name = logfile_name)
-    # from http://stackoverflow.com/a/9321890
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                        datefmt='%m-%d %H:%M:%S',
-                        filename=logfile,
-                        filemode='a')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logger1 = logging.getLogger("filecheck")
-    logging.getLogger('filecheck').addHandler(console)
-    logger1.info("osprey version {}".format(ver))
-    #
     #Check that the paths are valid dirs and are mounted
     for p_path in settings.project_paths:
         if os.path.isdir(p_path) == False:
@@ -679,9 +681,6 @@ def main():
     #Disconnect from db
     conn.close()
     logger1.info("Sleeping for {} secs".format(settings.sleep))
-    logger1.close()
-    #Compress logs
-    compress_log(filecheck_dir)
     #Sleep before trying again
     time.sleep(settings.sleep)
 
