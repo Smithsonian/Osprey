@@ -26,7 +26,6 @@ project_type = "tif"
 # Options are:
 # - tif
 # - jpg
-# - wav
 ##################################
 
 
@@ -46,12 +45,6 @@ project_file_checks = ["raw_pair", "magick", "jhove", "unique_file", "tifpages"]
 # - magick: Run imagemagick validation
 # - stitched_jpg: There is a stitched JPG of two other files
 # - itpc: Check for valid ITPC metadata, not yet implemented
-#
-# For WAVS:
-# - filetype: If the filetype matches 'wav_filetype'
-# - samprate: If sampling rate matches 'wav_samprate'
-# - channels: If number of channels match 'wav_channels'
-# - bits: If bitrate matches 'wav_bits'
 #
 # For either:
 # - jhove: Run jhove validation
@@ -82,7 +75,6 @@ raw_files = "iiq"
 tif_files_path = "tifs"
 raw_files_path = "raws"
 jpg_files_path = "jpgs"
-wav_files_path = "wavs"
 
 # Should the names match a db?
 files_db = False
@@ -103,12 +95,11 @@ raw_size_max = 300000000
 sleep = 180
 
 # Path for JHOVE
-jhove_path = "/home/villanueval/jhove/jhove"
+jhove_path = "/home/[user]/jhove/jhove"
 
 # How many parallel workers
 # no_workers = 1
 # no_workers_night = 4
-
 
 # JPG Previews location and size
 jpg_previews = ""
@@ -117,13 +108,6 @@ previews_size = 1000
 
 # Ignore files with this string anywhere in the filename
 ignore_string = None
-
-# Wav files
-# wav_filetype = "wav"
-# wav_samprate = ""
-# wav_channels = ""
-# wav_bits = ""
-
 
 del_folders = True
 

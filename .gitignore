@@ -118,3 +118,5 @@ check_folder_md5/check_md5.py
 check_folder_md5/logs/
 
 *.txt
+
+.idea

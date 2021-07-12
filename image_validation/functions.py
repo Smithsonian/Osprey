@@ -12,7 +12,7 @@ import queries
 import hashlib
 import glob
 from PIL import Image
-from subprocess import Popen, PIPE
+from subprocess import PIPE
 from pathlib import Path
 import shutil
 
@@ -163,7 +163,7 @@ def tif_compression(file_id, filename, db_cursor, logger):
     return True
 
 
-def valid_name(file_id, filename, db_cursor, logger, paranoid=False):
+def valid_name(file_id, filename, db_cursor, logger):
     """
     Check if filename in database of accepted names
     """
@@ -182,7 +182,7 @@ def valid_name(file_id, filename, db_cursor, logger, paranoid=False):
     return True
 
 
-def tifpages(file_id, filename, db_cursor, logger, paranoid=False):
+def tifpages(file_id, filename, db_cursor, logger):
     """
     Check if TIF has multiple pages
     """
@@ -230,12 +230,12 @@ def file_exif(file_id, filename, filetype, db_cursor, logger):
     return True
 
 
-def itpc_validate(file_id, filename, db_cursor):
-    """
-    Check the IPTC Metadata
-    2Do
-    """
-    return False
+# def itpc_validate(file_id, filename, db_cursor):
+#     """
+#     Check the IPTC Metadata
+#     2Do
+#     """
+#     return False
 
 
 def file_size_check(filename, filetype, file_id, db_cursor, logger):
@@ -313,58 +313,6 @@ def file_pair_check(file_id, filename, tif_path, file_tif, raw_path, file_raw, d
         file_pair_info = "tif and {} found".format(settings.raw_files)
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'raw_pair', 'check_results': file_pair,
                                            'check_info': file_pair_info})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    return True
-
-
-def soxi_check(file_id, filename, file_check, expected_val, db_cursor, logger):
-    """
-    Get the tech info of a wav file
-    """
-    if file_check == "filetype":
-        fcheck = "t"
-    elif file_check == "samprate":
-        fcheck = "r"
-    elif file_check == "channels":
-        fcheck = "c"
-    elif file_check == "duration":
-        fcheck = "D"
-    elif file_check == "bits":
-        fcheck = "b"
-    else:
-        # Unknown check
-        return False
-    p = subprocess.Popen(['soxi', '-{}'.format(fcheck), filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = p.communicate()
-    result = out.decode("utf-8").replace('\n', '')
-    err = err.decode("utf-8").replace('\n', '')
-    if file_check == "filetype":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "samprate":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "channels":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "duration":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    elif file_check == "bits":
-        if result == expected_val:
-            result_code = 0
-        else:
-            result_code = 1
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': file_check, 'check_results': result_code,
-                                           'check_info': result})
     logger.debug(db_cursor.query.decode("utf-8"))
     return True
 
@@ -561,7 +509,7 @@ def update_folder_stats(folder_id, db_cursor, logger):
     return True
 
 
-def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat="tif"):
+def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat="tif"):
     """
     Run checks for tif files
     """
@@ -828,13 +776,13 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
             if result != 0:
                 # JHOVE check
                 jhove_validate(file_id, local_tempfile, db_cursor, logger)
-        if 'itpc' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'itpc'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # ITPC Metadata
-                itpc_validate(file_id, filename, db_cursor)
+        # if 'itpc' in settings.project_file_checks:
+        #     db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'itpc'})
+        #     logger.debug(db_cursor.query.decode("utf-8"))
+        #     result = db_cursor.fetchone()[0]
+        #     if result != 0:
+        #         # ITPC Metadata
+        #         itpc_validate(file_id, filename, db_cursor)
         if 'tif_size' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_size'})
             logger.debug(db_cursor.query.decode("utf-8"))
@@ -909,149 +857,3 @@ def process_tif(filename, folder_path, folder_id, folder_full_path, db_cursor, l
         file_updated_at(file_id, db_cursor, logger)
         return True
 
-
-def process_wav(filename, folder_path, folder_id, db_cursor, logger):
-    """
-    Run checks for wav files
-    """
-    folder_id = int(folder_id)
-    tmp_folder = "{}/mdpp_wav_{}".format(settings.tmp_folder, str(folder_id))
-    if os.path.isdir(tmp_folder):
-        shutil.rmtree(tmp_folder, ignore_errors=True)
-    os.mkdir(tmp_folder)
-    filename_stem = Path(filename).stem
-    # Check if file exists, insert if not
-    logger.info("WAV file {}".format(filename))
-    q_checkfile = queries.select_file_id.format(filename_stem, folder_id)
-    logger.info(q_checkfile)
-    db_cursor.execute(q_checkfile)
-    file_id = db_cursor.fetchone()
-    if file_id is None:
-        file_timestamp_float = os.path.getmtime("{}/{}".format(folder_path, filename))
-        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
-        db_cursor.execute(queries.insert_file,
-                          {'file_name': filename_stem, 'folder_id': folder_id, 'unique_file': unique_file,
-                           'file_timestamp': file_timestamp})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        file_id = db_cursor.fetchone()[0]
-    else:
-        file_id = file_id[0]
-    logger.info("filename: {} with file_id {}".format(filename_stem, file_id))
-    # Check if file is OK
-    file_checks = 0
-    for filecheck in settings.project_file_checks:
-        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        result = db_cursor.fetchone()
-        if result[0] is not None:
-            file_checks = file_checks + result[0]
-    if file_checks == 0:
-        file_updated_at(file_id, db_cursor, logger)
-        logger.info("File with ID {} is OK, skipping".format(file_id))
-        return True
-    else:
-        ##Checks that do not need a local copy
-        if 'valid_name' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                valid_name(file_id, local_tempfile, db_cursor, logger)
-        if 'unique_file' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
-                                                         'project_id': settings.project_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchone()
-                if result[0] > 0:
-                    unique_file = 1
-                else:
-                    unique_file = 0
-                db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
-                                   'check_info': ''})
-                logger.debug(db_cursor.query.decode("utf-8"))
-        if 'old_name' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'folder_id': folder_id,
-                                                             'project_id': settings.project_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchall()
-                if len(result) > 0:
-                    old_name = 1
-                    folders = ",".join(result[0])
-                else:
-                    old_name = 0
-                    folders = ""
-                db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'old_name', 'check_results': old_name,
-                                   'check_info': folders})
-                logger.debug(db_cursor.query.decode("utf-8"))
-        ##Checks that DO need a local copy
-        # Check if there is enough space first
-        local_disk = shutil.disk_usage(settings.tmp_folder)
-        if (local_disk.free / local_disk.total < 0.1):
-            logger.error(
-                "Disk is running out of space {} ({})".format(local_disk.free / local_disk.total, settings.tmp_folder))
-            sys.exit(1)
-        logger.info("Copying file {} to local tmp".format(filename))
-        # Copy file to tmp folder
-        local_tempfile = "{}/{}".format(tmp_folder, filename)
-        try:
-            shutil.copyfile("{}/{}/{}".format(folder_path, wav_files_path, filename), local_tempfile)
-        except:
-            logger.error("Could not copy file {}/{}/{} to local tmp".format(folder_path, wav_files_path, filename))
-            db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            # return False
-            sys.exit(1)
-        # Compare MD5 between source and copy
-        sourcefile_md5 = filemd5("{}/{}".format(folder_path, filename))
-        # Store MD5
-        file_md5 = filemd5(local_tempfile)
-        if sourcefile_md5 != file_md5:
-            logger.error(
-                "MD5 hash of local copy does not match the source: {} vs {}".format(sourcefile_md5, file_md5))
-            return False
-        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'wav', 'md5': file_md5})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        logger.info("wav_md5:{}".format(file_md5))
-        if 'filetype' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                soxi_check(file_id, filename, "filetype", settings.wav_filetype, db_cursor, logger)
-        if 'samprate' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                soxi_check(file_id, filename, "samprate", settings.wav_samprate, db_cursor, logger)
-        if 'channels' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                soxi_check(file_id, filename, "channels", settings.wav_channels, db_cursor, logger)
-        if 'bits' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                soxi_check(file_id, filename, "bits", settings.wav_bits, db_cursor, logger)
-        if 'jhove' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                jhove_validate(file_id, local_tempfile, tmp_folder, db_cursor, logger)
-        file_updated_at(file_id, db_cursor, logger)
-        os.remove(local_tempfile)
-        return True

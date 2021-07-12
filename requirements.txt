@@ -3,5 +3,4 @@ exifread
 bitmath
 psycopg2-binary
 pandas
-concurrent_log_handler
 Pillow

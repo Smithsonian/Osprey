@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
 #
 # Osprey script
+# https://github.com/Smithsonian/Osprey
 #
-# Validate products from a vendor, usually images
+# Validate images from a vendor
 #
 ############################################
 # Import modules
 ############################################
 import locale
 import logging
-# import logging.handlers as handlers
-# from logging import getLogger, INFO
 import random
 import time
-from datetime import datetime
 from time import localtime, strftime
-import os
-
 # For Postgres
 import psycopg2
 # Import settings from settings.py file
 import settings
-
 # Import helper functions
 from functions import *
 
 # Import queries from queries.py file
+import queries
 
 # Save current directory
 filecheck_dir = os.getcwd()
@@ -42,19 +38,12 @@ if check_requirements(settings.jhove_path) is False:
     print("JHOVE was not found")
     sys.exit(1)
 
-if settings.project_type == 'wav':
-    if check_requirements('soxi') is False:
-        print("SoX was not found")
-        sys.exit(1)
-elif settings.project_type == 'tif' or settings.project_type == 'jpg':
-    if check_requirements('identify') is False:
-        print("Imagemagick was not found")
-        sys.exit(1)
-    if check_requirements('exiftool') is False:
-        print("exiftool was not found")
-        sys.exit(1)
-else:
-    print("project_type unknown")
+if check_requirements('identify') is False:
+    print("Imagemagick was not found")
+    sys.exit(1)
+
+if check_requirements('exiftool') is False:
+    print("exiftool was not found")
     sys.exit(1)
 
 ############################################
@@ -147,7 +136,7 @@ def main():
                 # Folder ready for dams or in dams already, skip
                 logger.info("Folder in DAMS, skipping {}".format(folder_path))
                 continue
-            # Check if another computer is processing the folder
+            # Check if another computer/process is processing the folder
             db_cursor.execute(queries.folder_check_processing, {'folder_id': folder_id})
             logger.debug(db_cursor.query.decode("utf-8"))
             folder_proc = db_cursor.fetchone()
@@ -160,33 +149,7 @@ def main():
             db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
             logger.debug(db_cursor.query.decode("utf-8"))
             os.chdir(folder_path)
-            files = glob.glob("*.wav")
-            random.shuffle(files)
-            logger.debug("Files in {}: {}".format(folder_path, ','.join(files)))
-            logger.info("{} files in {}".format(len(files), folder_path, ))
-            # Remove files to ignore
-            if settings.ignore_string is not None:
-                files = [x for x in files if settings.ignore_string not in x]
-                logger.debug("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
-            ###########################
-            # WAV files
-            ###########################
-            if settings.project_type == 'wav':
-                # Check each wav file
-                for file in files:
-                    logger.info("Running checks on file {}".format(file))
-                    process_wav(file, folder_path, folder_id, folder_path, db_cursor, logger)
-                # MD5
-                if len(glob.glob1("*.md5")) == 1:
-                    db_cursor.execute(queries.update_folders_md5, {'folder_id': folder_id, 'filetype': 'wav', 'md5': 0})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                # Check for deleted files
-                if settings.check_deleted:
-                    check_deleted('wav', db_cursor, logger)
-            ###########################
-            # TIF Files
-            ###########################
-            elif settings.project_type == 'tif':
+            if settings.project_type == 'tif':
                 if (os.path.isdir(folder_path + "/" + settings.raw_files_path) is False and os.path.isdir(
                         folder_path + "/" + settings.tif_files_path) is False):
                     logger.info("Missing TIF and RAW folders")
@@ -216,14 +179,14 @@ def main():
                     folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
                     os.chdir(folder_full_path)
                     files = glob.glob("*.tif")
-                    logger.info(files)
+                    # logger.info(files)
                     # Remove temp files
                     if settings.ignore_string is not None:
                         files = [x for x in files if settings.ignore_string not in x]
                         logger.debug("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
                     for file in files:
                         logger.info("Running checks on file {}".format(file))
-                        process_tif(file, folder_path, folder_id, folder_full_path, db_cursor, logger)
+                        process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger)
                     # MD5
                     if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
                         db_cursor.execute(queries.update_folders_md5,
@@ -244,6 +207,48 @@ def main():
                 # Check for deleted files
                 if settings.check_deleted:
                     check_deleted('tif', db_cursor, logger)
+            elif settings.project_type == 'jpg':
+                if os.path.isdir(folder_path + "/" + settings.jpg_files_path) is False:
+                    logger.info("Missing JPG folders")
+                    db_cursor.execute(queries.update_folder_status9,
+                                      {'error_info': "Missing JPG folder", 'folder_id': folder_id})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+                    delete_folder_files(folder_id, db_cursor, logger)
+                    continue
+                else:
+                    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+                    folder_full_path = "{}/{}".format(folder_path, settings.jpg_files_path)
+                    os.chdir(folder_full_path)
+                    files = glob.glob("*.jpg")
+                    # logger.info(files)
+                    # Remove temp files
+                    if settings.ignore_string is not None:
+                        files = [x for x in files if settings.ignore_string not in x]
+                        logger.debug("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
+                    for file in files:
+                        logger.info("Running checks on file {}".format(file))
+                        process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat='jpg')
+                    # MD5
+                    if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
+                        db_cursor.execute(queries.update_folders_md5,
+                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                        logger.debug(db_cursor.query.decode("utf-8"))
+                    else:
+                        db_cursor.execute(queries.update_folders_md5,
+                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
+                        logger.debug(db_cursor.query.decode("utf-8"))
+                    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+                        db_cursor.execute(queries.update_folders_md5,
+                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
+                        logger.debug(db_cursor.query.decode("utf-8"))
+                    else:
+                        db_cursor.execute(queries.update_folders_md5,
+                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+                        logger.debug(db_cursor.query.decode("utf-8"))
+                    # Check for deleted files
+                    if settings.check_deleted:
+                        check_deleted('tif', db_cursor, logger)
             folder_updated_at(folder_id, db_cursor, logger)
             # Update folder stats
             update_folder_stats(folder_id, db_cursor, logger)
@@ -263,7 +268,6 @@ def main():
 ############################################
 if __name__ == "__main__":
     while True:
-        # main()
         try:
             main()
         except KeyboardInterrupt:
