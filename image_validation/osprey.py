@@ -98,7 +98,7 @@ def main():
                                'used': share_percent, 'total': share_disk.total})
             logger.debug(db_cursor.query.decode("utf-8"))
         except Exception as e:
-            logger.error("Error checking the share {} ({e})".format(share[0], e))
+            logger.error("Error checking the share {} ({})".format(share[0], e))
             continue
     # Update project
     db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks),
@@ -258,9 +258,14 @@ def main():
     os.chdir(filecheck_dir)
     # Disconnect from db
     conn.close()
-    logger.info("Sleeping for {} secs".format(settings.sleep))
-    # Sleep before trying again
-    time.sleep(settings.sleep)
+    if settings.sleep is False:
+        logger.info("Process completed!")
+        compress_log(filecheck_dir)
+        sys.exit(0)
+    else:
+        logger.info("Sleeping for {} secs".format(settings.sleep))
+        # Sleep before trying again
+        time.sleep(settings.sleep)
 
 
 ############################################
@@ -272,33 +277,36 @@ if __name__ == "__main__":
             main()
         except KeyboardInterrupt:
             print("Ctrl-c detected. Leaving program.")
-            try:
-                conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                         connect_timeout=60)
-                conn2.autocommit = True
-                db_cursor2 = conn2.cursor()
-                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                   {'folder_id': folder_id})
-                conn2.close()
-            except psycopg2.Error as e:
-                print(e.pgerror)
+            if 'folder_id' in globals():
+                try:
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                             connect_timeout=60)
+                    conn2.autocommit = True
+                    db_cursor2 = conn2.cursor()
+                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                       {'folder_id': folder_id})
+                    conn2.close()
+                except psycopg2.Error as e:
+                    print(e.pgerror)
             # Compress logs
             compress_log(filecheck_dir)
             sys.exit(0)
         except Exception as e:
-            print("There was an error: {}".format(e))
-            try:
-                conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                         connect_timeout=60)
-                conn2.autocommit = True
-                db_cursor2 = conn2.cursor()
-                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                   {'folder_id': folder_id})
-                conn2.close()
-            except psycopg2.Error as e:
-                print(e.pgerror)
+            logger.info("There was an error: {}".format(e))
+            if 'folder_id' in globals():
+                try:
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                             connect_timeout=60)
+                    conn2.autocommit = True
+                    db_cursor2 = conn2.cursor()
+                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                       {'folder_id': folder_id})
+                    conn2.close()
+                except psycopg2.Error as e:
+                    print(e.pgerror)
             # Compress logs
             compress_log(filecheck_dir)
             sys.exit(1)
+
 
 sys.exit(0)

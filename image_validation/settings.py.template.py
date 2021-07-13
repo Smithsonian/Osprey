@@ -10,28 +10,29 @@ project_shares = []
 
 tmp_folder = "/tmp"
 
-##################################
-# Postgres database and rw user
-##################################
+####################################################################
+# Postgres database and rw user,
+# password is taken from the .pgpass file
+####################################################################
 db_host = ""
 db_db = ""
 db_user = ""
-##################################
+####################################################################
 
 
-##################################
+####################################################################
 # What kind of product will be produced in the project
-##################################
+####################################################################
 project_type = "tif"
 # Options are:
 # - tif
 # - jpg
-##################################
+####################################################################
 
 
-##################################
+####################################################################
 # Project checks to run
-##################################
+####################################################################
 project_file_checks = ["raw_pair", "magick", "jhove", "unique_file", "tifpages"]
 # For TIFS:
 # - raw_pair: The raw file with the extension in 'raw_files' paired to the tif
@@ -52,7 +53,7 @@ project_file_checks = ["raw_pair", "magick", "jhove", "unique_file", "tifpages"]
 # - valid_name: Check if the filename is in the list of allowed names
 # - prefix: Check if the filename has the required prefix
 # - old_name: Check name against the old_names table
-##################################
+####################################################################
 
 
 # Special (rare) checks
@@ -60,13 +61,11 @@ special_checks = []
 
 folder_name = ""
 
-
 # How to split to parse the date, return the date in format 'YYYY-MM-DD'
 def folder_date(folder_name):
     folder_date = folder_name.split('SG-CGA-Druse-')[1]
     formatted_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
     return formatted_date
-
 
 # Raw files extension
 raw_files = "iiq"
@@ -92,6 +91,8 @@ raw_size_min = 50000000
 raw_size_max = 300000000
 
 # How long to sleep between loops
+# Set to False to run only once
+# sleep = False
 sleep = 180
 
 # Path for JHOVE

@@ -15,6 +15,8 @@ from PIL import Image
 from subprocess import PIPE
 from pathlib import Path
 import shutil
+import pandas
+
 
 
 def check_requirements(program):
@@ -195,8 +197,8 @@ def tifpages(file_id, filename, db_cursor, logger):
         else:
             pages_vals = 1
             no_pages = str(int(len(out.split()))) + " pages"
-    except:
-        no_pages = "Unknown"
+    except Exception as e:
+        no_pages = "Unknown ({})".format(e)
         pages_vals = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals,
                                            'check_info': no_pages})
@@ -224,8 +226,8 @@ def file_exif(file_id, filename, filetype, db_cursor, logger):
                               {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1],
                                'tag': tag[2], 'value': tag[3]})
             logger.debug(db_cursor.query.decode("utf-8"))
-        except:
-            logger.error("Tag not in utf-8 for file {}, {} {} {}".format(file_id, tag[0], tag[1], tag[2]))
+        except Exception as e:
+            logger.error("Tag not in utf-8 for file {}, {} {} {} ({})".format(file_id, tag[0], tag[1], tag[2], e))
             continue
     return True
 
@@ -353,7 +355,6 @@ def checkmd5file(md5_file, folder_id, filetype, db_cursor, logger):
     elif filetype == "raw":
         db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': 'raw'})
     logger.debug(db_cursor.query.decode("utf-8"))
-    import pandas
     vendor = pandas.DataFrame(db_cursor.fetchall(), columns=['md5_1', 'filename'])
     md5file = pandas.read_csv(md5_file, header=None, names=['md5_2', 'filename'], index_col=False, sep="  ")
     # Remove suffix
@@ -404,10 +405,10 @@ def check_deleted(filetype, db_cursor, logger):
     for file in files:
         if os.path.isdir("{}/{}/".format(file[2], files_path)):
             if os.path.isfile("{}/{}/{}.{}".format(file[2], files_path, file[1], filetype)):
-                file_exists = 0
+                # file_exists = 0
                 file_exists_info = "File {}/{}/{}.{} was found".format(file[2], files_path, file[1], filetype)
             else:
-                file_exists = 1
+                # file_exists = 1
                 file_exists_info = "File {}/{}/{}.{} was not found, deleting".format(file[2], files_path, file[1],
                                                                                      filetype)
                 db_cursor.execute(queries.delete_file, {'file_id': file[0]})
@@ -618,7 +619,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
             result = db_cursor.fetchone()[0]
             if result != 0:
                 # valid name in file
-                valid_name(file_id, local_tempfile, db_cursor, logger)
+                valid_name(file_id, filename_stem, db_cursor, logger)
                 file_checks = file_checks - 1
         if file_checks == 0:
             return True
@@ -745,9 +746,9 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
             img_files_path = settings.jpg_files_path
         try:
             shutil.copyfile("{}/{}/{}".format(folder_path, img_files_path, filename), local_tempfile)
-        except:
+        except Exception as e:
             logger.error(
-                "Could not copy file {}/{}/{} to local tmp".format(folder_path, img_files_path, filename))
+                "Could not copy file {}/{}/{} to local tmp ({})".format(folder_path, img_files_path, filename, e))
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
             logger.debug(db_cursor.query.decode("utf-8"))
             sys.exit(1)
@@ -856,4 +857,3 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor, logger)
         return True
-
