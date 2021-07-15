@@ -8,6 +8,12 @@ project_paths = []
 # each in its own list: ["mount point", "server"]
 project_shares = []
 
+# Osprey folder
+# If None, then it uses the cwd
+osprey_folder = None
+
+#Temp folder, usually /tmp
+# No trailing slash
 tmp_folder = "/tmp"
 
 ####################################################################

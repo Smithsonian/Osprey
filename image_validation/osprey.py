@@ -23,13 +23,23 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-# Save current directory
-filecheck_dir = os.getcwd()
+if settings.osprey_folder is None:
+    # Use current directory
+    filecheck_dir = os.getcwd()
+else:
+    filecheck_dir = settings.osprey_folder
+
 
 ver = "0.8.0"
 
 # Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
+
+#For parallel and HPC
+if len(sys.argv) == 2:
+    cpu_no = sys.argv[1]
+else:
+    cpu_no = 0
 
 ############################################
 # Check requirements
@@ -52,7 +62,7 @@ if check_requirements('exiftool') is False:
 if not os.path.exists('{}/logs'.format(filecheck_dir)):
     os.makedirs('{}/logs'.format(filecheck_dir))
 current_time = strftime("%Y%m%d%H%M%S", localtime())
-logfile_name = '{}.log'.format(current_time)
+logfile_name = '{}_{}.log'.format(cpu_no, current_time)
 logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
 # from http://stackoverflow.com/a/9321890
 logging.basicConfig(level=logging.DEBUG,

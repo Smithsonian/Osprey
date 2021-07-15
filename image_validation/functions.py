@@ -1,5 +1,6 @@
 # Functions for MDfilecheck.py
-import datetime
+# import datetime
+from datetime import datetime
 import os
 import subprocess
 import re
@@ -515,10 +516,11 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     Run checks for tif files
     """
     folder_id = int(folder_id)
-    tmp_folder = settings.tmp_folder
-    # Check if file exists, insert if not
+    tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 100000))
+    os.makedirs(tmp_folder)
     # logger.info("TIF file {}".format(filename))
     filename_stem = Path(filename).stem
+    # Check if file exists, insert if not
     db_cursor.execute(queries.select_file_id, {'file_name': filename_stem, 'folder_id': folder_id})
     logger.debug(db_cursor.query.decode("utf-8"))
     file_id = db_cursor.fetchone()
@@ -591,6 +593,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     if file_checks == 0:
         file_updated_at(file_id, db_cursor, logger)
         logger.info("File with ID {} is OK, skipping".format(file_id))
+        os.rmdir(tmp_folder)
         return True
     else:
         logger.info("file_checks: {} file_id: {}".format(file_checks, file_id))
@@ -769,7 +772,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
                 return False
             db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': fileformat, 'md5': file_md5})
             logger.debug(db_cursor.query.decode("utf-8"))
-            logger.info("tif_md5:{}".format(file_md5))
+            logger.info("{}_md5:{}".format(fileformat, file_md5))
         if 'jhove' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
             logger.debug(db_cursor.query.decode("utf-8"))
@@ -836,7 +839,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
         logger.info("check_exif_tif: {}".format(check_exif))
         if check_exif == 0:
             logger.info(
-                "Getting EXIF from {}/{}/{}.tif".format(folder_path, img_files_path, filename_stem))
+                "Getting EXIF from {}/{}/{}".format(folder_path, img_files_path, filename))
             file_exif(file_id, local_tempfile, fileformat.upper(), db_cursor, logger)
         if settings.project_type == "tif":
             # Get exif from RAW
@@ -856,4 +859,5 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor, logger)
+        os.rmdir(tmp_folder)
         return True
