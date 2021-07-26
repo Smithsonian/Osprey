@@ -15,7 +15,7 @@ library(sqldf)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.7.5"
+app_ver <- "0.8.0"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -853,6 +853,9 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     if (project_type == "tif"){
       html_to_print <- paste0(html_to_print, HTML("<dt>TIF preview:</dt><dd>"))
       html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
+    }else if (project_type == "jpg"){
+      html_to_print <- paste0(html_to_print, HTML("<dt>JPG preview:</dt><dd>"))
+      html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
     }
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
@@ -1025,7 +1028,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     }
     
     #ImageMagick ----
-    if (project_type == "tif"){
+    if (project_type == "tif" || project_type == "jpg"){
       if (stringr::str_detect(session$userData$file_checks_list, "magick")){
         info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'magick' AND file_id = ", file_id)
         check_res <- dbGetQuery(db, info_q)
@@ -1088,8 +1091,17 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
     
     #Metadata----
-    html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>", actionLink("exiftif", label = "TIF File Metadata"))
-    html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
+    html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>")
+    if (project_type == "tif"){
+      html_to_print <- paste0(html_to_print, actionLink("exiftif", label = "TIF File Metadata"))
+    }else if (project_type == "jpg"){
+      html_to_print <- paste0(html_to_print, actionLink("exifjpg", label = "JPG File Metadata"))
+    }
+    
+    
+    if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
+      html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
+    }
     
     tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     tifexif <- dbGetQuery(db, tifexif_q)
@@ -1113,6 +1125,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
         ),
         rownames = FALSE)
     })
+
     
     
     #exiftif----
@@ -1126,18 +1139,22 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       ))
     })
     
+
     
-    rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
-    rawexif <- dbGetQuery(db, rawexif_q)
     
-    output$rawexif_dt <- DT::renderDataTable({
+    
+    
+    jpgexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'JPG' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+    jpgexif <- dbGetQuery(db, jpgexif_q)
+    
+    output$jpgexif_dt <- DT::renderDataTable({
       
-      rawexif <- rawexif %>% dplyr::rename("Tag Group" = taggroup) %>% 
+      jpgexif <- jpgexif %>% dplyr::rename("Tag Group" = taggroup) %>% 
         dplyr::rename("Tag" = tag) %>% 
         dplyr::rename("Value" = value)
       
       DT::datatable(
-        rawexif, 
+        jpgexif, 
         class = 'compact',
         escape = FALSE, 
         options = list(
@@ -1150,16 +1167,59 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
         rownames = FALSE)
     })
     
-    #exifraw----
-    observeEvent(input$exifraw, {
+    
+    
+    #exiftif----
+    observeEvent(input$exifjpg, {
       
       showModal(modalDialog(
         size = "l",
-        title = "RAW EXIF Metadata",
-        DT::dataTableOutput("rawexif_dt"),
+        title = "JPG EXIF Metadata",
+        DT::dataTableOutput("jpgexif_dt"),
         easyClose = TRUE
       ))
     })
+    
+    
+    
+    
+    
+    if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
+      rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+      rawexif <- dbGetQuery(db, rawexif_q)
+      
+      output$rawexif_dt <- DT::renderDataTable({
+        
+        rawexif <- rawexif %>% dplyr::rename("Tag Group" = taggroup) %>% 
+          dplyr::rename("Tag" = tag) %>% 
+          dplyr::rename("Value" = value)
+        
+        DT::datatable(
+          rawexif, 
+          class = 'compact',
+          escape = FALSE, 
+          options = list(
+            searching = TRUE, 
+            ordering = TRUE, 
+            pageLength = 50, 
+            paging = TRUE, 
+            scrollX = TRUE
+          ),
+          rownames = FALSE)
+      })
+      
+      #exifraw----
+      observeEvent(input$exifraw, {
+        
+        showModal(modalDialog(
+          size = "l",
+          title = "RAW EXIF Metadata",
+          DT::dataTableOutput("rawexif_dt"),
+          easyClose = TRUE
+        ))
+      })
+    }
+    
     
     
     #WAVS ----
