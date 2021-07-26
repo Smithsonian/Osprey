@@ -517,7 +517,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     """
     folder_id = int(folder_id)
     tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 100000))
-    os.makedirs(tmp_folder)
+    os.makedirs(tmp_folder, exist_ok=True)
     # logger.info("TIF file {}".format(filename))
     filename_stem = Path(filename).stem
     # Check if file exists, insert if not
@@ -584,7 +584,10 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     if check_exif == 0:
         file_checks = file_checks + 1
     # Check if MD5 is stored
-    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
+    if fileformat == "tif":
+        db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'tif'})
+    elif fileformat == "jpg":
+        db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': 'jpg'})
     logger.debug(db_cursor.query.decode("utf-8"))
     result = db_cursor.fetchone()
     if result is None:

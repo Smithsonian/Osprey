@@ -240,25 +240,17 @@ def main():
                         logger.info("Running checks on file {}".format(file))
                         process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat='jpg')
                     # MD5
-                    if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
+                    if len(glob.glob(folder_path + "/" + settings.jpg_files_path + "/*.md5")) == 1:
                         db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                                          {'folder_id': folder_id, 'filetype': 'jpg', 'md5': 0})
                         logger.debug(db_cursor.query.decode("utf-8"))
                     else:
                         db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    else:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+                                          {'folder_id': folder_id, 'filetype': 'jpg', 'md5': 1})
                         logger.debug(db_cursor.query.decode("utf-8"))
                     # Check for deleted files
                     if settings.check_deleted:
-                        check_deleted('tif', db_cursor, logger)
+                        check_deleted('jpg', db_cursor, logger)
             folder_updated_at(folder_id, db_cursor, logger)
             # Update folder stats
             update_folder_stats(folder_id, db_cursor, logger)
