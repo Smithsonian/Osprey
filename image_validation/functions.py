@@ -516,7 +516,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     Run checks for tif files
     """
     folder_id = int(folder_id)
-    tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 100000))
+    tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 1000000))
     os.makedirs(tmp_folder, exist_ok=True)
     # logger.info("TIF file {}".format(filename))
     filename_stem = Path(filename).stem
@@ -596,7 +596,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     if file_checks == 0:
         file_updated_at(file_id, db_cursor, logger)
         logger.info("File with ID {} is OK, skipping".format(file_id))
-        os.rmdir(tmp_folder)
+        shutil.rmtree(tmp_folder)
         return True
     else:
         logger.info("file_checks: {} file_id: {}".format(file_checks, file_id))
@@ -862,5 +862,5 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor, logger)
-        os.rmdir(tmp_folder)
+        shutil.rmtree(tmp_folder)
         return True
