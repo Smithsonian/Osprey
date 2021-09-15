@@ -10,12 +10,13 @@ library(shinydashboard)
 library(shinyWidgets)
 #library(ggplot2)
 library(sqldf)
+library(plotly)
 
 
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.8.0"
+app_ver <- "0.8.1"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -268,12 +269,14 @@ server <- function(input, output, session) {
     if (is.na(postprocess)){
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
-        tabPanel("Lightbox", uiOutput("files_lightbox"))
+        tabPanel("Lightbox", uiOutput("files_lightbox")),
+        tabPanel("Statistics", uiOutput("files_stats"))
       )
     }else{
       tabsetPanel(
         tabPanel("Production", DT::dataTableOutput("files_table")),
         tabPanel("Lightbox", uiOutput("files_lightbox")),
+        tabPanel("Statistics", uiOutput("files_stats")),
         tabPanel("Post-Production", DT::dataTableOutput("pp_table"))
       )
     }
@@ -787,14 +790,22 @@ server <- function(input, output, session) {
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
+    order_by <- query['order_by']
+    
+    if (order_by == "NULL"){
+      order_by <- "file_name"
+    }
+    
     req(which_folder != "NULL")
 
-    files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder)
+    files_query <- paste0("SELECT file_id, file_name FROM files WHERE folder_id = ", which_folder, " ORDER BY ", order_by)
     files_list <- dbGetQuery(db, files_query)
 
     no_rows <- dim(files_list)[1]
     
-    lbox <- ""
+    #files_sort <- paste0("./?folder=", which_folder, "&order_by=file_name")
+    
+    lbox <- paste0("<p><br><strong>Sorted by: ", order_by, "</strong></p>")
     for (i in seq(1, no_rows)){
         lbox <- paste0(lbox, "<a href=\"#modal", i, "\" data-toggle=\"modal\" data-target=\"#modal", i, "\"><div style=\"display: inline-block;
 position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg_previews, files_list$file_id[i], "\" width=\"120px\" height=\"auto\"><br><small>", files_list$file_name[i], "</small></div></a>
@@ -822,6 +833,76 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     HTML(lbox)
   })
 
+  
+  #file_size_stats
+  output$file_size_stats <- renderPlotly({ 
+      query <- parseQueryString(session$clientData$url_search)
+      which_folder <- query['folder']
+      #req(which_folder != "NULL")
+      
+      file_size_q <- paste0("SELECT file_id, filesize FROM files_size WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = ", which_folder, ") AND filetype='TIF'")
+      stats <- dbGetQuery(db, file_size_q)
+      
+      fig <- plot_ly(x = stats$filesize, type = "histogram")
+      fig <- fig %>%
+       config(displaylogo = FALSE)
+      
+      fig
+      
+      
+      fig <- plot_ly(type = 'histogram') 
+      fig <- fig %>%
+        add_trace(
+          x = stats$filesize,
+          hoverinfo = 'text',
+          marker = list(color='#009CDE'),
+          showlegend = F
+        ) %>% layout(
+          xaxis = list(title = "TIF Filesize"),
+          yaxis = list(title = "Count")
+        )
+  })
+  
+  
+  #file_size_stats
+  output$file_size_stats2 <- renderPlotly({ 
+    query <- parseQueryString(session$clientData$url_search)
+    which_folder <- query['folder']
+    #req(which_folder != "NULL")
+    
+    file_size_q <- paste0("SELECT file_id, filesize FROM files_size WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = ", which_folder, ") AND filetype='RAW'")
+    stats <- dbGetQuery(db, file_size_q)
+    
+    fig <- plot_ly(x = stats$filesize, type = "histogram")
+    fig <- fig %>%
+      config(displaylogo = FALSE)
+    
+    fig
+    
+    
+    fig <- plot_ly(type = 'histogram') 
+    fig <- fig %>%
+      add_trace(
+        x = stats$filesize,
+        hoverinfo = 'text',
+        marker = list(color='#009CDE'),
+        showlegend = F
+      ) %>% layout(
+        xaxis = list(title = "RAW Filesize"),
+        yaxis = list(title = "Count")
+      )
+  })
+  
+  
+  #files_stats----
+  output$files_stats <- renderUI({
+    tagList(
+      plotlyOutput("file_size_stats"),
+      plotlyOutput("file_size_stats2")
+    )
+    
+  })
+  
   
   #fileinfo ----
   output$fileinfo <- renderUI({
