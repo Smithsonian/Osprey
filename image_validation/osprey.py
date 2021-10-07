@@ -12,11 +12,13 @@ import locale
 import logging
 import random
 import time
-from time import localtime, strftime
 # For Postgres
 import psycopg2
+import pandas as pd
+
 # Import settings from settings.py file
 import settings
+
 # Import helper functions
 from functions import *
 
@@ -30,7 +32,7 @@ else:
     filecheck_dir = settings.osprey_folder
 
 
-ver = "0.8.0"
+ver = "0.8.1"
 
 # Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
@@ -61,7 +63,7 @@ if check_requirements('exiftool') is False:
 ############################################
 if not os.path.exists('{}/logs'.format(filecheck_dir)):
     os.makedirs('{}/logs'.format(filecheck_dir))
-current_time = strftime("%Y%m%d%H%M%S", localtime())
+current_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
 logfile_name = '{}_{}.log'.format(cpu_no, current_time)
 logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
 # from http://stackoverflow.com/a/9321890
@@ -91,7 +93,8 @@ def main():
             continue
     # Connect to the database
     logger.info("Connecting to database")
-    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user, connect_timeout=60)
+    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                            password=settings.db_password, connect_timeout=60)
     conn.autocommit = True
     db_cursor = conn.cursor()
     # Clear project shares
@@ -197,23 +200,81 @@ def main():
                     for file in files:
                         logger.info("Running checks on file {}".format(file))
                         process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger)
-                    # MD5
-                    if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    else:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    else:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
-                        logger.debug(db_cursor.query.decode("utf-8"))
+                    # MD5 files
+                    if 'md5_hash' in settings.project_file_checks:
+                        folder_tif_md5 = None
+                        folder_raw_md5 = None
+                        if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
+                            db_cursor.execute(queries.update_folders_md5,
+                                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                            folder_tif_md5 = True
+                            logger.debug(db_cursor.query.decode("utf-8"))
+                        else:
+                            db_cursor.execute(queries.update_folders_md5,
+                                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
+                            folder_tif_md5 = False
+                            logger.debug(db_cursor.query.decode("utf-8"))
+                        if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+                            db_cursor.execute(queries.update_folders_md5,
+                                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
+                            folder_raw_md5 = True
+                            logger.debug(db_cursor.query.decode("utf-8"))
+                        else:
+                            db_cursor.execute(queries.update_folders_md5,
+                                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+                            folder_raw_md5 = False
+                            logger.debug(db_cursor.query.decode("utf-8"))
+                        # Check if md5 files match the hashes
+                        if folder_tif_md5 and folder_raw_md5:
+                            # Read .md5 files
+                            # Tifs md5
+                            tif_md5_file = glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")[0]
+                            md5_tif_hashes = pd.read_csv(tif_md5_file, sep=' ', header=None, names=['md5', 'file'])
+                            db_cursor.execute(queries.get_folder_files, {'folder_id': folder_id})
+                            logger.debug(db_cursor.query.decode("utf-8"))
+                            files = db_cursor.fetchall()
+                            # No. of files match rows in md5 file
+                            if len(files) == len(md5_tif_hashes):
+                                for file in files:
+                                    # TIF file
+                                    db_cursor.execute(queries.select_file_md5,
+                                                      {'file_id': file['file_id'], 'filetype': 'TIF'})
+                                    logger.debug(db_cursor.query.decode("utf-8"))
+                                    file_md5_hash = db_cursor.fetchone()
+                                    md5_from_file = md5_tif_hashes[md5_tif_hashes.file == file['filename']][
+                                        'md5'].to_string(
+                                        index=False).strip()
+                                    if file_md5_hash[0] == md5_from_file:
+                                        md5_check_tif = 0
+                                    else:
+                                        md5_check_tif = 1
+                                        md5_info_tif = "MD5 hash not matched for TIF"
+                                    # RAW file
+                                    db_cursor.execute(queries.select_file_md5,
+                                                      {'file_id': file['file_id'], 'filetype': 'RAW'})
+                                    logger.debug(db_cursor.query.decode("utf-8"))
+                                    file_md5_hash = db_cursor.fetchone()
+                                    md5_from_file = md5_raw_hashes[md5_raw_hashes.file == file['filename']][
+                                        'md5'].to_string(
+                                        index=False).strip()
+                                    if file_md5_hash[0] == md5_from_file:
+                                        md5_check_raw = 0
+                                    else:
+                                        md5_check_raw = 1
+                                        md5_info_raw = "MD5 hash not matched for RAW"
+                                    # Update database
+                                    if md5_check_raw == 0 and md5_check_tif == 0:
+                                        db_cursor.execute(queries.file_check,
+                                                          {'file_id': file['file_id'], 'file_check': 'md5_hash',
+                                                           'check_results': 0,
+                                                           'check_info': md5_info})
+                                        logger.debug(db_cursor.query.decode("utf-8"))
+                                    else:
+                                        db_cursor.execute(queries.file_check,
+                                                          {'file_id': file['file_id'], 'file_check': 'md5_hash',
+                                                           'check_results': 1,
+                                                           'check_info': '{} {}'.format(md5_info_tif, md5_info_raw)})
+                                        logger.debug(db_cursor.query.decode("utf-8"))
                 # Check for deleted files
                 if settings.check_deleted:
                     check_deleted('tif', db_cursor, logger)
@@ -281,7 +342,8 @@ if __name__ == "__main__":
             print("Ctrl-c detected. Leaving program.")
             if 'folder_id' in globals():
                 try:
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db,
+                                             user=settings.db_user, password=settings.db_password,
                                              connect_timeout=60)
                     conn2.autocommit = True
                     db_cursor2 = conn2.cursor()
@@ -297,7 +359,8 @@ if __name__ == "__main__":
             logger.info("There was an error: {}".format(e))
             if 'folder_id' in globals():
                 try:
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db,
+                                             user=settings.db_user, password=settings.db_password,
                                              connect_timeout=60)
                     conn2.autocommit = True
                     db_cursor2 = conn2.cursor()

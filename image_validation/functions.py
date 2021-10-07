@@ -19,7 +19,6 @@ import shutil
 import pandas
 
 
-
 def check_requirements(program):
     """
     Check if required programs are installed
@@ -517,7 +516,9 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     """
     folder_id = int(folder_id)
     tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 1000000))
-    os.makedirs(tmp_folder, exist_ok=True)
+    if os.path.isdir(tmp_folder):
+        tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 1000000))
+    os.makedirs(tmp_folder)
     # logger.info("TIF file {}".format(filename))
     filename_stem = Path(filename).stem
     # Check if file exists, insert if not
@@ -569,7 +570,8 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
         db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': 'TIF', 'filesize': file_size})
         logger.debug(db_cursor.query.decode("utf-8"))
         # Get filesize from RAW:
-        if os.path.isfile("{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
+        if os.path.isfile(
+                "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files)):
             file_size = os.path.getsize(
                 "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files))
             db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': 'RAW', 'filesize': file_size})
@@ -596,7 +598,7 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
     if file_checks == 0:
         file_updated_at(file_id, db_cursor, logger)
         logger.info("File with ID {} is OK, skipping".format(file_id))
-        shutil.rmtree(tmp_folder)
+        shutil.rmtree(tmp_folder, ignore_errors=True)
         return True
     else:
         logger.info("file_checks: {} file_id: {}".format(file_checks, file_id))
@@ -856,11 +858,12 @@ def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor,
                         "Getting EXIF from {}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem,
                                                                settings.raw_files))
                     file_exif(file_id,
-                              "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem, settings.raw_files),
+                              "{}/{}/{}.{}".format(folder_path, settings.raw_files_path, filename_stem,
+                                                   settings.raw_files),
                               'RAW', db_cursor, logger)
         logger.info("jpg_prev:{}".format(jpg_prev))
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor, logger)
-        shutil.rmtree(tmp_folder)
+        shutil.rmtree(tmp_folder, ignore_errors=True)
         return True
