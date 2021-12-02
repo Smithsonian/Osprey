@@ -16,7 +16,7 @@ library(plotly)
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.8.1"
+app_ver <- "0.8.3"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
@@ -101,7 +101,7 @@ ui <- dashboardPage(
       column(width = 2,
              box(
                title = "File details", width = NULL, solidHeader = TRUE, status = "primary", #style = "position: fixed; margin-top: 0px;",
-               uiOutput("fileinfo")
+               shinycssloaders::withSpinner(uiOutput("fileinfo"))
              )
       )
     ),
@@ -375,7 +375,7 @@ server <- function(input, output, session) {
     query <- parseQueryString(session$clientData$url_search)
     which_folder <- query['folder']
     
-    folders_q <- paste0("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, f.file_errors, f.status, mt.md5 as md5_tif, mr.md5 as md5_raw, f.delivered_to_dams FROM folders f LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') WHERE f.project_id = ", project_id, " ORDER BY f.date DESC, f.project_folder DESC")
+    folders_q <- paste0("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, f.delivered_to_dams FROM folders f LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') WHERE f.project_id = ", project_id, " ORDER BY f.date DESC, f.project_folder DESC")
     
     folders <- dbGetQuery(db, folders_q)
     
