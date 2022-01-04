@@ -8,45 +8,28 @@ library(stringr)
 library(shinycssloaders)
 library(shinydashboard)
 library(shinyWidgets)
-#library(ggplot2)
 library(sqldf)
 library(plotly)
+library(RPostgres)
 
 
 # Settings ----
 source("settings.R")
 app_name <- "Osprey Dashboard"
-app_ver <- "0.8.3"
+app_ver <- "1.0.0"
 github_link <- "https://github.com/Smithsonian/Osprey"
 
 options(stringsAsFactors = FALSE)
 options(encoding = 'UTF-8')
 
-#Logfile----
-dir.create("logs", showWarnings = FALSE)
-logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-
-
-#Connect to the database ----
-if (Sys.info()["nodename"] == "shiny.si.edu"){
-  #For RHEL7 odbc driver
-  pg_driver = "PostgreSQL"
-}else if (Sys.info()["nodename"] == "OCIO-2SJKVD22"){
-  #For RHEL7 odbc driver
-  pg_driver = "PostgreSQL Unicode(x64)"
-}else{
-  pg_driver = "PostgreSQL Unicode"
-}
-
-db <- dbConnect(odbc::odbc(),
-                driver = pg_driver,
-                database = pg_db,
-                uid = pg_user,
-                pwd = pg_pass,
-                server = pg_host,
+db <- dbConnect(RPostgres::Postgres(),
+                dbname = pg_db,
+                user = pg_user,
+                password = pg_pass,
+                host = pg_host,
                 port = 5432)
 
-project <- dbGetQuery(db, paste0("SELECT * FROM projects WHERE project_id = ", project_id))
+project <- dbGetQuery(db, paste0("SELECT project_acronym FROM projects WHERE project_id = ", project_id))
 proj_name <- project$project_acronym
 
 dbDisconnect(db)
@@ -57,10 +40,8 @@ site_title = paste0(proj_name)
 ui <- dashboardPage(
   #header
   dashboardHeader(title = site_title),
-  
   dashboardSidebar(disable = TRUE),
   #Body
-  
   dashboardBody(
     
     fluidRow(
@@ -100,7 +81,7 @@ ui <- dashboardPage(
       ),
       column(width = 2,
              box(
-               title = "File details", width = NULL, solidHeader = TRUE, status = "primary", #style = "position: fixed; margin-top: 0px;",
+               title = "File details", width = NULL, solidHeader = TRUE, status = "primary", 
                shinycssloaders::withSpinner(uiOutput("fileinfo"))
              )
       )
@@ -119,23 +100,13 @@ ui <- dashboardPage(
 
 # Server ----
 server <- function(input, output, session) {
-  #Connect to the database ----
-  if (Sys.info()["nodename"] == "shiny.si.edu"){
-    #For RHEL7 odbc driver
-    pg_driver = "PostgreSQL"
-  }else if (Sys.info()["nodename"] == "OCIO-2SJKVD22"){
-    #For RHEL7 odbc driver
-    pg_driver = "PostgreSQL Unicode(x64)"
-  }else{
-    pg_driver = "PostgreSQL Unicode"
-  }
   
-  db <- dbConnect(odbc::odbc(),
-                  driver = pg_driver,
-                  database = pg_db,
-                  uid = pg_user,
-                  pwd = pg_pass,
-                  server = pg_host,
+  # #Connect to the database ----
+  db <- dbConnect(RPostgres::Postgres(),
+                  dbname = pg_db,
+                  user = pg_user,
+                  password = pg_pass,
+                  host = pg_host,
                   port = 5432)
   
   file_checks_q <- paste0("SELECT project_checks FROM projects WHERE project_id = ", project_id)
@@ -184,7 +155,6 @@ server <- function(input, output, session) {
   
   #box_ok ----
   output$box_ok <- renderValueBox({
-    
     ok_count <- paste0("WITH data AS 
                     (SELECT 
                       file_id, sum(check_results) as check_results 
@@ -224,7 +194,6 @@ server <- function(input, output, session) {
   
   #itemcount----
   output$itemcount <- renderValueBox({
-    
     pending_count <- paste0("SELECT count(distinct file_id)
                         FROM file_checks 
                         WHERE check_results = 9 AND
@@ -411,13 +380,12 @@ server <- function(input, output, session) {
           }
   
           #MD5 ----
-          if (project_type == "tif"){
-            if (folders$md5_tif[i] == 0 && folders$md5_raw[i] == 0){
-              this_folder <- paste0(this_folder, " <span class=\"label label-success\">MD5 Files OK</span> ")
-            }else{
-              this_folder <- paste0(this_folder, " <span class=\"label label-warning\">MD5 Files missing</span> ")
-            }
+          if (folders$md5_tif[i] == 0 && folders$md5_raw[i] == 0){
+            this_folder <- paste0(this_folder, " <span class=\"label label-success\">MD5 Files OK</span> ")
+          }else{
+            this_folder <- paste0(this_folder, " <span class=\"label label-warning\">MD5 Files missing</span> ")
           }
+          
 
         }else{
           this_folder <- paste0(this_folder, " <span class=\"label label-default\" title=\"No files in folder\">Empty</span> ")
@@ -514,7 +482,6 @@ server <- function(input, output, session) {
   
   #Folder progress----
   observeEvent(input$dayprogress, {
-    
     showModal(modalDialog(
       size = "l",
       title = "Progress by Day",
@@ -589,26 +556,25 @@ server <- function(input, output, session) {
         
         #Folder MD5----
         #MD5 ----
-        if (project_type == "tif"){
-          md5_file_tif <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'tif' AND folder_id = ", which_folder))
-          md5_file_raw <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'raw' AND folder_id = ", which_folder))
-          
-          if (dim(md5_file_tif)[1] == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-default\">TIF MD5 File pending</span> ")
-          }else if (md5_file_tif$md5 == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-success\">TIF MD5 File OK</span> ")
-          }else{
-            this_folder <- paste0(this_folder, " <span class=\"label label-warning\">TIF MD5 File missing</span> ")
-          }
-          
-          if (dim(md5_file_raw)[1] == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-default\">RAW MD5 File pending</span> ")
-          }else if (md5_file_raw$md5 == 0){
-            this_folder <- paste0(this_folder, " <span class=\"label label-success\">RAW MD5 File OK</span> ")
-          }else{
-            this_folder <- paste0(this_folder, " <span class=\"label label-warning\">RAW MD5 File missing</span> ")
-          }
+        md5_file_tif <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'tif' AND folder_id = ", which_folder))
+        md5_file_raw <- dbGetQuery(db, paste0("SELECT md5 FROM folders_md5 WHERE md5_type = 'raw' AND folder_id = ", which_folder))
+        
+        if (dim(md5_file_tif)[1] == 0){
+          this_folder <- paste0(this_folder, " <span class=\"label label-default\">TIF MD5 File pending</span> ")
+        }else if (md5_file_tif$md5 == 0){
+          this_folder <- paste0(this_folder, " <span class=\"label label-success\">TIF MD5 File OK</span> ")
+        }else{
+          this_folder <- paste0(this_folder, " <span class=\"label label-warning\">TIF MD5 File missing</span> ")
         }
+        
+        if (dim(md5_file_raw)[1] == 0){
+          this_folder <- paste0(this_folder, " <span class=\"label label-default\">RAW MD5 File pending</span> ")
+        }else if (md5_file_raw$md5 == 0){
+          this_folder <- paste0(this_folder, " <span class=\"label label-success\">RAW MD5 File OK</span> ")
+        }else{
+          this_folder <- paste0(this_folder, " <span class=\"label label-warning\">RAW MD5 File missing</span> ")
+        }
+
         
         if (!exists("project_qc")){
           project_qc = FALSE
@@ -638,7 +604,6 @@ server <- function(input, output, session) {
         }
         
         HTML(this_folder)
-        
       }
     }
   })
@@ -803,9 +768,8 @@ server <- function(input, output, session) {
 
     no_rows <- dim(files_list)[1]
     
-    #files_sort <- paste0("./?folder=", which_folder, "&order_by=file_name")
-    
     lbox <- paste0("<p><br><strong>Sorted by: ", order_by, "</strong></p>")
+    
     for (i in seq(1, no_rows)){
         lbox <- paste0(lbox, "<a href=\"#modal", i, "\" data-toggle=\"modal\" data-target=\"#modal", i, "\"><div style=\"display: inline-block;
 position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg_previews, files_list$file_id[i], "\" width=\"120px\" height=\"auto\"><br><small>", files_list$file_name[i], "</small></div></a>
@@ -931,13 +895,8 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       ))
     })
     
-    if (project_type == "tif"){
-      html_to_print <- paste0(html_to_print, HTML("<dt>TIF preview:</dt><dd>"))
-      html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
-    }else if (project_type == "jpg"){
-      html_to_print <- paste0(html_to_print, HTML("<dt>JPG preview:</dt><dd>"))
-      html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
-    }
+    html_to_print <- paste0(html_to_print, HTML("<dt>Image preview:</dt><dd>"))
+    html_to_print <- paste0(html_to_print, actionLink("showpreview", label = HTML(paste0("<img src = \"", jpg_previews, file_id, "\" width = \"160px\" height = \"auto\"></dd>"))))
     
     html_to_print <- paste0(html_to_print, "<dt>File name</dt><dd>", file_info$file_name, "</dd>")
     html_to_print <- paste0(html_to_print, "<dt>File ID</dt><dd>", file_info$file_id, "</dd>")
@@ -959,39 +918,25 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     }
     
     #TIF md5----
-    if (project_type == "tif"){
-      info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
-      md5 <- dbGetQuery(db, info_q)
-      
-      if (dim(md5)[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>NA</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", md5, "</dd>")
-      }
-      
-      #raw
-      info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'raw' AND file_id = ", file_id)
-      md5 <- dbGetQuery(db, info_q)
-      
-      if (dim(md5)[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>NA</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", md5, "</dd>")
-      }
+    info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
+    md5 <- dbGetQuery(db, info_q)
+    
+    if (dim(md5)[1] == 0){
+      html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>NA</dd>")
+    }else{
+      html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", md5, "</dd>")
     }
     
-    #WAV MD5
-    if (project_type == "sound"){
-      info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'wav' AND file_id = ", file_id)
-      md5 <- dbGetQuery(db, info_q)
-      
-      if (dim(md5)[1] == 0){
-        html_to_print <- paste0(html_to_print, "<dt>WAV MD5</dt><dd>NA</dd>")
-      }else{
-        html_to_print <- paste0(html_to_print, "<dt>WAV MD5</dt><dd>", md5, "</dd>")
-      }
-    }
+    #raw
+    info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'raw' AND file_id = ", file_id)
+    md5 <- dbGetQuery(db, info_q)
     
+    if (dim(md5)[1] == 0){
+      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>NA</dd>")
+    }else{
+      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", md5, "</dd>")
+    }
+
     #valid_name
     if (stringr::str_detect(session$userData$file_checks_list, "valid_name")){
       info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'valid_name' AND file_id = ", file_id)
@@ -1073,99 +1018,94 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     }
     
     #tifpages ----
-    if (project_type == "tif"){
-      if (stringr::str_detect(session$userData$file_checks_list, "tifpages")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tifpages' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
+    if (stringr::str_detect(session$userData$file_checks_list, "tifpages")){
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tifpages' AND file_id = ", file_id)
+      check_res <- dbGetQuery(db, info_q)
+      
+      if (dim(check_res)[1] == 1){
+        if (check_res$check_results == 0){
+          html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd>", check_res$check_info, "</dd>")
+        }else if (check_res$check_results == 1){
+          html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
+        }else if (check_res$check_results == 9){
+          html_to_print <- paste0(html_to_print, "<dt>Multiple pages in TIF</dt><dd class=\"bg-warning\">Not checked yet</dd>")
         }
       }
     }
+
     
     #tifpages ----
-    if (project_type == "tif"){
-      if (stringr::str_detect(session$userData$file_checks_list, "tif_compression")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tif_compression' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
+    if (stringr::str_detect(session$userData$file_checks_list, "tif_compression")){
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'tif_compression' AND file_id = ", file_id)
+      check_res <- dbGetQuery(db, info_q)
+      
+      if (dim(check_res)[1] == 1){
+        if (check_res$check_results == 0){
+          html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd>", check_res$check_info, "</dd>")
+        }else if (check_res$check_results == 1){
+          html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
+        }else if (check_res$check_results == 9){
+          html_to_print <- paste0(html_to_print, "<dt>TIF Compression</dt><dd class=\"bg-warning\">Not checked yet</dd>")
+        }
+      }
+    }
+
+    #ImageMagick ----
+    if (stringr::str_detect(session$userData$file_checks_list, "magick")){
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'magick' AND file_id = ", file_id)
+      check_res <- dbGetQuery(db, info_q)
+      
+      m_info <- check_res$check_info
+      
+      observeEvent(input$showmagic, {
+        showModal(modalDialog(
+          size = "l",
+          title = "Imagemagick Info",
+          p("magick"),
+          pre(m_info),
+          easyClose = TRUE
+        ))
+      })
+      
+      if (dim(check_res)[1] == 1){
+        if (check_res$check_results == 0){
+          
+          html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd>OK ", actionLink("showmagic", label = "[More info]"), "</dd>")
+          
+        }else if (check_res$check_results == 1){
+          html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
+        }else if (check_res$check_results == 9){
+          html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-warning\">Not checked yet</dd>")
         }
       }
     }
     
-    #ImageMagick ----
-    if (project_type == "tif" || project_type == "jpg"){
-      if (stringr::str_detect(session$userData$file_checks_list, "magick")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'magick' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        m_info <- check_res$check_info
-        
-        observeEvent(input$showmagic, {
-          showModal(modalDialog(
-            size = "l",
-            title = "Imagemagick Info",
-            p("magick"),
-            pre(m_info),
-            easyClose = TRUE
-          ))
-        })
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            
-            html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd>OK ", actionLink("showmagic", label = "[More info]"), "</dd>")
-            
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Imagemagick</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
-        }
-      }
+    #stitched_jpg ----
+    if (stringr::str_detect(session$userData$file_checks_list, "stitched_jpg")){
+      info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
+      check_res <- dbGetQuery(db, info_q)
       
-      #stitched_jpg ----
-      if (stringr::str_detect(session$userData$file_checks_list, "stitched_jpg")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'stitched_jpg' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        j_info <- check_res$check_info
-        
-        observeEvent(input$showjpg, {
-          showModal(modalDialog(
-            size = "l",
-            title = "Imagemagick Info of Stitched JPG",
-            p("stitched"),
-            pre(j_info),
-            easyClose = TRUE
-          ))
-        })
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            
-            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd>OK ", actionLink("showjpg", label = "[More info]"), "</dd>")
-            
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
+      j_info <- check_res$check_info
+      
+      observeEvent(input$showjpg, {
+        showModal(modalDialog(
+          size = "l",
+          title = "Imagemagick Info of Stitched JPG",
+          p("stitched"),
+          pre(j_info),
+          easyClose = TRUE
+        ))
+      })
+      
+      if (dim(check_res)[1] == 1){
+        if (check_res$check_results == 0){
+          
+          html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd>OK ", actionLink("showjpg", label = "[More info]"), "</dd>")
+          
+        }else if (check_res$check_results == 1){
+          html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-danger\"><pre>", check_res$check_info, "</pre></dd>")  
+        }else if (check_res$check_results == 9){
+          html_to_print <- paste0(html_to_print, "<dt>Stitched JPG</dt><dd class=\"bg-warning\">Not checked yet</dd>")
         }
       }
     }
@@ -1173,11 +1113,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
     #Metadata----
     html_to_print <- paste0(html_to_print, "<dt>Metadata</dt><dd>")
-    if (project_type == "tif"){
-      html_to_print <- paste0(html_to_print, actionLink("exiftif", label = "TIF File Metadata"))
-    }else if (project_type == "jpg"){
-      html_to_print <- paste0(html_to_print, actionLink("exifjpg", label = "JPG File Metadata"))
-    }
+    html_to_print <- paste0(html_to_print, actionLink("exiftif", label = "TIF File Metadata"))
     
     
     if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
@@ -1211,7 +1147,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
     #exiftif----
     observeEvent(input$exiftif, {
-      
       showModal(modalDialog(
         size = "l",
         title = "TIF EXIF Metadata",
@@ -1222,9 +1157,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
 
     
-    
-    
-    
+
     jpgexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'JPG' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     jpgexif <- dbGetQuery(db, jpgexif_q)
     
@@ -1252,7 +1185,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
     #exiftif----
     observeEvent(input$exifjpg, {
-      
       showModal(modalDialog(
         size = "l",
         title = "JPG EXIF Metadata",
@@ -1262,9 +1194,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     })
     
     
-    
-    
-    
+
     if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
       rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
       rawexif <- dbGetQuery(db, rawexif_q)
@@ -1291,7 +1221,6 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       
       #exifraw----
       observeEvent(input$exifraw, {
-        
         showModal(modalDialog(
           size = "l",
           title = "RAW EXIF Metadata",
@@ -1301,72 +1230,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       })
     }
     
-    
-    
-    #WAVS ----
-    if (project_type == "wav"){
-      #filetype ----
-      if (stringr::str_detect(session$userData$file_checks_list, "filetype")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'filetype' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>Filetype</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Filetype</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Filetype</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
-        }
-      }
-      
-      if (stringr::str_detect(session$userData$file_checks_list, "samprate")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'samprate' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>Sampling rate</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Sampling rate</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Sampling rate</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
-        }
-      }
-      
-      if (stringr::str_detect(session$userData$file_checks_list, "channels")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'channels' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>No. of channels</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>No. of channels</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>No. of channels</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
-        }
-      }
-      
-      if (stringr::str_detect(session$userData$file_checks_list, "bits")){
-        info_q <- paste0("SELECT * FROM file_checks WHERE file_check = 'bits' AND file_id = ", file_id)
-        check_res <- dbGetQuery(db, info_q)
-        
-        if (dim(check_res)[1] == 1){
-          if (check_res$check_results == 0){
-            html_to_print <- paste0(html_to_print, "<dt>Bits</dt><dd>", check_res$check_info, "</dd>")
-          }else if (check_res$check_results == 1){
-            html_to_print <- paste0(html_to_print, "<dt>Bits</dt><dd class=\"bg-danger\">", check_res$check_info, "</dd>")  
-          }else if (check_res$check_results == 9){
-            html_to_print <- paste0(html_to_print, "<dt>Bits</dt><dd class=\"bg-warning\">Not checked yet</dd>")
-          }
-        }
-      }
-    }
-    
+   
     html_to_print <- paste0(html_to_print, "</dl>")
     
     HTML(html_to_print)
@@ -1375,7 +1239,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
   
   #footer----
   output$footer <- renderUI({
-    HTML(paste0("<h4 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"https://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\" width = \"238\" height=\"50\"></a></h4>"))
+    HTML(paste0("<h6 style=\"position: fixed; bottom: -10px; width: 100%; text-align: right; right: 0px; padding: 10px; background: white;\">", app_name, " ver. ", app_ver, " | <a href=\"", github_link, "\" target = _blank>Source code</a> | <a href=\"https://dpo.si.edu\" target = _blank>DPO, OCIO, Smithsonian</a></h6>"))
   })
 }
 

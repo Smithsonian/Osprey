@@ -9,6 +9,4 @@ jpg_previews <- "http://server/service?file_id="
 
 project_active <- TRUE
 
-project_type <- "tif"
-
 project_qc <- FALSE

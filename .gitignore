@@ -108,7 +108,7 @@ settings.py
 .Rproj.user
 
 *.Rproj
-dashboard/.Rhistory
+.Rhistory
 *.jpg
 *.tif
 
