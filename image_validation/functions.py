@@ -443,9 +443,9 @@ def process_image(filename, folder_path, folder_id, logger):
     db_cursor.execute(queries.select_file_id, {'file_name': filename, 'folder_id': folder_id})
     file_id = db_cursor.fetchone()
     logger.debug(db_cursor.query.decode("utf-8"))
-    #db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
-                                           'log_area': 'process_image',
-                                           'log_text': db_cursor.query.decode("utf-8")})
+    # db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+    #                                        'log_area': 'process_image',
+    #                                        'log_text': db_cursor.query.decode("utf-8")})
     if file_id is None:
         # Get modified date for file
         file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.main_files_path, filename))
