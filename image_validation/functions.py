@@ -426,7 +426,7 @@ def update_folder_stats(folder_id, db_cursor, logger):
     return True
 
 
-def process_image(filename, folder_path, folder_id):
+def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for image files
     """
