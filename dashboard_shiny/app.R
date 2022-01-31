@@ -917,25 +917,37 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       html_to_print <- paste0(html_to_print, "</dd>")
     }
     
-    #TIF md5----
-    info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
+    #MD5 ----
+    info_q <- paste0("SELECT filetype, md5 FROM file_md5 WHERE file_id = ", file_id)
     md5 <- dbGetQuery(db, info_q)
     
     if (dim(md5)[1] == 0){
       html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>NA</dd>")
     }else{
-      html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", md5, "</dd>")
+      for (i in seq(1:dim(md5)[1])){
+        html_to_print <- paste0(html_to_print, "<dt>", md5[i,1], " MD5</dt><dd>", md5[i,2], "</dd>")
+      }
     }
-    
-    #raw
-    info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'raw' AND file_id = ", file_id)
-    md5 <- dbGetQuery(db, info_q)
-    
-    if (dim(md5)[1] == 0){
-      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>NA</dd>")
-    }else{
-      html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", md5, "</dd>")
-    }
+    # 
+    # #TIF md5----
+    # info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'tif' AND file_id = ", file_id)
+    # md5 <- dbGetQuery(db, info_q)
+    # 
+    # if (dim(md5)[1] == 0){
+    #   html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>NA</dd>")
+    # }else{
+    #   html_to_print <- paste0(html_to_print, "<dt>TIF MD5</dt><dd>", md5, "</dd>")
+    # }
+    # 
+    # #raw
+    # info_q <- paste0("SELECT md5 FROM file_md5 WHERE filetype = 'raw' AND file_id = ", file_id)
+    # md5 <- dbGetQuery(db, info_q)
+    # 
+    # if (dim(md5)[1] == 0){
+    #   html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>NA</dd>")
+    # }else{
+    #   html_to_print <- paste0(html_to_print, "<dt>RAW MD5</dt><dd>", md5, "</dd>")
+    # }
 
     #valid_name
     if (stringr::str_detect(session$userData$file_checks_list, "valid_name")){
