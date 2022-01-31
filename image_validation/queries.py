@@ -12,7 +12,7 @@ folder_in_dams = "SELECT delivered_to_dams FROM folders WHERE folder_id = %(fold
 
 folder_check_processing = "SELECT processing, EXTRACT(EPOCH FROM (NOW() - updated_at)) as seconds_since_update FROM folders WHERE folder_id = %(folder_id)s"
 
-folder_processing_update = "UPDATE folders SET processing = %(processing)s WHERE folder_id = %(folder_id)s"
+# folder_processing_update = "UPDATE folders SET processing = %(processing)s WHERE folder_id = %(folder_id)s"
 
 file_updated_at = "UPDATE files SET updated_at = NOW() where file_id = %(file_id)s"
 
@@ -52,7 +52,7 @@ update_projectchecks = "UPDATE projects SET project_checks = %(project_file_chec
 
 update_folder_status9 = "UPDATE folders SET status = 9, error_info = %(error_info)s WHERE folder_id = %(folder_id)s"
 
-update_folder_0 = "UPDATE folders SET status = 0 WHERE folder_id = %(folder_id)s"
+update_folder_0 = "UPDATE folders SET status = 0, error_info = NULL WHERE folder_id = %(folder_id)s"
 
 update_folders_md5 = "INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%(folder_id)s, %(filetype)s, %(md5)s) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = %(md5)s"
 
@@ -83,3 +83,9 @@ get_fileserrors = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks W
 get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = %(folder_id)s) AND check_results = 9"
 
 update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
+
+insert_log = "INSERT INTO process_logging (project_id, file_id, log_type, log_area, log_text) VALUES (%(project_id)s, " \
+             "%(file_id)s," \
+             "%(log_type)s," \
+             "%(log_area)s, " \
+             "%(log_text)s)"

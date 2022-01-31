@@ -333,6 +333,28 @@ CREATE INDEX projects_updated_at_idx on projects_stats USING BTREE(updated_at);
 CREATE extension tablefunc;
 
 
+---------------
+-- Add logging
+---------------
+DROP TABLE process_logging CASCADE;
+CREATE TABLE process_logging (
+    table_id serial PRIMARY KEY,
+    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    date_time timestamp with time zone DEFAULT NOW(),
+    log_area text,
+    log_text text
+);
+CREATE INDEX process_logging_idx ON process_logging USING BTREE(table_id);
+CREATE INDEX process_logging_pid_idx ON process_logging USING BTREE(project_id);
+CREATE INDEX process_logging_fid_idx ON process_logging USING BTREE(file_id);
+CREATE INDEX process_logging_log_idx ON process_logging USING BTREE(log_area);
+
+
+
+
+
+
 
 ---------------------------
 --QC tables
