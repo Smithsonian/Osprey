@@ -10,7 +10,6 @@
 ############################################
 import logging
 import time
-import os
 from subprocess import run
 
 # For Postgres
@@ -28,9 +27,7 @@ import queries
 # Set current dir
 filecheck_dir = os.getcwd()
 
-
 ver = "1.0.0"
-
 
 ############################################
 # Logging
