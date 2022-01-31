@@ -459,7 +459,7 @@ def process_image(filename, folder_path, folder_id):
     """
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
-    filename_suffix = Path(filename).suffix
+    filename_suffix = Path(filename).suffix[1:]
     # Connect to database
     conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
                             password=settings.db_password, connect_timeout=60)
