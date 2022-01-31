@@ -8,13 +8,13 @@
 ############################################
 # Import modules
 ############################################
-import locale
 import logging
-import random
 import time
+import os
+from subprocess import run
+
 # For Postgres
 import psycopg2
-import pandas as pd
 
 # Import settings from settings.py file
 import settings
@@ -25,47 +25,27 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-if settings.osprey_folder is None:
-    # Use current directory
-    filecheck_dir = os.getcwd()
-else:
-    filecheck_dir = settings.osprey_folder
+# Set current dir
+filecheck_dir = os.getcwd()
 
 
-ver = "0.8.1"
+ver = "1.0.0"
 
-# Set locale
-locale.setlocale(locale.LC_ALL, 'en_US.utf8')
-
-#For parallel and HPC
-if len(sys.argv) == 2:
-    cpu_no = sys.argv[1]
-else:
-    cpu_no = 0
-
-############################################
-# Check requirements
-############################################
-if check_requirements(settings.jhove_path) is False:
-    print("JHOVE was not found")
-    sys.exit(1)
-
-if check_requirements('identify') is False:
-    print("Imagemagick was not found")
-    sys.exit(1)
-
-if check_requirements('exiftool') is False:
-    print("exiftool was not found")
-    sys.exit(1)
 
 ############################################
 # Logging
 ############################################
-if not os.path.exists('{}/logs'.format(filecheck_dir)):
-    os.makedirs('{}/logs'.format(filecheck_dir))
+if settings.log_folder is None:
+    # Use current directory
+    log_folder = "{}/logs".format(filecheck_dir)
+else:
+    log_folder = settings.log_folder
+
+if not os.path.exists('{}/logs'.format(log_folder)):
+    os.makedirs('{}/logs'.format(log_folder))
 current_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
-logfile_name = '{}_{}.log'.format(cpu_no, current_time)
-logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
+logfile_name = '{}.log'.format(current_time)
+logfile = '{log_folder}/logs/{logfile_name}'.format(log_folder=log_folder, logfile_name=logfile_name)
 # from http://stackoverflow.com/a/9321890
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
@@ -82,9 +62,24 @@ logger.info("osprey version {}".format(ver))
 
 
 ############################################
+# Check requirements
+############################################
+if check_requirements(settings.jhove_path) is False:
+    logger.error("JHOVE was not found")
+    sys.exit(1)
+
+if check_requirements('identify') is False:
+    logger.error("Imagemagick was not found")
+    sys.exit(1)
+
+if check_requirements('exiftool') is False:
+    logger.error("exiftool was not found")
+    sys.exit(1)
+
+
+############################################
 # Main
 ############################################
-
 def main():
     # Check that the paths are valid dirs and are mounted
     for p_path in settings.project_paths:
@@ -92,11 +87,15 @@ def main():
             logger.error("Path not found: {}".format(p_path))
             continue
     # Connect to the database
-    logger.info("Connecting to database")
-    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                            password=settings.db_password, connect_timeout=60)
-    conn.autocommit = True
-    db_cursor = conn.cursor()
+    logger.debug("Connecting to database")
+    try:
+        conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                password=settings.db_password, connect_timeout=60)
+        conn.autocommit = True
+        db_cursor = conn.cursor()
+    except psycopg2.Error as e:
+        logger.error("Database error: {}".format(e))
+        sys.exit(1)
     # Clear project shares
     db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
     logger.debug(db_cursor.query.decode("utf-8"))
@@ -125,253 +124,56 @@ def main():
         for entry in os.scandir(project_path):
             if entry.is_dir():
                 folders.append(entry.path)
+            else:
+                logger.error("Extraneous files in: {}".format(entry.path))
+                logger.info("Leaving program")
+                sys.exit(1)
         # No folders found
         if len(folders) == 0:
+            logger.info("No folders found in: {}".format(project_path))
             continue
-        # Randomize folders
-        random.shuffle(folders)
-        # Run each folder
+        # Check each folder
         for folder in folders:
-            folder_path = folder
-            logger.info(folder_path)
-            folder_name = os.path.basename(folder)
-            # Check if the folder exists in the database
-            global folder_id
-            folder_id = check_folder(folder_name, folder_path, settings.project_id, db_cursor)
-            if folder_id is None:
-                logger.error("Folder {} had an error".format(folder_name))
-                continue
-            # Check if folder is ready or in dams
-            db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            f_in_dams = db_cursor.fetchone()
-            if f_in_dams[0] == 0 or f_in_dams[0] == 1:
-                # Folder ready for dams or in dams already, skip
-                logger.info("Folder in DAMS, skipping {}".format(folder_path))
-                continue
-            # Check if another computer/process is processing the folder
-            db_cursor.execute(queries.folder_check_processing, {'folder_id': folder_id})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            folder_proc = db_cursor.fetchone()
-            if folder_proc[0]:
-                # In case process is stuck or crashed, reset setting if its been more than 2 days
-                if folder_proc[1] / (60 * 60 * 24) < 2.0:
-                    logger.info("Folder checked by another computer, going for the next one {}".format(folder_path))
-                    continue
-            # Set as processing
-            db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            os.chdir(folder_path)
-            if settings.project_type == 'tif':
-                if (os.path.isdir(folder_path + "/" + settings.raw_files_path) is False and os.path.isdir(
-                        folder_path + "/" + settings.tif_files_path) is False):
-                    logger.info("Missing TIF and RAW folders")
-                    db_cursor.execute(queries.update_folder_status9,
-                                      {'error_info': "Missing TIF and RAW folders", 'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor, logger)
-                    continue
-                elif os.path.isdir(folder_path + "/" + settings.tif_files_path) is False:
-                    logger.info("Missing TIF folder")
-                    db_cursor.execute(queries.update_folder_status9,
-                                      {'error_info': "Missing TIF folder", 'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor, logger)
-                    continue
-                elif os.path.isdir(folder_path + "/" + settings.raw_files_path) is False:
-                    logger.info("Missing RAW folder")
-                    db_cursor.execute(queries.update_folder_status9,
-                                      {'error_info': "Missing RAW folder", 'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor, logger)
-                    continue
-                else:
-                    logger.info("Both folders present")
-                    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    folder_full_path = "{}/{}".format(folder_path, settings.tif_files_path)
-                    os.chdir(folder_full_path)
-                    files = glob.glob("*.tif")
-                    # logger.info(files)
-                    # Remove temp files
-                    if settings.ignore_string is not None:
-                        files = [x for x in files if settings.ignore_string not in x]
-                        logger.debug("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
-                    for file in files:
-                        logger.info("Running checks on file {}".format(file))
-                        process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger)
-                    # MD5 files
-                    if 'md5_hash' in settings.project_file_checks:
-                        folder_tif_md5 = None
-                        folder_raw_md5 = None
-                        if len(glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")) == 1:
-                            db_cursor.execute(queries.update_folders_md5,
-                                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-                            folder_tif_md5 = True
-                            logger.debug(db_cursor.query.decode("utf-8"))
-                        else:
-                            db_cursor.execute(queries.update_folders_md5,
-                                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
-                            folder_tif_md5 = False
-                            logger.debug(db_cursor.query.decode("utf-8"))
-                        if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-                            db_cursor.execute(queries.update_folders_md5,
-                                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
-                            folder_raw_md5 = True
-                            logger.debug(db_cursor.query.decode("utf-8"))
-                        else:
-                            db_cursor.execute(queries.update_folders_md5,
-                                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
-                            folder_raw_md5 = False
-                            logger.debug(db_cursor.query.decode("utf-8"))
-                        # Check if md5 files match the hashes
-                        if folder_tif_md5 and folder_raw_md5:
-                            # Read .md5 files
-                            # Tifs md5
-                            tif_md5_file = glob.glob(folder_path + "/" + settings.tif_files_path + "/*.md5")[0]
-                            md5_tif_hashes = pd.read_csv(tif_md5_file, sep=' ', header=None, names=['md5', 'file'])
-                            db_cursor.execute(queries.get_folder_files, {'folder_id': folder_id})
-                            logger.debug(db_cursor.query.decode("utf-8"))
-                            files = db_cursor.fetchall()
-                            # No. of files match rows in md5 file
-                            if len(files) == len(md5_tif_hashes):
-                                for file in files:
-                                    # TIF file
-                                    db_cursor.execute(queries.select_file_md5,
-                                                      {'file_id': file['file_id'], 'filetype': 'TIF'})
-                                    logger.debug(db_cursor.query.decode("utf-8"))
-                                    file_md5_hash = db_cursor.fetchone()
-                                    md5_from_file = md5_tif_hashes[md5_tif_hashes.file == file['filename']][
-                                        'md5'].to_string(
-                                        index=False).strip()
-                                    if file_md5_hash[0] == md5_from_file:
-                                        md5_check_tif = 0
-                                    else:
-                                        md5_check_tif = 1
-                                        md5_info_tif = "MD5 hash not matched for TIF"
-                                    # RAW file
-                                    db_cursor.execute(queries.select_file_md5,
-                                                      {'file_id': file['file_id'], 'filetype': 'RAW'})
-                                    logger.debug(db_cursor.query.decode("utf-8"))
-                                    file_md5_hash = db_cursor.fetchone()
-                                    md5_from_file = md5_raw_hashes[md5_raw_hashes.file == file['filename']][
-                                        'md5'].to_string(
-                                        index=False).strip()
-                                    if file_md5_hash[0] == md5_from_file:
-                                        md5_check_raw = 0
-                                    else:
-                                        md5_check_raw = 1
-                                        md5_info_raw = "MD5 hash not matched for RAW"
-                                    # Update database
-                                    if md5_check_raw == 0 and md5_check_tif == 0:
-                                        db_cursor.execute(queries.file_check,
-                                                          {'file_id': file['file_id'], 'file_check': 'md5_hash',
-                                                           'check_results': 0,
-                                                           'check_info': md5_info})
-                                        logger.debug(db_cursor.query.decode("utf-8"))
-                                    else:
-                                        db_cursor.execute(queries.file_check,
-                                                          {'file_id': file['file_id'], 'file_check': 'md5_hash',
-                                                           'check_results': 1,
-                                                           'check_info': '{} {}'.format(md5_info_tif, md5_info_raw)})
-                                        logger.debug(db_cursor.query.decode("utf-8"))
-                # Check for deleted files
-                if settings.check_deleted:
-                    check_deleted('tif', db_cursor, logger)
-            elif settings.project_type == 'jpg':
-                if os.path.isdir(folder_path + "/" + settings.jpg_files_path) is False:
-                    logger.info("Missing JPG folders")
-                    db_cursor.execute(queries.update_folder_status9,
-                                      {'error_info': "Missing JPG folder", 'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    delete_folder_files(folder_id, db_cursor, logger)
-                    continue
-                else:
-                    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    folder_full_path = "{}/{}".format(folder_path, settings.jpg_files_path)
-                    os.chdir(folder_full_path)
-                    files = glob.glob("*.jpg")
-                    # logger.info(files)
-                    # Remove temp files
-                    if settings.ignore_string is not None:
-                        files = [x for x in files if settings.ignore_string not in x]
-                        logger.debug("Files without ignored strings in {}: {}".format(folder_path, ','.join(files)))
-                    for file in files:
-                        logger.info("Running checks on file {}".format(file))
-                        process_image(file, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat='jpg')
-                    # MD5
-                    if len(glob.glob(folder_path + "/" + settings.jpg_files_path + "/*.md5")) == 1:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'jpg', 'md5': 0})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    else:
-                        db_cursor.execute(queries.update_folders_md5,
-                                          {'folder_id': folder_id, 'filetype': 'jpg', 'md5': 1})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                    # Check for deleted files
-                    if settings.check_deleted:
-                        check_deleted('jpg', db_cursor, logger)
-            folder_updated_at(folder_id, db_cursor, logger)
-            # Update folder stats
-            update_folder_stats(folder_id, db_cursor, logger)
-            # Set as processing done
-            db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-    os.chdir(filecheck_dir)
+            run_checks_folder(settings.project_id, folder, db_cursor, logger)
     # Disconnect from db
     conn.close()
     if settings.sleep is False:
         logger.info("Process completed!")
-        compress_log(filecheck_dir)
+        compress_log(filecheck_dir, log_folder)
         sys.exit(0)
     else:
         logger.info("Sleeping for {} secs".format(settings.sleep))
         # Sleep before trying again
         time.sleep(settings.sleep)
+        return None
 
 
 ############################################
 # Main loop
 ############################################
 if __name__ == "__main__":
-    while True:
-        try:
-            main()
-        except KeyboardInterrupt:
-            print("Ctrl-c detected. Leaving program.")
-            if 'folder_id' in globals():
-                try:
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db,
-                                             user=settings.db_user, password=settings.db_password,
-                                             connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                       {'folder_id': folder_id})
-                    conn2.close()
-                except psycopg2.Error as e:
-                    print(e.pgerror)
-            # Compress logs
-            compress_log(filecheck_dir)
-            sys.exit(0)
-        except Exception as e:
-            logger.info("There was an error: {}".format(e))
-            if 'folder_id' in globals():
-                try:
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db,
-                                             user=settings.db_user, password=settings.db_password,
-                                             connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                       {'folder_id': folder_id})
-                    conn2.close()
-                except psycopg2.Error as e:
-                    print(e.pgerror)
-            # Compress logs
-            compress_log(filecheck_dir)
-            sys.exit(1)
+    main()
+    # while True:
+    #     try:
+    #         # Check if there is a pre script to run
+    #         if settings.pre_script is not None:
+    #             run([settings.pre_script], check=True)
+    #         # Run main function
+    #         main()
+    #         # Check if there is a post script to run
+    #         if settings.post_script is not None:
+    #             run([settings.post_script], check=True)
+    #     except KeyboardInterrupt:
+    #         # print("Ctrl-c detected. Leaving program.")
+    #         logger.info("Ctrl-c detected. Leaving program.")
+    #         # Compress logs
+    #         compress_log(filecheck_dir, log_folder)
+    #         sys.exit(0)
+    #     except Exception as e:
+    #         logger.error("There was an error: {}".format(e))
+    #         # Compress logs
+    #         compress_log(filecheck_dir, log_folder)
+    #         sys.exit(1)
 
 
 sys.exit(0)
