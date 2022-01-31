@@ -152,28 +152,28 @@ def main():
 # Main loop
 ############################################
 if __name__ == "__main__":
-    main()
-    # while True:
-    #     try:
-    #         # Check if there is a pre script to run
-    #         if settings.pre_script is not None:
-    #             run([settings.pre_script], check=True)
-    #         # Run main function
-    #         main()
-    #         # Check if there is a post script to run
-    #         if settings.post_script is not None:
-    #             run([settings.post_script], check=True)
-    #     except KeyboardInterrupt:
-    #         # print("Ctrl-c detected. Leaving program.")
-    #         logger.info("Ctrl-c detected. Leaving program.")
-    #         # Compress logs
-    #         compress_log(filecheck_dir, log_folder)
-    #         sys.exit(0)
-    #     except Exception as e:
-    #         logger.error("There was an error: {}".format(e))
-    #         # Compress logs
-    #         compress_log(filecheck_dir, log_folder)
-    #         sys.exit(1)
+    # main()
+    while True:
+        try:
+            # Check if there is a pre script to run
+            if settings.pre_script is not None:
+                run([settings.pre_script], check=True)
+            # Run main function
+            main()
+            # Check if there is a post script to run
+            if settings.post_script is not None:
+                run([settings.post_script], check=True)
+        except KeyboardInterrupt:
+            # print("Ctrl-c detected. Leaving program.")
+            logger.info("Ctrl-c detected. Leaving program.")
+            # Compress logs
+            compress_log(filecheck_dir, log_folder)
+            sys.exit(0)
+        except Exception as e:
+            logger.error("There was an error: {}".format(e))
+            # Compress logs
+            compress_log(filecheck_dir, log_folder)
+            sys.exit(1)
 
 
 sys.exit(0)

@@ -343,7 +343,8 @@ CREATE TABLE process_logging (
     file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
     date_time timestamp with time zone DEFAULT NOW(),
     log_area text,
-    log_text text
+    log_text text,
+    log_type text DEFAULT 'info'
 );
 CREATE INDEX process_logging_idx ON process_logging USING BTREE(table_id);
 CREATE INDEX process_logging_pid_idx ON process_logging USING BTREE(project_id);

@@ -15,7 +15,7 @@ from PIL import Image
 from subprocess import PIPE
 from pathlib import Path
 import shutil
-import pandas
+# import pandas
 import locale
 
 # For Postgres
@@ -69,25 +69,28 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     return folder_id[0]
 
 
-def folder_updated_at(folder_id, db_cursor, logger):
+def folder_updated_at(folder_id, db_cursor):
     """
     Update the last time the folder was checked
     """
     db_cursor.execute(queries.folder_updated_at, {'folder_id': folder_id})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
-def file_updated_at(file_id, db_cursor, logger):
+def file_updated_at(file_id, db_cursor):
     """
     Update the last time the file was checked
     """
     db_cursor.execute(queries.file_updated_at, {'file_id': file_id})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def jhove_validate(file_id, filename, db_cursor, logger):
+def jhove_validate(file_id, filename, db_cursor):
     """
     Validate the file with JHOVE
     """
@@ -123,11 +126,14 @@ def jhove_validate(file_id, filename, db_cursor, logger):
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
                                            'check_info': file_status})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def magick_validate(file_id, filename, db_cursor, logger, paranoid=False):
+def magick_validate(file_id, filename, db_cursor, paranoid=False):
     """
     Validate the file with Imagemagick
     """
@@ -144,11 +150,14 @@ def magick_validate(file_id, filename, db_cursor, logger, paranoid=False):
     magick_identify_info = out + err
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify,
                                            'check_info': magick_identify_info.decode('latin-1')})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def tif_compression(file_id, filename, db_cursor, logger):
+def tif_compression(file_id, filename, db_cursor):
     """
     Check if the image has LZW compression
     """
@@ -162,11 +171,14 @@ def tif_compression(file_id, filename, db_cursor, logger):
     db_cursor.execute(queries.file_check,
                       {'file_id': file_id, 'file_check': 'tif_compression', 'check_results': f_compressed,
                        'check_info': compressed_info})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def valid_name(file_id, filename, db_cursor, logger):
+def valid_name(file_id, filename, db_cursor):
     """
     Check if filename in database of accepted names
     """
@@ -181,11 +193,14 @@ def valid_name(file_id, filename, db_cursor, logger):
     db_cursor.execute(queries.file_check,
                       {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check,
                        'check_info': filename_check_info})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def tifpages(file_id, filename, db_cursor, logger):
+def tifpages(file_id, filename, db_cursor):
     """
     Check if TIF has multiple pages
     """
@@ -203,11 +218,14 @@ def tifpages(file_id, filename, db_cursor, logger):
         pages_vals = 1
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals,
                                            'check_info': no_pages})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def file_exif(file_id, filename, filetype, db_cursor, logger):
+def file_exif(file_id, filename, filetype, db_cursor):
     """
     Extract the EXIF info from the RAW file
     """
@@ -226,9 +244,15 @@ def file_exif(file_id, filename, filetype, db_cursor, logger):
             db_cursor.execute(queries.save_exif,
                               {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1],
                                'tag': tag[2], 'value': tag[3]})
-            logger.debug(db_cursor.query.decode("utf-8"))
+            # logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
         except Exception as e:
-            logger.error("Tag not in utf-8 for file {}, {} {} {} ({})".format(file_id, tag[0], tag[1], tag[2], e))
+            # logger.error("Tag not in utf-8 for file {}, {} {} {} ({})".format(file_id, tag[0], tag[1], tag[2], e))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "Tag not in utf-8 for file {}, {} {} {} ({})".format(file_id, tag[0], tag[1], tag[2], e)})
             continue
     return True
 
@@ -249,7 +273,7 @@ def filemd5(filepath):
     return file_md5
 
 
-def file_pair_check(file_id, filename, derivative_path, derivative_type, db_cursor, logger):
+def file_pair_check(file_id, filename, derivative_path, derivative_type, db_cursor):
     """
     Check if a file has a pair (main + raw)
     """
@@ -267,73 +291,54 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
     db_cursor.execute(queries.file_check,
                       {'file_id': file_id, 'file_check': derivative_type, 'check_results': file_pair,
                        'check_info': file_pair_info})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     return derivative_file
 
 
-def check_jpg(file_id, filename, db_cursor, logger):
-    """
-    Run checks for jpg files
-    """
-    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = p.communicate()
-    if p.returncode == 0:
-        magick_identify = 0
-        magick_identify_info = out
-        magick_return = True
-    else:
-        magick_identify = 1
-        magick_identify_info = err
-        magick_return = False
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jpg', 'check_results': magick_identify,
-                                           'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    if magick_return:
-        # Store MD5
-        file_md5 = filemd5(filename)
-        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        logger.debug(db_cursor.query.decode("utf-8"))
-    return True
+
+# def checkmd5file(md5_file, folder_id, filetype, db_cursor):
+#     """
+#     Check if md5 hashes match with the files
+#     -In progress
+#     """
+#     md5_error = ""
+#     db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': filetype})
+#     db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+#                                            'log_area': 'process_image',
+#                                            'log_text': db_cursor.query.decode("utf-8")})
+#     vendor = pandas.DataFrame(db_cursor.fetchall(), columns=['md5_1', 'filename'])
+#     md5file = pandas.read_csv(md5_file, header=None, names=['md5_2', 'filename'], index_col=False, sep="  ")
+#     # Remove suffix
+#     # if filetype == "tif":
+#     #     md5file['filename'] = md5file['filename'].str.replace(".tif", "")
+#     #     md5file['filename'] = md5file['filename'].str.replace(".TIF", "")
+#     # elif filetype == "raw":
+#     #     md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.lower()), "")
+#     #     md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.upper()), "")
+#     md5check = pandas.merge(vendor, md5file, how="outer", on="filename")
+#     # MD5 hashes don't match
+#     # Get rows where MD5 don't match
+#     md5check_match = md5check[md5check.md5_1 != md5check.md5_2]
+#     # Ignore NAs
+#     md5check_match = md5check_match.dropna()
+#     # check if there are any mismatches
+#     nrows = len(md5check_match)
+#     if nrows > 0:
+#         md5_error = md5_error + "There were {} files where the MD5 hash did not match:".format(nrows)
+#         for i in range(0, nrows):
+#             md5_error = md5_error + "\n - File: {}, MD5 of file: {}, hash in file: {}".format(
+#                 md5check_match['filename'][i], md5check_match['md5_2'], md5check_match['md5_1'])
+#     # Extra files in vendor mount
+#     vendor_extras = vendor[~vendor.filename.isin(md5file.filename)]['filename']
+#     # Extra files in md5file
+#     md5file_extras = md5file[~md5file.filename.isin(vendor.filename)]['filename']
+#     return True
 
 
-def checkmd5file(md5_file, folder_id, filetype, db_cursor, logger):
-    """
-    Check if md5 hashes match with the files
-    -In progress
-    """
-    md5_error = ""
-    db_cursor.execute(queries.select_tif_md5, {'folder_id': folder_id, 'filetype': filetype})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    vendor = pandas.DataFrame(db_cursor.fetchall(), columns=['md5_1', 'filename'])
-    md5file = pandas.read_csv(md5_file, header=None, names=['md5_2', 'filename'], index_col=False, sep="  ")
-    # Remove suffix
-    # if filetype == "tif":
-    #     md5file['filename'] = md5file['filename'].str.replace(".tif", "")
-    #     md5file['filename'] = md5file['filename'].str.replace(".TIF", "")
-    # elif filetype == "raw":
-    #     md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.lower()), "")
-    #     md5file['filename'] = md5file['filename'].str.replace(".{}".format(settings.raw_files.upper()), "")
-    md5check = pandas.merge(vendor, md5file, how="outer", on="filename")
-    # MD5 hashes don't match
-    # Get rows where MD5 don't match
-    md5check_match = md5check[md5check.md5_1 != md5check.md5_2]
-    # Ignore NAs
-    md5check_match = md5check_match.dropna()
-    # check if there are any mismatches
-    nrows = len(md5check_match)
-    if nrows > 0:
-        md5_error = md5_error + "There were {} files where the MD5 hash did not match:".format(nrows)
-        for i in range(0, nrows):
-            md5_error = md5_error + "\n - File: {}, MD5 of file: {}, hash in file: {}".format(
-                md5check_match['filename'][i], md5check_match['md5_2'], md5check_match['md5_1'])
-    # Extra files in vendor mount
-    vendor_extras = vendor[~vendor.filename.isin(md5file.filename)]['filename']
-    # Extra files in md5file
-    md5file_extras = md5file[~md5file.filename.isin(vendor.filename)]['filename']
-    return True
-
-
-def check_stitched_jpg(file_id, filename, db_cursor, logger):
+def check_stitched_jpg(file_id, filename, db_cursor):
     """
     Run checks for jpg files that were stitched from 2 images
     """
@@ -350,26 +355,36 @@ def check_stitched_jpg(file_id, filename, db_cursor, logger):
     db_cursor.execute(queries.file_check,
                       {'file_id': file_id, 'file_check': 'stitched_jpg', 'check_results': magick_identify,
                        'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     if magick_return:
         # Store MD5
         file_md5 = filemd5(filename)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-        logger.debug(db_cursor.query.decode("utf-8"))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': db_cursor.query.decode("utf-8")})
     return True
 
 
-def jpgpreview(file_id, folder_id, filename, logger):
+def jpgpreview(file_id, folder_id, filename, db_cursor):
     """
     Create preview image
     """
     if settings.jpg_previews == "":
-        logger.error("JPG preview folder is not set in settings file")
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "JPG preview folder is not set in settings file"})
         sys.exit(1)
     disk_check = shutil.disk_usage(settings.jpg_previews)
     if (disk_check.free / disk_check.total) < 0.1:
-        logger.error("JPG storage location is running out of space ({}%) - {}".format(
-            round(disk_check.free / disk_check.total, 4) * 100, settings.jpg_previews))
+        # logger.error("JPG storage location is running out of space ({}%) - {}".format(
+        #     round(disk_check.free / disk_check.total, 4) * 100, settings.jpg_previews))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "JPG storage location is running out of space ({}%) - {}".format(
+            round(disk_check.free / disk_check.total, 4) * 100, settings.jpg_previews)})
         sys.exit(1)
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
@@ -384,21 +399,33 @@ def jpgpreview(file_id, folder_id, filename, logger):
             # Size in settings changed, create new image
             os.remove(preview_image)
         else:
-            logger.info("JPG preview {} exists".format(preview_image))
+            # logger.info("JPG preview {} exists".format(preview_image))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "JPG preview {} exists".format(preview_image)})
             return True
-    logger.info("Creating preview_image:{}".format(preview_image))
+    #logger.info("Creating preview_image:{}".format(preview_image))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': "Creating preview_image:{}".format(preview_image)})
     if settings.previews_size == "full":
-        p = subprocess.Popen(['convert', '-quiet', '{}[0]'.format(filename), preview_image], stdout=PIPE, stderr=PIPE)
+        p = subprocess.Popen(['convert', '-quiet', '{}'.format(filename), preview_image], stdout=PIPE, stderr=PIPE)
     else:
-        p = subprocess.Popen(['convert', '-quiet', '{}[0]'.format(filename), '-resize',
+        p = subprocess.Popen(['convert', '-quiet', '{}'.format(filename), '-resize',
                               '{imgsize}x{imgsize}'.format(imgsize=settings.previews_size),
                               preview_image], stdout=PIPE, stderr=PIPE)
     out = p.communicate()
     if os.path.isfile(preview_image):
-        logger.info(out)
+        # logger.info(out)
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': out})
         return True
     else:
-        logger.error("File:{}|msg:{}".format(filename, out))
+        # logger.error("File:{}|msg:{}".format(filename, out))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "File:{}|msg:{}".format(filename, out)})
         return False
 
 
@@ -426,7 +453,7 @@ def update_folder_stats(folder_id, db_cursor, logger):
     return True
 
 
-def process_image(filename, folder_path, folder_id, logger):
+def process_image(filename, folder_path, folder_id):
     """
     Run checks for image files
     """
@@ -440,9 +467,8 @@ def process_image(filename, folder_path, folder_id, logger):
     db_cursor = conn.cursor()
     # Check if file exists, insert if not
     # db_cursor.execute(queries.select_file_id, {'file_name': filename_stem, 'folder_id': folder_id})
-    db_cursor.execute(queries.select_file_id, {'file_name': filename, 'folder_id': folder_id})
+    db_cursor.execute(queries.select_file_id, {'file_name': filename_stem, 'folder_id': folder_id})
     file_id = db_cursor.fetchone()
-    #logger.debug(db_cursor.query.decode("utf-8"))
     db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                            'log_area': 'process_image',
                                            'log_text': db_cursor.query.decode("utf-8")})
@@ -452,11 +478,10 @@ def process_image(filename, folder_path, folder_id, logger):
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         db_cursor.execute(queries.insert_file,
                           {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
-        # logger.debug(db_cursor.query.decode("utf-8"))
+        file_id = db_cursor.fetchone()[0]
         db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                'log_area': 'process_image',
                                                'log_text': db_cursor.query.decode("utf-8")})
-        file_id = db_cursor.fetchone()[0]
     else:
         file_id = file_id[0]
     # Check if file is OK
@@ -501,32 +526,41 @@ def process_image(filename, folder_path, folder_id, logger):
         file_checks = file_checks + 1
     # Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-    logger.debug(db_cursor.query.decode("utf-8"))
     result = db_cursor.fetchone()
+    #logger.debug(db_cursor.query.decode("utf-8"))
+    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
     if result is None:
-        logger.info("file_id:{};file_checks:{};result:None".format(file_id, 'md5'))
+        #logger.info("file_id:{};file_checks:{};result:None".format(file_id, 'md5'))
         file_checks = file_checks + 1
     if file_checks == 0:
-        file_updated_at(file_id, db_cursor, logger)
-        logger.info("File with ID {} is OK, skipping".format(file_id))
+        file_updated_at(file_id, db_cursor)
+        #logger.info("File with ID {} is OK, skipping".format(file_id))
         # Disconnect from db
         conn.close()
         return True
     else:
-        logger.info("file_checks: {} file_id: {}".format(file_checks, file_id))
+        #logger.info("file_checks: {} file_id: {}".format(file_checks, file_id))
         # Checks that do not need a local copy
         if 'raw_pair' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            #logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # FilePair check
                 pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
-                                             'raw_pair', db_cursor, logger)
-                logger.info("pair_check:{}".format(pair_check))
+                                             'raw_pair', db_cursor)
+                #logger.info("pair_check:{}".format(pair_check))
                 file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check))
                 db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
-                logger.debug(db_cursor.query.decode("utf-8"))
+                #logger.debug(db_cursor.query.decode("utf-8"))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 file_checks = file_checks - 1
         if file_checks == 0:
             # Disconnect from db
@@ -534,11 +568,14 @@ def process_image(filename, folder_path, folder_id, logger):
             return True
         if 'valid_name' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            #logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # valid name in file
-                valid_name(file_id, filename_stem, db_cursor, logger)
+                valid_name(file_id, filename_stem, db_cursor)
                 file_checks = file_checks - 1
         if file_checks == 0:
             # Disconnect from db
@@ -546,49 +583,70 @@ def process_image(filename, folder_path, folder_id, logger):
             return True
         if 'unique_file' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            # logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # Check in project
                 db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
                                                          'project_id': settings.project_id, 'file_id': file_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 if len(result) == 0:
                     unique_file = 0
                     db_cursor.execute(queries.file_check,
                                       {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
                                        'check_info': ""})
-                    logger.debug(db_cursor.query.decode("utf-8"))
+                    # logger.debug(db_cursor.query.decode("utf-8"))
+                    db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                           'log_area': 'process_image',
+                                                           'log_text': db_cursor.query.decode("utf-8")})
                     file_checks = file_checks - 1
                 else:
                     unique_file = 1
                     for dupe in result:
                         db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
-                        logger.debug(db_cursor.query.decode("utf-8"))
                         folder_dupe = db_cursor.fetchone()
+                        # logger.debug(db_cursor.query.decode("utf-8"))
+                        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                               'log_area': 'process_image',
+                                                               'log_text': db_cursor.query.decode("utf-8")})
                         db_cursor.execute(queries.file_check,
                                           {'file_id': dupe[0], 'file_check': 'unique_file', 'check_results': 1,
                                            'check_info': "File with same name in {}".format(folder_path)})
-                        logger.debug(db_cursor.query.decode("utf-8"))
+                        # logger.debug(db_cursor.query.decode("utf-8"))
+                        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                               'log_area': 'process_image',
+                                                               'log_text': db_cursor.query.decode("utf-8")})
                         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
                                                                'check_results': unique_file,
                                                                'check_info': "File with same name in {}".format(
                                                                    folder_dupe[0])})
-                        logger.debug(db_cursor.query.decode("utf-8"))
+                        # logger.debug(db_cursor.query.decode("utf-8"))
+                        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                               'log_area': 'process_image',
+                                                               'log_text': db_cursor.query.decode("utf-8")})
         if file_checks == 0:
             # Disconnect from db
             conn.close()
             return True
         if 'old_name' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'folder_id': folder_id,
                                                              'project_id': settings.project_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 if len(result) > 0:
                     old_name = 1
                     folders = ",".join(result[0])
@@ -598,37 +656,55 @@ def process_image(filename, folder_path, folder_id, logger):
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'old_name', 'check_results': old_name,
                                    'check_info': folders})
-                logger.debug(db_cursor.query.decode("utf-8"))
+                # logger.debug(db_cursor.query.decode("utf-8"))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 file_checks = file_checks - 1
         if 'prefix' in settings.project_file_checks:
             if settings.filename_prefix is None:
-                logger.error("The settings file specified to check the prefix of filenames, but the prefix to use is "
-                             "empty.")
+                # logger.error("The settings file specified to check the prefix of filenames, but the prefix to use is "
+                #             "empty.")
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': "The settings file specified to check the prefix of filenames, but the prefix to use is empty."})
                 sys.exit(1)
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'prefix'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 if filename_stem.startswith(settings.filename_prefix):
                     prefix_res = 0
                     prefix_info = ""
                 else:
-                    prefix_res = 1
+                    prefix_res = db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                           'log_area': 'process_image',
+                                           'log_text': db_cursor.query.decode("utf-8")})
                     prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
                                                                                              settings.filename_prefix)
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_res,
                                    'check_info': prefix_info})
-                logger.debug(db_cursor.query.decode("utf-8"))
+                # logger.debug(db_cursor.query.decode("utf-8"))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 file_checks = file_checks - 1
         if 'suffix' in settings.project_file_checks:
             if settings.filename_prefix is None:
-                logger.error("The settings file specified to check the suffix of filenames, but the suffix to use is "
-                             "empty.")
+                # logger.error("The settings file specified to check the suffix of filenames, but the suffix to use is "
+                #            "empty.")
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': "The settings file specified to check the suffix of filenames, but the suffix to use is empty."})
                 sys.exit(1)
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'suffix'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 if filename_stem.endswith(settings.filename_suffix):
                     prefix_res = 0
@@ -640,10 +716,13 @@ def process_image(filename, folder_path, folder_id, logger):
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'suffix', 'check_results': prefix_res,
                                    'check_info': prefix_info})
-                logger.debug(db_cursor.query.decode("utf-8"))
+                # logger.debug(db_cursor.query.decode("utf-8"))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': db_cursor.query.decode("utf-8")})
                 file_checks = file_checks - 1
         if file_checks == 0:
-            logger.info("file_checks: {};skipping file {}".format(file_checks, file_id))
+            # logger.info("file_checks: {};skipping file {}".format(file_checks, file_id))
             # Disconnect from db
             conn.close()
             return True
@@ -651,12 +730,22 @@ def process_image(filename, folder_path, folder_id, logger):
         # Check if there is enough space first
         local_disk = shutil.disk_usage(settings.tmp_folder)
         if local_disk.free / local_disk.total < 0.1:
-            logger.error(
-                "Disk is running out of space ({}%) - {}".format(round(local_disk.free / local_disk.total, 4) * 100,
-                                                                 settings.tmp_folder))
+            # logger.error(
+            #     "Disk is running out of space ({}%) - {}".format(round(local_disk.free / local_disk.total, 4) * 100,
+            #                                                      settings.tmp_folder))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "Disk is running out of space ({}%) - {}".format(round(local_disk.free / local_disk.total, 4) * 100,
+                                                                 settings.tmp_folder)})
             sys.exit(1)
-        logger.info("file_checks: {}".format(file_checks))
-        logger.info("Copying file {} to local tmp".format(filename))
+        # logger.info("file_checks: {}".format(file_checks))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "file_checks: {}".format(file_checks)})
+        # logger.info("Copying file {} to local tmp".format(filename))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "Copying file {} to local tmp".format(filename)})
         # Copy file to tmp folder
         # Create folder in tmp
         tmp_folder = "{}/{}".format(settings.tmp_folder, randint(100, 1000000))
@@ -670,102 +759,148 @@ def process_image(filename, folder_path, folder_id, logger):
         try:
             shutil.copyfile("{}/{}/{}".format(folder_path, settings.main_files_path, filename), local_tempfile)
         except Exception as e:
-            logger.error(
-                "Could not copy file {}/{}/{} to local tmp ({})".format(folder_path,
+            # logger.error(
+            #     "Could not copy file {}/{}/{} to local tmp ({})".format(folder_path,
+            #                                                             settings.main_files_path,
+            #                                                             filename,
+            #                                                             e))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "Could not copy file {}/{}/{} to local tmp ({})".format(folder_path,
                                                                         settings.main_files_path,
                                                                         filename,
-                                                                        e))
+                                                                        e)})
             db_cursor.execute(queries.file_exists, {'file_exists': 1, 'file_id': file_id})
-            logger.debug(db_cursor.query.decode("utf-8"))
+            #logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             # Serious enough error, quit
             sys.exit(1)
         # Generate jpg preview, if needed
-        jpg_prev = jpgpreview(file_id, folder_id, local_tempfile, logger)
+        jpg_prev = jpgpreview(file_id, folder_id, local_tempfile, db_cursor)
         # Compare MD5 between source and copy
         db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
-        logger.debug(db_cursor.query.decode("utf-8"))
         result = db_cursor.fetchone()
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': db_cursor.query.decode("utf-8")})
         if result is None:
-            logger.info("Getting MD5")
+            #logger.info("Getting MD5")
             sourcefile_md5 = filemd5("{}/{}/{}".format(folder_path, settings.main_files_path, filename))
             # Store MD5
             file_md5 = filemd5(local_tempfile)
             if sourcefile_md5 != file_md5:
-                logger.error(
-                    "MD5 hash of local copy does not match the source: {} vs {}".format(sourcefile_md5, file_md5))
+                # logger.error(
+                #     "MD5 hash of local copy does not match the source: {} vs {}".format(sourcefile_md5, file_md5))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text':
+                    "MD5 hash of local copy does not match the source: {} vs {}".format(sourcefile_md5, file_md5)})
                 # Serious enough error, quit
                 sys.exit(1)
             db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            logger.info("{}_md5:{}".format(filename_suffix, file_md5))
+            # logger.debug(db_cursor.query.decode("utf-8"))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
+            # logger.info("{}_md5:{}".format(filename_suffix, file_md5))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "{}_md5:{}".format(filename_suffix, file_md5)})
         if 'jhove' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # JHOVE check
-                jhove_validate(file_id, local_tempfile, db_cursor, logger)
+                jhove_validate(file_id, local_tempfile, db_cursor)
         if 'magick' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # Imagemagick check
-                magick_validate(file_id, local_tempfile, db_cursor, logger)
+                magick_validate(file_id, local_tempfile, db_cursor)
         if 'stitched_jpg' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # JPG check
                 stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
                 stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
                 check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
-                                   db_cursor, logger)
+                                   db_cursor)
         if 'tifpages' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # check if tif has multiple pages
-                tifpages(file_id, local_tempfile, db_cursor, logger)
+                tifpages(file_id, local_tempfile, db_cursor)
         if 'tif_compression' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
-            logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': db_cursor.query.decode("utf-8")})
             if result != 0:
                 # check if tif is compressed
-                tif_compression(file_id, local_tempfile, db_cursor, logger)
+                tif_compression(file_id, local_tempfile, db_cursor)
         # Get exif from TIF
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
         check_exif = db_cursor.fetchone()[0]
-        logger.info("check_exif_tif: {}".format(check_exif))
+        # logger.info("check_exif_tif: {}".format(check_exif))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "check_exif_tif: {}".format(check_exif)})
         if check_exif == 0:
-            logger.info("Getting EXIF from {}/{}/{}".format(folder_path, settings.main_files_path, filename))
-            file_exif(file_id, local_tempfile, filename_suffix.lower(), db_cursor, logger)
+            # logger.info("Getting EXIF from {}/{}/{}".format(folder_path, settings.main_files_path, filename))
+            db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                   'log_area': 'process_image',
+                                                   'log_text': "Getting EXIF from {}/{}/{}".format(folder_path, settings.main_files_path, filename)})
+            file_exif(file_id, local_tempfile, filename_suffix.lower(), db_cursor)
         # Get exif from RAW
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
         check_exif = db_cursor.fetchone()[0]
-        logger.info("check_exif_raw: {}".format(check_exif))
+        # logger.info("check_exif_raw: {}".format(check_exif))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "check_exif_raw: {}".format(check_exif)})
         if check_exif == 0:
             pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
-                                         'raw_pair', db_cursor, logger)
+                                         'raw_pair', db_cursor)
             if os.path.isfile(
                     "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
-                logger.info(
-                    "Getting EXIF from {}/{}/{}".format(folder_path, settings.raw_files_path,
-                                                           pair_file))
+                # logger.info(
+                #     "Getting EXIF from {}/{}/{}".format(folder_path, settings.raw_files_path,
+                #                                            pair_file))
+                db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                                       'log_area': 'process_image',
+                                                       'log_text': "Getting EXIF from {}/{}/{}".format(folder_path, settings.raw_files_path,
+                                                           pair_file)})
                 file_exif(file_id,
                           "{}/{}/{}".format(folder_path,
                                                settings.raw_files_path,
                                                pair_file),
                           'raw',
-                          db_cursor,
-                          logger)
-        logger.info("jpg_prev:{}".format(jpg_prev))
+                          db_cursor)
+        # logger.info("jpg_prev:{}".format(jpg_prev))
+        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                                               'log_area': 'process_image',
+                                               'log_text': "jpg_prev:{}".format(jpg_prev)})
         if os.path.isfile(local_tempfile):
             os.remove(local_tempfile)
-        file_updated_at(file_id, db_cursor, logger)
+        file_updated_at(file_id, db_cursor)
         shutil.rmtree(tmp_folder, ignore_errors=True)
         # Disconnect from db
         conn.close()
@@ -816,22 +951,22 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         ###############
         # Parallel
         ###############
-        # no_tasks = len(files)
-        # print_str = "Started parallel run of {notasks} tasks on {workers} workers"
-        # print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
-        #     settings.no_workers))
-        # logger.info(print_str)
-        # # Start timer
-        # with Pool() as pool:
-        #     pool.starmap(process_image, zip(files,
-        #                                     itertools.repeat(folder_path),
-        #                                     itertools.repeat(folder_id)))
+        no_tasks = len(files)
+        print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+        print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+            settings.no_workers))
+        logger.info(print_str)
+        # Start timer
+        with Pool() as pool:
+            pool.starmap(process_image, zip(files,
+                                            itertools.repeat(folder_path),
+                                            itertools.repeat(folder_id)))
         ###############
-        for file in files:
-            logger.info("Running checks on file {}".format(file))
-            # process_image(file, folder_path, folder_id, db_cursor, logger)
-            process_image(file, folder_path, folder_id, logger)
-    folder_updated_at(folder_id, db_cursor, logger)
+        # for file in files:
+        #     logger.info("Running checks on file {}".format(file))
+        #     # process_image(file, folder_path, folder_id, db_cursor, logger)
+        #     process_image(file, folder_path, folder_id)
+    folder_updated_at(folder_id, db_cursor)
     # Update folder stats
     update_folder_stats(folder_id, db_cursor, logger)
     logger.debug(db_cursor.query.decode("utf-8"))
