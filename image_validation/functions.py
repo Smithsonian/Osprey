@@ -510,7 +510,7 @@ def update_folder_stats(folder_id, db_cursor, logger):
     return True
 
 
-def process_image(filename, folder_path, folder_id, folder_full_path, db_cursor, logger, fileformat="tif"):
+def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for tif files
     """
