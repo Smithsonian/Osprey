@@ -5,9 +5,9 @@ import subprocess
 import re
 import xmltodict
 import sys
-import settings
+
 from random import randint
-import queries
+
 # For MD5
 import hashlib
 import glob
@@ -23,6 +23,10 @@ import psycopg2
 # Parallel
 import itertools
 from multiprocessing import Pool
+
+# Get settings and queries
+import settings
+import queries
 
 
 def check_requirements(program):
@@ -63,7 +67,7 @@ def check_folder(folder_name, folder_path, project_id, db_cursor):
     return folder_id[0]
 
 
-def folder_updated_at(folder_id, db_cursor):
+def folder_updated_at(folder_id, db_cursor, logger):
     """
     Update the last time the folder was checked
     """
@@ -360,8 +364,6 @@ def jpgpreview(file_id, folder_id, filename, db_cursor):
         sys.exit(1)
     disk_check = shutil.disk_usage(settings.jpg_previews)
     if (disk_check.free / disk_check.total) < 0.1:
-        # logger.error("JPG storage location is running out of space ({}%) - {}".format(
-        #     round(disk_check.free / disk_check.total, 4) * 100, settings.jpg_previews))
         db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                'log_area': 'jpgpreview',
                                                'log_text': "JPG storage location is running out of space ({}%) - {}".format(
@@ -380,12 +382,10 @@ def jpgpreview(file_id, folder_id, filename, db_cursor):
             # Size in settings changed, create new image
             os.remove(preview_image)
         else:
-            # logger.info("JPG preview {} exists".format(preview_image))
             db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                    'log_area': 'jpgpreview',
                                                    'log_text': "JPG preview {} exists".format(preview_image)})
             return True
-    #logger.info("Creating preview_image:{}".format(preview_image))
     db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                            'log_area': 'jpgpreview',
                                            'log_text': "Creating preview_image:{}".format(preview_image)})
@@ -797,11 +797,11 @@ def process_image(filename, folder_path, folder_id):
                 # check if tif is compressed
                 tif_compression(file_id, local_tempfile, db_cursor)
         # Get exif from TIF
-        db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-        check_exif = db_cursor.fetchone()[0]
-        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
-                                               'log_area': 'process_image',
-                                               'log_text': "check_exif_tif: {}".format(check_exif)})
+        # db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+        # check_exif = db_cursor.fetchone()[0]
+        # db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+        #                                        'log_area': 'process_image',
+        #                                        'log_text': "check_exif_tif: {}".format(check_exif)})
         if check_exif == 0:
             db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                    'log_area': 'process_image',
@@ -881,6 +881,11 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         files = glob.glob("*.*")
         # Remove md5 files from list
         files = [file for file in files if Path(file).suffix != '.md5']
+        if len(files) > 0:
+            preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
+            # Create subfolder if it doesn't exists
+            if not os.path.exists(preview_file_path):
+                os.makedirs(preview_file_path)
         ###############
         # Parallel
         ###############
@@ -889,17 +894,18 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
             settings.no_workers))
         logger.info(print_str)
-        # Start timer
+        # Process files in parallel
+        inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id))
         with Pool() as pool:
-            pool.starmap(process_image, zip(files,
-                                            itertools.repeat(folder_path),
-                                            itertools.repeat(folder_id)))
+            pool.starmap(process_image, inputs)
+            pool.close()
+            pool.join()
         ###############
         # for file in files:
         #     logger.info("Running checks on file {}".format(file))
         #     # process_image(file, folder_path, folder_id, db_cursor, logger)
         #     process_image(file, folder_path, folder_id)
-    folder_updated_at(folder_id, db_cursor)
+    folder_updated_at(folder_id, db_cursor, logger)
     # Update folder stats
     update_folder_stats(folder_id, db_cursor, logger)
     logger.debug(db_cursor.query.decode("utf-8"))

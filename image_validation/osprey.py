@@ -11,6 +11,7 @@
 import logging
 import time
 from subprocess import run
+import random
 
 # For Postgres
 import psycopg2
@@ -27,7 +28,7 @@ import queries
 # Set current dir
 filecheck_dir = os.getcwd()
 
-ver = "1.0.0"
+ver = "1.0.1"
 
 ############################################
 # Logging
@@ -129,6 +130,8 @@ def main():
         if len(folders) == 0:
             logger.info("No folders found in: {}".format(project_path))
             continue
+        # Shuffle folders
+        random.shuffle(folders)
         # Check each folder
         for folder in folders:
             run_checks_folder(settings.project_id, folder, db_cursor, logger)
@@ -149,7 +152,7 @@ def main():
 # Main loop
 ############################################
 if __name__ == "__main__":
-    # main()
+    #main()
     while True:
         try:
             # Check if there is a pre script to run
