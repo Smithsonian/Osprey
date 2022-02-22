@@ -21,8 +21,8 @@ import locale
 import psycopg2
 
 # Parallel
-import itertools
-from multiprocessing import Pool
+# import itertools
+# from multiprocessing import Pool
 
 # Get settings and queries
 import settings
@@ -43,7 +43,12 @@ def compress_log(filecheck_dir, log_folder):
     Compress log files
     """
     os.chdir(log_folder)
-    for file in glob.glob('*.log'):
+    # for file in glob.glob('*'):
+    #     subprocess.run(["zip", "{}.zip".format(file), file])
+    #     os.remove(file)
+    files = [fn for fn in glob.glob('*')
+             if not os.path.basename(fn).endswith('zip')]
+    for file in files:
         subprocess.run(["zip", "{}.zip".format(file), file])
         os.remove(file)
     os.chdir(filecheck_dir)
@@ -889,22 +894,22 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         ###############
         # Parallel
         ###############
-        no_tasks = len(files)
-        print_str = "Started parallel run of {notasks} tasks on {workers} workers"
-        print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
-            settings.no_workers))
-        logger.info(print_str)
-        # Process files in parallel
-        inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id))
-        with Pool() as pool:
-            pool.starmap(process_image, inputs)
-            pool.close()
-            pool.join()
+        # no_tasks = len(files)
+        # print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+        # print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+        #     settings.no_workers))
+        # logger.info(print_str)
+        # # Process files in parallel
+        # inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id))
+        # with Pool() as pool:
+        #     pool.starmap(process_image, inputs)
+        #     pool.close()
+        #     pool.join()
         ###############
-        # for file in files:
-        #     logger.info("Running checks on file {}".format(file))
-        #     # process_image(file, folder_path, folder_id, db_cursor, logger)
-        #     process_image(file, folder_path, folder_id)
+        for file in files:
+            logger.info("Running checks on file {}".format(file))
+            # process_image(file, folder_path, folder_id, db_cursor, logger)
+            process_image(file, folder_path, folder_id)
     folder_updated_at(folder_id, db_cursor, logger)
     # Update folder stats
     update_folder_stats(folder_id, db_cursor, logger)
