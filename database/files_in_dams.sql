@@ -16,10 +16,9 @@ AND file_id in
                     dams_vfcu_file_view_dpo d,
                     files f
                 WHERE 
-                    d.project_cd = 'nmnh_palbio2' and 
-                    --project_cd = 'nmnh_ento_bees2' and
+                    d.project_cd = 'nmnh_mdpp_hsfa' and
                     d.media_file_name = f.file_name || '.tif' AND
-                    f.folder_id = 690 ) a
+                    f.folder_id = 1682 ) a
     );
 
 
@@ -29,7 +28,7 @@ UPDATE
 SET 
     delivered_to_dams = 1
 WHERE
-    folder_id = 764;
+    folder_id = 1682;
 
 
 --Update table with DAMS uan
@@ -43,8 +42,7 @@ UPDATE files f SET dams_uan = d.dams_uan
         dams_cdis_file_status_view_dpo d,
         files f
     WHERE 
-        d.project_cd = 'nmnh_palbio2' and 
-        --project_cd = 'nmnh_ento_bees2' and
+        d.project_cd = 'nmnh_mdpp_hsfa' and
         d.file_name = f.file_name || '.tif' AND
-        f.folder_id = 690 ) d
+        f.folder_id = 1682 ) d
     WHERE f.file_id = d.file_id;

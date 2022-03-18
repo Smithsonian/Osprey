@@ -271,12 +271,14 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
     file_stem = Path(filename).stem
     # Check if file pair is present
     os.chdir(derivative_path)
-    derivative_file = glob.glob("{}.*".format(file_stem))[0]
-    if os.path.isfile(derivative_file) is False:
+    derivative_file = glob.glob("{}.*".format(file_stem))
+    if len(derivative_file) == 0:
+        #if os.path.isfile(derivative_file) is False:
         # Raw file is missing
         file_pair = 1
         file_pair_info = "Missing derivative file"
     else:
+        derivative_file = derivative_file[0]
         file_pair = 0
         file_pair_info = "Derivative file {} found (file_id: {})".format(derivative_file, file_id)
     db_cursor.execute(queries.file_check,
