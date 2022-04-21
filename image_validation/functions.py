@@ -439,6 +439,30 @@ def update_folder_stats(folder_id, db_cursor, logger):
             f_errors = 0
     db_cursor.execute(queries.update_folder_errors, {'folder_id': folder_id, 'f_errors': f_errors})
     logger.debug(db_cursor.query.decode("utf-8"))
+    # MD5 files
+    if 'md5_hash' in settings.project_file_checks:
+        folder_tif_md5 = None
+        folder_raw_md5 = None
+        if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
+            db_cursor.execute(queries.update_folders_md5,
+                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+            folder_tif_md5 = True
+            logger.debug(db_cursor.query.decode("utf-8"))
+        else:
+            db_cursor.execute(queries.update_folders_md5,
+                              {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
+            folder_tif_md5 = False
+            logger.debug(db_cursor.query.decode("utf-8"))
+        if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+            db_cursor.execute(queries.update_folders_md5,
+                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
+            folder_raw_md5 = True
+            logger.debug(db_cursor.query.decode("utf-8"))
+        else:
+            db_cursor.execute(queries.update_folders_md5,
+                              {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+            folder_raw_md5 = False
+            logger.debug(db_cursor.query.decode("utf-8"))
     return True
 
 
@@ -913,30 +937,6 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
             logger.info("Running checks on file {}".format(file))
             # process_image(file, folder_path, folder_id, db_cursor, logger)
             process_image(file, folder_path, folder_id)
-            # MD5 files
-        if 'md5_hash' in settings.project_file_checks:
-            folder_tif_md5 = None
-            folder_raw_md5 = None
-            if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
-                db_cursor.execute(queries.update_folders_md5,
-                                  {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-                folder_tif_md5 = True
-                logger.debug(db_cursor.query.decode("utf-8"))
-            else:
-                db_cursor.execute(queries.update_folders_md5,
-                                  {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
-                folder_tif_md5 = False
-                logger.debug(db_cursor.query.decode("utf-8"))
-            if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-                db_cursor.execute(queries.update_folders_md5,
-                                  {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
-                folder_raw_md5 = True
-                logger.debug(db_cursor.query.decode("utf-8"))
-            else:
-                db_cursor.execute(queries.update_folders_md5,
-                                  {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
-                folder_raw_md5 = False
-                logger.debug(db_cursor.query.decode("utf-8"))
     folder_updated_at(folder_id, db_cursor, logger)
     # Update folder stats
     update_folder_stats(folder_id, db_cursor, logger)
