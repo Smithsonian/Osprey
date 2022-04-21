@@ -53,6 +53,7 @@ project_file_checks = ["jhove", "magick", "raw_pair", "unique_file", "tifpages"]
 # - tifpages: Check the number of pages in the tif, typically a thumbnail
 # - tif_compression: Check if tif is compressed using LZW
 # - derivative: Check for a derivative file in 'derivative_files_path'
+# - md5_hash: Check if the subfolders have md5 files
 #
 # Specify these options below:
 # - prefix: Filename has the required prefix

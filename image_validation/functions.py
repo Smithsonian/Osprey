@@ -273,7 +273,7 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
     os.chdir(derivative_path)
     derivative_file = glob.glob("{}.*".format(file_stem))
     if len(derivative_file) == 0:
-        #if os.path.isfile(derivative_file) is False:
+        # if os.path.isfile(derivative_file) is False:
         # Raw file is missing
         file_pair = 1
         file_pair_info = "Missing derivative file"
@@ -288,7 +288,6 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
                                            'log_area': 'file_pair_check',
                                            'log_text': db_cursor.query.decode("utf-8")})
     return derivative_file
-
 
 
 # def checkmd5file(md5_file, folder_id, filetype, db_cursor):
@@ -374,7 +373,9 @@ def jpgpreview(file_id, folder_id, filename, db_cursor):
         db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                'log_area': 'jpgpreview',
                                                'log_text': "JPG storage location is running out of space ({}%) - {}".format(
-            round(disk_check.free / disk_check.total, 4) * 100, settings.jpg_previews)})
+                                                   round(disk_check.free / disk_check.total, 4) * 100,
+                                                    settings.jpg_previews)}
+                          )
         sys.exit(1)
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
@@ -912,9 +913,32 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
             logger.info("Running checks on file {}".format(file))
             # process_image(file, folder_path, folder_id, db_cursor, logger)
             process_image(file, folder_path, folder_id)
+            # MD5 files
+        if 'md5_hash' in settings.project_file_checks:
+            folder_tif_md5 = None
+            folder_raw_md5 = None
+            if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
+                db_cursor.execute(queries.update_folders_md5,
+                                  {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
+                folder_tif_md5 = True
+                logger.debug(db_cursor.query.decode("utf-8"))
+            else:
+                db_cursor.execute(queries.update_folders_md5,
+                                  {'folder_id': folder_id, 'filetype': 'tif', 'md5': 1})
+                folder_tif_md5 = False
+                logger.debug(db_cursor.query.decode("utf-8"))
+            if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+                db_cursor.execute(queries.update_folders_md5,
+                                  {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
+                folder_raw_md5 = True
+                logger.debug(db_cursor.query.decode("utf-8"))
+            else:
+                db_cursor.execute(queries.update_folders_md5,
+                                  {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
+                folder_raw_md5 = False
+                logger.debug(db_cursor.query.decode("utf-8"))
     folder_updated_at(folder_id, db_cursor, logger)
     # Update folder stats
     update_folder_stats(folder_id, db_cursor, logger)
     logger.debug(db_cursor.query.decode("utf-8"))
     return folder_id
-
