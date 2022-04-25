@@ -146,7 +146,7 @@ def main():
             run_checks_folder(settings.project_id, folder, db_cursor, logger)
     # Disconnect from db
     conn.close()
-    if settings.sleep is False:
+    if settings.sleep is None:
         logger.info("Process completed!")
         compress_log(filecheck_dir, logfile_folder)
         sys.exit(0)
