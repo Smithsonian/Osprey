@@ -1132,7 +1132,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
       html_to_print <- paste0(html_to_print, "<br>", actionLink("exifraw", label = "RAW File Metadata"), "</dd>")
     }
     
-    tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'TIF' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+    tifexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE lower(filetype) = 'tif' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     tifexif <- dbGetQuery(db, tifexif_q)
     
     output$tifexif_dt <- DT::renderDataTable({
@@ -1170,7 +1170,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
 
     
 
-    jpgexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'JPG' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+    jpgexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE lower(filetype) = 'jpg' AND file_id = ", file_id, " ORDER BY taggroup, tag")
     jpgexif <- dbGetQuery(db, jpgexif_q)
     
     output$jpgexif_dt <- DT::renderDataTable({
@@ -1208,7 +1208,7 @@ position: relative; width: 130px; height: auto; margin: 5px;\"><img src=\"", jpg
     
 
     if (stringr::str_detect(session$userData$file_checks_list, "raw_pair")){
-      rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE filetype = 'RAW' AND file_id = ", file_id, " ORDER BY taggroup, tag")
+      rawexif_q <- paste0("SELECT taggroup, tag, value FROM files_exif WHERE lower(filetype) = 'raw' AND file_id = ", file_id, " ORDER BY taggroup, tag")
       rawexif <- dbGetQuery(db, rawexif_q)
       
       output$rawexif_dt <- DT::renderDataTable({
