@@ -172,6 +172,7 @@ if __name__ == "__main__":
             # Check if there is a post script to run
             if settings.post_script is not None:
                 run([settings.post_script], check=True)
+            continue
         except KeyboardInterrupt:
             # print("Ctrl-c detected. Leaving program.")
             logger.info("Ctrl-c detected. Leaving program.")
