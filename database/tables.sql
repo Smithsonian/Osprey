@@ -17,7 +17,7 @@ CREATE SEQUENCE projects_project_id_seq MINVALUE 100;
 CREATE TABLE projects (
     project_id integer NOT NULL DEFAULT nextval('projects_project_id_seq') PRIMARY KEY,
     project_title text,
-    project_unit  text,    
+    project_unit  text,
     project_checks text DEFAULT 'raw_pair,magick,jhove,tifpages,unique_file',
     project_postprocessing text DEFAULT NULL,
     project_acronym text,
@@ -85,7 +85,7 @@ CREATE TABLE projects_edan (
 );
 CREATE INDEX projects_edan_pid_idx ON projects_edan USING BTREE(project_id);
 
- 
+
 --Alerts for the dashboard
 DROP TABLE IF EXISTS projects_alerts CASCADE;
 CREATE TABLE projects_alerts (
@@ -103,7 +103,7 @@ CREATE INDEX projects_alerts_pid_idx ON projects_alerts USING BTREE(project_id);
 DROP TABLE IF EXISTS projects_shares CASCADE;
 CREATE TABLE projects_shares (
     project_id      integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    share           text, 
+    share           text,
     localpath       text,
     used            text,
     total           text,
@@ -125,13 +125,17 @@ create table folders (
     path text,
     status integer,
     notes text,
-    error_info text,    
+    error_info text,
     date date,
     delivered_to_dams integer default 9,
     processing boolean DEFAULT 'f',
     processing_md5 boolean DEFAULT 'f',
     no_files integer,
     file_errors integer DEFAULT 9,
+    qc_status integer DEFAULT 9,
+    qc_by text,
+    qc_date timestamp with time zone,
+    qc_ip text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX folders_fid_idx ON folders USING BTREE(folder_id);
@@ -197,8 +201,8 @@ CREATE TRIGGER trigger_updated_at_files
 --file_md5
 DROP TABLE IF EXISTS file_md5 CASCADE;
 create table file_md5 (
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
-    filetype text, 
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    filetype text,
     md5 text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
@@ -211,9 +215,9 @@ CREATE INDEX file_md5_filetype_idx ON file_md5 USING BTREE(filetype);
 --files_exif
 DROP TABLE IF EXISTS files_exif CASCADE;
 create table files_exif (
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
     filetype text default 'RAW',
-    tag text, 
+    tag text,
     taggroup text,
     tagid text,
     value text,
@@ -231,8 +235,8 @@ CREATE INDEX files_exif_taggroup_idx ON files_exif USING BTREE(taggroup);
 --files_size
 DROP TABLE IF EXISTS files_size CASCADE;
 create table files_size (
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE, 
-    filetype text DEFAULT 'TIF', 
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    filetype text DEFAULT 'TIF',
     filesize numeric,
     updated_at timestamp with time zone DEFAULT NOW()
 );
@@ -439,13 +443,24 @@ CREATE TABLE qc_users (
     user_id serial,
     username text,
     pass text,
-    user_active boolean DEFAULT 't',
-    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE
+    user_active boolean DEFAULT 't'
 );
 CREATE INDEX qc_users_un_idx ON qc_users USING BTREE(username);
 CREATE INDEX qc_users_up_idx ON qc_users USING BTREE(pass);
 CREATE INDEX qc_users_ua_idx ON qc_users USING BTREE(user_active);
 CREATE INDEX qc_users_pid_idx ON qc_users USING BTREE(project_id);
+
+
+
+--projects assigned to users
+DROP TABLE IF EXISTS qc_projects CASCADE;
+create table qc_projects (
+    id serial PRIMARY KEY,
+    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id integer REFERENCES qc_users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX qc_projects_fid_idx ON qc_projects USING BTREE(project_id);
+CREATE INDEX qc_projects_pid_idx ON qc_projects USING BTREE(user_id);
 
 
 

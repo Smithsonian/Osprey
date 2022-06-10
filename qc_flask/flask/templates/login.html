@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}SI Thesaurus{% endblock %}
+
+{% block content %}
+
+    <h3>Welcome to the Quality Check system for DPO Collection Digitization projects</h3>
+
+     <form method="post" action="" class="p-4 p-md-5 border rounded-3 bg-light">
+
+                        {{ form.hidden_tag() }}
+
+                        <p class="fw-bold">
+                            {% if msg %}
+                                {{ msg | safe }}
+                            {% else %}
+                                Enter your QC username and password
+                            {% endif %}
+                        </p>
+
+                        <br />
+
+                        <div class="form-floating mb-3">
+                            {{ form.username(class="form-control") }}
+                            <label for="floatingInput">Username</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            {{ form.password(class="form-control", type="password") }}
+                            <label for="floatingPassword">Password</label>
+                        </div>
+                        <br />
+
+                        <button class="w-100 btn btn-lg btn-primary" type="submit">Sign In</button>
+
+                    </form>
+
+
+
+{% endblock %}

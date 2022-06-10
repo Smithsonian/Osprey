@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}SI Thesaurus{% endblock %}
+
+{% block content %}
+
+
+
+    {% for project in project_list %}
+          <h4>{{ project.project_title }}</h4>
+
+
+    <table class="table table-sm table-striped">
+      <thead class = "thead-dark">
+        <tr>
+          <th scope="col">Folder</th>
+          <th scope="col">No. Files</th>
+          <th scope="col">Folder ID</th>
+          <th scope="col">Capture Date</th>
+          <th scope="col">QC Status</th>
+        </tr>
+      </thead>
+      <tbody>
+
+
+          {% for folder in project.folders %}
+            <tr>
+                <td><a href="{{ project.filecheck_link }}?folder={{ folder.folder_id }}" target="_blank">{{ folder.project_folder }}</a></td>
+                <td>
+                    {% if folder.file_errors == 1 %}
+                        <span class="badge bg-danger">{{ folder.no_files }}</span>
+                        <br>(Files have errors)
+                    {% else %}
+                        <span class="badge bg-success">{{ folder.no_files }}</span>
+                    {% endif %}
+
+                </td>
+                <td>{{ folder.folder_id }}</td>
+                <td>{{ folder.date }}</td>
+                <td>
+                    {% if folder.qc_status == 1 and folder.file_errors == 0 %}
+                        <a class="btn btn-primary btn-sm" href="./qc?folder_id={{ folder.folder_id }}">Mark QC Completed</a>
+                    {% elif folder.qc_status == 9 %}
+                        <em>Pending...</em>
+                    {% elif folder.qc_status == 0 %}
+                        QC Done <i class="fa-solid fa-check"></i>
+                    {% endif %}
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+        </table>
+
+      {% endfor %}
+
+{% endblock %}

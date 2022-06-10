@@ -1,0 +1,25 @@
+# GIS Database creds
+gis_host=""
+gis_database=""
+gis_user=""
+gis_password = ""
+
+
+# Thesaurus Database creds
+th_host=""
+th_database=""
+th_user=""
+th_password = ""
+
+
+# Number of workers for parallel
+no_workers = 4
+
+
+# Host, no trailing slash
+web_host = ""
+
+
+# EDAN Creds
+AppID = ""
+AppKey = ""
