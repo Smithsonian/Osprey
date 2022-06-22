@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Osprey{% endblock %}
+
+{% block page_title %}Osprey{% endblock %}
+
+{% block content %}
+
+    <h2>Error:</h2>
+
+    <p>{{ error_msg }}</p>
+
+    <p><a href="{{ url_for('login') }}">Go back</a></p>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+{% endblock %}

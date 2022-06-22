@@ -1,13 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}SI Thesaurus{% endblock %}
+{% block title %}My Projects - Osprey Dashboard{% endblock %}
+
+{% block page_title %}My Projects - Osprey Dashboard{% endblock %}
 
 {% block content %}
 
-    <ul>
-        <li><a href="{{ url_for('login') }}">Login</a></li>
-    </ul>
+    <h1>My Projects:</h1>
 
+    {% for project in project_list %}
+          <h2>{{ project.project_title }}</h2>
 
+        <p><small><a href="{{ url_for('dashboard', project_id=project.project_alias) }}"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a></small></p>
+
+        <div class="row">
+
+            <div class="col">
+                <div class="card">
+                  <h4><span class="badge bg-primary d-flex">{{ project.total }} Total Files</span></h4>
+                  <div class="card-body">
+                    <p class="card-text">Total number of files in project</p>
+                  </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card">
+                  <h4><span class="badge bg-success d-flex">{{ project.ok }} Files OK</span></h4>
+                  <div class="card-body">
+                    <p class="card-text">Files that passed all the checks</p>
+                  </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card">
+                  <h4><span class="badge bg-danger d-flex">{{ project.errors }} Files with Errors</span></h4>
+                  <div class="card-body">
+                    <p class="card-text">Files that failed one or more checks</p>
+                  </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card">
+                  <h4><span class="badge bg-secondary d-flex">{{ project.running }} Running</span></h4>
+                  <div class="card-body">
+                    <p class="card-text">Files that are currently being checked</p>
+                  </div>
+                </div>
+            </div>
+        </div>
+
+            <br><br>
+
+        <hr>
+
+      {% endfor %}
 
 {% endblock %}

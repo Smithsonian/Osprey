@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}SI Thesaurus{% endblock %}
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
 
 {% block content %}
-
-
 
     {% for project in project_list %}
           <h4>{{ project.project_title }}</h4>
 
+        <p><small><a href="./dashboard?project_id={{ project.project_id }}"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a></small></p>
 
     <table class="table table-sm table-striped">
       <thead class = "thead-dark">
@@ -18,14 +19,14 @@
           <th scope="col">Folder ID</th>
           <th scope="col">Capture Date</th>
           <th scope="col">QC Status</th>
+          <th scope="col">Approved By</th>
         </tr>
       </thead>
       <tbody>
 
-
           {% for folder in project.folders %}
             <tr>
-                <td><a href="{{ project.filecheck_link }}?folder={{ folder.folder_id }}" target="_blank">{{ folder.project_folder }}</a></td>
+                <td><a href="{{ url_for('dashboard', project_id=project.project_id) }}?folder={{ folder.folder_id }}">{{ folder.project_folder }}</a></td>
                 <td>
                     {% if folder.file_errors == 1 %}
                         <span class="badge bg-danger">{{ folder.no_files }}</span>
@@ -40,10 +41,18 @@
                 <td>
                     {% if folder.qc_status == 1 and folder.file_errors == 0 %}
                         <a class="btn btn-primary btn-sm" href="./qc?folder_id={{ folder.folder_id }}">Mark QC Completed</a>
+                        <a class="btn btn-danger btn-sm" href="./qc?folder_id={{ folder.folder_id }}">Mark QC Failed</a>
                     {% elif folder.qc_status == 9 %}
                         <em>Pending...</em>
                     {% elif folder.qc_status == 0 %}
                         QC Done <i class="fa-solid fa-check"></i>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if folder.qc_status == 1 or folder.qc_status == 9 %}
+                        -
+                    {% else %}
+                        {{ folder.qc_by }}
                     {% endif %}
                 </td>
             </tr>

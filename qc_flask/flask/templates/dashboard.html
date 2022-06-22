@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+
+{% block page_title %}{{ project_info.project_title }}{% endblock %}
+
+{% block homelink %}{{ url_for('dashboard', project_id=project_alias) }}{% endblock %}
+
+{% block content %}
+
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+          <h2><span class="badge bg-primary d-flex">{{ project_stats.total }} Total Files</span></h2>
+          <div class="card-body">
+            <p class="card-text">Total number of files in project</p>
+          </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+          <h2><span class="badge bg-success d-flex">{{ project_stats.ok }} Files OK</span></h2>
+          <div class="card-body">
+            <p class="card-text">Files that passed all the checks</p>
+          </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>
+          <div class="card-body">
+            <p class="card-text">Files that failed one or more checks</p>
+          </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+          <h2><span class="badge bg-secondary d-flex">{{ project_stats.running }} Running</span></h2>
+          <div class="card-body">
+            <p class="card-text">Files that are currently being checked</p>
+          </div>
+        </div>
+    </div>
+</div>
+
+    <br>
+    <div class="progress">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ project_stats.ok_percent }}%" aria-valuenow="{{ project_stats.ok_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+        <div class="progress-bar bg-danger progress-bar-striped" role="progressbar" style="width: {{ project_stats.error_percent }}%" aria-valuenow="{{ project_stats.error_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+        <div class="progress-bar bg-secondary progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ project_stats.running_percent }}%" aria-valuenow="{{ project_stats.running_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+<hr>
+
+<div class="row">
+    <div class="col-3">
+        {#List of folders#}
+            <table class="table table-striped border">
+              <thead>
+                <tr>
+                  <th scope="col">Folders</th>
+                </tr>
+              </thead>
+            <tbody>
+            {% for folder in project_folders %}
+                {% if folder.file_errors != 0 %}
+                    <tr class="table-danger">
+                {% else %}
+                    <tr>
+                {% endif %}
+                <td>
+                    <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
+                        <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
+                {% if folder.file_errors > 0 %}
+                    <br><span class="badge bg-danger">Files with errors</span>
+                {% endif %}
+
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+    </div>
+
+    <div class="col">
+
+    {% if folder_name != None %}
+
+        <nav>
+          <div class="nav nav-tabs" id="nav-tab" role="tablist">
+            <button class="nav-link {% if tab == 0 %}active{% endif %}" id="nav-list-tab" data-bs-toggle="tab" data-bs-target="#nav-list" type="button" role="tab" aria-controls="nav-list" {% if tab == 0 %}aria-current="true"{% endif %}>File Checks</button>
+            <button class="nav-link {% if tab == 1 %}active{% endif %}" id="nav-lightbox-tab" data-bs-toggle="tab" data-bs-target="#nav-lightbox" type="button" role="tab" aria-controls="nav-lightbox" {% if tab == 1 %}aria-current="true"{% endif %}>Lightbox</button>
+            <button class="nav-link {% if tab == 2 %}active{% endif %}" id="nav-postprod-tab" data-bs-toggle="tab" data-bs-target="#nav-postprod" type="button" role="tab" aria-controls="nav-postprod" {% if tab == 2 %}aria-current="true"{% endif %}>Post-Production</button>
+
+          </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+          <div class="tab-pane fade {% if tab == 0 %}show active{% endif %}" id="nav-list" role="tabpanel" aria-labelledby="nav-list-tab">
+               <br>
+
+                <div class="row">
+                  <div class="col-9">
+                      <h3>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h3>
+                  </div>
+                  <div class="col">
+                        {% if project_admin %}
+                              <div class="btn-group" role="group" aria-label="qc">
+                                  QC:&nbsp;
+                                  <a class="btn btn-success btn-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#modal_qc_pass">Passed</a>
+                                  <a class="btn btn-danger btn-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#modal_qc_fail">Failed</a>
+                              </div>
+                        {% else %}
+                            &nbsp;
+                        {% endif %}
+                  </div>
+              </div>
+
+                <!-- Modal -->
+                    <div class="modal fade" id="modal_qc_pass" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                      <div class="modal-dialog">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="exampleModalLabel">QC Passed</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            Tag as passed?
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+              <!-- Modal -->
+                <div class="modal fade" id="modal_qc_fail" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        Tag as failed?
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {% for table in tables %}
+                       {{ table|safe }}
+                {% endfor %}
+
+          </div>
+          <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-profile-tab">
+              <br>
+              <div class="row">
+                  <div class="col">
+                      <h3>Image Previews:</h3>
+                  </div>
+                  <div class="col">
+                      {{ pagination_html2 | safe }}
+                  </div>
+              </div>
+
+
+              {% for file in files_df %}
+
+                  <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#imageModal" data-bs-img_link="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}">
+                      <img src="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}" width="160px" style="padding: 10px;"><br>
+                      <small>{{ file.file_name }}</small>
+                  </button>
+
+
+                {% endfor %}
+
+                 <div class="modal fade {% if tab == 2 %}show active{% endif %}" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+                      <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="imageModalLabel">Image</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                              <em>Press the 'Esc' key to close</em><br>
+                                <img id="modalimage" src="#" class="rounded mx-auto d-block">
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+            {{ pagination_html | safe }}
+
+        </div>
+
+
+          <div class="tab-pane fade {% if postprod %}show active{% endif %}" id="nav-postprod" role="tabpanel" aria-labelledby="nav-postprod-tab">
+            <br><p>Coming soon...</p>
+          </div>
+
+        </div>
+
+
+    {% else %}
+        <p><em>Select a folder on the left</em></p>
+
+    {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            $('#files_table').DataTable({
+                "order": [],
+                lengthMenu: [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ],
+                'rowCallback': function(row, data, index){
+                    if(data[1] == 'OK'){
+                        $(row).find('td:eq(1)').css('background', '#198754');
+                        $(row).find('td:eq(1)').css('color', 'white');
+                    } else if(data[1] == 'Failed'){
+                        $(row).find('td:eq(1)').css('background', '#dc3545');
+                        $(row).find('td:eq(1)').css('color', 'white');
+                    } else if(data[1] == 'Pending'){
+                        $(row).find('td:eq(1)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(1)').css('color', 'black');
+                    };
+                    if(data[3] == 'OK'){
+                        $(row).find('td:eq(3)').css('background', '#198754');
+                        $(row).find('td:eq(3)').css('color', 'white');
+                    } else if(data[3] == 'Failed'){
+                        $(row).find('td:eq(3)').css('background', '#dc3545');
+                        $(row).find('td:eq(3)').css('color', 'white');
+                    } else if(data[3] == 'Pending'){
+                        $(row).find('td:eq(3)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(3)').css('color', 'black');
+                    };
+                    if(data[2] == 'OK'){
+                        $(row).find('td:eq(2)').css('background', '#198754');
+                        $(row).find('td:eq(2)').css('color', 'white');
+                    } else if(data[2] == 'Failed'){
+                        $(row).find('td:eq(2)').css('background', '#dc3545');
+                        $(row).find('td:eq(2)').css('color', 'white');
+                    } else if(data[2] == 'Pending'){
+                        $(row).find('td:eq(2)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(2)').css('color', 'black');
+                    };
+                    if(data[4] == 'OK'){
+                        $(row).find('td:eq(4)').css('background', '#198754');
+                        $(row).find('td:eq(4)').css('color', 'white');
+                    } else if(data[4] == 'Failed'){
+                        $(row).find('td:eq(4)').css('background', '#dc3545');
+                        $(row).find('td:eq(4)').css('color', 'white');
+                    } else if(data[4] == 'Pending'){
+                        $(row).find('td:eq(4)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(4)').css('color', 'black');
+                    };
+                    if(data[5] == 'OK'){
+                        $(row).find('td:eq(5)').css('background', '#198754');
+                        $(row).find('td:eq(5)').css('color', 'white');
+                    } else if(data[5] == 'Failed'){
+                        $(row).find('td:eq(5)').css('background', '#dc3545');
+                        $(row).find('td:eq(5)').css('color', 'white');
+                    } else if(data[5] == 'Pending'){
+                        $(row).find('td:eq(5)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(5)').css('color', 'black');
+                    };
+                    if(data[6] == 'OK'){
+                        $(row).find('td:eq(6)').css('background', '#198754');
+                        $(row).find('td:eq(6)').css('color', 'white');
+                    } else if(data[6] == 'Failed'){
+                        $(row).find('td:eq(6)').css('background', '#dc3545');
+                        $(row).find('td:eq(6)').css('color', 'white');
+                    } else if(data[6] == 'Pending'){
+                        $(row).find('td:eq(6)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(6)').css('color', 'black');
+                    };
+                    if(data[7] == 'OK'){
+                        $(row).find('td:eq(7)').css('background', '#198754');
+                        $(row).find('td:eq(7)').css('color', 'white');
+                    } else if(data[7] == 'Failed'){
+                        $(row).find('td:eq(7)').css('background', '#dc3545');
+                        $(row).find('td:eq(7)').css('color', 'white');
+                    } else if(data[7] == 'Pending'){
+                        $(row).find('td:eq(7)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(7)').css('color', 'black');
+                    };
+                },
+            });
+        } );
+    </script>
+
+    <script type="text/javascript">
+
+            var triggerTabList = [].slice.call(document.querySelectorAll('#nav-tab a'))
+                triggerTabList.forEach(function (triggerEl) {
+                  var tabTrigger = new bootstrap.Tab(triggerEl)
+
+                  triggerEl.addEventListener('click', function (event) {
+                    event.preventDefault()
+                    tabTrigger.show()
+                  })
+                })
+
+            $(document).ready(function() {
+                {% if tab == 0 %}
+                var triggerEl = document.querySelector('#nav-tab a[href="#list"]')
+                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
+                {% elif tab == 1 %}
+                var triggerEl = document.querySelector('#nav-tab a[href="#filechecks"]')
+                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
+                {% elif tab == 2 %}
+                var triggerEl = document.querySelector('#nav-tab a[href="#postprod"]')
+                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
+                {% endif %}
+            };
+    </script>
+
+    <script type="text/javascript">
+    var exampleModal = document.getElementById('imageModal')
+            exampleModal.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var img_link = button.getAttribute('data-bs-img_link')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBodyImg = exampleModal.querySelector('.modal-body img')
+
+              modalBodyImg.src = img_link
+            })
+    </script>
+
+{% endblock %}
+
+

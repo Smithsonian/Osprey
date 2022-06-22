@@ -17,6 +17,7 @@ CREATE SEQUENCE projects_project_id_seq MINVALUE 100;
 CREATE TABLE projects (
     project_id integer NOT NULL DEFAULT nextval('projects_project_id_seq') PRIMARY KEY,
     project_title text,
+    project_alias text,
     project_unit  text,
     project_checks text DEFAULT 'raw_pair,magick,jhove,tifpages,unique_file',
     project_postprocessing text DEFAULT NULL,
@@ -40,6 +41,7 @@ CREATE TABLE projects (
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX projects_pid_idx ON projects USING BTREE(project_id);
+CREATE INDEX projects_palias_idx ON projects USING BTREE(project_alias);
 CREATE INDEX projects_status_idx ON projects USING BTREE(project_status);
 CREATE INDEX projects_dpoir_idx ON projects USING BTREE(dpoir);
 
@@ -440,10 +442,11 @@ CREATE TRIGGER trigger_updated_at_qcfiles
 --qc_users
 DROP TABLE IF EXISTS qc_users CASCADE;
 CREATE TABLE qc_users (
-    user_id serial,
+    user_id serial primary key,
     username text,
     pass text,
-    user_active boolean DEFAULT 't'
+    user_active boolean DEFAULT 't',
+    is_admin boolean DEFAULT 'f'
 );
 CREATE INDEX qc_users_un_idx ON qc_users USING BTREE(username);
 CREATE INDEX qc_users_up_idx ON qc_users USING BTREE(pass);

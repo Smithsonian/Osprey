@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Project Dashboard{% endblock %}
+
+{% block page_title %}File Details{% endblock %}
+
+{% block content %}
+
+    <p>
+        <small><a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder_info.folder_id }}"><i class="fa-solid fa-arrow-left"></i></a> Back to folder <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder_info.folder_id }}">{{ folder_info.project_folder }}</a></small>
+    </p>
+    <p>
+        Details of the file: <strong>{{ file_details.file_name }}</strong><br><small>File ID: {{ file_details.file_id }}</small>
+    </p>
+
+
+<div class="row">
+    <div class="col">
+
+        <table id="file_checks" class="display compact" style="width:100%">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Check</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+    </table>
+
+    </div>
+
+    <div class="col">
+        <!--image-->
+        <p>Preview:</p>
+        <p>
+            <a href="{{ image_url }}"><img src="{{ image_url }}" width="500"></a>
+        </p>
+
+    </div>
+</div>
+
+
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+        <!-- file_checks -->
+    <script type="text/javascript">
+        function format(d) {
+            // `d` is the original data object for the row
+            return (
+                '<p>Results for <em>' +
+                d.file_check +
+                '</em>: </p><pre>' +
+                d.check_info +
+                '</pre>'
+            );
+        }
+
+        $(document).ready(function () {
+            var table = $('#file_checks').DataTable({
+                ajax: '{{ url_for('file_json', file_id=file_details.file_id) }}',
+                columns: [
+                    {
+                        className: 'dt-control white ',
+                        style: 'color:black;',
+                        orderable: false,
+                        data: null,
+                        defaultContent: '',
+                    },
+                    { data: 'file_check' },
+                    { data: 'check_result' },
+                ],
+                paging: false,
+                searching: false,
+                ordering:  false,
+                order: [],
+                'rowCallback': function(row, data, index){
+                    if(data[3] == 'OK'){
+                        $(row).find('td:eq(3)').css('background', '#198754');
+                        $(row).find('td:eq(3)').css('color', 'white');
+                    } else if(data[1] == 'Failed'){
+                        $(row).find('td:eq(1)').css('background', '#dc3545');
+                        $(row).find('td:eq(1)').css('color', 'white');
+                    }
+                },
+            });
+
+            // Add event listener for opening and closing details
+            $('#file_checks tbody').on('click', 'td.dt-control', function () {
+                var tr = $(this).closest('tr');
+                var row = table.row(tr);
+
+                if (row.child.isShown()) {
+                    // This row is already open - close it
+                    row.child.hide();
+                    tr.removeClass('shown');
+                } else {
+                    // Open this row
+                    row.child(format(row.data())).show();
+                    tr.addClass('shown');
+                }
+            });
+
+        });
+
+    </script>
+
+
+
+{% endblock %}
