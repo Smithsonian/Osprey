@@ -6,34 +6,51 @@
 
 {% block content %}
 
-    <h3>Welcome to the Quality Check system for DPO Collection Digitization projects</h3>
+    <h3>Welcome to the Osprey Project Dashboard and Quality Check system for DPO Collection Digitization projects</h3>
+    <hr>
+    <div class="row">
 
-     <form method="post" action="" class="p-4 p-md-5 border rounded-3 bg-light">
+        <div class="col">
 
-                        {{ form.hidden_tag() }}
+            <h4>List of projects:</h4>
+                <ul>
+                    {% for project in projects %}
+                      <li><a href="{{ url_for('dashboard', project_id=project.project_alias) }}">{{ project.project_title }}</a></li>
+                    {% endfor %}
+                </ul>
+        </div>
 
-                        <p class="fw-bold">
-                            {% if msg %}
-                                {{ msg | safe }}
-                            {% else %}
-                                Enter your QC username and password
-                            {% endif %}
-                        </p>
+        <div class="col">
+            <form method="post" action="" class="p-4 p-md-5 border rounded-3 bg-light">
 
-                        <br />
+                {{ form.hidden_tag() }}
 
-                        <div class="form-floating mb-3">
-                            {{ form.username(class="form-control") }}
-                            <label for="floatingInput">Username</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            {{ form.password(class="form-control", type="password") }}
-                            <label for="floatingPassword">Password</label>
-                        </div>
-                        <br />
+                <p class="fw-bold">
+                    {% if msg %}
+                        {{ msg | safe }}
+                    {% else %}
+                        Enter your QC username and password
+                    {% endif %}
+                </p>
 
-                        <button class="w-100 btn btn-lg btn-primary" type="submit">Sign In</button>
+                <br />
 
-                    </form>
+                <div class="form-floating mb-3">
+                    {{ form.username(class="form-control") }}
+                    <label for="floatingInput">Username</label>
+                </div>
+                <div class="form-floating mb-3">
+                    {{ form.password(class="form-control", type="password") }}
+                    <label for="floatingPassword">Password</label>
+                </div>
+                <br />
+
+                <button class="w-100 btn btn-lg btn-primary" type="submit">Sign In</button>
+
+            </form>
+        </div>
+
+    </div>
+
 
 {% endblock %}

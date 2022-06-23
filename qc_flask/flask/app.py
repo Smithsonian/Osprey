@@ -173,7 +173,6 @@ def query_database(query, parameters=""):
     return data
 
 
-@cache.memoize()
 def user_perms(project_id, user_type='user'):
     try:
         user_name = current_user.name
@@ -262,7 +261,10 @@ def login():
             return redirect(url_for('home'))
         else:
             msg = "Error, user not known or password was incorrect"
-    return render_template('login.html', form=form, msg=msg, site_ver=site_ver)
+    projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias FROM "
+                              " projects p where p.project_alias is not null "
+                                " ORDER BY p.projects_order DESC")
+    return render_template('login.html', projects=projects, form=form, msg=msg, site_ver=site_ver)
 
 
 @app.route('/qc', methods=['POST', 'GET'])
@@ -304,15 +306,16 @@ def home():
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
     logging.info(is_admin)
-    if is_admin:
-        projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias "
-                                  " FROM qc_projects qp, projects p "
-                                  " where qp.project_id = p.project_id ORDER BY p.projects_order DESC")
-    else:
-        projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias FROM qc_projects qp, "
+    #if is_admin:
+    # projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias "
+    #                           " FROM qc_projects qp, projects p "
+    #                           " where qp.project_id = p.project_id ORDER BY p.projects_order DESC")
+    #else:
+    projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias FROM qc_projects qp, "
                                   " qc_users u, projects p where qp.project_id = p.project_id and qp.user_id = u.user_id "
                                   " AND u.username = %(username)s ORDER BY p.projects_order DESC",
                                   {'username': user_name})
+    logging.info("projects: {}".format(projects))
     project_list = []
     for project in projects:
         project_total = query_database("SELECT count(*) as no_files from files where folder_id IN (SELECT folder_id "
@@ -496,10 +499,16 @@ def dashboard(project_id):
                 offset = 0
             else:
                 offset = (page + 1) * no_items
-            files_df = query_database("SELECT file_id, folder_id, file_name FROM files "
-                                      "WHERE folder_id = %(folder_id)s ORDER BY file_name "
+            files_df = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
+                                      "WHERE folder_id = %(folder_id)s ORDER BY file_name)"
+                                      " SELECT file_id, folder_id, file_name,"
+                                      "         lag(file_id,1) over (order by file_name) prev_id,"
+                                      "         lag(file_id,-1) over (order by file_name) next_id "
+                                      " FROM data "
                                       "LIMIT {} OFFSET {}".format(no_items, offset),
                                       {'folder_id': folder_id})
+            # for row in files_df:
+            #     row['prev'] =
             files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                       {'folder_id': folder_id})[0]
             files_count = files_count['no_files']
@@ -529,16 +538,32 @@ def dashboard(project_id):
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
                                                     "href=\"" + url_for('dashboard', project_id=project_alias) \
                                                     + "?folder_id=" + folder_id + "&tab=1&page={}\">Previous</a></li>".format(page - 1)
+            # Ellipsis for first pages
+            if page > 5:
+                pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
+                                                    + "href=\"" + url_for('dashboard', project_id=project_alias) \
+                                                    + "?folder_id=" + str(folder_id) \
+                                                    + "&tab=1&page=1\">1</a></li>"
+                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
+                                                    "href=\"#\">...</a></li>"
             for i in range(1, no_pages):
-                if i == page:
-                    pagination_html = pagination_html + "<li class=\"page-item active\">"
-                else:
-                    pagination_html = pagination_html + "<li class=\"page-item\">"
-                pagination_html = pagination_html + "<a class=\"page-link\" " \
-                                                    + "href=\"" \
-                                                    + url_for('dashboard', project_id=project_alias) \
-                                                    + "?folder_id=" + folder_id + "&tab=1&page={}\">{}</a>" \
-                                                    + "</li>".format(i, i)
+                if ((page - i) < 4) and ((i - page) < 4):
+                    if i == page:
+                        pagination_html = pagination_html + "<li class=\"page-item active\">"
+                    else:
+                        pagination_html = pagination_html + "<li class=\"page-item\">"
+                    pagination_html = pagination_html + "<a class=\"page-link\" " \
+                                                        + "href=\"" \
+                                                        + url_for('dashboard', project_id=project_alias) \
+                                                        + "?folder_id=" + folder_id + "&tab=1&page={}\">{}</a>".format(i, i) \
+                                                        + "</li>"
+            if (no_pages - page) > 4:
+                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
+                                                    "href=\"#\">...</a></li>"
+                pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
+                                  + "href=\"" + url_for('dashboard', project_id=project_alias) \
+                                  + "?folder_id=" + str(folder_id) \
+                                  + "&tab=1&page={last}\">{last}</a></li>".format(last=(no_pages - 1))
             if page == (no_pages - 1):
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">Next</a></li>"
@@ -548,9 +573,9 @@ def dashboard(project_id):
                                                         "href=\"#\">Next</a></li>"
                 else:
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                    "href=\"" + url_for('dashboard', project_id=project_alias) \
-                                                    + "?folder_id=" + folder_id + "&tab=1&page={}\">" \
-                                                    "Next</a></li>".format(page + 1)
+                                                    + "href=\"" + url_for('dashboard', project_id=project_alias) \
+                                                    + "?folder_id=" + folder_id + "&tab=1&page={}\">".format(page + 1) \
+                                                    + "Next</a></li>"
             pagination_html = pagination_html + "</ul></nav>"
         else:
             folder_files_df = pd.DataFrame()
@@ -619,15 +644,22 @@ def file(file_id):
                                    " WHERE project_id = %(project_id)s",
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
-    file_details = query_database("SELECT * FROM files WHERE file_id = %(file_id)s",
-                         {'file_id': file_id})[0]
-    file_checks = query_database("SELECT file_check, CASE WHEN check_results = 0 THEN 'OK' "
-                                            "       WHEN check_results = 9 THEN 'Pending' "
-                                            "       WHEN check_results = 1 THEN 'Failed' END as check_result, check_info"
+
+    file_details = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
+                              "WHERE folder_id = %(folder_id)s ORDER BY file_name),"
+                              "data2 AS (SELECT file_id, folder_id, file_name,"
+                              "         lag(file_id,1) over (order by file_name) prev_id,"
+                              "         lag(file_id,-1) over (order by file_name) next_id "
+                              " FROM data)"
+                              " SELECT * FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
+                              {'folder_id': folder_info['folder_id'], 'file_id': file_id})[0]
+    # file_details = query_database("SELECT * FROM files WHERE file_id = %(file_id)s",
+    #                      {'file_id': file_id})[0]
+    file_checks = query_database("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
+                                            " ELSE check_info END AS check_info "
                                             " FROM file_checks WHERE file_id = %(file_id)s",
                          {'file_id': file_id})
-    logging.info(file_checks)
-    file_checks = {"data": json.dumps(file_checks)}
+    # file_checks = {"data": json.dumps(file_checks)}
     # folder_files_df = folder_files_df.drop(['file_id'], axis=1)
     # image_url = settings.jpg_previews + str(file_id)
     image_url = url_for('previewimage',

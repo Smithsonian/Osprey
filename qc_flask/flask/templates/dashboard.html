@@ -64,7 +64,7 @@
               </thead>
             <tbody>
             {% for folder in project_folders %}
-                {% if folder.file_errors != 0 %}
+                {% if project_stats.errors != "0" %}
                     <tr class="table-danger">
                 {% else %}
                     <tr>
@@ -72,7 +72,7 @@
                 <td>
                     <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
                         <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
-                {% if folder.file_errors > 0 %}
+                {% if project_stats.errors != "0" %}
                     <br><span class="badge bg-danger">Files with errors</span>
                 {% endif %}
 
@@ -101,7 +101,7 @@
 
                 <div class="row">
                   <div class="col-9">
-                      <h3>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h3>
+                      <h4>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h4>
                   </div>
                   <div class="col">
                         {% if project_admin %}
@@ -162,6 +162,7 @@
               <div class="row">
                   <div class="col">
                       <h3>Image Previews:</h3>
+                      <p><small><em>Sorted by file_name</em></small></p>
                   </div>
                   <div class="col">
                       {{ pagination_html2 | safe }}
@@ -169,35 +170,16 @@
               </div>
 
 
-              {% for file in files_df %}
+                {% for file in files_df %}
 
-                  <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#imageModal" data-bs-img_link="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}">
-                      <img src="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}" width="160px" style="padding: 10px;"><br>
-                      <small>{{ file.file_name }}</small>
-                  </button>
-
+                  <a class="btn btn-light btn-sm" href="{{ url_for('file', file_id=file.file_id) }}" role="button">
+                        <img src="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}" width="160px" style="padding: 10px;"><br>
+                        <small>{{ file.file_name }}</small>
+                  </a>
 
                 {% endfor %}
 
-                 <div class="modal fade {% if tab == 2 %}show active{% endif %}" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-                      <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
-                        <div class="modal-content">
-                          <div class="modal-header">
-                            <h5 class="modal-title" id="imageModalLabel">Image</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                          </div>
-                          <div class="modal-body">
-                              <em>Press the 'Esc' key to close</em><br>
-                                <img id="modalimage" src="#" class="rounded mx-auto d-block">
-                          </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-            {{ pagination_html | safe }}
+            <br>{{ pagination_html | safe }}
 
         </div>
 
@@ -226,7 +208,7 @@
     <script type="text/javascript">
         $(document).ready( function () {
             $('#files_table').DataTable({
-                "order": [],
+                "order": [[0, 'asc']],
                 lengthMenu: [
                     [25, 50, 100, -1],
                     [25, 50, 100, 'All'],
@@ -319,34 +301,41 @@
                   })
                 })
 
-            $(document).ready(function() {
-                {% if tab == 0 %}
-                var triggerEl = document.querySelector('#nav-tab a[href="#list"]')
-                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
-                {% elif tab == 1 %}
-                var triggerEl = document.querySelector('#nav-tab a[href="#filechecks"]')
-                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
-                {% elif tab == 2 %}
-                var triggerEl = document.querySelector('#nav-tab a[href="#postprod"]')
-                bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name
-                {% endif %}
-            };
+            {#$(document).ready(function() {#}
+            {#    {% if tab == 0 %}#}
+            {#    var triggerEl = document.querySelector('#nav-tab a[href="#list"]')#}
+            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
+            {#    {% elif tab == 1 %}#}
+            {#    var triggerEl = document.querySelector('#nav-tab a[href="#filechecks"]')#}
+            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
+            {#    {% elif tab == 2 %}#}
+            {#    var triggerEl = document.querySelector('#nav-tab a[href="#postprod"]')#}
+            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
+            {#    {% endif %}#}
+            {# });#}
+
     </script>
 
     <script type="text/javascript">
     var exampleModal = document.getElementById('imageModal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
-              // Button that triggered the modal
-              var button = event.relatedTarget
-              // Extract info from data-bs-* attributes
-              var img_link = button.getAttribute('data-bs-img_link')
-              // If necessary, you could initiate an AJAX request here
-              // and then do the updating in a callback.
-              //
-              // Update the modal's content.
-              var modalBodyImg = exampleModal.querySelector('.modal-body img')
+                // Button that triggered the modal
+                var button = event.relatedTarget
+                // Extract info from data-bs-* attributes
+                var img_link = button.getAttribute('data-bs-img_link')
+                var img_link_prev = button.getAttribute('data-bs-img_link-prev')
+                var img_link_next = button.getAttribute('data-bs-img_link-next')
+                // If necessary, you could initiate an AJAX request here
+                // and then do the updating in a callback.
+                //
+                // Update the modal's content.
+                var modalBodyImg = exampleModal.querySelector('.modal-body img')
+                prevbutton = exampleModal.querySelector('#modal-prev');
+                nextbutton = exampleModal.querySelector('#modal-next');
 
-              modalBodyImg.src = img_link
+                modalBodyImg.src = img_link;
+                prevbutton.setAttribute('data-bs-img_link-prev', img_link_prev);
+                nextbutton.setAttribute('data-bs-img_link-next', img_link_next);
             })
     </script>
 

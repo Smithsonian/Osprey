@@ -79,14 +79,9 @@
     {% block content %}
     {% endblock %}
 
-    <br><br>
-
-
+    <br>
 
 </div>
-
-
-{% if preview != True %}
 
 <footer class="page-footer font-small bg-secondary text-white pt-2">
 
@@ -115,7 +110,6 @@
 </footer>
 <!-- Footer -->
 
-{% endif %}
 
     <!-- JQuery -->
     <script
@@ -134,9 +128,6 @@
             type="text/javascript"
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
     ></script>
-
-
-
 
     {% block javascripts %}
     {% endblock %}

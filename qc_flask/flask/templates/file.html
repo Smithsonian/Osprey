@@ -6,34 +6,74 @@
 
 {% block content %}
 
-    <p>
-        <small><a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder_info.folder_id }}"><i class="fa-solid fa-arrow-left"></i></a> Back to folder <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder_info.folder_id }}">{{ folder_info.project_folder }}</a></small>
-    </p>
-    <p>
-        Details of the file: <strong>{{ file_details.file_name }}</strong><br><small>File ID: {{ file_details.file_id }}</small>
-    </p>
-
-
 <div class="row">
-    <div class="col">
+    <div class="col-4" style="max-height: 860px;">
 
-        <table id="file_checks" class="display compact" style="width:100%">
+        <p>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder_info.folder_id }}" role="button">
+                <i class="fa-solid fa-list"></i> Back to folder {{ folder_info.project_folder }}
+            </a>
+        </p>
+        <p>
+            <a class="btn btn-primary btn-sm{% if file_details.prev_id %}" href="{{ url_for('file', file_id=file_details.prev_id) }}{% else %} disabled" href="#{% endif %}" role="button">
+                <i class="fa-solid fa-chevron-left"></i> Prev File</a>
+            <a class="btn btn-primary btn-sm{% if file_details.next_id %}" href="{{ url_for('file', file_id=file_details.next_id) }}{% else %} disabled" href="#{% endif %}" role="button">
+                Next File <i class="fa-solid fa-chevron-right"></i></a>
+        </p>
+        <p>
+            Details of the file: <strong>{{ file_details.file_name }}</strong><br><small>File ID: {{ file_details.file_id }}</small>
+        </p>
+
+        <table class="table compact" style="width:100%">
         <thead>
             <tr>
-                <th></th>
                 <th>Check</th>
                 <th>Result</th>
             </tr>
         </thead>
+        <tbody>
+            {% for check in file_checks %}
+                <tr>
+                    <td>{{ check.file_check }}</td>
+                    <td>
+                        {% if check.check_results == 0 %}
+                            <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
+                        {% elif check.check_results == 1 %}
+                            <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
+                        {% elif check.check_results == 9 %}
+                            <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+
     </table>
+
+    <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodallabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="check-modal-body">
+              <pre><div id="check-modal-text">#</div></pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     </div>
 
-    <div class="col">
+    <div class="col overflow-auto">
         <!--image-->
         <p>Preview:</p>
         <p>
-            <a href="{{ image_url }}"><img src="{{ image_url }}" width="500"></a>
+            <a href="{{ image_url }}"><img src="{{ image_url }}" style="max-width:100%;"></a>
         </p>
 
     </div>
@@ -46,68 +86,85 @@
 
 {% block javascripts %}
 
-        <!-- file_checks -->
     <script type="text/javascript">
-        function format(d) {
-            // `d` is the original data object for the row
-            return (
-                '<p>Results for <em>' +
-                d.file_check +
-                '</em>: </p><pre>' +
-                d.check_info +
-                '</pre>'
-            );
-        }
+    var exampleModal = document.getElementById('checkmodal')
+            exampleModal.addEventListener('show.bs.modal', function (event) {
+                // Button that triggered the modal
+                var button = event.relatedTarget
+                // Extract info from data-bs-* attributes
+                var info_val = button.getAttribute('data-bs-info')
+                // If necessary, you could initiate an AJAX request here
+                // and then do the updating in a callback.
+                //
+                // Update the modal's content.
+                const modalBody = exampleModal.querySelector('#check-modal-text')
 
-        $(document).ready(function () {
-            var table = $('#file_checks').DataTable({
-                ajax: '{{ url_for('file_json', file_id=file_details.file_id) }}',
-                columns: [
-                    {
-                        className: 'dt-control white ',
-                        style: 'color:black;',
-                        orderable: false,
-                        data: null,
-                        defaultContent: '',
-                    },
-                    { data: 'file_check' },
-                    { data: 'check_result' },
-                ],
-                paging: false,
-                searching: false,
-                ordering:  false,
-                order: [],
-                'rowCallback': function(row, data, index){
-                    if(data[3] == 'OK'){
-                        $(row).find('td:eq(3)').css('background', '#198754');
-                        $(row).find('td:eq(3)').css('color', 'white');
-                    } else if(data[1] == 'Failed'){
-                        $(row).find('td:eq(1)').css('background', '#dc3545');
-                        $(row).find('td:eq(1)').css('color', 'white');
-                    }
-                },
-            });
-
-            // Add event listener for opening and closing details
-            $('#file_checks tbody').on('click', 'td.dt-control', function () {
-                var tr = $(this).closest('tr');
-                var row = table.row(tr);
-
-                if (row.child.isShown()) {
-                    // This row is already open - close it
-                    row.child.hide();
-                    tr.removeClass('shown');
-                } else {
-                    // Open this row
-                    row.child(format(row.data())).show();
-                    tr.addClass('shown');
-                }
-            });
-
-        });
-
+                modalBody.textContent = `${info_val}`;
+            })
     </script>
-
+{##}
+{#        <!-- file_checks -->#}
+{#    <script type="text/javascript">#}
+{#        function format(d) {#}
+{#            // `d` is the original data object for the row#}
+{#            return (#}
+{#                '<p>Results for <em>' +#}
+{#                d.file_check +#}
+{#                '</em>: </p><pre>' +#}
+{#                d.check_info +#}
+{#                '</pre>'#}
+{#            );#}
+{#        }#}
+{##}
+{#        $(document).ready(function () {#}
+{#            var table = $('#file_checks').DataTable({#}
+{#                ajax: '{{ url_for('file_json', file_id=file_details.file_id) }}',#}
+{#                columns: [#}
+{#                    {#}
+{#                        className: 'dt-control white ',#}
+{#                        style: 'color:black;',#}
+{#                        orderable: false,#}
+{#                        data: null,#}
+{#                        defaultContent: '',#}
+{#                    },#}
+{#                    { data: 'file_check' },#}
+{#                    { data: 'check_result' },#}
+{#                ],#}
+{#                paging: false,#}
+{#                searching: false,#}
+{#                ordering:  false,#}
+{#                order: [],#}
+{#                'rowCallback': function(row, data, index){#}
+{#                    if(data[3] == 'OK'){#}
+{#                        $(row).find('td:eq(3)').css('background', '#198754');#}
+{#                        $(row).find('td:eq(3)').css('color', 'white');#}
+{#                    } else if(data[3] == 'Failed'){#}
+{#                        $(row).find('td:eq(3)').css('background', '#dc3545');#}
+{#                        $(row).find('td:eq(3)').css('color', 'white');#}
+{#                    }#}
+{#                },#}
+{#            });#}
+{##}
+{#            // Add event listener for opening and closing details#}
+{#            $('#file_checks tbody').on('click', 'td.dt-control', function () {#}
+{#                var tr = $(this).closest('tr');#}
+{#                var row = table.row(tr);#}
+{##}
+{#                if (row.child.isShown()) {#}
+{#                    // This row is already open - close it#}
+{#                    row.child.hide();#}
+{#                    tr.removeClass('shown');#}
+{#                } else {#}
+{#                    // Open this row#}
+{#                    row.child(format(row.data())).show();#}
+{#                    tr.addClass('shown');#}
+{#                }#}
+{#            });#}
+{##}
+{#        });#}
+{##}
+{#    </script>#}
+{##}
 
 
 {% endblock %}
