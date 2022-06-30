@@ -1,6 +1,7 @@
 # Functions for osprey.py
 from datetime import datetime
 import os
+import stat
 import subprocess
 import re
 import xmltodict
@@ -409,6 +410,8 @@ def jpgpreview(file_id, folder_id, filename, db_cursor):
         db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                                'log_area': 'jpgpreview',
                                                'log_text': out})
+        os.chmod(preview_image, stat.S_IROTH)
+        os.chmod(preview_image, stat.S_IRGRP)
         return True
     else:
         # logger.error("File:{}|msg:{}".format(filename, out))
