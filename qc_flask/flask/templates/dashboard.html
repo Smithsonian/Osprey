@@ -54,36 +54,45 @@
 <hr>
 
 <div class="row">
-    <div class="col-3">
+    <div class="col-3" style="font-size: 0.9em;">
         {#List of folders#}
-            <table class="table table-striped border">
+        <table class="table table-striped border">
               <thead>
                 <tr>
                   <th scope="col">Folders</th>
                 </tr>
               </thead>
             <tbody>
-            {% for folder in project_folders %}
-                {% if project_stats.errors != "0" %}
-                    <tr class="table-danger">
-                {% else %}
-                    <tr>
-                {% endif %}
-                <td>
-                    <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
-                        <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
-                {% if project_stats.errors != "0" %}
-                    <br><span class="badge bg-danger">Files with errors</span>
-                {% endif %}
+                {% for folder in project_folders %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
+                            <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
+                    {% if folder.file_errors == 1 %}
+                        <span class="badge bg-danger">Files with errors</span>
+                    {% endif %}
+                    {% if folder.qc_status == "QC Pending" %}
+                        <span class="badge bg-secondary">QC Pending</span>
+                    {% elif folder.qc_status == "QC Passed" %}
+                        <span class="badge bg-success">QC Passed</span>
+                    {% elif folder.qc_status == "QC Failed" %}
+                        <span class="badge bg-danger">QC Failed</span>
+                    {% endif %}
 
-                </td>
-            </tr>
-            {% endfor %}
+                    {% if folder.delivered_to_dams == 1 %}
+                        <span class="badge bg-success">Delivered to DAMS</span>
+                    {% elif folder.delivered_to_dams == 0 %}
+                        <span class="badge bg-secondary">Ready to DAMS</span>
+                    {% endif %}
+
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
-            </table>
+        </table>
     </div>
 
-    <div class="col">
+    <div class="col" style="font-size: 0.9em;">
 
     {% if folder_name != None %}
 
@@ -103,58 +112,21 @@
                   <div class="col-9">
                       <h4>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h4>
                   </div>
-                  <div class="col">
-                        {% if project_admin %}
-                              <div class="btn-group" role="group" aria-label="qc">
-                                  QC:&nbsp;
-                                  <a class="btn btn-success btn-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#modal_qc_pass">Passed</a>
-                                  <a class="btn btn-danger btn-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#modal_qc_fail">Failed</a>
-                              </div>
-                        {% else %}
-                            &nbsp;
+                  <div class="col" style="text-align: right;">
+                        {% if folder_qc.qc_status == "QC Failed" %}
+                            <span class="badge bg-danger float-right">QC Failed</span>
+                        {% elif folder_qc.qc_status == "QC Passed" %}
+                            <span class="badge bg-success float-right">QC Passed</span>
+                        {% elif folder_qc.qc_status == "QC Pending" %}
+                            <span class="badge bg-secondary float-right">QC Pending</span>
                         {% endif %}
                   </div>
               </div>
 
-                <!-- Modal -->
-                    <div class="modal fade" id="modal_qc_pass" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                      <div class="modal-dialog">
-                        <div class="modal-content">
-                          <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">QC Passed</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                          </div>
-                          <div class="modal-body">
-                            Tag as passed?
-                          </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-              <!-- Modal -->
-                <div class="modal fade" id="modal_qc_fail" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                      </div>
-                      <div class="modal-body">
-                        Tag as failed?
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {% for table in tables %}
                        {{ table|safe }}
                 {% endfor %}
+
 
           </div>
           <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-profile-tab">
@@ -171,11 +143,11 @@
 
 
                 {% for file in files_df %}
-
-                  <a class="btn btn-light btn-sm" href="{{ url_for('file', file_id=file.file_id) }}" role="button">
-                        <img src="{{ url_for('previewimage', folder_id=file.folder_id, file_id=file.file_id) }}" width="160px" style="padding: 10px;"><br>
+                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
+                            data-bs-info="{{ jpg_previews }}{{ file.file_id }}" title="Image Preview">
+                      <img src="{{ jpg_previews }}{{ file.file_id }}&size=160" width="160px" style="padding: 10px;"><br>
                         <small>{{ file.file_name }}</small>
-                  </a>
+                  </button>
 
                 {% endfor %}
 
@@ -185,11 +157,32 @@
 
 
           <div class="tab-pane fade {% if postprod %}show active{% endif %}" id="nav-postprod" role="tabpanel" aria-labelledby="nav-postprod-tab">
-            <br><p>Coming soon...</p>
+            <br>
+
+                {% for table in post_processing %}
+                       {{ table|safe }}
+                {% endfor %}
           </div>
 
         </div>
 
+              <!-- File preview modal -->
+              <div class="modal fade" id="previewmodal1" tabindex="-1" aria-labelledby="previewmodal1Label" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="previewmodal1Label">Image Preview (JPG)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                           <img src="#" style="width: 100%;" id="imagepreview">
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
     {% else %}
         <p><em>Select a folder on the left</em></p>
@@ -208,7 +201,7 @@
     <script type="text/javascript">
         $(document).ready( function () {
             $('#files_table').DataTable({
-                "order": [[0, 'asc']],
+                "order": [],
                 lengthMenu: [
                     [25, 50, 100, -1],
                     [25, 50, 100, 'All'],
@@ -286,8 +279,106 @@
                     };
                 },
             });
-        } );
+
+            $('#post_processing_table').DataTable({
+                "order": [],
+                lengthMenu: [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ],
+                'rowCallback': function(row, data, index){
+                    if(data[1] == 'Completed'){
+                        $(row).find('td:eq(1)').css('background', '#198754');
+                        $(row).find('td:eq(1)').css('color', 'white');
+                    } else if(data[1] == 'Failed'){
+                        $(row).find('td:eq(1)').css('background', '#dc3545');
+                        $(row).find('td:eq(1)').css('color', 'white');
+                    } else if(data[1] == 'Pending'){
+                        $(row).find('td:eq(1)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(1)').css('color', 'black');
+                    };
+                    if(data[3] == 'Completed'){
+                        $(row).find('td:eq(3)').css('background', '#198754');
+                        $(row).find('td:eq(3)').css('color', 'white');
+                    } else if(data[3] == 'Failed'){
+                        $(row).find('td:eq(3)').css('background', '#dc3545');
+                        $(row).find('td:eq(3)').css('color', 'white');
+                    } else if(data[3] == 'Pending'){
+                        $(row).find('td:eq(3)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(3)').css('color', 'black');
+                    };
+                    if(data[2] == 'Completed'){
+                        $(row).find('td:eq(2)').css('background', '#198754');
+                        $(row).find('td:eq(2)').css('color', 'white');
+                    } else if(data[2] == 'Failed'){
+                        $(row).find('td:eq(2)').css('background', '#dc3545');
+                        $(row).find('td:eq(2)').css('color', 'white');
+                    } else if(data[2] == 'Pending'){
+                        $(row).find('td:eq(2)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(2)').css('color', 'black');
+                    };
+                    if(data[4] == 'Completed'){
+                        $(row).find('td:eq(4)').css('background', '#198754');
+                        $(row).find('td:eq(4)').css('color', 'white');
+                    } else if(data[4] == 'Failed'){
+                        $(row).find('td:eq(4)').css('background', '#dc3545');
+                        $(row).find('td:eq(4)').css('color', 'white');
+                    } else if(data[4] == 'Pending'){
+                        $(row).find('td:eq(4)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(4)').css('color', 'black');
+                    };
+                    if(data[5] == 'Completed'){
+                        $(row).find('td:eq(5)').css('background', '#198754');
+                        $(row).find('td:eq(5)').css('color', 'white');
+                    } else if(data[5] == 'Failed'){
+                        $(row).find('td:eq(5)').css('background', '#dc3545');
+                        $(row).find('td:eq(5)').css('color', 'white');
+                    } else if(data[5] == 'Pending'){
+                        $(row).find('td:eq(5)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(5)').css('color', 'black');
+                    };
+                    if(data[6] == 'Completed'){
+                        $(row).find('td:eq(6)').css('background', '#198754');
+                        $(row).find('td:eq(6)').css('color', 'white');
+                    } else if(data[6] == 'Failed'){
+                        $(row).find('td:eq(6)').css('background', '#dc3545');
+                        $(row).find('td:eq(6)').css('color', 'white');
+                    } else if(data[6] == 'Pending'){
+                        $(row).find('td:eq(6)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(6)').css('color', 'black');
+                    };
+                    if(data[7] == 'Completed'){
+                        $(row).find('td:eq(7)').css('background', '#198754');
+                        $(row).find('td:eq(7)').css('color', 'white');
+                    } else if(data[7] == 'Failed'){
+                        $(row).find('td:eq(7)').css('background', '#dc3545');
+                        $(row).find('td:eq(7)').css('color', 'white');
+                    } else if(data[7] == 'Pending'){
+                        $(row).find('td:eq(7)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(7)').css('color', 'black');
+                    };
+                },
+            });
+
+            var previewmodal1 = document.getElementById('previewmodal1');
+            previewmodal1.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody1 = previewmodal1.querySelector('.modal-body img')
+
+              modalBody1.src = checkinfo + '&size=1200';
+            });
+
+        });
+
     </script>
+
 
     <script type="text/javascript">
 
@@ -301,44 +392,6 @@
                   })
                 })
 
-            {#$(document).ready(function() {#}
-            {#    {% if tab == 0 %}#}
-            {#    var triggerEl = document.querySelector('#nav-tab a[href="#list"]')#}
-            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
-            {#    {% elif tab == 1 %}#}
-            {#    var triggerEl = document.querySelector('#nav-tab a[href="#filechecks"]')#}
-            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
-            {#    {% elif tab == 2 %}#}
-            {#    var triggerEl = document.querySelector('#nav-tab a[href="#postprod"]')#}
-            {#    bootstrap.Tab.getInstance(triggerEl).show() // Select tab by name#}
-            {#    {% endif %}#}
-            {# });#}
-
-    </script>
-
-    <script type="text/javascript">
-    var exampleModal = document.getElementById('imageModal')
-            exampleModal.addEventListener('show.bs.modal', function (event) {
-                // Button that triggered the modal
-                var button = event.relatedTarget
-                // Extract info from data-bs-* attributes
-                var img_link = button.getAttribute('data-bs-img_link')
-                var img_link_prev = button.getAttribute('data-bs-img_link-prev')
-                var img_link_next = button.getAttribute('data-bs-img_link-next')
-                // If necessary, you could initiate an AJAX request here
-                // and then do the updating in a callback.
-                //
-                // Update the modal's content.
-                var modalBodyImg = exampleModal.querySelector('.modal-body img')
-                prevbutton = exampleModal.querySelector('#modal-prev');
-                nextbutton = exampleModal.querySelector('#modal-next');
-
-                modalBodyImg.src = img_link;
-                prevbutton.setAttribute('data-bs-img_link-prev', img_link_prev);
-                nextbutton.setAttribute('data-bs-img_link-next', img_link_next);
-            })
     </script>
 
 {% endblock %}
-
-

@@ -134,10 +134,6 @@ create table folders (
     processing_md5 boolean DEFAULT 'f',
     no_files integer,
     file_errors integer DEFAULT 9,
-    qc_status integer DEFAULT 9,
-    qc_by text,
-    qc_date timestamp with time zone,
-    qc_ip text,
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX folders_fid_idx ON folders USING BTREE(folder_id);
@@ -369,7 +365,7 @@ CREATE INDEX process_logging_log_idx ON process_logging USING BTREE(log_area);
 --qc_settings
 DROP TABLE IF EXISTS qc_settings CASCADE;
 create table qc_settings (
-    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE PRIMARY KEY,
     qc_level text DEFAULT 'Normal',
     qc_percent numeric DEFAULT 10,
     qc_critical_threshold numeric DEFAULT 0,
@@ -438,7 +434,6 @@ CREATE TRIGGER trigger_updated_at_qcfiles
   EXECUTE PROCEDURE updated_at_files();
 
 
-
 --qc_users
 DROP TABLE IF EXISTS qc_users CASCADE;
 CREATE TABLE qc_users (
@@ -477,3 +472,41 @@ CREATE TABLE qc_users_cookies (
 );
 CREATE INDEX qc_users_cookies_un_idx ON qc_users_cookies USING BTREE(user_id);
 CREATE INDEX qc_users_cookies_c_idx ON qc_users_cookies USING BTREE(cookie);
+
+
+--qc_folders
+DROP TABLE IF EXISTS qc_folders CASCADE;
+create table qc_folders (
+    folder_id integer NOT NULL REFERENCES folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE PRIMARY KEY ,
+    qc_status integer DEFAULT 9,
+    qc_by integer,
+    qc_ip text,
+    qc_info text,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX qc_folders_fid_idx ON qc_folders USING BTREE(folder_id);
+CREATE INDEX qc_folders_qby_idx ON qc_folders USING BTREE(qc_by);
+
+CREATE TRIGGER trigger_updated_qc_folders
+  BEFORE UPDATE ON qc_folders
+  FOR EACH ROW
+  EXECUTE PROCEDURE updated_at_files();
+
+
+--qc_files
+DROP TABLE IF EXISTS qc_files CASCADE;
+create table qc_files (
+    folder_id integer NOT NULL REFERENCES qc_folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    file_id integer NOT NULL REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    file_qc integer DEFAULT 9,
+    qc_info text,
+    qc_by integer,
+    qc_ip text,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX qc_files_fid_idx ON qc_files USING BTREE(file_id);
+
+CREATE TRIGGER trigger_updated_qc_files
+  BEFORE UPDATE ON qc_files
+  FOR EACH ROW
+  EXECUTE PROCEDURE updated_at_files();

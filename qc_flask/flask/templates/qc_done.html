@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
+
+{% block content %}
+
+    <h4>{{ folder.project_folder }}</h4>
+
+    <div class="row">
+        <div class="col-4">
+
+            <p>Number of files in sample: {{ qc_stats.no_files }} ({{ (project_settings.qc_percent * 100) }}% of the total)</p>
+
+            <p>Folder Results:</p>
+            <ul>
+                <li class="text-success">Number of files that passed QC: {{ qc_stats.passed }} ({{ qc_stats.percent_passed }}%)</li>
+                    <li class="text-danger">Number of files that failed QC: {{ qc_stats.no_errors }} ({{ qc_stats.percent_failed }}%)</li>
+            </ul>
+
+            <form action="{{ url_for('qc_done', folder_id=folder.folder_id) }}" method="POST">
+
+              <div class="mb-3">
+                  <label for="folderqc" class="form-label">Summary of QC for folder:</label>
+                  <input type="text" class="form-control" id="folderqc" name="qc_info">
+                  <input type="hidden" class="form-control" id="folder_id" name="folder_id">
+              </div>
+              <div class="mb-3">
+                    <input type="radio" class="btn-check" name="qc_status" id="success-outlined" autocomplete="off" value="0">
+                        <label class="btn btn-outline-success" for="success-outlined">QC Passed</label>
+                    <input type="radio" class="btn-check" name="qc_status" id="danger-outlined" autocomplete="off" value="1">
+                        <label class="btn btn-outline-danger" for="danger-outlined">QC Failed</label>
+              </div>
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+
+        </div>
+        <div class="col">
+            &nbsp;
+        </div>
+
+    </div>
+
+{% endblock %}

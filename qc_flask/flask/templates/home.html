@@ -1,17 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}My Projects - Osprey Dashboard{% endblock %}
+{% block title %}Osprey Dashboard{% endblock %}
 
-{% block page_title %}My Projects - Osprey Dashboard{% endblock %}
+{% block page_title %}Osprey Dashboard{% endblock %}
 
 {% block content %}
 
     <h1>My Projects:</h1>
 
     {% for project in project_list %}
-          <h2>{{ project.project_title }}</h2>
+          <h2>{{ project.project_title }}
+                <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
+                <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Run QC</a>
+          </h2>
 
-        <p><small><a href="{{ url_for('dashboard', project_id=project.project_alias) }}"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a></small></p>
+        <p>
+            <small>
+                {% if project.project_start == project.project_end %}
+                    {{ project.project_start }}
+                {% elif project.project_end == None %}
+                    {{ project.project_start }} -
+                {% else %}
+                    {{ project.project_start }} - {{ project.project_end }}
+                {% endif %}
+            </small>
+        </p>
 
         <div class="row">
 

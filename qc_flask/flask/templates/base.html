@@ -63,11 +63,14 @@
 
                 </div>
 
-            {% if user_name %}
+            {% if username %}
 
                 <div style="text-align: right; color: #FFFFFF;">
-                    <small><a href="{{ url_for('home') }}" style="color: #FFFFFF;" title="Home"><i class="fa-solid fa-house"></i> {{ user_name }}</a> |
-                     <a href="{{ url_for('logout') }}" style="color: #FFFFFF;" title="Logout">Logout</a></small>
+                    <small>
+                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a> |
+                        <a href="{{ url_for('home') }}" style="color: #FFFFFF;" title="User Home"><i class="fa-solid fa-house"></i> {{ username }}</a> |
+                        <a href="{{ url_for('logout') }}" style="color: #FFFFFF;" title="Logout">Logout</a>
+                    </small>
                 </div>
 
             {% endif %}
@@ -90,15 +93,15 @@
 
 
       <div class="row">
-        <div class="col-sm-8">
+        <div class="col">
             <p class="small">
                 {% block footer %}
                 {% endblock %}
-                Site version {{ site_ver }}<br>
+                Dashboard version {{ site_ver }}<br>
                 Source at <a href="https://github.com/Smithsonian/Osprey" target="_blank" class="text-white">https://github.com/Smithsonian/Osprey</a></p>
         </div>
         <div class="col-sm-4">
-            <p class="small float-right">
+            <p class="small" style="text-align: right;">
                 <a href="https://dpo.si.edu" target="_blank" class="text-white">Digitization Program Office</a>, <a href="https://www.si.edu/ocio" target="_blank" class="text-white">OCIO</a><br>
                 For details, check our <strong><a href="https://sinet.sharepoint.com/sites/DPO/SitePages/Informatics.aspx" target="_blank" class="text-white">SharePoint</a></strong>
             </p>
