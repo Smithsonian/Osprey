@@ -90,15 +90,19 @@ def handle_invalid_usage(error):
 @app.errorhandler(404)
 def page_not_found(e):
     logging.error(e)
-    data = json.dumps({'error': "route not found"})
-    return Response(data, mimetype='application/json'), 404
+    error_msg = "Error: {}".format(e)
+    return render_template('error.html', error_msg=error_msg), 404
+    # data = json.dumps({'error': "route not found"})
+    # return Response(data, mimetype='application/json'), 404
 
 
 @app.errorhandler(500)
 def page_not_found(e):
     logging.error(e)
-    data = json.dumps({'error': "system error"})
-    return Response(data, mimetype='application/json'), 500
+    error_msg = "There was a system error."
+    return render_template('error.html', error_msg=error_msg), 500
+    # data = json.dumps({'error': "system error"})
+    # return Response(data, mimetype='application/json'), 500
 
 
 # Needed for OpenRefine
@@ -270,7 +274,8 @@ def login():
             msg = "Error, user not known or password was incorrect"
     projects = query_database("select project_title, project_id, filecheck_link, project_alias, "
                               "     to_char(project_start, 'Mon-YYYY') as project_start, "
-                              "     to_char(project_end, 'Mon-YYYY') as project_end "
+                              "     to_char(project_end, 'Mon-YYYY') as project_end,"
+                              "     project_unit "
                               " FROM projects where project_alias is not null "
                               " ORDER BY projects_order DESC")
     return render_template('login.html',
@@ -297,12 +302,16 @@ def qc_process(folder_id):
         # Not allowed
         return redirect(url_for('home'))
     file_id_q = request.values.get('file_id')
+    msg = ""
     if file_id_q is not None:
         qc_info = request.values.get('qc_info')
         qc_val = request.values.get('qc_val')
         user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
                                         {'username': username})[0]
-        q = query_database("UPDATE qc_files SET "
+        if qc_val == "1" and qc_info == "":
+            msg = "Error: The field QC Details can not be empty if the file failed the QC."
+        else:
+            q = query_database("UPDATE qc_files SET "
                              "      file_qc = %(qc_val)s, "
                              "      qc_by = %(qc_by)s, "
                              "      qc_info = %(qc_info)s "
@@ -312,8 +321,8 @@ def qc_process(folder_id):
                               'qc_val': qc_val,
                               'qc_by': user_id['user_id']
                               })[0]
-        logging.info("file_id: {}".format(file_id_q))
-        return redirect(url_for('qc_process', folder_id=folder_id))
+            logging.info("file_id: {}".format(file_id_q))
+            return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = query_database("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                    {'folder_id': folder_id})[0]
     project_settings = query_database("SELECT qc_percent FROM qc_settings "
@@ -409,7 +418,7 @@ def qc_process(folder_id):
                                          "  WHERE q.file_id = f.file_id "
                                          "     AND f.folder_id = %(folder_id)s"
                                          "     AND q.file_qc = 9 "
-                                         "  ORDER BY RANDOM() LIMIT 1 ",
+                                         "  LIMIT 1 ",
                                        {'folder_id': folder_id})[0]
                 file_details = query_database("SELECT file_id, folder_id, file_name "
                                               " FROM files WHERE file_id = %(file_id)s",
@@ -453,15 +462,21 @@ def qc_process(folder_id):
                                        project_alias=project_alias['project_alias'],
                                        tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                                      escape=False,
-                                                                     classes=["display", "compact", "table-striped"])]
+                                                                     classes=["display", "compact", "table-striped"])],
+                                       msg=msg
                                        )
             else:
+                error_files = query_database("SELECT f.file_name, q.* FROM qc_files q, files f "
+                                             "  WHERE q.folder_id = %(folder_id)s "
+                                             "  AND q.file_qc=1 AND q.file_id = f.file_id",
+                                            {'folder_id': folder_id})
                 return render_template('qc_done.html',
                                        folder_id=folder_id,
                                        folder=folder,
                                        qc_stats=qc_stats,
                                        project_settings=project_settings,
-                                       username=username)
+                                       username=username,
+                                       error_files=error_files)
     else:
         error_msg = "Folder is not available for QC."
         return render_template('error.html', error_msg=error_msg), 400
@@ -577,7 +592,7 @@ def qc(project_id):
                                project=project)
 
 
-@app.route('/home', methods=['POST', 'GET'])
+@app.route('/home/', methods=['POST', 'GET'])
 @login_required
 def home():
     """Home for user, listing projects and options"""
@@ -586,7 +601,8 @@ def home():
     logging.info(is_admin)
     projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias, "
                               "     to_char(p.project_start, 'Mon-YYYY') as project_start, "
-                              "     to_char(p.project_end, 'Mon-YYYY') as project_end "
+                              "     to_char(p.project_end, 'Mon-YYYY') as project_end,"
+                              "     p.qc_status, p.project_unit "
                                 "  FROM qc_projects qp, "
                                 "       qc_users u, projects p "
                                 " WHERE qp.project_id = p.project_id "
@@ -655,7 +671,9 @@ def home():
                 'running_percent': running_percent,
                 'project_alias': project_alias,
                 'project_start': project['project_start'],
-                'project_end': project['project_end']
+                'project_end': project['project_end'],
+                'qc_status': project['qc_status'],
+                'project_unit': project['project_unit']
             })
     return render_template('home.html', project_list=project_list, site_ver=site_ver, username=user_name,
                            is_admin=is_admin)
@@ -844,7 +862,7 @@ def dashboard(project_id):
                                                  'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
                                                  'data-bs-info="' + settings.jpg_previews + folder_files_df['file_id'].astype(str) \
                                                + '" title="Image Preview">' \
-                                                    '<i class="fa-solid fa-image"></i></button>'
+                                                    '<i class="fa-regular fa-image"></i></button>'
                 folder_files_df = folder_files_df.drop(['file_id'], axis=1)
                 # Pagination
                 pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
@@ -923,8 +941,9 @@ def dashboard(project_id):
                     'no_files': folder_stats1[0]['no_files'],
                     'no_errors': folder_stats2[0]['no_errors']
                 }
-                post_processing_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %("
-                                                                "folder_id)s",
+                post_processing_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files "
+                                                                 " WHERE folder_id = %(folder_id)s"
+                                                                 " ORDER BY file_name",
                                                     {'folder_id': folder_id}))
                 logging.info("project_postprocessing {}".format(project_info['project_postprocessing']))
                 if project_info['project_postprocessing'] is not None:
@@ -936,9 +955,11 @@ def dashboard(project_id):
                                                                            "      WHEN fp.post_results = 1 THEN 'Failed' "
                                                                            "        ELSE 'Pending' END as {} "
                                                                            " FROM files f LEFT JOIN file_postprocessing fp "
-                                                                           "        ON (f.file_id = fp.file_id) "
+                                                                           "        ON (f.file_id = fp.file_id "
+                                                                           "            AND fp.post_step = %(fcheck)s) "
                                                                            " WHERE f.folder_id = %(folder_id)s".format(fcheck),
-                                                                           {'folder_id': folder_id}))
+                                                                           {'folder_id': folder_id,
+                                                                                'fcheck': fcheck}))
                         if post_processing_vals.size != 0:
                             post_processing_df = post_processing_df.merge(post_processing_vals, how='outer', on='file_id')
                     post_processing_df = post_processing_df.drop(['file_id'], axis=1)
@@ -1026,7 +1047,6 @@ def file(file_id):
                                    " WHERE project_id = %(project_id)s",
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
-
     file_details = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
                               "WHERE folder_id = %(folder_id)s ORDER BY file_name),"
                               "data2 AS (SELECT file_id, folder_id, file_name,"

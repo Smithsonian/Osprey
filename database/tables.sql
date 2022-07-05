@@ -38,6 +38,7 @@ CREATE TABLE projects (
     objects_estimated bool DEFAULT 'f',
     filecheck_link text,
     process_summary text DEFAULT null,
+    qc_status integer DEFAULT 0,
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX projects_pid_idx ON projects USING BTREE(project_id);

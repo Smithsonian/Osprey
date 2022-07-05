@@ -73,6 +73,14 @@
                     </small>
                 </div>
 
+            {% else %}
+
+                <div style="text-align: right; color: #FFFFFF;">
+                    <small>
+                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a>
+                    </small>
+                </div>
+
             {% endif %}
         </div>
     </nav>

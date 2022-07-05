@@ -107,26 +107,11 @@
         <div class="tab-content" id="nav-tabContent">
           <div class="tab-pane fade {% if tab == 0 %}show active{% endif %}" id="nav-list" role="tabpanel" aria-labelledby="nav-list-tab">
                <br>
-
-                <div class="row">
-                  <div class="col-9">
-                      <h4>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h4>
-                  </div>
-                  <div class="col" style="text-align: right;">
-                        {% if folder_qc.qc_status == "QC Failed" %}
-                            <span class="badge bg-danger float-right">QC Failed</span>
-                        {% elif folder_qc.qc_status == "QC Passed" %}
-                            <span class="badge bg-success float-right">QC Passed</span>
-                        {% elif folder_qc.qc_status == "QC Pending" %}
-                            <span class="badge bg-secondary float-right">QC Pending</span>
-                        {% endif %}
-                  </div>
-              </div>
+                <h4>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h4>
 
                 {% for table in tables %}
                        {{ table|safe }}
                 {% endfor %}
-
 
           </div>
           <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-profile-tab">

@@ -16,7 +16,17 @@
             <p>Folder Results:</p>
             <ul>
                 <li class="text-success">Number of files that passed QC: {{ qc_stats.passed }} ({{ qc_stats.percent_passed }}%)</li>
-                    <li class="text-danger">Number of files that failed QC: {{ qc_stats.no_errors }} ({{ qc_stats.percent_failed }}%)</li>
+                <li><div class="text-danger">Number of files that failed QC: {{ qc_stats.no_errors }} ({{ qc_stats.percent_failed }}%)</div>
+
+                        {% if qc_stats.no_errors > 0 %}
+                            <ul>
+                                {% for file in error_files %}
+                                    <li>{{ file.file_name }}: {{ file.qc_info }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                    </li>
             </ul>
 
             <form action="{{ url_for('qc_done', folder_id=folder.folder_id) }}" method="POST">

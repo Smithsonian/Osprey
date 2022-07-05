@@ -25,6 +25,7 @@
                       <li>
                           <a href="{{ url_for('dashboard', project_id=project.project_alias) }}">{{ project.project_title }}</a>
                           <small>
+                            <span class="badge rounded-pill bg-primary">{{ project.project_unit }}</span>
                             {% if project.project_start == project.project_end %}
                                 ({{ project.project_start }})
                             {% elif project.project_end == None %}

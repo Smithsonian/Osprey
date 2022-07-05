@@ -30,12 +30,13 @@
 
         </div>
         <div class="col">
+
                 <form action="{{ url_for('qc_process', folder_id=folder.folder_id) }}" method="POST">
 
                   <div class="mb-3">
-                      <label for="qc_info_i" class="form-label">QC details or issues:</label>
-                      <input type="text" class="form-control" id="qc_info_i" name="qc_info" aria-label="QC details or issues:">
-                      <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
+                      <p class="text-danger">{{ msg }}</p>
+                      <label for="qc_info" class="form-label">QC details or issues:</label>
+                      <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
                   </div>
                   <div class="mb-3">
                         <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
@@ -47,6 +48,7 @@
 {#                        <input type="radio" class="btn-check" name="options" id="danger-outlined2" autocomplete="off">#}
 {#                            <label class="btn btn-outline-danger" for="danger-outlined2">Minor Issue</label>#}
                   </div>
+                    <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
                   <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </p>
@@ -56,8 +58,8 @@
 
     <div class="row">
 
-        <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
-        <p><small>Click on the image to zoom in. Use the mousewheel to zoom in and out; press 'Esc' to close the image.</small><br>
+        <!-- Image zoom from: https://www.jacklmoore.com/zoom/ -->
+        <p><small>Mouseover the image to zoom in.</small><br>
             <img src="{{ image_url }}" style="width:100%;" id="previmg">
         </p>
         <a><small><a href="{{ image_url }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>
@@ -110,9 +112,9 @@
                     </td>
                     <td>
                         {% if check.check_results == 0 %}
-                            <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
+                            <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">OK</button>
                         {% elif check.check_results == 1 %}
-                            <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
+                            <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">Failed</button>
                         {% elif check.check_results == 9 %}
                             <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
                         {% endif %}
@@ -171,9 +173,6 @@
                 ],
             });
 
-            ezoom.onInit($('#previmg'), {
-                hideControlBtn:true
-            });
 
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
@@ -190,6 +189,14 @@
               modalBody.textContent = checkinfo
             })
 
+
+            //Zoom
+            $('#previmg')
+                .wrap('<span style="display:inline-block"></span>')
+                .css('display', 'block')
+                .parent()
+                .zoom();
+
         });
     </script>
 
@@ -197,7 +204,7 @@
     <!-- Zoom -->
     <script
             type="text/javascript"
-            src="{{ url_for('static', filename='js/ezoom.js') }}"
+            src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
     ></script>
 
 
