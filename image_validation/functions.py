@@ -102,7 +102,11 @@ def jhove_validate(file_id, filename, db_cursor):
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     # Run JHOVE
-    subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename])
+    p = subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename])
+    p = subprocess.Popen([settings.jhove_path, filename],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    (out, err) = p.communicate()
     # Open and read the results xml
     try:
         with open(xml_file) as fd:
@@ -116,6 +120,7 @@ def jhove_validate(file_id, filename, db_cursor):
         os.unlink(xml_file)
     # Get file status
     file_status = doc['jhove']['repInfo']['status']
+    jhove_results = out
     if file_status == "Well-Formed and valid":
         jhove_val = 0
     else:
@@ -127,8 +132,11 @@ def jhove_validate(file_id, filename, db_cursor):
             if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
                 jhove_val = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
+        jhove_results = jhove_results + '\n' + file_status
+    # db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
+    #                                        'check_info': file_status})
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
-                                           'check_info': file_status})
+                                           'check_info': jhove_results.decode('latin-1')})
     db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                            'log_area': 'jhove_validate',
                                            'log_text': db_cursor.query.decode("utf-8")})
