@@ -4,7 +4,6 @@
 #
 # Import flask
 from flask import Flask
-from flask import Response
 from flask import render_template
 from flask import request
 from flask import jsonify
@@ -15,6 +14,8 @@ import logging
 import locale
 import simplejson as json
 import os
+import math
+import pandas as pd
 
 import psycopg2
 import psycopg2.extras
@@ -25,13 +26,10 @@ from flask_login import logout_user
 from flask_login import UserMixin
 from flask_login import current_user
 
-import math
-
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired
 
-import pandas as pd
 
 import settings
 
@@ -60,7 +58,7 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 app = Flask(__name__)
-app.secret_key = b'a40dceb6ed968dc4263a20e9107b4532eeff613875dbb7982d09aeaa37a5e6bb'
+app.secret_key = settings.secret_key
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -92,8 +90,6 @@ def page_not_found(e):
     logging.error(e)
     error_msg = "Error: {}".format(e)
     return render_template('error.html', error_msg=error_msg), 404
-    # data = json.dumps({'error': "route not found"})
-    # return Response(data, mimetype='application/json'), 404
 
 
 @app.errorhandler(500)
@@ -101,35 +97,6 @@ def page_not_found(e):
     logging.error(e)
     error_msg = "There was a system error."
     return render_template('error.html', error_msg=error_msg), 500
-    # data = json.dumps({'error': "system error"})
-    # return Response(data, mimetype='application/json'), 500
-
-
-# Needed for OpenRefine
-# Based on https://github.com/mphilli/AAT-reconcile
-def jsonpify(obj):
-    """
-    Like jsonify but wraps result in a JSONP callback if a 'callback'
-    query param is supplied.
-    """
-    try:
-        callback = request.args['callback']
-        response = app.make_response("%s(%s)" % (callback, json.dumps(obj)))
-        response.mimetype = "text/javascript"
-        return response
-    except KeyError:
-        return jsonify(obj)
-
-
-def preprocess(token):
-    tokens = token.split(" ")
-    for i, t in enumerate(tokens):
-        if ")" in t or "(" in t:
-            tokens[i] = ''
-    token = " ".join(tokens)
-    if token.endswith("."):
-        token = token[:-1]
-    return token.lower().lstrip().rstrip()
 
 
 # Database
@@ -201,7 +168,7 @@ def user_perms(project_id, user_type='user'):
 
 
 class LoginForm(FlaskForm):
-    username = StringField  (u'Username', validators=[DataRequired()])
+    username = StringField(u'Username', validators=[DataRequired()])
     password = PasswordField(u'Password', validators=[DataRequired()])
 
 
@@ -321,7 +288,7 @@ def qc_process(folder_id):
                               'qc_val': qc_val,
                               'qc_by': user_id['user_id']
                               })[0]
-            logging.info("file_id: {}".format(file_id_q))
+            logging.info("file_id: {}".format(q[0]['file_id']))
             return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = query_database("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                    {'folder_id': folder_id})[0]
@@ -1119,4 +1086,4 @@ def logout():
 
 #####################################
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run()
