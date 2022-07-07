@@ -35,10 +35,12 @@
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
                     </td>
                     <td>
-                        {% if folder.file_errors == 0 %}
-                            <span class="badge bg-success">None</span>
-                        {% else %}
+                        {% if folder.file_errors == 1 %}
                             <span class="badge bg-danger">File Errors</span>
+                        {% elif folder.file_errors == 9 %}
+                            <span class="badge bg-secondary">Pending</span>
+                        {% else %}
+                            <span class="badge bg-success">None</span>
                         {% endif %}
                     </td>
                     <td>

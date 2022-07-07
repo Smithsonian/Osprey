@@ -440,6 +440,7 @@ DROP TABLE IF EXISTS qc_users CASCADE;
 CREATE TABLE qc_users (
     user_id serial primary key,
     username text,
+    full_name text,
     pass text,
     user_active boolean DEFAULT 't',
     is_admin boolean DEFAULT 'f'

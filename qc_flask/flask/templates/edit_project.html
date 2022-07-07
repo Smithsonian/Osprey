@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Project Dashboard{% endblock %}
+
+{% block page_title %}Edit Project{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-5">
+        <form action="{{ url_for('edit_project', project_id=project.project_alias) }}" method="POST">
+
+            <p class="text-danger">{{ msg }}</p>
+
+
+                <label for="p_name" class="form-label">Project Name:</label>
+                <input type="text" class="form-control" id="p_name" name="p_name" aria-label="Project Name:" value="{{ project.project_title }}">
+            <div class="row">
+                <div class="col">
+                    <label for="p_unit" class="form-label">Unit:</label>
+                    <input class="form-control" type="text" name="p_unit" readonly value="{{ project.project_unit }}">
+                </div>
+                <div class="col">
+                    <label for="p_pid" class="form-label">Database ID:</label>
+                    <input class="form-control" type="text" name="p_pid" readonly value="{{ project.project_id }}">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="p_manager" class="form-label">Project Manager:</label>
+                <input class="form-control" type="text" name="p_manager" readonly value="{{ username }}">
+                <label for="p_alias" class="form-label">Project alias (for use in the URL; all lowercase, no spaces, underscores OK, <20 characters):</label>
+                <input type="text" class="form-control" id="p_alias" name="p_alias"
+                       aria-label="Project alias (lowercase, no spaces, underscore OK, <20 characters):" readonly value="{{ project.project_alias }}">
+            </div>
+            <div class="mb-3">
+                <label for="p_desc" class="form-label">Project description, leave empty if there is none:</label>
+                <input type="text" class="form-control" id="p_desc" name="p_desc" aria-label="Project description:" value="{{ project.project_description }}">
+                <label for="p_url" class="form-label">Relevant URL for the project, leave empty if there is none:</label>
+                <input type="text" class="form-control" id="p_url" name="p_url" aria-label="Relevant URL for the project:" value="{{ project.project_url }}">
+                <label for="p_noobjects" class="form-label">Estimated number of objects, enter 0 if unknown:</label>
+                <input type="text" class="form-control" id="p_noobjects" name="p_noobjects" aria-label="Estimated number of objects:" value="{{ project.collex_to_digitize }}">
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label for="p_start" class="form-label">Start date (YYYY-MM-DD):</label>
+                    <input type="text" class="form-control" id="p_start" name="p_start" aria-label="Start date (YYYY-MM-DD):" value="{{ project.project_start }}">
+                </div>
+                <div class="col">
+                    <label for="p_end" class="form-label">End date (YYYY-MM-DD; Enter 'None' without quotes if unknown):</label>
+                    <input type="text" class="form-control" id="p_end" name="p_end" aria-label="End date (YYYY-MM-DD):" value="{{ project.project_end }}">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block javascripts %}
+
+{% endblock %}

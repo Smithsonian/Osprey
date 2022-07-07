@@ -30,6 +30,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired
 
+from datetime import datetime
 
 import settings
 
@@ -288,7 +289,7 @@ def qc_process(folder_id):
                               'qc_val': qc_val,
                               'qc_by': user_id['user_id']
                               })[0]
-            logging.info("file_id: {}".format(q[0]['file_id']))
+            logging.info("file_id: {}".format(q['file_id']))
             return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = query_database("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                    {'folder_id': folder_id})[0]
@@ -566,6 +567,7 @@ def home():
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
     logging.info(is_admin)
+    ip_addr = request.environ['REMOTE_ADDR']
     projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias, "
                               "     to_char(p.project_start, 'Mon-YYYY') as project_start, "
                               "     to_char(p.project_end, 'Mon-YYYY') as project_end,"
@@ -643,7 +645,63 @@ def home():
                 'project_unit': project['project_unit']
             })
     return render_template('home.html', project_list=project_list, site_ver=site_ver, username=user_name,
-                           is_admin=is_admin)
+                           is_admin=is_admin, ip_addr=ip_addr)
+
+
+@app.route('/new_project/', methods=['POST', 'GET'])
+@login_required
+def new_project():
+    """Create a new project"""
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin == False:
+        # Not allowed
+        return redirect(url_for('home'))
+    else:
+        msg=""
+        return render_template('new_project.html',
+                               username=username,
+                               is_admin=is_admin,
+                               msg=msg,
+                               today_date=datetime.today().strftime('%Y-%m-%d'))
+
+
+@app.route('/edit_project/<project_id>/', methods=['GET'])
+@login_required
+def edit_project(project_id):
+    """Edit a project"""
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin == False:
+        # Not allowed
+        return redirect(url_for('home'))
+    project_admin = query_database("SELECT count(*) as no_results "
+                                   "    FROM qc_users u, qc_projects qp, projects p "
+                                   "    WHERE u.username = %(username)s "
+                                   "        AND p.project_alias = %(project_alias)s "
+                                   "        AND qp.project_id = p.project_id "
+                                   "        AND u.user_id = qp.user_id",
+                                   {'username': username, 'project_alias': project_id})
+    if project_admin == None:
+        # Not allowed
+        return redirect(url_for('home'))
+    project = query_database("SELECT p.project_id, p.project_alias, "
+                              " p.project_title, "
+                              " p.project_acronym, "
+                              " p.project_start, "
+                              " p.project_end, "
+                              " p.project_unit, "
+                              " COALESCE(p.project_url, '') as project_url, "
+                              " COALESCE(p.project_description, '') as project_description, "
+                              " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
+                              " FROM projects p LEFT JOIN projects_stats s "
+                              "     ON (p.project_id = s.project_id) "
+                              " WHERE p.project_alias = %(project_alias)s",
+                                   {'project_alias': project_id})[0]
+    return render_template('edit_project.html',
+                               username=username,
+                               is_admin=is_admin,
+                               project=project)
 
 
 @app.route('/dashboard/<project_id>/', methods=['POST', 'GET'])

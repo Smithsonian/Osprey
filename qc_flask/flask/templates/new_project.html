@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Project Dashboard{% endblock %}
+
+{% block page_title %}New Project{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-5">
+        <form action="{{ url_for('new_project') }}" method="POST">
+
+            <p class="text-danger">{{ msg }}</p>
+
+            <div class="mb-3">
+                <label for="p_name" class="form-label">Project Name:</label>
+                <input type="text" class="form-control" id="p_name" name="p_name" aria-label="Project Name:" placeholder="example: Paleobiology Digitization with EPICC">
+            </div>
+            <div class="mb-3">
+                <label for="p_manager" class="form-label">Project Manager:</label>
+                <input class="form-control" type="text" name="p_manager" readonly value="{{ username }}">
+            </div>
+            <div class="mb-3">
+                <label for="p_alias" class="form-label">Project alias (for use in the URL; all lowercase, no spaces, underscores OK, <20 characters):</label>
+                <input type="text" class="form-control" id="p_alias" name="p_alias" aria-label="Project alias (lowercase, no spaces, underscore OK, <20 characters):" placeholder="example: nmnh_paleo_epicc">
+            </div>
+            <div class="mb-3">
+                <label for="p_desc" class="form-label">Project description:</label>
+                <input type="text" class="form-control" id="p_desc" name="p_desc" aria-label="Project description:">
+            </div>
+            <div class="mb-3">
+                Project Type:
+                <input type="radio" class="btn-check" name="p_md" value="MD" id="p_md" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="p_md">Mass Digitization</label>
+                <input type="radio" class="btn-check" name="p_md" value="IS" id="p_is" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="p_is">Imaging Services</label>
+            </div>
+            <div class="mb-3">
+                Production or Pilot project:
+                <input type="radio" class="btn-check" name="p_prod" value="Production" id="p_prod" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="p_prod">Production</label>
+                <input type="radio" class="btn-check" name="p_prod" value="Pilot" id="p_pilot" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="p_pilot">Pilot</label>
+            </div>
+            <div class="mb-3">
+                <label for="p_url" class="form-label">Relevant URL for the project:</label>
+                <input type="text" class="form-control" id="p_url" name="p_url" aria-label="Relevant URL for the project:">
+            </div>
+            <div class="mb-3">
+                <label for="p_noobjects" class="form-label">Estimated number of objects:</label>
+                <input type="text" class="form-control" id="p_noobjects" name="p_noobjects" aria-label="Estimated number of objects:">
+            </div>
+            <div class="mb-3">
+                <label for="p_start" class="form-label">Start date (YYYY-MM-DD):</label>
+                <input type="text" class="form-control" id="p_start" name="p_start" aria-label="Start date (YYYY-MM-DD):" value="{{ today_date }}">
+            </div>
+            <div class="mb-3">
+                Method:
+                <select class="custom-select mr-sm-2" id="p_method">
+                    <option selected>Choose...</option>
+                    <option value="Copystand">Copystand</option>
+                    <option value="Multiple pipelines">Multiple pipelines</option>
+                    <option value="Ortery">Ortery</option>
+                    <option value="Tabletop Studio">Tabletop Studio</option>
+                    <option value="Conveyor Belt">Conveyor Belt</option>
+                  </select>
+            </div>
+            <div class="mb-3">
+                Unit:
+                <select class="custom-select mr-sm-2" id="p_unit">
+                    <option selected>Choose...</option>
+                    <option value="AAA">Archives of American Art</option>
+                    <option value="ACM">Anacostia Community Museum</option>
+                    <option value="AIB">Arts and Industries</option>
+                    <option value="CFCH">Center for Folklife and Cultural Heritage</option>
+                    <option value="CHSDM">Cooper Hewitt</option>
+                    <option value="FS">Freer and Sackler Galleries</option>
+                    <option value="HMSG">Hirshhorn</option>
+                    <option value="NASM">Air and Space</option>
+                    <option value="NCP">National Collections Program</option>
+                    <option value="NMAAHC">African American History and Culture</option>
+                    <option value="NMAfA">African Art</option>
+                    <option value="NMAH">American History</option>
+                    <option value="NMAI">American Indian</option>
+                    <option value="NMNH">Natural History</option>
+                    <option value="NPG">Portrait Gallery</option>
+                    <option value="NPM">Postal Museum</option>
+                    <option value="NZP">National Zoo</option>
+                    <option value="OCIO">Chief Information Officer</option>
+                  </select>
+            </div>
+            <div class="mb-3">
+                Area:
+                <select class="custom-select mr-sm-2" id="p_area">
+                    <option selected>Choose...</option>
+                    <option value="Art">Art</option>
+                    <option value="History and Culture">History and Culture</option>
+                    <option value="Science">Science</option>
+                  </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled>Submit</button>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block javascripts %}
+
+{% endblock %}
