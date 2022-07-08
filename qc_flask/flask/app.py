@@ -201,7 +201,10 @@ def load_user(username):
                        "    FROM qc_users "
                        "    WHERE username = %(username)s",
                         {'username': username})
-    return User(u[0]['username'], u[0]['user_id'], u[0]['user_active'])
+    if u is None:
+        return User(None, None, False)
+    else:
+        return User(u[0]['username'], u[0]['user_id'], u[0]['user_active'])
 
 
 ###################################
@@ -731,28 +734,17 @@ def dashboard(project_id):
         error_msg = "Project is not available."
         return render_template('error.html', error_msg=error_msg), 404
     else:
-        try:
-            project_id = int(project_id)
-            project_id_check = query_database("SELECT project_alias FROM projects WHERE "
-                                              " project_id = %(project_id)s",
-                                              {'project_id': project_id})
-            if project_id_check is None:
-                error_msg = "Project was not found."
-                return render_template('error.html', error_msg=error_msg), 404
-            else:
-                project_alias = project_id_check[0]['project_alias']
-        except:
-            #Check if shortname
-            project_id_check = query_database("SELECT project_id FROM projects WHERE "
-                                           " project_alias = %(project_id)s",
-                                           {'project_id': project_id})
-            if len(project_id_check) == 0:
-                error_msg = "Project was not found."
-                return render_template('error.html', error_msg=error_msg), 404
-            else:
-                project_alias = project_id
-                project_id = project_id_check[0]['project_id']
+        project_id_check = query_database("SELECT project_id FROM projects WHERE "
+                                          " project_alias = %(project_id)s",
+                                          {'project_id': project_id})
+        if len(project_id_check) == 0:
+            error_msg = "Project was not found."
+            return render_template('error.html', error_msg=error_msg), 404
+        else:
+            project_alias = project_id
+            project_id = project_id_check[0]['project_id']
         logging.info("project_id: {}".format(project_id))
+        logging.info("project_alias: {}".format(project_alias))
         if current_user.is_authenticated:
             username = current_user.name
             project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p "
@@ -838,11 +830,11 @@ def dashboard(project_id):
             folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %("
                                                           "folder_id)s",
                                                           {'folder_id': folder_id}))
-            no_items = 30
+            no_items = 25
             if page is 1:
                 offset = 0
             else:
-                offset = (page + 1) * no_items
+                offset = (page - 1) * no_items
             files_df = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
                                       "WHERE folder_id = %(folder_id)s ORDER BY file_name)"
                                       " SELECT file_id, folder_id, file_name,"
@@ -891,7 +883,8 @@ def dashboard(project_id):
                 folder_files_df = folder_files_df.drop(['file_id'], axis=1)
                 # Pagination
                 pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
-                no_pages = math.floor(files_count / no_items)
+                no_pages = math.ceil(files_count / no_items)
+                logging.info("no_pages: {}".format(no_pages))
                 if page == 1:
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" href=\"#\" " \
                                                         "tabindex=\"-1\" aria-disabled=\"true\">Previous</a></li>"
@@ -907,7 +900,7 @@ def dashboard(project_id):
                                                         + "&tab=1&page=1\">1</a></li>"
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                         "href=\"#\">...</a></li>"
-                for i in range(1, no_pages):
+                for i in range(1, no_pages + 1):
                     if ((page - i) < 4) and ((i - page) < 4):
                         if i == page:
                             pagination_html = pagination_html + "<li class=\"page-item active\">"
@@ -925,7 +918,7 @@ def dashboard(project_id):
                                       + "href=\"" + url_for('dashboard', project_id=project_alias) \
                                       + "?folder_id=" + str(folder_id) \
                                       + "&tab=1&page={last}\">{last}</a></li>".format(last=(no_pages - 1))
-                if page == (no_pages - 1):
+                if page == no_pages:
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                         "href=\"#\">Next</a></li>"
                 else:

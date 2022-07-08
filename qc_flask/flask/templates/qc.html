@@ -65,13 +65,11 @@
                             <span class="badge bg-secondary">QC Pending</span>
                         {% elif folder.qc_status == "QC Passed" %}
                             <span class="badge bg-success">QC Passed</span>
+                            <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
                         {% elif folder.qc_status == "QC Failed" %}
-                            {% if folder.file_errors == 0 %}
-                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Run QC on folder</a><br>
-                            {% endif %}
                             <span class="badge bg-danger">QC Failed</span>
+                            <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
                         {% endif %}
-                        </p>
                     </td>
                 </tr>
                 {% endfor %}
