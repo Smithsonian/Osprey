@@ -14,13 +14,12 @@ problems early.
 The system has two main components:
 
  * [image_validation](image_validation) - Python3 tool that runs a series of checks on folders. Results are written to a Postgres database.
- * [dashboard_shiny](dashboard_shiny) - R/Shiny dashboard that reads the Postgres database and displays the results.
+ * [dashboard](dashboard) - Dashboard and QC system that reads the Postgres database and displays the results, written in Python/Flask.
 
 The database schema is in [database](database).
 
 ## Under construction
 
- * A Quality Control component is being built under [qc](qc) for visual inspection of the images.
  * A separate validator for audio files is in progress under [wav_validation](wav_validation).
 
 ## License
