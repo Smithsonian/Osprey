@@ -12,14 +12,14 @@ from flask import url_for
 
 import logging
 import locale
-import simplejson as json
+# import simplejson as json
 import os
 import math
 import pandas as pd
 
 import psycopg2
 import psycopg2.extras
-from psycopg2.extensions import AsIs
+# from psycopg2.extensions import AsIs
 
 from flask_login import LoginManager
 from flask_login import login_required
