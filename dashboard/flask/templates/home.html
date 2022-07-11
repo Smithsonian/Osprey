@@ -1,21 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Osprey Dashboard{% endblock %}
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
 
-{% block page_title %}Osprey Dashboard{% endblock %}
+{% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
 
 {% block content %}
 
-    {% if is_admin %}
-        <h3>Admin options:</h3>
-        <p><a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a></p>
-        <p><a class="btn btn-info disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em></p>
-        <hr>
-    {% endif %}
+    <div class="row">
+        <div class="col-8">
+            {% if is_admin %}
+                <h3>Admin options:</h3>
+                <p>
+{#                    <a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>#}
+                    <a class="btn btn-info btn-sm disabled" href="" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>
+                    <a class="btn btn-info btn-sm disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
+                </p>
+                <hr>
+            {% endif %}
 
-    <h1>My Projects:</h1>
+            <h1>My Projects:</h1>
+        </div>
+        <div class="col">
+            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
+        </div>
+    </div>
 
     {% for project in project_list %}
+        <a id="{{ project.project_alias }}"></a>
           <h2>{{ project.project_title }}
                 <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
                 {% if project.qc_status == 1 %}

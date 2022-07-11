@@ -6,55 +6,97 @@
 
 {% block content %}
 
+<p class="text-danger">{{ msg }}</p>
+
 <div class="row">
-    <div class="col-5">
-        <form action="{{ url_for('edit_project', project_id=project.project_alias) }}" method="POST">
+    <div class="col">
+        <form action="{{ url_for('project_update', project_alias=project.project_alias) }}" method="POST">
 
-            <p class="text-danger">{{ msg }}</p>
-
-
-                <label for="p_name" class="form-label">Project Name:</label>
-                <input type="text" class="form-control" id="p_name" name="p_name" aria-label="Project Name:" value="{{ project.project_title }}">
-            <div class="row">
-                <div class="col">
-                    <label for="p_unit" class="form-label">Unit:</label>
-                    <input class="form-control" type="text" name="p_unit" readonly value="{{ project.project_unit }}">
-                </div>
-                <div class="col">
-                    <label for="p_pid" class="form-label">Database ID:</label>
-                    <input class="form-control" type="text" name="p_pid" readonly value="{{ project.project_id }}">
-                </div>
-            </div>
             <div class="mb-3">
-                <label for="p_manager" class="form-label">Project Manager:</label>
-                <input class="form-control" type="text" name="p_manager" readonly value="{{ username }}">
-                <label for="p_alias" class="form-label">Project alias (for use in the URL; all lowercase, no spaces, underscores OK, <20 characters):</label>
-                <input type="text" class="form-control" id="p_alias" name="p_alias"
-                       aria-label="Project alias (lowercase, no spaces, underscore OK, <20 characters):" readonly value="{{ project.project_alias }}">
+                <label for="p_title" class="form-label">Project Name:</label>
+                <input type="text" class="form-control" id="p_title" name="p_title" aria-label="Project Name:" value="{{ project.project_title }}">
             </div>
             <div class="mb-3">
                 <label for="p_desc" class="form-label">Project description, leave empty if there is none:</label>
                 <input type="text" class="form-control" id="p_desc" name="p_desc" aria-label="Project description:" value="{{ project.project_description }}">
+            </div>
+            <div class="mb-3">
                 <label for="p_url" class="form-label">Relevant URL for the project, leave empty if there is none:</label>
                 <input type="text" class="form-control" id="p_url" name="p_url" aria-label="Relevant URL for the project:" value="{{ project.project_url }}">
+            </div>
+            <div class="mb-3">
                 <label for="p_noobjects" class="form-label">Estimated number of objects, enter 0 if unknown:</label>
                 <input type="text" class="form-control" id="p_noobjects" name="p_noobjects" aria-label="Estimated number of objects:" value="{{ project.collex_to_digitize }}">
             </div>
+
+            <div class="mb-3">
+                <p>Project Status:</p>
+
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="p_status" id="p_status1" value="Ongoing"
+                           {% if project.project_status == 'Ongoing' %}checked{% endif %}>
+                        <label class="form-check-label" for="p_status1">Ongoing</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="p_status" id="p_status2" value="Completed"
+                           {% if project.project_status == 'Completed' %}checked{% endif %}>
+                        <label class="form-check-label" for="p_status2">Completed</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="p_status" id="p_status3" value="Paused"
+                           {% if project.project_status == 'Paused' %}checked{% endif %}>
+                        <label class="form-check-label" for="p_status3">Paused</label>
+                </div>
+            </div>
+
+    </div>
+    <div class="col">
+
             <div class="row">
                 <div class="col">
                     <label for="p_start" class="form-label">Start date (YYYY-MM-DD):</label>
                     <input type="text" class="form-control" id="p_start" name="p_start" aria-label="Start date (YYYY-MM-DD):" value="{{ project.project_start }}">
                 </div>
                 <div class="col">
-                    <label for="p_end" class="form-label">End date (YYYY-MM-DD; Enter 'None' without quotes if unknown):</label>
+                    <label for="p_end" class="form-label">End date (YYYY-MM-DD):</label>
                     <input type="text" class="form-control" id="p_end" name="p_end" aria-label="End date (YYYY-MM-DD):" value="{{ project.project_end }}">
+                    <small>'None' (without quotes) if unknown</small>
                 </div>
             </div>
-
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
+            <div class="mb-3">
+                <label for="p_manager" class="form-label">Project Manager:</label>
+                <input class="form-control" type="text" name="p_manager" readonly value="{{ username }}">
+            </div>
+            <div class="mb-3">
+                <label for="p_alias" class="form-label">Project alias (for use in the URL; all lowercase, no spaces, underscores OK, <20 characters):</label>
+                <input type="text" class="form-control" id="p_alias" name="p_alias"
+                       aria-label="Project alias (lowercase, no spaces, underscore OK, <20 characters):" readonly value="{{ project.project_alias }}">
+            </div>
+            <div class="mb-3">
+                <div class="row">
+                    <div class="col">
+                        <label for="p_unit" class="form-label">Unit:</label>
+                        <input class="form-control" type="text" name="p_unit" readonly value="{{ project.project_unit }}">
+                    </div>
+                    <div class="col">
+                        <label for="p_pid" class="form-label">Database ID:</label>
+                        <input class="form-control" type="text" name="p_pid" readonly value="{{ project.project_id }}">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="row">
+                    <div class="col-6">
+                        <label for="p_unit" class="form-label">Mass Digi or Imaging Services:</label>
+                        <input class="form-control" type="text" name="p_project_section" readonly value="{{ project.project_section }}">
+                    </div>
+                </div>
+            </div>
     </div>
 </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
 
 
 {% endblock %}

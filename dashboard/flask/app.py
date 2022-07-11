@@ -19,6 +19,8 @@ import pandas as pd
 
 import psycopg2
 import psycopg2.extras
+from psycopg2.extensions import AsIs
+
 from flask_login import LoginManager
 from flask_login import login_required
 from flask_login import login_user
@@ -34,7 +36,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "0.1"
+site_ver = "0.2"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -121,7 +123,8 @@ def query_database(query, parameters=""):
     try:
         cur.execute(query, parameters)
         logging.info("cur.query: {}".format(cur.query))
-    except:
+    except Exception as error:
+        logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
@@ -694,6 +697,8 @@ def edit_project(project_id):
                               " p.project_start, "
                               " p.project_end, "
                               " p.project_unit, "
+                              " p.project_section, "
+                              " p.project_status, " 
                               " COALESCE(p.project_url, '') as project_url, "
                               " COALESCE(p.project_description, '') as project_description, "
                               " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
@@ -705,6 +710,78 @@ def edit_project(project_id):
                                username=username,
                                is_admin=is_admin,
                                project=project)
+
+
+@app.route('/project_update/<project_alias>', methods=['POST'])
+@login_required
+def project_update(project_alias):
+    """Save edits to a project"""
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin == False:
+        # Not allowed
+        return redirect(url_for('home'))
+    project_admin = query_database("SELECT count(*) as no_results "
+                                   "    FROM qc_users u, qc_projects qp, projects p "
+                                   "    WHERE u.username = %(username)s "
+                                   "        AND p.project_alias = %(project_alias)s "
+                                   "        AND qp.project_id = p.project_id "
+                                   "        AND u.user_id = qp.user_id",
+                                   {'username': username, 'project_alias': project_alias})
+    if project_admin == None:
+        # Not allowed
+        return redirect(url_for('home'))
+    p_title = request.values.get('p_title')
+    p_desc = request.values.get('p_desc')
+    p_url = request.values.get('p_url')
+    p_status = request.values.get('p_status')
+    p_start = request.values.get('p_start')
+    p_end = request.values.get('p_end')
+
+    p_noobjects = request.values.get('p_noobjects')
+
+    project = query_database("UPDATE projects SET " 
+                              "   project_title = %(p_title)s, " 
+                              "   project_status = %(p_status)s, " 
+                              "   project_start = CAST(%(p_start)s AS date) " 
+                              " WHERE project_alias = %(project_alias)s"
+                              " RETURNING project_id ",
+                              {'p_title': p_title,
+                               'p_status': p_status,
+                               'p_start': p_start,
+                               'project_alias': project_alias})[0]
+    project_id = project['project_id']
+    if p_desc != '':
+        project = query_database("UPDATE projects SET "
+                                 "   project_description = %(p_desc)s, "
+                                 " WHERE project_alias = %(project_alias)s"
+                                 " RETURNING project_id ",
+                                 {'p_desc': p_desc,
+                                  'project_alias': project_alias})
+    if p_url != '':
+        project = query_database("UPDATE projects SET "
+                             "   project_url = %(p_url)s, "
+                             " WHERE project_alias = %(project_alias)s"
+                             " RETURNING project_id ",
+                             {'p_url': p_url,
+                              'project_alias': project_alias})
+    if p_end != 'None':
+        project = query_database("UPDATE projects SET "
+                              "   project_end = CAST(%(p_end)s AS date) "
+                              " WHERE project_alias = %(project_alias)s "
+                              " RETURNING project_id ",
+                              {'p_end': p_end,
+                               'project_alias': project_alias})
+
+    if p_noobjects != '0':
+        project = query_database("UPDATE projects_stats SET "
+                                  "   collex_to_digitize = %(p_noobjects)s, "
+                                  "   collex_ready = %(p_noobjects)s "
+                                  " WHERE project_id = %(project_id)s "
+                                  " RETURNING project_id ",
+                                  {'project_id': project_id,
+                                   'p_noobjects': p_noobjects})
+    return redirect(url_for('home', _anchor=project_alias))
 
 
 @app.route('/dashboard/<project_id>/', methods=['POST', 'GET'])

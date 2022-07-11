@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Osprey - Project Dashboard{% endblock %}
+{% block title %}DPO Collection Digitization Projects{% endblock %}
 
-{% block page_title %}Osprey - Project Dashboard{% endblock %}
+{% block page_title %}DPO Collection Digitization Projects{% endblock %}
 
 {% block content %}
 
     <div class="row">
         <div class="col-8">
-            <h3>Welcome to the Osprey Project Dashboard<br>DPO Collection Digitization Projects</h3>
+            <h3>Welcome to the Osprey Project Dashboard<br></h3>
         </div>
         <div class="col">
             <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
@@ -17,9 +17,9 @@
     <hr>
     <div class="row">
 
-        <div class="col">
+        <div class="col-7">
 
-            <h4>List of projects:</h4>
+            <h4>Dashboard for each project:</h4>
                 <ul>
                     {% for project in projects %}
                       <li>
@@ -48,15 +48,15 @@
                 <p><a href="{{ url_for('logout') }}">Logout</a></p>
             {% else %}
 
-                <form method="post" action="" class="p-4 p-md-5 border rounded-3 bg-light">
+                <form method="post" action="" class="p-4 p-md-4 border rounded-3 bg-light">
+
+                    <h4>Staff Login:</h4>
 
                     {{ form.hidden_tag() }}
 
                     <p class="fw-bold">
                         {% if msg %}
                             {{ msg | safe }}
-                        {% else %}
-                            Enter your username and password
                         {% endif %}
                     </p>
 
