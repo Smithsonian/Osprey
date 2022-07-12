@@ -32,6 +32,11 @@ import psycopg2
 import settings
 import queries
 
+# Remove DecompressionBombWarning due to large files
+# by using a large threshold
+# https://github.com/zimeon/iiif/issues/11
+Image.MAX_IMAGE_PIXELS = 1000000000
+
 
 def check_requirements(program):
     """

@@ -29,7 +29,7 @@ import queries
 # Set current dir
 filecheck_dir = os.getcwd()
 
-ver = "1.0.4"
+ver = "1.0.5"
 
 ############################################
 # Logging
