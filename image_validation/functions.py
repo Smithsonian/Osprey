@@ -9,14 +9,17 @@ import sys
 
 from random import randint
 
-# For MD5
-import hashlib
 import glob
 from PIL import Image
 from subprocess import PIPE
 from pathlib import Path
 import shutil
 import locale
+# from pqdm.processes import pqdm
+# import itertools
+
+# For MD5
+import hashlib
 
 # For Postgres
 import psycopg2
@@ -971,10 +974,13 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     logger.info("Processing folder: {}".format(folder_path))
     folder_name = os.path.basename(folder_path)
     # Check if the folder exists in the database
+    global folder_id
     folder_id = check_folder(folder_name, folder_path, project_id, db_cursor)
     if folder_id is None:
         logger.error("Folder {} had an error".format(folder_name))
         return None
+    # Set as processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
     # Check if folder is ready or in DAMS
     db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
     logger.debug(db_cursor.query.decode("utf-8"))
@@ -1033,4 +1039,6 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     # Update folder stats
     update_folder_stats(folder_id, folder_path, db_cursor, logger)
     logger.debug(db_cursor.query.decode("utf-8"))
+    # Set as done processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
     return folder_id

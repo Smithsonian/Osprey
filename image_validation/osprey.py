@@ -29,7 +29,7 @@ import queries
 # Set current dir
 filecheck_dir = os.getcwd()
 
-ver = "1.0.3"
+ver = "1.0.4"
 
 ############################################
 # Logging
@@ -62,7 +62,7 @@ console.setFormatter(formatter)
 logging.getLogger('osprey').addHandler(console)
 
 # Add the log message handler to the logger
-handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=1000000, backupCount=100)
+handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=10000000, backupCount=100)
 logger.addHandler(handler)
 
 logger.info("osprey version {}".format(ver))
@@ -176,11 +176,31 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             # print("Ctrl-c detected. Leaving program.")
             logger.info("Ctrl-c detected. Leaving program.")
+            try:
+                conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                         password=settings.db_password, connect_timeout=60)
+                conn2.autocommit = True
+                db_cursor2 = conn2.cursor()
+                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                   {'folder_id': folder_id})
+                conn2.close()
+            except:
+                print("folder_id not found")
             # Compress logs
             compress_log(filecheck_dir, logfile_folder)
             sys.exit(0)
         except Exception as e:
             logger.error("There was an error: {}".format(e))
+            try:
+                conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                         password=settings.db_password, connect_timeout=60)
+                conn2.autocommit = True
+                db_cursor2 = conn2.cursor()
+                db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                   {'folder_id': folder_id})
+                conn2.close()
+            except:
+                print("folder_id not found")
             # Compress logs
             compress_log(filecheck_dir, logfile_folder)
             sys.exit(1)
