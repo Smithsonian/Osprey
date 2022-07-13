@@ -107,7 +107,7 @@
         <div class="tab-content" id="nav-tabContent">
           <div class="tab-pane fade {% if tab == 0 %}show active{% endif %}" id="nav-list" role="tabpanel" aria-labelledby="nav-list-tab">
                <br>
-                <h4>Files in the folder: <strong>{{ folder_name.project_folder }}</strong></h4>
+                <h4>Files in the Folder: <strong>{{ folder_name.project_folder }}</strong></h4>
 
                 {% for table in tables %}
                        {{ table|safe }}
@@ -116,15 +116,16 @@
           </div>
           <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-profile-tab">
               <br>
-              <div class="row">
-                  <div class="col">
-                      <h3>Image Previews:</h3>
-                      <p><small><em>Sorted by file_name</em></small></p>
+                <h4>Image Previews for the Folder: <strong>{{ folder_name.project_folder }}</strong></h4>
+
+                  <div class="row">
+                      <div class="col">
+                          <p><small><em>Sorted by file_name</em></small></p>
+                      </div>
+                      <div class="col">
+                          {{ pagination_html2 | safe }}
+                      </div>
                   </div>
-                  <div class="col">
-                      {{ pagination_html2 | safe }}
-                  </div>
-              </div>
 
 
                 {% for file in files_df %}
