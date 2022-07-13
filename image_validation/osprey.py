@@ -68,7 +68,7 @@ ver = "1.0.6"
 # logger.info("osprey version {}".format(ver))
 if not os.path.exists('{}/logs'.format(filecheck_dir)):
     os.makedirs('{}/logs'.format(filecheck_dir))
-current_time = time.strftime("%Y%m%d%H%M%S", localtime())
+current_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
 logfile_name = '{}.log'.format(current_time)
 logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
 # from http://stackoverflow.com/a/9321890
