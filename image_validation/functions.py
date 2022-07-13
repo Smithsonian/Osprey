@@ -416,8 +416,7 @@ def jpgpreview(file_id, folder_id, filename, db_cursor):
                                            'log_text': "Creating preview_image:{}".format(preview_image)})
     if settings.previews_size == "full":
         p = subprocess.Popen(['convert', '-quality', '80', '-quiet', '{}[0]'.format(filename), preview_image],
-        stdout=PIPE, '
-                                                             'stderr=PIPE)
+        stdout=PIPE, stderr=PIPE)
     else:
         p = subprocess.Popen(['convert', '-quality', '80', '-quiet', '{}[0]'.format(filename), '-resize',
                               '{imgsize}x{imgsize}'.format(imgsize=settings.previews_size),
