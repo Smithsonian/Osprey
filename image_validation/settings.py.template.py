@@ -34,10 +34,6 @@ db_user = ""
 db_password = ""
 
 
-# Parallel workers
-no_workers = 2
-
-
 ####################################################################
 # Project checks to run
 ####################################################################
@@ -99,7 +95,7 @@ jhove_path = "/usr/local/jhove/jhove"
 # Path of where to save the JPG previews and size
 jpg_previews = ""
 # Set previews_size = 'full' to keep the same size as the main image
-previews_size = "1000"
+previews_size = "full"
 
 
 # Ignore files with this string anywhere in the filename
