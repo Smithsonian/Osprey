@@ -34,37 +34,55 @@ ver = "1.0.6"
 ############################################
 # Logging
 ############################################
-if settings.log_folder is None:
-    # Use current directory
-    log_folder = "{}/logs".format(filecheck_dir)
-else:
-    log_folder = settings.log_folder
-
-if not os.path.exists(log_folder):
-    os.makedirs(log_folder)
-current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logfile_name = 'osprey.log'
-logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=current_time)
-if not os.path.exists(logfile_folder):
-    os.makedirs(logfile_folder)
-logfile = '{logfile_folder}/{logfile_name}'.format(logfile_folder=logfile_folder, logfile_name=logfile_name)
-
-
-# Rotate
-# Set up a specific logger with our desired output level
-logger = logging.getLogger('osprey')
-logger.setLevel(logging.DEBUG)
-
+# if settings.log_folder is None:
+#     # Use current directory
+#     log_folder = "{}/logs".format(filecheck_dir)
+# else:
+#     log_folder = settings.log_folder
+#
+# if not os.path.exists(log_folder):
+#     os.makedirs(log_folder)
+# current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+# logfile_name = 'osprey.log'
+# logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=current_time)
+# if not os.path.exists(logfile_folder):
+#     os.makedirs(logfile_folder)
+# logfile = '{logfile_folder}/{logfile_name}'.format(logfile_folder=logfile_folder, logfile_name=logfile_name)
+#
+#
+# # Rotate
+# # Set up a specific logger with our desired output level
+# logger = logging.getLogger('osprey')
+# logger.setLevel(logging.DEBUG)
+#
+# console = logging.StreamHandler()
+# console.setLevel(logging.INFO)
+# formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+# console.setFormatter(formatter)
+# logging.getLogger('osprey').addHandler(console)
+#
+# # Add the log message handler to the logger
+# handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=10000000, backupCount=100)
+# logger.addHandler(handler)
+#
+# logger.info("osprey version {}".format(ver))
+if not os.path.exists('{}/logs'.format(filecheck_dir)):
+    os.makedirs('{}/logs'.format(filecheck_dir))
+current_time = strftime("%Y%m%d%H%M%S", localtime())
+logfile_name = '{}.log'.format(current_time)
+logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
+# from http://stackoverflow.com/a/9321890
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M:%S',
+                    filename=logfile,
+                    filemode='a')
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
 console.setFormatter(formatter)
+logger = logging.getLogger("osprey")
 logging.getLogger('osprey').addHandler(console)
-
-# Add the log message handler to the logger
-handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=10000000, backupCount=100)
-logger.addHandler(handler)
-
 logger.info("osprey version {}".format(ver))
 
 
