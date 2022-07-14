@@ -29,7 +29,7 @@ import queries
 # Set current dir
 filecheck_dir = os.getcwd()
 
-ver = "1.0.6"
+ver = "1.0.7"
 
 ############################################
 # Logging
@@ -184,12 +184,28 @@ if __name__ == "__main__":
         try:
             # Check if there is a pre script to run
             if settings.pre_script is not None:
-                run([settings.pre_script], check=True)
+                p = subprocess.Popen([settings.pre_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                (out, err) = p.communicate()
+                if p.returncode != 0:
+                    print("Pre-script error")
+                    print(out)
+                    print(err)
+                    sys.exit(9)
+                else:
+                    print(out)
             # Run main function
             main()
             # Check if there is a post script to run
             if settings.post_script is not None:
-                run([settings.post_script], check=True)
+                p = subprocess.Popen([settings.post_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                (out, err) = p.communicate()
+                if p.returncode != 0:
+                    print("Post-script error")
+                    print(out)
+                    print(err)
+                    sys.exit(9)
+                else:
+                    print(out)
             continue
         except KeyboardInterrupt:
             # print("Ctrl-c detected. Leaving program.")
