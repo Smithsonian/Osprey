@@ -200,7 +200,7 @@ if __name__ == "__main__":
                     print(out)
             if settings.sleep is None:
                 logger.info("Process completed!")
-                compress_log(filecheck_dir, logfile_folder)
+                compress_log(filecheck_dir, 'logs')
                 sys.exit(0)
             else:
                 logger.info("Sleeping for {} secs".format(settings.sleep))
@@ -222,7 +222,7 @@ if __name__ == "__main__":
             except:
                 print("folder_id not found")
             # Compress logs
-            compress_log(filecheck_dir, logfile_folder)
+            compress_log(filecheck_dir, 'logs')
             sys.exit(0)
         except Exception as e:
             logger.error("There was an error: {}".format(e))
@@ -238,7 +238,7 @@ if __name__ == "__main__":
             except:
                 print("folder_id not found")
             # Compress logs
-            compress_log(filecheck_dir, logfile_folder)
+            compress_log(filecheck_dir, 'logs')
             sys.exit(1)
 
 
