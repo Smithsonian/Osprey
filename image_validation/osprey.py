@@ -164,15 +164,7 @@ def main():
             run_checks_folder(settings.project_id, folder, db_cursor, logger)
     # Disconnect from db
     conn.close()
-    if settings.sleep is None:
-        logger.info("Process completed!")
-        compress_log(filecheck_dir, logfile_folder)
-        sys.exit(0)
-    else:
-        logger.info("Sleeping for {} secs".format(settings.sleep))
-        # Sleep before trying again
-        time.sleep(settings.sleep)
-        return None
+    return
 
 
 ############################################
@@ -194,7 +186,7 @@ if __name__ == "__main__":
                 else:
                     print(out)
             # Run main function
-            main()
+            mainval = main()
             # Check if there is a post script to run
             if settings.post_script is not None:
                 p = subprocess.Popen([settings.post_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -206,7 +198,15 @@ if __name__ == "__main__":
                     sys.exit(9)
                 else:
                     print(out)
-            continue
+            if settings.sleep is None:
+                logger.info("Process completed!")
+                compress_log(filecheck_dir, logfile_folder)
+                sys.exit(0)
+            else:
+                logger.info("Sleeping for {} secs".format(settings.sleep))
+                # Sleep before trying again
+                time.sleep(settings.sleep)
+                continue
         except KeyboardInterrupt:
             # print("Ctrl-c detected. Leaving program.")
             logger.info("Ctrl-c detected. Leaving program.")
