@@ -181,9 +181,10 @@ login_manager.init_app(app)
 
 
 class User(UserMixin):
-    def __init__(self, name, id, active=True):
+    def __init__(self, name, id, full_name, active=True):
         self.name = name
         self.id = id
+        self.full_name = full_name
         self.active = active
 
     def is_active(self):
@@ -200,14 +201,14 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(username):
-    u = query_database("SELECT username, user_id, user_active "
+    u = query_database("SELECT username, user_id, user_active, full_name "
                        "    FROM qc_users "
                        "    WHERE username = %(username)s",
                         {'username': username})
     if u is None:
-        return User(None, None, False)
+        return User(None, None, None, False)
     else:
-        return User(u[0]['username'], u[0]['user_id'], u[0]['user_active'])
+        return User(u[0]['username'], u[0]['user_id'], u[0]['full_name'], u[0]['user_active'])
 
 
 ###################################
@@ -241,7 +242,7 @@ def login():
                               {'username': username, 'password': password})
 
         if user:
-            user_obj = User(user[0]['user_id'], user[0]['username'], user[0]['user_active'])
+            user_obj = User(user[0]['user_id'], user[0]['username'], user[0]['full_name'], user[0]['user_active'])
             login_user(user_obj)
             return redirect(url_for('home'))
         else:
@@ -659,6 +660,7 @@ def home():
 def new_project():
     """Create a new project"""
     username = current_user.name
+    full_name = current_user.full_name
     is_admin = user_perms('', user_type='admin')
     if is_admin == False:
         # Not allowed
@@ -667,9 +669,100 @@ def new_project():
         msg=""
         return render_template('new_project.html',
                                username=username,
+                               full_name=full_name,
                                is_admin=is_admin,
                                msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'))
+
+
+@app.route('/create_new_project/', methods=['POST'])
+@login_required
+def create_new_project():
+    """Create a new project"""
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin == False:
+        # Not allowed
+        return redirect(url_for('home'))
+    p_title = request.values.get('p_title')
+    p_alias = request.values.get('p_alias')
+    p_desc = request.values.get('p_desc')
+    p_url = request.values.get('p_url')
+    p_coordurl = request.values.get('p_coordurl')
+    p_noobjects = request.values.get('p_noobjects')
+    p_manager = current_user.full_name
+    p_md = request.values.get('p_md')
+    p_prod = request.values.get('p_prod')
+    p_method = request.values.get('p_method')
+    p_unit = request.values.get('p_unit')
+    p_area = request.values.get('p_area')
+    p_storage = request.values.get('p_storage')
+    p_start = request.values.get('p_start')
+    project = query_database("INSERT INTO projects  " 
+                              "   (project_title, "
+                               "    project_unit, "
+                               "    project_alias,"
+                               "    project_description, "
+                               "    project_url, "
+                               "    project_coordurl,"
+                               "    project_area, "
+                               "    project_section, "
+                               "    project_method, "
+                               "    project_manager, "
+                               "    project_status, "
+                               "    project_type,"
+                               "    project_datastorage,"
+                               "    project_start, " 
+                               "    projects_order, "
+                             "      stats_estimated "
+                               " ) "
+                               "  ("
+                               "        SELECT "
+                               "            %(p_title)s,"
+                               "            %(p_unit)s, "
+                               "            %(p_alias)s, "
+                               "            %(p_desc)s, "
+                               "            %(p_url)s, "
+                               "            %(p_coordurl)s, "
+                               "            %(p_area)s, "
+                               "            %(p_md)s, "
+                               "            %(p_method)s, "
+                               "            %(p_manager)s, "
+                               "            'Ongoing', "
+                               "            %(p_prod)s, "
+                               "            %(p_storage)s, "
+                               "            %(p_start)s, "
+                               "            max(projects_order) + 1,"
+                             "              'F'"
+                               "          FROM projects "
+                               ") "
+                              " RETURNING project_id ",
+                              {'p_title': p_title,
+                               'p_unit': p_unit,
+                               'p_alias': p_alias,
+                               'p_desc': p_desc,
+                               'p_url': p_url,
+                               'p_coordurl': p_coordurl,
+                               'p_area': p_area,
+                               'p_md': p_md,
+                               'p_noobjects': p_noobjects,
+                               'p_method': p_method,
+                               'p_manager': p_manager,
+                               'p_prod': p_prod,
+                               'p_storage': p_storage,
+                               'p_start': p_start
+                               })[0]
+    project_id = project['project_id']
+    project = query_database("INSERT INTO projects_stats "
+                             "  (project_id, collex_total, collex_to_digitize) VALUES  "
+                             "   ( %(project_id)s, %(collex_total)s, %(collex_total)s) RETURNING project_id",
+                             {'project_id': project_id,
+                                 'collex_total': p_noobjects})
+    user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                               "    (%(project_id)s, %(user_id)s) RETURNING id",
+                               {'project_id': project_id,
+                                'user_id': current_user.id})
+    return redirect(url_for('home', _anchor=p_alias))
 
 
 @app.route('/edit_project/<project_id>/', methods=['GET'])
@@ -737,9 +830,7 @@ def project_update(project_alias):
     p_status = request.values.get('p_status')
     p_start = request.values.get('p_start')
     p_end = request.values.get('p_end')
-
     p_noobjects = request.values.get('p_noobjects')
-
     project = query_database("UPDATE projects SET " 
                               "   project_title = %(p_title)s, " 
                               "   project_status = %(p_status)s, " 
