@@ -10,6 +10,7 @@
 ############################################
 import logging
 import logging.handlers
+from logging.handlers import RotatingFileHandler
 import time
 from subprocess import run
 import random
@@ -26,63 +27,35 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-# Set current dir
-filecheck_dir = os.getcwd()
-
-ver = "1.0.7"
+ver = "1.0.8"
 
 ############################################
 # Logging
 ############################################
-# if settings.log_folder is None:
-#     # Use current directory
-#     log_folder = "{}/logs".format(filecheck_dir)
-# else:
-#     log_folder = settings.log_folder
-#
-# if not os.path.exists(log_folder):
-#     os.makedirs(log_folder)
-# current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-# logfile_name = 'osprey.log'
-# logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=current_time)
-# if not os.path.exists(logfile_folder):
-#     os.makedirs(logfile_folder)
-# logfile = '{logfile_folder}/{logfile_name}'.format(logfile_folder=logfile_folder, logfile_name=logfile_name)
-#
-#
-# # Rotate
-# # Set up a specific logger with our desired output level
-# logger = logging.getLogger('osprey')
-# logger.setLevel(logging.DEBUG)
-#
-# console = logging.StreamHandler()
-# console.setLevel(logging.INFO)
-# formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# console.setFormatter(formatter)
-# logging.getLogger('osprey').addHandler(console)
-#
-# # Add the log message handler to the logger
-# handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=10000000, backupCount=100)
-# logger.addHandler(handler)
-#
-# logger.info("osprey version {}".format(ver))
-if not os.path.exists('{}/logs'.format(filecheck_dir)):
-    os.makedirs('{}/logs'.format(filecheck_dir))
-current_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
-logfile_name = '{}.log'.format(current_time)
-logfile = '{filecheck_dir}/logs/{logfile_name}'.format(filecheck_dir=filecheck_dir, logfile_name=logfile_name)
-# from http://stackoverflow.com/a/9321890
+log_folder = "logs"
+
+if not os.path.exists(log_folder):
+    os.makedirs(log_folder)
+current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=current_time)
+if not os.path.exists(logfile_folder):
+    os.makedirs(logfile_folder)
+logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
+
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M:%S',
-                    filename=logfile,
-                    filemode='a')
+                    handlers=[RotatingFileHandler(logfile, maxBytes=10000000,
+                                                  backupCount=100)])
+
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
 console.setFormatter(formatter)
 logger = logging.getLogger("osprey")
 logging.getLogger('osprey').addHandler(console)
+logger.setLevel(logging.DEBUG)
+
 logger.info("osprey version {}".format(ver))
 
 
@@ -124,19 +97,6 @@ def main():
     # Clear project shares
     db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
     logger.debug(db_cursor.query.decode("utf-8"))
-    # Check project shares
-    for share in settings.project_shares:
-        logger.info("Share: {} ({})".format(share[0], share[1]))
-        share_disk = shutil.disk_usage(share[0])
-        try:
-            share_percent = round(share_disk.used / share_disk.total, 4) * 100
-            db_cursor.execute(queries.update_share,
-                              {'project_id': settings.project_id, 'share': share[1], 'localpath': share[0],
-                               'used': share_percent, 'total': share_disk.total})
-            logger.debug(db_cursor.query.decode("utf-8"))
-        except Exception as e:
-            logger.error("Error checking the share {} ({})".format(share[0], e))
-            continue
     # Update project
     db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks),
                                                      'project_id': settings.project_id})
@@ -200,7 +160,7 @@ if __name__ == "__main__":
                     print(out)
             if settings.sleep is None:
                 logger.info("Process completed!")
-                compress_log(filecheck_dir, 'logs')
+                compress_log()
                 sys.exit(0)
             else:
                 logger.info("Sleeping for {} secs".format(settings.sleep))
@@ -222,7 +182,7 @@ if __name__ == "__main__":
             except:
                 print("folder_id not found")
             # Compress logs
-            compress_log(filecheck_dir, 'logs')
+            compress_log()
             sys.exit(0)
         except Exception as e:
             logger.error("There was an error: {}".format(e))
@@ -238,7 +198,7 @@ if __name__ == "__main__":
             except:
                 print("folder_id not found")
             # Compress logs
-            compress_log(filecheck_dir, 'logs')
+            compress_log()
             sys.exit(1)
 
 

@@ -6,16 +6,6 @@ project_id = ""
 project_paths = []
 
 
-# List of shares used in the project,
-# each in its own list: ["mount point", "server name"]
-project_shares = []
-
-
-# Logs folder
-# If None, then it uses a logs folder in the the cwd
-log_folder = None
-
-
 # Temp folder, usually /tmp
 # No trailing slash
 tmp_folder = "/tmp"
@@ -34,10 +24,19 @@ db_user = ""
 db_password = ""
 
 
+# How to split to parse the date, return the date in format 'YYYY-MM-DD'
+def folder_date(folder_name):
+    # Example as PREFIX-YYYYMMDD
+    folder_date = folder_name.split('PREFIX-')[1]
+    formatted_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
+    return formatted_date
+
+
 ####################################################################
 # Project checks to run
 ####################################################################
-project_file_checks = ["jhove", "magick", "raw_pair", "unique_file", "tifpages"]
+project_file_checks = ["raw_pair", "unique_file", "jhove", "magick",
+                       "tifpages", "tif_compression", "md5_hash"]
 # The options are:
 #
 # - raw_pair: Is there a raw file in the 'raw_files_path'
@@ -56,14 +55,6 @@ project_file_checks = ["jhove", "magick", "raw_pair", "unique_file", "tifpages"]
 # - suffix: Filename has the required suffix
 # - stitched_jpg: There is a stitched JPG of two other files, settings below
 ####################################################################
-
-
-# How to split to parse the date, return the date in format 'YYYY-MM-DD'
-def folder_date(folder_name):
-    # Example as PREFIX-YYYYMMDD
-    folder_date = folder_name.split('PREFIX-')[1]
-    formatted_date = "{}-{}-{}".format(folder_date[0:4], folder_date[4:6], folder_date[6:8])
-    return formatted_date
 
 
 # Filename prefix required by selecting 'prefix' above
@@ -98,10 +89,6 @@ jpg_previews = ""
 previews_size = "full"
 
 
-# Ignore files with this string anywhere in the filename
-ignore_string = None
-
-
 # stitched_jpg
 # Check for stitched jpg files from two mains
 jpgstitch_original_1 = ""
@@ -112,4 +99,3 @@ jpgstitch_new = ""
 # Scripts to run before or after checking the files. Set to None if it won't be used.
 pre_script = None
 post_script = None
-

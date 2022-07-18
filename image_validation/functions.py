@@ -47,19 +47,23 @@ def check_requirements(program):
     return which(program) is not None
 
 
-def compress_log(filecheck_dir, log_folder):
+def compress_log():
     """
     Compress log files
     """
-    os.chdir(log_folder)
-    # for file in glob.glob('*'):
-    #     subprocess.run(["zip", "{}.zip".format(file), file])
-    #     os.remove(file)
-    files = [fn for fn in glob.glob('*')
-             if not os.path.basename(fn).endswith('zip')]
-    for file in files:
-        subprocess.run(["zip", "{}.zip".format(file), file])
-        os.remove(file)
+    filecheck_dir = os.path.dirname(__file__)
+    os.chdir('{}/logs'.format(filecheck_dir))
+    folders = []
+    for entry in os.scandir('.'):
+        if entry.is_dir():
+            folders.append(entry.path)
+    # No folders found
+    if len(folders) == 0:
+        return None
+    # Compress each folder
+    for folder in folders:
+        subprocess.run(["zip", "-r", "{}.zip".format(folder), folder])
+        shutil.rmtree(folder)
     os.chdir(filecheck_dir)
     return True
 
