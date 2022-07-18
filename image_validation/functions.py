@@ -132,7 +132,7 @@ def jhove_validate(file_id, filename, db_cursor):
         os.unlink(xml_file)
     # Get file status
     file_status = doc['jhove']['repInfo']['status']
-    jhove_results = out
+    jhove_results = out.decode('latin-1')
     if file_status == "Well-Formed and valid":
         jhove_val = 0
     else:
@@ -148,7 +148,7 @@ def jhove_validate(file_id, filename, db_cursor):
     # db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
     #                                        'check_info': file_status})
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
-                                           'check_info': jhove_results.decode('latin-1')})
+                                           'check_info': jhove_results})
     db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
                                            'log_area': 'jhove_validate',
                                            'log_text': db_cursor.query.decode("utf-8")})
