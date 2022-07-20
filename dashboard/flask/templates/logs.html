@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+
+{% block page_title %}{{ project_info.project_title }}{% endblock %}
+
+{% block homelink %}{{ url_for('dashboard', project_id=project_info.project_alias) }}{% endblock %}
+
+{% block content %}
+
+
+    <h3>Log for {{ project_info.project_title }} ({{ date }})</h3>
+
+    <small>Most recent entries</small>
+
+                {% for table in tables %}
+                       {{ table|safe }}
+                {% endfor %}
+
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            $('#log_list').DataTable({
+                "order": [],
+                lengthMenu: [
+                    [50, 100, 200],
+                    [50, 100, 200],
+                ]
+            });
+        });
+
+    </script>
+{% endblock %}
