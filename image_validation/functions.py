@@ -989,6 +989,14 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     if folder_id is None:
         logger.error("Folder {} had an error".format(folder_name))
         return None
+    # Check if another process is running it
+    db_cursor.execute(queries.folder_check_processing, {'folder_id': folder_id})
+    folder_check = db_cursor.fetchone()
+    if folder_check[0] == True and folder_check[1] < 1800:
+        # Skip
+        logger.info("Folder checking in another process, skipping {} ({})"
+                    "".format(folder_path, folder_id))
+        return folder_id
     # Set as processing
     db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
     # Check if folder is ready or in DAMS
