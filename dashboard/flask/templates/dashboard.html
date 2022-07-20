@@ -82,7 +82,7 @@
                     {% if folder.delivered_to_dams == 1 %}
                         <span class="badge bg-success">Delivered to DAMS</span>
                     {% elif folder.delivered_to_dams == 0 %}
-                        <span class="badge bg-secondary">Ready to DAMS</span>
+                        <span class="badge bg-secondary">Ready for DAMS </span>
                     {% endif %}
 
                     </td>
@@ -90,6 +90,11 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <p>
+            <a href="{{ url_for('logs', project_id=project_alias) }}">Project Logs</a>
+        </p>
+
     </div>
 
     <div class="col" style="font-size: 0.9em;">
@@ -360,6 +365,24 @@
 
               modalBody1.src = checkinfo + '&size=1200';
             });
+
+
+            // Refresh dashboard after 10 minutes of inactivity
+            // https://stackoverflow.com/a/55144842
+            function reloadPage() {
+                clearTimeout(idleTime);
+                idleTime = setTimeout(function () {
+                    location.reload();
+                }, 600000);
+            }
+
+            var idleTime;
+             reloadPage();
+            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
+                clearTimeout(idleTime);
+                reloadPage();
+            });
+
 
         });
 

@@ -36,7 +36,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "0.2"
+site_ver = "2.0.0"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -236,13 +236,16 @@ def login():
         # assign form data to variables
         username = request.form.get('username', '', type=str)
         password = request.form.get('password', '', type=str)
-        user = query_database("SELECT user_id, username, user_active "
+        user = query_database("SELECT user_id, username, user_active, "
+                              "full_name "
                               "     FROM qc_users "
                               "     WHERE username = %(username)s AND pass = MD5(%(password)s)",
                               {'username': username, 'password': password})
 
         if user:
-            user_obj = User(user[0]['user_id'], user[0]['username'], user[0]['full_name'], user[0]['user_active'])
+            user_obj = User(user[0]['user_id'], user[0]['username'], user[0][
+                'full_name'],
+                            user[0]['user_active'])
             login_user(user_obj)
             return redirect(url_for('home'))
         else:
@@ -803,6 +806,46 @@ def edit_project(project_id):
                                username=username,
                                is_admin=is_admin,
                                project=project)
+
+
+@app.route('/logs/<project_id>/', methods=['GET'])
+def logs(project_id):
+    """Show logs of a project"""
+    project = query_database("SELECT project_id FROM projects "
+                             " WHERE project_alias = %(project_alias)s ",
+                             {'project_alias': project_id})[0]
+    project_id = project['project_id']
+    date = request.values.get('date')
+    project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
+                   {'project_id': project_id})[0]
+    logging.info("date: {}".format(date))
+    if date is None:
+        date = datetime.today().strftime('%Y-%m-%d')
+    log_list = pd.DataFrame(query_database("SELECT to_char(date_time, "
+                                           "'YYYY-MM-DD HH:MM:SS') "
+                                           "date_time, log_type, "
+                                           " file_id::int as file_id, "
+                                           "log_area, log_text "
+                                           " FROM process_logging "
+                              " WHERE project_id = %(project_id)s AND "
+                              " date(date_time) = '{}'::date "
+                                           "ORDER BY date_time DESC LIMIT "
+                                           "500".format(
+        date),
+                              {'project_id': project_id}))
+    return render_template('logs.html',
+                               date=date,
+                               logs=logs,
+                               project_info=project_info,
+                               tables=[
+                                    log_list.to_html(table_id='log_list',
+                                                       index=False,
+                                                       border=0,
+                                                       escape=False,
+                                                       classes=["display",
+                                                                "compact",
+                                                                "table-striped"])],
+                           )
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'])
