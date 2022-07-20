@@ -989,16 +989,6 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     if folder_id is None:
         logger.error("Folder {} had an error".format(folder_name))
         return None
-    # Check if another process is running it
-    db_cursor.execute(queries.folder_check_processing, {'folder_id': folder_id})
-    folder_check = db_cursor.fetchone()
-    if folder_check[0] == True and folder_check[1] < 1800:
-        # Skip
-        logger.info("Folder checking in another process, skipping {} ({})"
-                    "".format(folder_path, folder_id))
-        return folder_id
-    # Set as processing
-    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
     # Check if folder is ready or in DAMS
     db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
     logger.debug(db_cursor.query.decode("utf-8"))
@@ -1011,6 +1001,17 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         # Folder in DAMS already, skip
         logger.info("Folder in DAMS, skipping {}".format(folder_path))
         return folder_id
+    # Check if another process is running it
+    db_cursor.execute(queries.folder_check_processing,
+                      {'folder_id': folder_id})
+    folder_check = db_cursor.fetchone()
+    if folder_check[0] == True and folder_check[1] < 1800:
+        # Skip
+        logger.info("Folder checking in another process, skipping {} ({})"
+                    "".format(folder_path, folder_id))
+        return folder_id
+    # Set as processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
     # Reset folder error information
     db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
     if os.path.isdir("{}/{}".format(folder_path, settings.main_files_path)) is False:
@@ -1020,6 +1021,8 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         logger.debug(db_cursor.query.decode("utf-8"))
         db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
         logger.debug(db_cursor.query.decode("utf-8"))
+        # Set as processing
+        db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
         return folder_id
     else:
         logger.info("MAIN folder found in {}".format(folder_path))
