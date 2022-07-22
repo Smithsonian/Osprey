@@ -9,6 +9,8 @@ from flask import request
 from flask import jsonify
 from flask import redirect
 from flask import url_for
+# caching
+from flask_caching import Cache
 
 import logging
 import locale
@@ -59,9 +61,17 @@ logging.getLogger('').addHandler(console)
 # Set locale for number format
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-
+# Cache config
+config = {
+    "DEBUG": True,  # some Flask specific configs
+    "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
+    "CACHE_DIR": "/var/www/app/cache",
+    "CACHE_DEFAULT_TIMEOUT": 0
+}
 app = Flask(__name__)
 app.secret_key = settings.secret_key
+app.config.from_mapping(config)
+cache = Cache(app)
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -113,12 +123,13 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error', status_code=500)
 
 conn.autocommit = True
-cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SET statement_timeout = 5000')
     # Run query
     try:
         cur.execute(query, parameters)
@@ -131,12 +142,15 @@ def query_database(query, parameters=""):
         data = None
     else:
         data = cur.fetchall()
+    cur.close()
     return data
 
 
 def query_database_2(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SET statement_timeout = 5000')
     # Run query
     try:
         cur.execute(query, parameters)
@@ -145,8 +159,10 @@ def query_database_2(query, parameters=""):
         logging.error("cur.query: {}".format(cur.query))
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
+        cur.close()
         return False
     else:
+        cur.close()
         return True
 
 
@@ -570,6 +586,7 @@ def qc(project_id):
                                project=project)
 
 
+@cache.memoize()
 @app.route('/home/', methods=['POST', 'GET'])
 @login_required
 def home():
@@ -815,23 +832,27 @@ def logs(project_id):
                              " WHERE project_alias = %(project_alias)s ",
                              {'project_alias': project_id})[0]
     project_id = project['project_id']
+    move_log = query_database("INSERT INTO process_logging_5d (file_id, project_id, date_time, log_area, log_text, log_type)"
+                          "(SELECT file_id, project_id, date_time, log_area, log_text, log_type FROM process_logging "
+                          "     where project_id = %(project_id)s "
+                          "     ORDER BY table_id ASC OFFSET 1000) returning table_id",
+                          {'project_id': project_id})
+    move_log = query_database(
+                    "DELETE FROM process_logging where table_id in (select table_id from process_logging "
+                    "  WHERE project_id = %(project_id)s "
+                    "  ORDER BY table_id ASC OFFSET 1000) returning table_id ",
+                    {'project_id': project_id})
     date = request.values.get('date')
     project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
                    {'project_id': project_id})[0]
-    logging.info("date: {}".format(date))
+    # logging.info("date: {}".format(date))
     if date is None:
         date = datetime.today().strftime('%Y-%m-%d')
-    log_list = pd.DataFrame(query_database("SELECT to_char(date_time, "
-                                           "'YYYY-MM-DD HH:MM:SS') "
-                                           "date_time, log_type, "
-                                           " file_id::int as file_id, "
-                                           "log_area, log_text "
-                                           " FROM process_logging "
-                              " WHERE project_id = %(project_id)s AND "
-                              " date(date_time) = '{}'::date "
-                                           "ORDER BY date_time DESC LIMIT "
-                                           "500".format(
-        date),
+    log_list = pd.DataFrame(query_database("SELECT to_char(date_time, 'YYYY-MM-DD HH:MM:SS') as date_time, "
+                               " log_type, file_id::int as file_id, log_area, log_text "
+                               " FROM process_logging "
+                               " WHERE project_id = %(project_id)s "
+                               "ORDER BY date_time DESC LIMIT 500",
                               {'project_id': project_id}))
     return render_template('logs.html',
                                date=date,
@@ -1018,7 +1039,7 @@ def dashboard(project_id):
                                          " LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') "
                                          " LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') "
                                          " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
-                                         "WHERE f.project_id = %(project_id)s ORDER BY f.file_errors desc, "
+                                         "WHERE f.project_id = %(project_id)s ORDER BY "
                                          "f.date DESC, f.project_folder DESC",
                                      {'project_id': project_id})
         folder_name = None
@@ -1257,6 +1278,7 @@ def dashboard(project_id):
                                )
 
 
+@cache.memoize()
 @app.route('/file/<file_id>/', methods=['POST', 'GET'])
 def file(file_id):
     """File details"""
@@ -1317,6 +1339,7 @@ def file(file_id):
                            )
 
 
+@cache.memoize()
 @app.route('/file_json/<file_id>/', methods=['POST', 'GET'])
 def file_json(file_id):
     """File details"""

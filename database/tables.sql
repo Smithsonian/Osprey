@@ -355,8 +355,25 @@ CREATE INDEX process_logging_idx ON process_logging USING BTREE(table_id);
 CREATE INDEX process_logging_pid_idx ON process_logging USING BTREE(project_id);
 CREATE INDEX process_logging_fid_idx ON process_logging USING BTREE(file_id);
 CREATE INDEX process_logging_log_idx ON process_logging USING BTREE(log_area);
+CREATE INDEX process_logging_dt_idx ON process_logging USING BTREE(date_time);
 
 
+
+DROP TABLE process_logging_5d CASCADE;
+CREATE TABLE process_logging_5d (
+    table_id serial PRIMARY KEY,
+    project_id integer,
+    file_id integer,
+    date_time timestamp with time zone DEFAULT NOW(),
+    log_area text,
+    log_text text,
+    log_type text DEFAULT 'info'
+);
+CREATE INDEX process_logging_5d_idx ON process_logging_5d USING BTREE(table_id);
+CREATE INDEX process_logging_5d_pid_idx ON process_logging_5d USING BTREE(project_id);
+CREATE INDEX process_logging_5d_fid_idx ON process_logging_5d USING BTREE(file_id);
+CREATE INDEX process_logging_5d_log_idx ON process_logging_5d USING BTREE(log_area);
+CREATE INDEX process_logging_5d_dt_idx ON process_logging_5d USING BTREE(date_time);
 
 
 

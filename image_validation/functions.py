@@ -1056,6 +1056,8 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
             logger.info("Running checks on file {}".format(file))
             # process_image(file, folder_path, folder_id, db_cursor, logger)
             process_image(file, folder_path, folder_id, logger)
+            # Update folder stats
+            update_folder_stats(folder_id, folder_path, db_cursor, logger)
     folder_updated_at(folder_id, db_cursor, logger)
     # Update folder stats
     update_folder_stats(folder_id, folder_path, db_cursor, logger)
