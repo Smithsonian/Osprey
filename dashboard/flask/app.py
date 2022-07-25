@@ -38,7 +38,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "2.0.0"
+site_ver = "2.0.1"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -66,7 +66,7 @@ config = {
     "DEBUG": True,  # some Flask specific configs
     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
     "CACHE_DIR": "/var/www/app/cache",
-    "CACHE_DEFAULT_TIMEOUT": 0
+    "CACHE_DEFAULT_TIMEOUT": 600
 }
 app = Flask(__name__)
 app.secret_key = settings.secret_key
@@ -230,6 +230,7 @@ def load_user(username):
 ###################################
 # System routes
 ###################################
+@cache.memoize()
 @app.route('/', methods=['GET', 'POST'])
 def login():
     """Main homepage for the system"""
@@ -586,7 +587,6 @@ def qc(project_id):
                                project=project)
 
 
-@cache.memoize()
 @app.route('/home/', methods=['POST', 'GET'])
 @login_required
 def home():
