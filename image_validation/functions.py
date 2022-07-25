@@ -670,14 +670,14 @@ def process_image(filename, folder_path, folder_id, logger):
                                                                'log_area': 'process_image',
                                                                'log_text': db_cursor.query.decode("utf-8")})
                         logger.debug(db_cursor.query.decode("utf-8"))
-                        db_cursor.execute(queries.file_check,
-                                          {'file_id': dupe[0], 'file_check': 'unique_file', 'check_results': 1,
-                                           'check_info': "File with same name in {}".format(folder_path)})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                        db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
-                                                               'log_area': 'process_image',
-                                                               'log_text': db_cursor.query.decode("utf-8")})
-                        logger.debug(db_cursor.query.decode("utf-8"))
+                        # db_cursor.execute(queries.file_check,
+                        #                   {'file_id': dupe[0], 'file_check': 'unique_file', 'check_results': 1,
+                        #                    'check_info': "File with same name in {}".format(folder_path)})
+                        # logger.debug(db_cursor.query.decode("utf-8"))
+                        # db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
+                        #                                        'log_area': 'process_image',
+                        #                                        'log_text': db_cursor.query.decode("utf-8")})
+                        # logger.debug(db_cursor.query.decode("utf-8"))
                         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
                                                                'check_results': unique_file,
                                                                'check_info': "File with same name in {}".format(
