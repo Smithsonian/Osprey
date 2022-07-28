@@ -63,7 +63,9 @@ logger.info("osprey version {}".format(ver))
 # Pass an argument in the CLI 'debug'
 if len(sys.argv) > 1:
     run_debug = sys.argv[1]
-
+else:
+    run_debug = False
+    
 
 ############################################
 # Check requirements
