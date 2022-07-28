@@ -40,7 +40,7 @@ not_unique = "SELECT project_folder, folder_id FROM folders WHERE folder_id = %(
 
 not_unique_all = "SELECT f.project_folder, p.project_title FROM folders f, projects p WHERE f.project_id = p.project_id AND f.project_id != %(project_id)s) AND f.folder_id in (SELECT folder_id FROM files WHERE file_id != %(file_id)s AND file_name = %(file_name)s)"
 
-check_unique_old = "SELECT folder as location FROM old_names WHERE file_name ILIKE %(file_name)s AND project_id != %(project_id)s::text"
+check_unique_old = "SELECT folder as location FROM dupe_elsewhere WHERE file_name ILIKE %(file_name)s AND project_id != %(project_id)s::text"
 
 insert_file = "INSERT INTO files (folder_id, file_name, file_timestamp) VALUES (%(folder_id)s, %(file_name)s, %(file_timestamp)s) RETURNING file_id"
 
