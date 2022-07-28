@@ -66,8 +66,12 @@
                 {% for folder in project_folders %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
-                            <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
+                        {% if folder.project_folder == folder_name.project_folder %}
+                            <strong><a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a></strong>
+                        {% else %}
+                            <a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a>
+                        {% endif %}
+                        <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
                     {% if folder.file_errors == 1 %}
                         <span class="badge bg-danger">Files with errors</span>
                     {% endif %}

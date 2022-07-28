@@ -38,7 +38,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "2.0.2"
+site_ver = "2.0.3"
 
 cur_path = os.path.abspath(os.getcwd())
 
