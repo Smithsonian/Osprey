@@ -292,15 +292,34 @@ CREATE INDEX fnamesvalid_fname_idx on file_names_valid USING BTREE(filename);
 
 
 --old_names
-DROP TABLE IF EXISTS old_names CASCADE;
-CREATE TABLE old_names (
-    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    file_name text,
-    folder text,
-    updated_at timestamp with time zone DEFAULT NOW()
+DROP VIEW IF EXISTS old_names;
+CREATE VIEW old_names AS
+    (
+    SELECT
+           f.file_id, f.file_name, p.project_alias || ':' || fol.project_folder as folder, p.project_id::text
+    FROM
+         files f,
+         folders fol,
+         projects p
+    WHERE
+          p.project_id = fol.project_id
+          and fol.folder_id = f.folder_id
+
+    UNION
+
+    SELECT
+        vfcu_media_file_id as file_id,
+           replace(replace(file_name, '.tif', ''), '.TIF', '') as file_name,
+           'DAMS:' || project_cd || ':' || dams_uan as folder, project_cd as project_id
+    FROM
+        dams_cdis_file_status_view_dpo
+    WHERE
+        file_name ILIKE '%.tif'
 );
-CREATE INDEX oldnames_pid_idx ON old_names USING BTREE(project_id);
-CREATE INDEX oldnames_file_name_idx ON old_names USING BTREE(file_name);
+-- CREATE INDEX oldnames_pid_idx ON old_names USING BTREE(project_id);
+-- CREATE INDEX oldnames_pal_idx ON old_names USING BTREE(project_alias);
+-- CREATE INDEX oldnames_file_name_idx ON old_names USING BTREE(file_name);
+-- CREATE INDEX oldnames_file_name2_idx ON old_names USING gin (file_name gin_trgm_ops);
 
 
 --projects_stats

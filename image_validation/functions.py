@@ -700,8 +700,7 @@ def process_image(filename, folder_path, folder_id, logger):
                                                    'log_text': db_cursor.query.decode("utf-8")})
             logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
-                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'folder_id': folder_id,
-                                                             'project_id': settings.project_id})
+                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'project_id': settings.project_id})
                 logger.debug(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
                 db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
