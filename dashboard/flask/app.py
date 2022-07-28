@@ -38,7 +38,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "2.0.1"
+site_ver = "2.0.2"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -130,15 +130,15 @@ def query_database(query, parameters=""):
     logging.info("query: {}".format(query))
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    except psycopg2.InterfaceError as error:
-        logging.error("psycopg2.InterfaceError: {}".format(error))
-        conn = psycopg2.connect(host=settings.host,
-                                database=settings.database,
-                                user=settings.user,
-                                password=settings.password)
-        conn.autocommit = True
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        logging.error("Restarted conn and cur")
+    # except psycopg2.InterfaceError as error:
+    #     logging.error("psycopg2.InterfaceError: {}".format(error))
+    #     conn = psycopg2.connect(host=settings.host,
+    #                             database=settings.database,
+    #                             user=settings.user,
+    #                             password=settings.password)
+    #     conn.autocommit = True
+    #     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    #     logging.error("Restarted conn and cur")
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
@@ -1105,15 +1105,19 @@ def dashboard(project_id):
                 post_processing_df = pd.DataFrame()
             else:
                 for fcheck in filechecks_list:
-                    list_files = pd.DataFrame(query_database("SELECT file_id, "
+                    logging.info("fcheck: {}".format(fcheck))
+                    list_files = pd.DataFrame(query_database("SELECT f.file_id, "
                                                 "   CASE WHEN check_results = 0 THEN 'OK' "
                                                 "       WHEN check_results = 9 THEN 'Pending' "
-                                                "       WHEN check_results = 1 THEN 'Failed' END as {} "
-                                                "FROM file_checks where file_check = %(file_check)s AND "
-                                                "   file_id IN (SELECT file_id FROM files WHERE  "
-                                                "   folder_id = %(folder_id)s)".format(fcheck),
+                                                "       WHEN check_results = 1 THEN 'Failed' "
+                                                "       ELSE 'Pending' END as {} "
+                                                " FROM files f LEFT JOIN file_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                                "  where  "
+                                                "   f.folder_id = %(folder_id)s".format(fcheck),
                                                 {'file_check': fcheck, 'folder_id': folder_id}))
-                    folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    if list_files.shape[0] > 0:
+                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
                 folder_files_df = folder_files_df.sort_values(by=filechecks_list)
                 folder_files_df['file_name'] = '<a href="/file/' \
