@@ -128,7 +128,20 @@ conn.autocommit = True
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    except psycopg2.InterfaceError as error:
+        logging.error("psycopg2.InterfaceError: {}".format(error))
+        conn = psycopg2.connect(host=settings.host,
+                                database=settings.database,
+                                user=settings.user,
+                                password=settings.password)
+        conn.autocommit = True
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        logging.error("Restarted conn and cur")
+    except Exception as error:
+        logging.error("Error: {}".format(error))
+        logging.error("cur.query: {}".format(cur.query))
     cur.execute('SET statement_timeout = 5000')
     # Run query
     try:
