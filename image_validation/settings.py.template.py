@@ -42,7 +42,7 @@ project_file_checks = ["raw_pair", "unique_file", "jhove", "magick",
 # - raw_pair: Is there a raw file in the 'raw_files_path'
 # - valid_name: Filename is in the list of allowed names
 # - unique_file: Name is not repeated in the project
-# - old_name: Check name against the old_names table
+# - dupe_elsewhere: Check name against the dupe_elsewhere table, from other projects and DAMS
 # - jhove: Run jhove validation
 # - magick: Run imagemagick validation
 # - tifpages: Check the number of pages in the tif, typically a thumbnail

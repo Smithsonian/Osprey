@@ -292,8 +292,8 @@ CREATE INDEX fnamesvalid_fname_idx on file_names_valid USING BTREE(filename);
 
 
 --old_names
-DROP VIEW IF EXISTS old_names;
-CREATE VIEW old_names AS
+DROP VIEW IF EXISTS dupe_elsewhere;
+CREATE VIEW dupe_elsewhere AS
     (
     SELECT
            f.file_id, f.file_name, p.project_alias || ':' || fol.project_folder as folder, p.project_id::text

@@ -691,8 +691,8 @@ def process_image(filename, folder_path, folder_id, logger):
             # Disconnect from db
             conn.close()
             return True
-        if 'old_name' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'old_name'})
+        if 'dupe_elsewhere' in settings.project_file_checks:
+            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
@@ -714,7 +714,7 @@ def process_image(filename, folder_path, folder_id, logger):
                     old_name = 0
                     folders = ""
                 db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'old_name', 'check_results': old_name,
+                                  {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
                                    'check_info': folders})
                 logger.debug(db_cursor.query.decode("utf-8"))
                 db_cursor.execute(queries.insert_log, {'project_id': settings.project_id, 'file_id': file_id,
