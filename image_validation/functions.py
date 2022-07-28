@@ -707,12 +707,13 @@ def process_image(filename, folder_path, folder_id, logger):
                                                        'log_area': 'process_image',
                                                        'log_text': db_cursor.query.decode("utf-8")})
                 logger.debug(db_cursor.query.decode("utf-8"))
-                if len(result) > 0:
-                    old_name = 1
-                    folders = ",".join(result[0])
-                else:
+                folders = ""
+                if len(result) == 0:
                     old_name = 0
-                    folders = ""
+                else:
+                    old_name = 1
+                    for fol in result:
+                        folders = folders + "," + fol[0]
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
                                    'check_info': folders})
