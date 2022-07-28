@@ -14,6 +14,7 @@ from logging.handlers import RotatingFileHandler
 import time
 from subprocess import run
 import random
+import sys
 
 # For Postgres
 import psycopg2
@@ -57,6 +58,11 @@ logging.getLogger('osprey').addHandler(console)
 logger.setLevel(logging.DEBUG)
 
 logger.info("osprey version {}".format(ver))
+
+
+# Pass an argument in the CLI 'debug'
+if len(sys.argv) > 1:
+    run_debug = sys.argv[1]
 
 
 ############################################
@@ -131,75 +137,77 @@ def main():
 # Main loop
 ############################################
 if __name__ == "__main__":
-    # main()
-    while True:
-        try:
-            # Check if there is a pre script to run
-            if settings.pre_script is not None:
-                p = subprocess.Popen([settings.pre_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                (out, err) = p.communicate()
-                if p.returncode != 0:
-                    print("Pre-script error")
-                    print(out)
-                    print(err)
-                    sys.exit(9)
+    if run_debug == 'debug':
+        main()
+    else:
+        while True:
+            try:
+                # Check if there is a pre script to run
+                if settings.pre_script is not None:
+                    p = subprocess.Popen([settings.pre_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    (out, err) = p.communicate()
+                    if p.returncode != 0:
+                        print("Pre-script error")
+                        print(out)
+                        print(err)
+                        sys.exit(9)
+                    else:
+                        print(out)
+                # Run main function
+                mainval = main()
+                # Check if there is a post script to run
+                if settings.post_script is not None:
+                    p = subprocess.Popen([settings.post_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    (out, err) = p.communicate()
+                    if p.returncode != 0:
+                        print("Post-script error")
+                        print(out)
+                        print(err)
+                        sys.exit(9)
+                    else:
+                        print(out)
+                if settings.sleep is None:
+                    logger.info("Process completed!")
+                    compress_log()
+                    sys.exit(0)
                 else:
-                    print(out)
-            # Run main function
-            mainval = main()
-            # Check if there is a post script to run
-            if settings.post_script is not None:
-                p = subprocess.Popen([settings.post_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                (out, err) = p.communicate()
-                if p.returncode != 0:
-                    print("Post-script error")
-                    print(out)
-                    print(err)
-                    sys.exit(9)
-                else:
-                    print(out)
-            if settings.sleep is None:
-                logger.info("Process completed!")
+                    logger.info("Sleeping for {} secs".format(settings.sleep))
+                    # Sleep before trying again
+                    time.sleep(settings.sleep)
+                    continue
+            except KeyboardInterrupt:
+                # print("Ctrl-c detected. Leaving program.")
+                logger.info("Ctrl-c detected. Leaving program.")
+                try:
+                    if 'folder_id' in globals():
+                        conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                                 password=settings.db_password, connect_timeout=60)
+                        conn2.autocommit = True
+                        db_cursor2 = conn2.cursor()
+                        db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                           {'folder_id': folder_id})
+                        conn2.close()
+                except:
+                    print("folder_id not found")
+                # Compress logs
                 compress_log()
                 sys.exit(0)
-            else:
-                logger.info("Sleeping for {} secs".format(settings.sleep))
-                # Sleep before trying again
-                time.sleep(settings.sleep)
-                continue
-        except KeyboardInterrupt:
-            # print("Ctrl-c detected. Leaving program.")
-            logger.info("Ctrl-c detected. Leaving program.")
-            try:
-                if 'folder_id' in globals():
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                             password=settings.db_password, connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                       {'folder_id': folder_id})
-                    conn2.close()
-            except:
-                print("folder_id not found")
-            # Compress logs
-            compress_log()
-            sys.exit(0)
-        except Exception as e:
-            logger.error("There was an error: {}".format(e))
-            try:
-                if 'folder_id' in globals():
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                             password=settings.db_password, connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                       {'folder_id': folder_id})
-                    conn2.close()
-            except:
-                print("folder_id not found")
-            # Compress logs
-            compress_log()
-            sys.exit(1)
+            except Exception as e:
+                logger.error("There was an error: {}".format(e))
+                try:
+                    if 'folder_id' in globals():
+                        conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                                 password=settings.db_password, connect_timeout=60)
+                        conn2.autocommit = True
+                        db_cursor2 = conn2.cursor()
+                        db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
+                                           {'folder_id': folder_id})
+                        conn2.close()
+                except:
+                    print("folder_id not found")
+                # Compress logs
+                compress_log()
+                sys.exit(1)
 
 
 sys.exit(0)
