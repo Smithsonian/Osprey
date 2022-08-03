@@ -9,8 +9,11 @@ from flask import request
 from flask import jsonify
 from flask import redirect
 from flask import url_for
+from flask import send_file
 # caching
 from flask_caching import Cache
+
+from PIL import Image
 
 import logging
 import locale
@@ -290,9 +293,15 @@ def login():
                            projects=projects,
                            form=form,
                            msg=msg,
-                           site_ver=site_ver,
                            user_exists=user_exists,
                            username=username)
+
+
+@cache.memoize()
+@app.route('/about/', methods=['GET', 'POST'])
+def about_system():
+    """About page for the system"""
+    return render_template('about.html', site_ver=site_ver)
 
 
 @app.route('/qc_process/<folder_id>/', methods=['POST', 'GET'])
@@ -339,7 +348,7 @@ def qc_process(folder_id):
     folder_qc_check = query_database("SELECT "
                                      "  CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                      "          WHEN q.qc_status = 1 THEN 'QC Failed' "
-                                     "          WHEN q.qc_status = 9 THEN 'QC Pending' END AS qc_status, "
+                                     "          ELSE 'QC Pending' END AS qc_status, "
                                      "      qc_ip, u.username AS qc_by, "
                                      "      TO_CHAR(updated_at, 'yyyy-mm-dd') AS updated_at"
                                      " FROM qc_folders q, "
@@ -374,6 +383,7 @@ def qc_process(folder_id):
         'no_files': folder_stats1[0]['no_files'],
         'no_errors': folder_stats2[0]['no_errors']
     }
+    logging.info("qc_status: {} | no_files: {}".format(folder_qc['qc_status'], folder_stats['no_files']))
     if folder_qc['qc_status'] == "QC Pending" and folder_stats['no_files'] > 0:
         # Setup the files for QC
         in_qc = query_database("SELECT count(*) as no_files FROM qc_files WHERE folder_id = %(folder_id)s",
@@ -684,7 +694,7 @@ def home():
                 'qc_status': project['qc_status'],
                 'project_unit': project['project_unit']
             })
-    return render_template('home.html', project_list=project_list, site_ver=site_ver, username=user_name,
+    return render_template('home.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr)
 
 
@@ -836,50 +846,6 @@ def edit_project(project_id):
                                username=username,
                                is_admin=is_admin,
                                project=project)
-
-
-@app.route('/logs/<project_id>/', methods=['GET'])
-def logs(project_id):
-    """Show logs of a project"""
-    project = query_database("SELECT project_id FROM projects "
-                             " WHERE project_alias = %(project_alias)s ",
-                             {'project_alias': project_id})[0]
-    project_id = project['project_id']
-    move_log = query_database("INSERT INTO process_logging_5d (file_id, project_id, date_time, log_area, log_text, log_type)"
-                          "(SELECT file_id, project_id, date_time, log_area, log_text, log_type FROM process_logging "
-                          "     where project_id = %(project_id)s "
-                          "     ORDER BY table_id ASC OFFSET 1000) returning table_id",
-                          {'project_id': project_id})
-    move_log = query_database(
-                    "DELETE FROM process_logging where table_id in (select table_id from process_logging "
-                    "  WHERE project_id = %(project_id)s "
-                    "  ORDER BY table_id ASC OFFSET 1000) returning table_id ",
-                    {'project_id': project_id})
-    date = request.values.get('date')
-    project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
-                   {'project_id': project_id})[0]
-    # logging.info("date: {}".format(date))
-    if date is None:
-        date = datetime.today().strftime('%Y-%m-%d')
-    log_list = pd.DataFrame(query_database("SELECT to_char(date_time, 'YYYY-MM-DD HH:MM:SS') as date_time, "
-                               " log_type, file_id::int as file_id, log_area, log_text "
-                               " FROM process_logging "
-                               " WHERE project_id = %(project_id)s "
-                               "ORDER BY date_time DESC LIMIT 500",
-                              {'project_id': project_id}))
-    return render_template('logs.html',
-                               date=date,
-                               logs=logs,
-                               project_info=project_info,
-                               tables=[
-                                    log_list.to_html(table_id='log_list',
-                                                       index=False,
-                                                       border=0,
-                                                       escape=False,
-                                                       classes=["display",
-                                                                "compact",
-                                                                "table-striped"])],
-                           )
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'])
@@ -1277,7 +1243,6 @@ def dashboard(project_id):
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped"])],
                            titles=[''],
-                           site_ver=site_ver,
                            username=user_name,
                            project_admin=project_admin,
                            is_admin=is_admin,
@@ -1345,7 +1310,6 @@ def file(file_id):
                            folder_info=folder_info,
                            file_details=file_details,
                            file_checks=file_checks,
-                           site_ver=site_ver,
                            username=user_name,
                            image_url=image_url,
                            is_admin=is_admin,
@@ -1384,6 +1348,47 @@ def file_json(file_id):
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
+@cache.memoize()
+@app.route('/previewimage/<file_id>/', methods=['GET'], strict_slashes=False)
+def get_preview(file_id=None):
+    """Return image previews from Mass Digi Projects."""
+    if file_id is None:
+        raise InvalidUsage('file_id missing', status_code=400)
+    else:
+        try:
+            file_id = int(file_id)
+        except:
+            raise InvalidUsage('file_id is not valid', status_code=400)
+        data = query_database('queries/get_folder_id.sql', {'file_id': file_id}, logging=logging)
+        logging.info("data: {}".format(data))
+        if len(data) == 0:
+            filename = "static/na.jpg"
+            return send_file(filename, mimetype='image/jpeg')
+        else:
+            try:
+                folder_id = data[0]
+                width = request.args.get('size')
+                if width is None:
+                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                    logging.info(filename)
+                else:
+                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                    img = Image.open(filename)
+                    wpercent = (int(width) / float(img.size[0]))
+                    hsize = int((float(img.size[1]) * float(wpercent)))
+                    img = img.resize((int(width), hsize), Image.ANTIALIAS)
+                    filename = "/tmp/{}_{}.jpg".format(file_id, width)
+                    img.save(filename)
+            except:
+                logging.error(filename)
+                filename = "static/na.jpg"
+            logging.info(filename)
+        if not os.path.isfile(filename):
+            logging.error(filename)
+            filename = "static/na.jpg"
+        return send_file(filename, mimetype='image/jpeg')
 
 
 #####################################

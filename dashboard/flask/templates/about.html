@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-8">
+            <p>Osprey Dashboard version {{ site_ver }}<br>
+            Source at <a href="https://github.com/Smithsonian/Osprey" target="_blank" class="text-white">https://github.com/Smithsonian/Osprey</a></p>
+            <p>This is a project of:</p>
+            <p class="px-3">
+                <a href="https://dpo.si.edu/" target="_blank">Digitization Program Office<br>
+                <a href="https://www.si.edu/ocio" target="_blank">Office of the Chief Information Officer</a><br>
+                <a href="http://si.edu/">Smithsonian</a>
+            </p>
+        </div>
+        <div class="col">
+{#            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">#}
+            <img src="{{ url_for('static', filename='dpo266.png') }}" class="me-0">
+        </div>
+    </div>
+
+
+            <br><br>
+
+        <hr>
+
+      {% endfor %}
+
+{% endblock %}

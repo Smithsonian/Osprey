@@ -30,16 +30,16 @@
         html {
           position: relative;
           min-height: 100%;
-          padding-bottom:70px;
+          padding-bottom:160px;
         }
         body {
-          margin-bottom: 70px;
+          margin-bottom: 160px;
         }
         footer {
-          position: absolute;
-          bottom: 0;
-          width: 100%;
-          height: 70px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 160px;
         }
     </style>
 
@@ -90,30 +90,27 @@
     {% block content %}
     {% endblock %}
 
-    <br>
-
 </div>
 
-<footer class="page-footer font-small bg-secondary text-white pt-2">
-
+<footer class="page-footer font-small bg-secondary text-white pt-2" style="background: #3F4249!important;">
+<br>
   <!-- Footer Elements -->
   <div class="container">
-
-
       <div class="row">
         <div class="col">
-            <p class="small">
-                {% block footer %}
-                {% endblock %}
-                Osprey Dashboard version {{ site_ver }}<br>
-                Source at <a href="https://github.com/Smithsonian/Osprey" target="_blank" class="text-white">https://github.com/Smithsonian/Osprey</a></p>
+            <a href="https://dpo.si.edu" target="_blank"><img src="{{ url_for('static', filename='logo-white-300.png') }}"></a>
         </div>
-        <div class="col-sm-4">
-            <p class="small" style="text-align: right;">
-                <a href="https://dpo.si.edu" target="_blank" class="text-white">Digitization Program Office</a>, <a href="https://www.si.edu/ocio" target="_blank" class="text-white">OCIO</a><br>
-                For details, check our <strong><a href="https://sinet.sharepoint.com/sites/DPO/SitePages/Informatics.aspx" target="_blank" class="text-white">SharePoint</a></strong>
-            </p>
+        <div class="col">
+            <p><a href="https://www.si.edu/ocio" target="_blank" class="text-white">Office of the Chief Information Officer</a></p>
+            <p><a href="https://www.si.edu/termsofuse" target="_blank" class="text-white">Terms of Use</a></p>
+            <p><a href="http://www.si.edu/Privacy" target="_blank" class="text-white">Privacy</a></p>
         </div>
+        <div class="col">
+            <p><a href="http://si.edu/" target="_blank" class="text-white">Smithsonian Home</a></p>
+            <p><a href="http://www.si.edu/Accessibility" target="_blank" class="text-white">Accessibility</a></p>
+            <p><a href="http://www.si.edu/Privacy" target="_blank" class="text-white">Privacy</a></p>
+        </div>
+
     </div>
  </div>
   <!-- Copyright -->
