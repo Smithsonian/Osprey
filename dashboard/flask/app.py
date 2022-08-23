@@ -133,15 +133,6 @@ def query_database(query, parameters=""):
     logging.info("query: {}".format(query))
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    # except psycopg2.InterfaceError as error:
-    #     logging.error("psycopg2.InterfaceError: {}".format(error))
-    #     conn = psycopg2.connect(host=settings.host,
-    #                             database=settings.database,
-    #                             user=settings.user,
-    #                             password=settings.password)
-    #     conn.autocommit = True
-    #     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    #     logging.error("Restarted conn and cur")
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
@@ -247,7 +238,7 @@ def load_user(username):
 # System routes
 ###################################
 @cache.memoize()
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 def login():
     """Main homepage for the system"""
     if current_user.is_authenticated:
@@ -298,13 +289,13 @@ def login():
 
 
 @cache.memoize()
-@app.route('/about/', methods=['GET', 'POST'])
+@app.route('/about/', methods=['GET'], strict_slashes=False)
 def about_system():
     """About page for the system"""
     return render_template('about.html', site_ver=site_ver)
 
 
-@app.route('/qc_process/<folder_id>/', methods=['POST', 'GET'])
+@app.route('/qc_process/<folder_id>/', methods=['GET'], strict_slashes=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
@@ -500,7 +491,7 @@ def qc_process(folder_id):
         return render_template('error.html', error_msg=error_msg), 400
 
 
-@app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'])
+@app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
 @login_required
 def qc_done(folder_id):
     """Run QC on a folder"""
@@ -540,7 +531,7 @@ def qc_done(folder_id):
     return redirect(url_for('qc', project_id=project_id['project_alias']))
 
 
-@app.route('/qc/<project_id>/', methods=['POST', 'GET'])
+@app.route('/qc/<project_id>/', methods=['POST', 'GET'], strict_slashes=False)
 @login_required
 def qc(project_id):
     """List the folders and QC status"""
@@ -610,7 +601,7 @@ def qc(project_id):
                                project=project)
 
 
-@app.route('/home/', methods=['POST', 'GET'])
+@app.route('/home/', methods=['GET'], strict_slashes=False)
 @login_required
 def home():
     """Home for user, listing projects and options"""
@@ -698,7 +689,7 @@ def home():
                            is_admin=is_admin, ip_addr=ip_addr)
 
 
-@app.route('/new_project/', methods=['POST', 'GET'])
+@app.route('/new_project/', methods=['GET'], strict_slashes=False)
 @login_required
 def new_project(msg=None):
     """Create a new project"""
@@ -718,7 +709,7 @@ def new_project(msg=None):
                                today_date=datetime.today().strftime('%Y-%m-%d'))
 
 
-@app.route('/create_new_project/', methods=['POST'])
+@app.route('/create_new_project/', methods=['POST'], strict_slashes=False)
 @login_required
 def create_new_project():
     """Create a new project"""
@@ -808,7 +799,7 @@ def create_new_project():
     return redirect(url_for('home', _anchor=p_alias))
 
 
-@app.route('/edit_project/<project_id>/', methods=['GET'])
+@app.route('/edit_project/<project_id>/', methods=['GET'], strict_slashes=False)
 @login_required
 def edit_project(project_id):
     """Edit a project"""
@@ -848,7 +839,7 @@ def edit_project(project_id):
                                project=project)
 
 
-@app.route('/project_update/<project_alias>', methods=['POST'])
+@app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
 @login_required
 def project_update(project_alias):
     """Save edits to a project"""
@@ -918,10 +909,9 @@ def project_update(project_alias):
     return redirect(url_for('home', _anchor=project_alias))
 
 
-@app.route('/dashboard/<project_id>/', methods=['POST', 'GET'])
-def dashboard(project_id):
+@app.route('/dashboard/<project_id>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
+def dashboard_f(project_id=None, folder_id=None):
     """Dashboard for a project"""
-    folder_id = request.values.get('folder_id')
     tab = request.values.get('tab')
     if tab is None or tab == '':
         tab = 0
@@ -1272,11 +1262,166 @@ def dashboard(project_id):
                            )
 
 
+
+@app.route('/dashboard/<project_id>/', methods=['GET'], strict_slashes=False)
+def dashboard(project_id):
+    """Dashboard for a project"""
+    project_stats = {}
+    if project_id is None:
+        error_msg = "Project is not available."
+        return render_template('error.html', error_msg=error_msg), 404
+    else:
+        project_id_check = query_database("SELECT project_id FROM projects WHERE "
+                                          " project_alias = %(project_id)s",
+                                          {'project_id': project_id})
+        if len(project_id_check) == 0:
+            error_msg = "Project was not found."
+            return render_template('error.html', error_msg=error_msg), 404
+        else:
+            project_alias = project_id
+            project_id = project_id_check[0]['project_id']
+        logging.info("project_id: {}".format(project_id))
+        logging.info("project_alias: {}".format(project_alias))
+        if current_user.is_authenticated:
+            username = current_user.name
+            project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p "
+                                           " WHERE u.username = %(username)s "
+                                           " AND p.project_id = %(project_id)s "
+                                           " AND u.user_id = p.user_id",
+                             {'username': username, 'project_id': project_id})[0]
+            if project_admin['no_results'] > 0:
+                project_admin = True
+            else:
+                project_admin = False
+            logging.info("project_admin: {} - {}".format(username, project_admin))
+        else:
+            project_admin = False
+        project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
+                             {'project_id': project_id})[0]
+        try:
+            filechecks_list = project_info['project_checks'].split(',')
+        except:
+            error_msg = "Project is not available."
+            return render_template('error.html', error_msg=error_msg), 404
+        project_total = query_database("SELECT count(*) as no_files "
+                                       "    FROM files "
+                                       "    WHERE folder_id IN (SELECT folder_id "
+                                       "                        FROM folders "
+                                       "                        WHERE project_id = %(project_id)s)",
+                                       {'project_id': project_id})
+        project_stats['total'] = format(int(project_total[0]['no_files']), ',d')
+        project_ok = query_database("WITH data AS (SELECT "
+                    "       file_id, sum(check_results) as check_results "
+                    "       FROM file_checks "
+                    "       WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN "
+                                                " (SELECT folder_id from folders WHERE project_id = %(project_id)s)) "
+                    "   GROUP BY file_id) "
+                    " SELECT count(file_id) as no_files "
+                    " FROM data WHERE check_results = 0",
+                                       {'project_id': project_id})
+        project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
+        project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
+                                     "= 1 AND "
+                                     "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))",
+                                       {'project_id': project_id})
+        project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
+        project_running = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE "
+                                       "check_results "
+                                     "= 9 AND "
+                                     "file_id in (" 
+                                     "SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders "
+                                     "WHERE project_id = %(project_id)s))",
+                                     {'project_id': project_id})
+        project_stats['running'] = format(int(project_running[0]['no_files']), ',d')
+        project_folders = query_database("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, "
+                                         "f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
+                                         "f.delivered_to_dams, "
+                                         " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                                         "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                                         "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                                         "          'QC Pending') as qc_status "
+                                         "FROM folders f "
+                                         " LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') "
+                                         " LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') "
+                                         " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
+                                         "WHERE f.project_id = %(project_id)s ORDER BY "
+                                         "f.date DESC, f.project_folder DESC",
+                                     {'project_id': project_id})
+        folder_name = None
+        folder_qc = {
+            'qc_status': "QC Pending",
+            'qc_by': "",
+            'updated_at': "",
+            'qc_ip': ""
+        }
+        folder_files_df = pd.DataFrame()
+        pagination_html = ""
+        files_df = ""
+        files_count = ""
+        folder_stats = {
+            'no_files': 0,
+            'no_errors': 0
+        }
+        post_processing_df = pd.DataFrame()
+        if int(project_ok[0]['no_files']) > 0:
+            project_stats['ok_percent'] = round((int(project_ok[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
+        else:
+            project_stats['ok_percent'] = 0
+        if int(project_err[0]['no_files']) > 0:
+            project_stats['error_percent'] = round((int(project_err[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
+        else:
+            project_stats['error_percent'] = 0
+        if int(project_running[0]['no_files']) > 0:
+            project_stats['running_percent'] = round((int(project_running[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
+        else:
+            project_stats['running_percent'] = 0
+        if current_user.is_authenticated:
+            user_name = current_user.name
+            is_admin = user_perms('', user_type='admin')
+        else:
+            user_name = ""
+            is_admin = False
+        folder_links = query_database("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
+                                                           {'folder_id': folder_id})
+        logging.info("folder_links: {}".format(folder_links))
+        return render_template('dashboard.html',
+                           project_id=project_id,
+                           project_info=project_info,
+                           project_alias=project_alias,
+                           project_stats=project_stats,
+                           project_folders=project_folders,
+                           files_df=files_df,
+                           folder_id=folder_id,
+                           folder_name=folder_name,
+                           folder_qc=folder_qc,
+                           tables=[folder_files_df.to_html(table_id='files_table',
+                                                           index=False,
+                                                           border=0,
+                                                           escape=False,
+                                                           classes=["display", "compact", "table-striped"])],
+                           titles=[''],
+                           username=user_name,
+                           project_admin=project_admin,
+                           is_admin=is_admin,
+                           tab=tab,
+                           files_count=files_count,
+                           pagination_html=pagination_html,
+                           pagination_html2=pagination_html,
+                           jpg_previews=settings.jpg_previews,
+                           folder_stats=folder_stats,
+                           post_processing=[post_processing_df.to_html(table_id='post_processing_table',
+                                                               index=False,
+                                                               border=0,
+                                                               escape=False,
+                                                               classes=["display", "compact", "table-striped"])],
+                           folder_links=folder_links
+                           )
+
+
 @cache.memoize()
-@app.route('/file/<file_id>/', methods=['POST', 'GET'])
+@app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False)
 def file(file_id):
     """File details"""
-    #file_id = int(request.values.get('file_id'))
     if file_id is None:
         error_msg = "File ID is missing."
         return render_template('error.html', error_msg=error_msg), 400
@@ -1292,16 +1437,14 @@ def file(file_id):
                                    " WHERE project_id = %(project_id)s",
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
-    file_details = query_database("WITH data AS (SELECT file_id, preview_image, folder_id, file_name FROM files "
+    file_details = query_database("WITH data AS (SELECT file_id, COALESCE(preview_image, '{}' || file_id) as preview_image, folder_id, file_name FROM files "
                               "WHERE folder_id = %(folder_id)s ORDER BY file_name),"
                               "data2 AS (SELECT file_id, preview_image, folder_id, file_name,"
                               "         lag(file_id,1) over (order by file_name) prev_id,"
                               "         lag(file_id,-1) over (order by file_name) next_id "
                               " FROM data)"
-                              " SELECT * FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
+                              " SELECT * FROM data2 WHERE file_id = %(file_id)s LIMIT 1".format(settings.jpg_previews),
                               {'folder_id': folder_info['folder_id'], 'file_id': file_id})[0]
-    # file_details = query_database("SELECT * FROM files WHERE file_id = %(file_id)s",
-    #                      {'file_id': file_id})[0]
     file_checks = query_database("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
                                             " ELSE check_info END AS check_info "
                                             " FROM file_checks WHERE file_id = %(file_id)s",
@@ -1337,7 +1480,7 @@ def file(file_id):
 
 
 @cache.memoize()
-@app.route('/file_json/<file_id>/', methods=['POST', 'GET'])
+@app.route('/file_json/<file_id>/', methods=['GET'], strict_slashes=False)
 def file_json(file_id):
     """File details"""
     #file_id = int(request.values.get('file_id'))
@@ -1360,51 +1503,10 @@ def file_json(file_id):
     return jsonify({"data": file_checks})
 
 
-@app.route("/logout")
+@app.route("/logout", methods=['GET'], strict_slashes=False)
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-
-@cache.memoize()
-@app.route('/previewimage/<file_id>/', methods=['GET'], strict_slashes=False)
-def get_preview(file_id=None):
-    """Return image previews from Mass Digi Projects."""
-    if file_id is None:
-        raise InvalidUsage('file_id missing', status_code=400)
-    else:
-        try:
-            file_id = int(file_id)
-        except:
-            raise InvalidUsage('file_id is not valid', status_code=400)
-        data = query_database('queries/get_folder_id.sql', {'file_id': file_id}, logging=logging)
-        logging.info("data: {}".format(data))
-        if len(data) == 0:
-            filename = "static/na.jpg"
-            return send_file(filename, mimetype='image/jpeg')
-        else:
-            try:
-                folder_id = data[0]
-                width = request.args.get('size')
-                if width is None:
-                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
-                    logging.info(filename)
-                else:
-                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
-                    img = Image.open(filename)
-                    wpercent = (int(width) / float(img.size[0]))
-                    hsize = int((float(img.size[1]) * float(wpercent)))
-                    img = img.resize((int(width), hsize), Image.ANTIALIAS)
-                    filename = "/tmp/{}_{}.jpg".format(file_id, width)
-                    img.save(filename)
-            except:
-                logging.error(filename)
-                filename = "static/na.jpg"
-            logging.info(filename)
-        if not os.path.isfile(filename):
-            logging.error(filename)
-            filename = "static/na.jpg"
-        return send_file(filename, mimetype='image/jpeg')
 
 
 #####################################
