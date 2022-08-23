@@ -84,7 +84,3 @@ get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks 
 
 update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
 
-insert_log = "INSERT INTO process_logging (project_id, file_id, log_area, log_text) VALUES (%(project_id)s, " \
-             "%(file_id)s," \
-             "%(log_area)s, " \
-             "%(log_text)s)"

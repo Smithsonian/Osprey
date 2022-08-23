@@ -28,7 +28,7 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-ver = "1.0.13"
+ver = "1.1.0"
 
 ############################################
 # Logging
@@ -42,13 +42,11 @@ logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=
 if not os.path.exists(logfile_folder):
     os.makedirs(logfile_folder)
 logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
-
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M:%S',
                     handlers=[RotatingFileHandler(logfile, maxBytes=10000000,
                                                   backupCount=100)])
-
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
@@ -56,7 +54,6 @@ console.setFormatter(formatter)
 logger = logging.getLogger("osprey")
 logging.getLogger('osprey').addHandler(console)
 logger.setLevel(logging.DEBUG)
-
 logger.info("osprey version {}".format(ver))
 
 

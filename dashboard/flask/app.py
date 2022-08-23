@@ -41,7 +41,7 @@ from datetime import datetime
 
 import settings
 
-site_ver = "2.0.3"
+site_ver = "2.1.0"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -700,7 +700,7 @@ def home():
 
 @app.route('/new_project/', methods=['POST', 'GET'])
 @login_required
-def new_project():
+def new_project(msg=None):
     """Create a new project"""
     username = current_user.name
     full_name = current_user.full_name
@@ -1033,9 +1033,9 @@ def dashboard(project_id):
                                          "project_id = %(project_id)s",
                                          {'folder_id': folder_id, 'project_id': project_id})
             logging.info("folder_name: {}".format(len(folder_name)))
-            if folder_name is None:
+            if len(folder_name) == 0:
                 error_msg = "Folder does not exist in this project."
-                return render_template('error.html', error_msg=error_msg), 404
+                return render_template('error.html', error_msg=error_msg, project_alias=project_alias), 404
             else:
                 folder_name = folder_name[0]
             folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %("
@@ -1046,13 +1046,14 @@ def dashboard(project_id):
                 offset = 0
             else:
                 offset = (page - 1) * no_items
-            files_df = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
+            files_df = query_database("WITH data AS (SELECT file_id, COALESCE(preview_image, '{}' || file_id) as preview_image, "
+                                      "         folder_id, file_name FROM files "
                                       "WHERE folder_id = %(folder_id)s ORDER BY file_name)"
-                                      " SELECT file_id, folder_id, file_name,"
+                                      " SELECT file_id, preview_image, folder_id, file_name,"
                                       "         lag(file_id,1) over (order by file_name) prev_id,"
                                       "         lag(file_id,-1) over (order by file_name) next_id "
                                       " FROM data "
-                                      "LIMIT {} OFFSET {}".format(no_items, offset),
+                                      "LIMIT {} OFFSET {}".format(settings.jpg_previews, no_items, offset),
                                       {'folder_id': folder_id})
             # for row in files_df:
             #     row['prev'] =
@@ -1082,20 +1083,28 @@ def dashboard(project_id):
                                                 "   f.folder_id = %(folder_id)s".format(fcheck),
                                                 {'file_check': fcheck, 'folder_id': folder_id}))
                     logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
+                                                             "  COALESCE(f.preview_image, '{}' || f.file_id) as preview_image "
+                                                             " FROM files f "
+                                                             "  where  "
+                                                             "   f.folder_id = %(folder_id)s".format(settings.jpg_previews),
+                                                             {'folder_id': folder_id}))
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
                 folder_files_df = folder_files_df.sort_values(by=filechecks_list)
+                folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
                 folder_files_df['file_name'] = '<a href="/file/' \
                                                + folder_files_df['file_id'].astype(str) + '/" title="File Details">' \
                                                + folder_files_df['file_name'].astype(str) \
                                                + '</a> ' \
                                                + '<button type="button" class="btn btn-light btn-sm" ' \
                                                  'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                                                 'data-bs-info="' + settings.jpg_previews + folder_files_df['file_id'].astype(str) \
+                                                 'data-bs-info="' + folder_files_df['preview_image'] \
                                                + '" title="Image Preview">' \
                                                     '<i class="fa-regular fa-image"></i></button>'
                 folder_files_df = folder_files_df.drop(['file_id'], axis=1)
+                folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
                 # Pagination
                 pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
                 no_pages = math.ceil(files_count / no_items)
@@ -1220,13 +1229,15 @@ def dashboard(project_id):
             project_stats['running_percent'] = round((int(project_running[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
         else:
             project_stats['running_percent'] = 0
-        print(project_stats)
         if current_user.is_authenticated:
             user_name = current_user.name
             is_admin = user_perms('', user_type='admin')
         else:
             user_name = ""
             is_admin = False
+        folder_links = query_database("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
+                                                           {'folder_id': folder_id})
+        logging.info("folder_links: {}".format(folder_links))
         return render_template('dashboard.html',
                            project_id=project_id,
                            project_info=project_info,
@@ -1256,8 +1267,9 @@ def dashboard(project_id):
                                                                index=False,
                                                                border=0,
                                                                escape=False,
-                                                               classes=["display", "compact", "table-striped"])]
-                               )
+                                                               classes=["display", "compact", "table-striped"])],
+                           folder_links=folder_links
+                           )
 
 
 @cache.memoize()
@@ -1280,9 +1292,9 @@ def file(file_id):
                                    " WHERE project_id = %(project_id)s",
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
-    file_details = query_database("WITH data AS (SELECT file_id, folder_id, file_name FROM files "
+    file_details = query_database("WITH data AS (SELECT file_id, preview_image, folder_id, file_name FROM files "
                               "WHERE folder_id = %(folder_id)s ORDER BY file_name),"
-                              "data2 AS (SELECT file_id, folder_id, file_name,"
+                              "data2 AS (SELECT file_id, preview_image, folder_id, file_name,"
                               "         lag(file_id,1) over (order by file_name) prev_id,"
                               "         lag(file_id,-1) over (order by file_name) next_id "
                               " FROM data)"
@@ -1299,6 +1311,9 @@ def file(file_id):
                                             " FROM files_exif WHERE file_id = %(file_id)s AND filetype ilike 'TIF' "
                                             " ORDER BY taggroup, tag ",
                          {'file_id': file_id}))
+    file_links = query_database("SELECT link_name, link_url "
+                                            " FROM files_links WHERE file_id = %(file_id)s ",
+                         {'file_id': file_id})
     if current_user.is_authenticated:
         user_name = current_user.name
         is_admin = user_perms('', user_type='admin')
@@ -1316,7 +1331,8 @@ def file(file_id):
                            project_alias=project_alias,
                            tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                            escape=False,
-                                                           classes=["display", "compact", "table-striped"])]
+                                                           classes=["display", "compact", "table-striped"])],
+                           file_links=file_links
                            )
 
 

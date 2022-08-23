@@ -63,18 +63,18 @@
                     <br />
 
                     <div class="form-floating mb-3">
-                        {{ form.username(class="form-control") }}
+                        {{ form.username(class="form-control", aria_label='Username') }}
                         <label for="floatingInput">Username</label>
                     </div>
                     <div class="form-floating mb-3">
-                        {{ form.password(class="form-control", type="password") }}
+                        {{ form.password(class="form-control", aria_label='Username', type="password") }}
                         <label for="floatingPassword">Password</label>
                     </div>
                     <br />
 
                     <p><strong>Do not</strong> use your SI login. This feature will be added in a future version.</p>
 
-                    <button class="w-100 btn btn-lg btn-primary" type="submit">Sign In</button>
+                    <button class="w-100 btn btn-lg btn-primary" type="submit", aria-label='Submit Form'>Sign In</button>
 
                 </form>
 

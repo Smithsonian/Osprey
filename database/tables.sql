@@ -156,19 +156,16 @@ ALTER TABLE folders_md5 ADD CONSTRAINT folderid_and_type UNIQUE (folder_id, md5_
 CREATE INDEX folders_md5_fid_idx ON folders_md5 USING BTREE(folder_id);
 
 
-
---files_to_dams
-DROP TABLE IF EXISTS files_to_dams CASCADE;
-CREATE TABLE files_to_dams (
+--folders_links
+DROP TABLE IF EXISTS folders_links CASCADE;
+CREATE TABLE folders_links (
     tableID         serial,
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    step_order      integer,
-    step            text,
-    notes           text,
+    folder_id       integer REFERENCES folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    link_text       text,
+    link_url        text,
     updated_at      timestamp with time zone DEFAULT NOW()
 );
-ALTER TABLE files_to_dams ADD CONSTRAINT fileid_and_step UNIQUE (file_id, step);
-CREATE INDEX files_to_dams_fid_idx ON files_to_dams USING BTREE(file_id);
+CREATE INDEX folders_links_fid_idx ON folders_links USING BTREE(folder_id);
 
 
 
@@ -186,6 +183,7 @@ CREATE TABLE files (
     file_timestamp     timestamp with time zone,
     item_no            text,
     dams_uan           text,
+    preview_image      text,
     created_at         timestamp with time zone DEFAULT NOW(),
     updated_at         timestamp with time zone DEFAULT NOW()
 );
@@ -197,6 +195,37 @@ CREATE TRIGGER trigger_updated_at_files
   BEFORE UPDATE ON files
   FOR EACH ROW
   EXECUTE PROCEDURE updated_at_files();
+
+
+
+  --files_to_dams
+  DROP TABLE IF EXISTS files_to_dams CASCADE;
+  CREATE TABLE files_to_dams (
+      tableID         serial,
+      file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+      step_order      integer,
+      step            text,
+      notes           text,
+      updated_at      timestamp with time zone DEFAULT NOW()
+  );
+  ALTER TABLE files_to_dams ADD CONSTRAINT fileid_and_step UNIQUE (file_id, step);
+  CREATE INDEX files_to_dams_fid_idx ON files_to_dams USING BTREE(file_id);
+
+
+
+--files_links
+DROP TABLE IF EXISTS files_links CASCADE;
+CREATE TABLE files_links (
+    tableID         serial,
+    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    link_name       text,
+    link_url        text,
+    link_notes      text,
+    updated_at      timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX files_links_fid_idx ON files_links USING BTREE(file_id);
+CREATE INDEX files_links_lnk_idx ON files_links USING BTREE(link_name);
+
 
 
 --file_md5

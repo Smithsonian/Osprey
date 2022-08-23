@@ -34,9 +34,20 @@
         <h4>{{ file_details.file_name }} Image Preview (JPG):</h4>
         <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
         <p><small>Click on the image to zoom in. Use the mousewheel to zoom in and out; press 'Esc' to close the image.</small><br>
-            <img src="{{ image_url }}" style="width:100%;" id="previmg">
+            <img src="{{ file_details.preview_image }}" style="width:100%;" id="previmg">
         </p>
-        <a><small><a href="{{ image_url }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>
+
+            <!-- File Links -->
+
+            <small>
+                <a><a href="{{ file_details.preview_image }}"><i class="fa-solid fa-download"></i> Download JPG</a>
+
+                {% for link in file_links %}
+                    <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
+                {% endfor %}
+
+            </small>
+        </p>
 
     </div>
 

@@ -111,7 +111,27 @@
         </nav>
         <div class="tab-content" id="nav-tabContent">
           <div class="tab-pane fade {% if tab == 0 %}show active{% endif %}" id="nav-list" role="tabpanel" aria-labelledby="nav-list-tab">
-               <br>
+
+                {% if folder_links | length > 0 %}
+
+                    <div class="pb-1 float-end">
+                        <div class="card text-bg-light border-dark">
+                            <div class="card-header">
+                                Links related to this folder
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for link in folder_links %}
+                                        <li class="list-group-item"><a href="{{ link.link_url }}" target="_blank" title="Link for {{ link.link_text }}" class="card-link">{{ link.link_text }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                {% endif %}
+
+                <br>
                 <h4>Files in the Folder: <strong>{{ folder_name.project_folder }}</strong></h4>
 
                 {% for table in tables %}
@@ -135,8 +155,8 @@
 
                 {% for file in files_df %}
                     <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
-                            data-bs-info="{{ jpg_previews }}{{ file.file_id }}" title="Image Preview">
-                      <img src="{{ jpg_previews }}{{ file.file_id }}&size=160" width="160px" style="padding: 10px;"><br>
+                            data-bs-info="{{ file.preview_image }}" title="Image Preview">
+                      <img src="{{ file.preview_image }}&max=160" width="160px" style="padding: 10px;"><br>
                         <small>{{ file.file_name }}</small>
                   </button>
 
@@ -363,7 +383,7 @@
               // Update the modal's content.
               var modalBody1 = previewmodal1.querySelector('.modal-body img')
 
-              modalBody1.src = checkinfo + '&size=1200';
+              modalBody1.src = checkinfo + '&max=1200';
             });
 
 
