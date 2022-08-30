@@ -50,18 +50,22 @@
 </head>
 <body>
 
-<div class="container">
+<div class="container-fluid">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
       <!-- Navbar content -->
         <div class="container-fluid">
             <a class="navbar-brand" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
-               <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText" aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-                  <span class="navbar-toggler-icon"></span>
-                </button>
+               <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+              </button>
                 <div class="collapse navbar-collapse" id="navbarText">
 
                 </div>
+
+
+        <div class="row">
+            <div class="col">
 
             {% if username %}
 
@@ -77,11 +81,22 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;">
+                          Login
+                        </a>
+                         |
                         <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a>
                     </small>
                 </div>
 
+
+
             {% endif %}
+
+            </div>
+
+            </div>
+
         </div>
     </nav>
 
@@ -92,10 +107,59 @@
 
 </div>
 
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="loginModalLabel">Log In to the System</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+
+        <form method="post" action="" class="p-4 p-md-4 border rounded-3 bg-light">
+
+        <h4>Login:</h4>
+
+        {{ form.hidden_tag() }}
+
+        <p class="fw-bold">
+            {% if msg %}
+                {{ msg | safe }}
+            {% endif %}
+        </p>
+
+        <br />
+
+        <div class="form-floating mb-3">
+            {{ form.username(class="form-control", aria_label='Username') }}
+            <label for="floatingInput">Username</label>
+        </div>
+        <div class="form-floating mb-3">
+            {{ form.password(class="form-control", aria_label='Username', type="password") }}
+            <label for="floatingPassword">Password</label>
+        </div>
+        <br />
+
+        <p><strong>Do not</strong> use your SI login. This feature will be added in a future version.</p>
+
+        <button class="w-100 btn btn-lg btn-primary" type="submit", aria-label='Submit Form'>Sign In</button>
+
+        </form>
+
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer class="page-footer font-small bg-secondary text-white pt-2" style="background: #3F4249!important;">
 <br>
   <!-- Footer Elements -->
-  <div class="container">
+  <div class="container-fluid">
       <div class="row">
         <div class="col">
             <a href="https://dpo.si.edu" target="_blank"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="DPO Logo"></a>

@@ -1,93 +1,133 @@
 {% extends "base.html" %}
 
-{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+{% block title %}DPO Collection Digitization Projects{% endblock %}
 
-{% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
+{% block page_title %}DPO Collection Digitization Projects{% endblock %}
 
 {% block content %}
 
-    <div class="row">
-        <div class="col-8">
-            {% if is_admin %}
-                <h3>Admin options:</h3>
-                <p>
-                    <a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>
-                    <a class="btn btn-info btn-sm disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
-                </p>
-                <hr>
-            {% endif %}
 
-            <h1>My Projects:</h1>
-        </div>
-        <div class="col">
-            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
-        </div>
-    </div>
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Summary</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#md" type="button" role="tab" aria-controls="md" aria-selected="false">Mass Digitization</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#is" type="button" role="tab" aria-controls="is" aria-selected="false">Imaging Services</button>
+  </li>
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#inf" type="button" role="tab" aria-controls="inf" aria-selected="false">Informatics</button>
+  </li>
+</ul>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
 
-    {% for project in project_list %}
-        <a id="{{ project.project_alias }}"></a>
-          <h2>{{ project.project_title }}
-                <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
-                {% if project.qc_status == 1 %}
-                    <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Run QC</a>
-                {% endif %}
-                {% if is_admin %}
-                    <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a>
-                {% endif %}
-          </h2>
-
-        <p>
-            <small><span class="badge bg-primary">{{ project.project_unit }}</span>
-                {% if project.project_start == project.project_end %}
-                    {{ project.project_start }}
-                {% elif project.project_end == None %}
-                    {{ project.project_start }} -
-                {% else %}
-                    {{ project.project_start }} - {{ project.project_end }}
-                {% endif %}
-            </small>
-        </p>
+        <br>
 
         <div class="row">
-
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-primary d-flex">{{ project.total }} Total Files</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Total number of files in project</p>
-                  </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ objects_digitized }}</h1>
+                        <h5>Specimens/Objects Digitized</h5>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-success d-flex">{{ project.ok }} Files OK</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that passed all the checks</p>
-                  </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ images_captured }}</h1>
+                        <h5>Images Captured</h5>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-danger d-flex">{{ project.errors }} Files with Errors</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that failed one or more checks</p>
-                  </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ digitization_projects }}</h1>
+                        <h5>Digitization Projects</h5>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-secondary d-flex">{{ project.running }} Running</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that are currently being checked</p>
-                  </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ active_projects }}</h1>
+                        <h5>Active Projects</h5>
+                    </div>
                 </div>
             </div>
         </div>
-
-            <br><br>
 
         <hr>
 
-      {% endfor %}
+        <div id="chart" class="chart" style="width: 100%;"></div>
+
+{#        <p><small>Data updated on: {{ timestamp }}</small></p>#}
+
+{#        <h2>Projects</h2>#}
+{##}
+{#            {% for table in tables %}#}
+{#                       {{ table|safe }}#}
+{#            {% endfor %}#}
+
+
+        <div class="row">
+
+            <div class="col-7">
+
+                <h4>Dashboard for each project:</h4>
+                    <ul>
+                        {% for project in projects %}
+                          <li>
+                              <a href="{{ url_for('dashboard', project_id=project.project_alias) }}">{{ project.project_title }}</a>
+                              <small>
+                                <span class="badge rounded-pill bg-primary">{{ project.project_unit }}</span>
+                                {% if project.project_start == project.project_end %}
+                                    ({{ project.project_start }})
+                                {% elif project.project_end == None %}
+                                    ({{ project.project_start }} - )
+                                {% else %}
+                                    ({{ project.project_start }} - {{ project.project_end }})
+                                {% endif %}
+                              </small>
+
+                          </li>
+                        {% endfor %}
+                    </ul>
+            </div>
+
+            <div class="col">
+                &nbsp;
+            </div>
+
+
+    </div>
+</div>
+    <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
+        <br><h2>Mass Digitization Projects</h2><p>Coming Soon...</p>
+    </div>
+    <div class="tab-pane fade" id="is" role="tabpanel" aria-labelledby="is-tab">
+        <br><h2>Imaging Services Projects</h2><p>Coming Soon...</p>
+    </div>
+    <div class="tab-pane fade" id="inf" role="tabpanel" aria-labelledby="inf-tab">
+        <br><h2>Informatics Projects</h2><p>Coming Soon...</p>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script type="text/javascript">
+        var graphs = {{graphJSON | safe}};
+        Plotly.plot('chart',graphs,{});
+    </script>
+
 
 {% endblock %}

@@ -55,46 +55,61 @@
 
 <div class="row">
     <div class="col-3" style="font-size: 0.9em;">
+
+        <!-- Search -->
+        <form action="{{ url_for('search', project_alias=project_alias) }}" method="GET">
+        <div class="row">
+            <div class="col-8">
+                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" placeholder="Search Files in the Project">
+            </div>
+            <div class="col">
+                <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
+            </div>
+        </div>
+
+        <hr>
+
         {#List of folders#}
-        <table class="table table-striped border">
-              <thead>
-                <tr>
-                  <th scope="col">Folders</th>
-                </tr>
-              </thead>
-            <tbody>
-                {% for folder in project_folders %}
-                <tr>
-                    <td>
-                        {% if folder.project_folder == folder_name.project_folder %}
-                            <strong><a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a></strong>
-                        {% else %}
-                            <a href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
+        <div style="overflow-y: auto; height: 1200px;">
+            <table class="table table-striped border">
+                  <thead>
+                    <tr>
+                      <th scope="col">Folders</th>
+                    </tr>
+                  </thead>
+                <tbody>
+                    {% for folder in project_folders %}
+                    <tr>
+                        <td>
+                            {% if folder.project_folder == folder_name.project_folder %}
+                                <strong><a href="{{ url_for('dashboard', project_id=project_alias) }}?folder_id={{ folder.folder_id }}">{{ folder.project_folder }}</a></strong>
+                            {% else %}
+                                <a href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
+                            {% endif %}
+                            <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
+                        {% if folder.file_errors == 1 %}
+                            <span class="badge bg-danger">Files with errors</span>
                         {% endif %}
-                        <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
-                    {% if folder.file_errors == 1 %}
-                        <span class="badge bg-danger">Files with errors</span>
-                    {% endif %}
-                    {% if folder.qc_status == "QC Pending" %}
-                        <span class="badge bg-secondary">QC Pending</span>
-                    {% elif folder.qc_status == "QC Passed" %}
-                        <span class="badge bg-success">QC Passed</span>
-                    {% elif folder.qc_status == "QC Failed" %}
-                        <span class="badge bg-danger">QC Failed</span>
-                    {% endif %}
+                        {% if folder.qc_status == "QC Pending" %}
+                            <span class="badge bg-secondary">QC Pending</span>
+                        {% elif folder.qc_status == "QC Passed" %}
+                            <span class="badge bg-success">QC Passed</span>
+                        {% elif folder.qc_status == "QC Failed" %}
+                            <span class="badge bg-danger">QC Failed</span>
+                        {% endif %}
 
-                    {% if folder.delivered_to_dams == 1 %}
-                        <span class="badge bg-success">Delivered to DAMS</span>
-                    {% elif folder.delivered_to_dams == 0 %}
-                        <span class="badge bg-secondary">Ready for DAMS </span>
-                    {% endif %}
+                        {% if folder.delivered_to_dams == 1 %}
+                            <span class="badge bg-success">Delivered to DAMS</span>
+                        {% elif folder.delivered_to_dams == 0 %}
+                            <span class="badge bg-secondary">Ready for DAMS </span>
+                        {% endif %}
 
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="col" style="font-size: 0.9em;">

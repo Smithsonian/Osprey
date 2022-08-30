@@ -40,6 +40,11 @@
     </div>
     <div class="col">
         <div class="mb-3">
+            <label for="p_unitstaff" class="form-label">Unit Staff<br>
+            <small>(Who will have access to QC the project? Comma-separated SI usernames, without the @si.edu part.)</small></label>
+            <input class="form-control" type="text" name="p_unitstaff" id="p_unitstaff">
+        </div>
+        <div class="mb-3">
             <label for="p_manager" class="form-label">Project Manager</label>
             <input class="form-control" type="text" name="p_manager" id="p_manager" readonly value="{{ full_name }}">
         </div>
@@ -107,8 +112,8 @@
 
         <div class="mb-3">
             <label for="p_storage" class="form-label">Location to pick the files from <span class="text-danger">*</span><br>
-                <small>(If the MassDigi Share, use /mnt/MassDigi/from_vendors/[project_alias]/)</small></label>
-            <input type="text" class="form-control" id="p_storage" name="p_storage" aria-label="Location to pick the files from" placeholder="example: /mnt/MassDigi/from_vendors/" required>
+                <small>(If the MassDigi Share, use /mnt/MassDigi/from_vendors/[project_alias]/; if unknown, use the default value)</small></label>
+            <input type="text" class="form-control" id="p_storage" name="p_storage" aria-label="Location to pick the files from" value="/mnt/MassDigi/from_vendors/" required>
         </div>
         <div class="mb-3">
             <label for="p_start" class="form-label">Start date (YYYY-MM-DD) <span class="text-danger">*</span><br><small>(Default: today)</small></label>

@@ -190,6 +190,8 @@ CREATE TABLE files (
 ALTER TABLE files ADD CONSTRAINT files_constr UNIQUE (file_name, folder_id);
 CREATE INDEX files_fileid_idx ON files USING BTREE(file_id);
 CREATE INDEX files_folderid_idx ON files USING BTREE(folder_id);
+CREATE INDEX files_uan_idx ON files USING BTREE(dams_uan);
+
 
 CREATE TRIGGER trigger_updated_at_files
   BEFORE UPDATE ON files
@@ -259,7 +261,6 @@ CREATE INDEX files_exif_filetype_idx ON files_exif USING BTREE(filetype);
 CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
 CREATE INDEX files_exif_tagid_idx ON files_exif USING BTREE(tagid);
 CREATE INDEX files_exif_taggroup_idx ON files_exif USING BTREE(taggroup);
-
 
 
 --files_size

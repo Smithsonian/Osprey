@@ -21,6 +21,7 @@ import locale
 import os
 import math
 import pandas as pd
+import json
 
 import psycopg2
 import psycopg2.extras
@@ -38,6 +39,10 @@ from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired
 
 from datetime import datetime
+
+# Plotly
+import plotly
+import plotly.express as px
 
 import settings
 
@@ -238,7 +243,7 @@ def load_user(username):
 # System routes
 ###################################
 @cache.memoize()
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'POST'])
 def login():
     """Main homepage for the system"""
     if current_user.is_authenticated:
@@ -280,25 +285,129 @@ def login():
                               "     project_unit "
                               " FROM projects where project_alias is not null "
                               " ORDER BY projects_order DESC")
-    return render_template('login.html',
+
+    # df = pd.DataFrame(query_database("with d as "
+    #                                  "(select folder_id, to_char(date, 'YYYY-MM') as date from folders group by folder_id, date), "
+    #                                  " data as ("
+    #                                  " select "
+    #                                  " count(*) as no_images, d.date "
+    #                                  " from "
+    #                                  "   files, d "
+    #                                  " where files.folder_id = d.folder_id"
+    #                                  " group by d.date)"
+    #                                  " select date, "
+    #                                  "  sum(no_images) over (order by date asc rows between unbounded preceding and current row) as no_images "
+    #                                  " from data "
+    #                                  " order by date "
+    #                                  ))
+    df = pd.DataFrame(query_database("with d as ("
+                                        "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
+                                    "select "
+                                          " date, 'Images' as itype, "
+                                          " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
+                                        " from d "
+                                        " union "
+                                        " select date,"
+                                          "'Objects' as itype,"
+                                          "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
+                                        " from d "
+                                        " order by date "
+                                     ))
+    fig = px.line(df, x="date", y="no_images", color='itype',
+                  labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
+                  markers=True)
+
+    fig.update_layout(legend=dict(
+        yanchor="top",
+        y=0.99,
+        xanchor="left",
+        x=0.01
+    ))
+
+    fig.update_layout(height=580)
+
+    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+    objects_digitized = "{:,}".format(query_database("SELECT SUM(objects_digitized) as total from projects_stats_detail where time_interval ='monthly' AND project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
+    images_captured = "{:,}".format(query_database("SELECT SUM(images_captured) as total from projects_stats_detail where time_interval ='monthly' AND project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
+    #digitization_projects = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True")[0]['total'])
+    digitization_projects = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True")[0]['total'])
+    active_projects = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True AND project_status='Ongoing'")[0]['total'])
+
+    list_projects = pd.DataFrame(query_database("SELECT " 
+                                   " p.project_unit, p.project_title, p.project_status, p.project_description, "
+                                   " p.project_manager, to_char(p.project_start, 'DD Mon YYYY') || ' to ' || "
+                                   " CASE WHEN p.project_end IS NULL THEN ''::text ELSE to_char(p.project_end, 'DD Mon YYYY') END as project_dates, "
+                                   " coalesce(ps.objects_digitized, 0)::int as objects_digitized, "
+                                   " p.images_estimated, p.objects_estimated, "
+                                                " coalesce(ps.images_taken, 0)::int || CASE WHEN p.images_estimated = True THEN '*' END as images_taken "
+                                   " FROM projects p, projects_stats ps"
+                                 " WHERE p.project_id = ps.project_id"
+                                   " GROUP BY "
+                                   "        p.project_id, p.project_title, p.project_unit, p.project_acronym, p.project_status, p.project_description, "
+                                   "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
+                                   "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized"
+                                   " ORDER BY p.projects_order DESC"))
+    list_projects = list_projects.rename(columns={
+                "project_unit": "Unit",
+                "project_title": "Title",
+                "project_status": "Status",
+                "project_description": "Description",
+                "project_manager": "Manager",
+                "project_dates": "Date",
+                "objects_digitized": "Objects Digitized",
+                "images_taken": "Images Captured"
+    })
+
+    #timestamp = datetime.today().strftime('%d %b %Y at %H:%M %p')
+
+    return render_template('home.html',
                            projects=projects,
                            form=form,
                            msg=msg,
                            user_exists=user_exists,
-                           username=username)
+                           username=username,
+                           graphJSON=graphJSON,
+                           objects_digitized=objects_digitized,
+                           images_captured=images_captured,
+                           digitization_projects=digitization_projects,
+                           active_projects=active_projects,
+                           tables=[list_projects.to_html(table_id='list_projects', index=False,
+                                                border=0, escape=False,
+                                                classes=["display", "compact", "table-striped"])])
 
 
 @cache.memoize()
 @app.route('/about/', methods=['GET'], strict_slashes=False)
 def about_system():
     """About page for the system"""
-    return render_template('about.html', site_ver=site_ver)
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+    return render_template('about.html', site_ver=site_ver,
+                           form=form)
 
 
 @app.route('/qc_process/<folder_id>/', methods=['GET'], strict_slashes=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     username = current_user.name
     project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p, folders f "
                                    "    WHERE u.username = %(username)s "
@@ -472,7 +581,8 @@ def qc_process(folder_id):
                                        tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                                      escape=False,
                                                                      classes=["display", "compact", "table-striped"])],
-                                       msg=msg
+                                       msg=msg,
+                                       form=form
                                        )
             else:
                 error_files = query_database("SELECT f.file_name, q.* FROM qc_files q, files f "
@@ -485,17 +595,17 @@ def qc_process(folder_id):
                                        qc_stats=qc_stats,
                                        project_settings=project_settings,
                                        username=username,
-                                       error_files=error_files)
+                                       error_files=error_files,
+                                       form=form)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', error_msg=error_msg), 400
+        return render_template('error.html', error_msg=error_msg, form=form), 400
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
 @login_required
 def qc_done(folder_id):
     """Run QC on a folder"""
-    #folder_id = request.values.get('folder_id')
     username = current_user.name
     project_admin = query_database("SELECT count(*) as no_results "
                                    "    FROM qc_users u, qc_projects p, folders f "
@@ -534,6 +644,15 @@ def qc_done(folder_id):
 @app.route('/qc/<project_id>/', methods=['POST', 'GET'], strict_slashes=False)
 @login_required
 def qc(project_id):
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
     """List the folders and QC status"""
     username = current_user.name
     project_admin = query_database("SELECT count(*) as no_results "
@@ -598,13 +717,24 @@ def qc(project_id):
                                username=username,
                                project_settings=project_settings,
                                folder_qc_info=folder_qc_info,
-                               project=project)
+                               project=project,
+                               form=form)
 
 
 @app.route('/home/', methods=['GET'], strict_slashes=False)
 @login_required
 def home():
     """Home for user, listing projects and options"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
     logging.info(is_admin)
@@ -685,14 +815,24 @@ def home():
                 'qc_status': project['qc_status'],
                 'project_unit': project['project_unit']
             })
-    return render_template('home.html', project_list=project_list, username=user_name,
-                           is_admin=is_admin, ip_addr=ip_addr)
+    return render_template('userhome.html', project_list=project_list, username=user_name,
+                           is_admin=is_admin, ip_addr=ip_addr, form=form)
 
 
 @app.route('/new_project/', methods=['GET'], strict_slashes=False)
 @login_required
 def new_project(msg=None):
     """Create a new project"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     username = current_user.name
     full_name = current_user.full_name
     is_admin = user_perms('', user_type='admin')
@@ -706,7 +846,8 @@ def new_project(msg=None):
                                full_name=full_name,
                                is_admin=is_admin,
                                msg=msg,
-                               today_date=datetime.today().strftime('%Y-%m-%d'))
+                               today_date=datetime.today().strftime('%Y-%m-%d'),
+                               form=form)
 
 
 @app.route('/create_new_project/', methods=['POST'], strict_slashes=False)
@@ -732,6 +873,7 @@ def create_new_project():
     p_area = request.values.get('p_area')
     p_storage = request.values.get('p_storage')
     p_start = request.values.get('p_start')
+    p_unitstaff = request.values.get('p_unitstaff')
     project = query_database("INSERT INTO projects  " 
                               "   (project_title, "
                                "    project_unit, "
@@ -796,6 +938,15 @@ def create_new_project():
                                "    (%(project_id)s, %(user_id)s) RETURNING id",
                                {'project_id': project_id,
                                 'user_id': current_user.id})
+    unitstaff = p_unitstaff.split(',')
+    for staff in unitstaff:
+        staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+                             {'username': staff.strip()})
+        if staff_user_id is not None:
+            user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                        "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                        {'project_id': project_id,
+                                         'user_id': staff_user_id})
     return redirect(url_for('home', _anchor=p_alias))
 
 
@@ -803,6 +954,16 @@ def create_new_project():
 @login_required
 def edit_project(project_id):
     """Edit a project"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
     if is_admin == False:
@@ -836,7 +997,8 @@ def edit_project(project_id):
     return render_template('edit_project.html',
                                username=username,
                                is_admin=is_admin,
-                               project=project)
+                               project=project,
+                               form=form)
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
@@ -912,6 +1074,16 @@ def project_update(project_alias):
 @app.route('/dashboard/<project_id>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
 def dashboard_f(project_id=None, folder_id=None):
     """Dashboard for a project"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     tab = request.values.get('tab')
     if tab is None or tab == '':
         tab = 0
@@ -921,6 +1093,7 @@ def dashboard_f(project_id=None, folder_id=None):
         except:
             error_msg = "Invalid tab ID."
             return render_template('error.html', error_msg=error_msg), 400
+    logging.info("tab: {}".format(tab))
     page = request.values.get('page')
     if page is None or page == '':
         page = 1
@@ -930,6 +1103,7 @@ def dashboard_f(project_id=None, folder_id=None):
         except:
             error_msg = "Invalid page number."
             return render_template('error.html', error_msg=error_msg), 400
+    logging.info("page: {}".format(page))
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
@@ -1104,14 +1278,13 @@ def dashboard_f(project_id=None, folder_id=None):
                                                         "tabindex=\"-1\" aria-disabled=\"true\">Previous</a></li>"
                 else:
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                        "href=\"" + url_for('dashboard', project_id=project_alias) \
-                                                        + "?folder_id=" + folder_id + "&tab=1&page={}\">Previous</a></li>".format(page - 1)
+                                                        "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                        + "?tab=1&page={}\">Previous</a></li>".format(page - 1)
                 # Ellipsis for first pages
                 if page > 5:
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                        + "href=\"" + url_for('dashboard', project_id=project_alias) \
-                                                        + "?folder_id=" + str(folder_id) \
-                                                        + "&tab=1&page=1\">1</a></li>"
+                                                        + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                        + "?tab=1&page=1\">1</a></li>"
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                         "href=\"#\">...</a></li>"
                 for i in range(1, no_pages + 1):
@@ -1122,16 +1295,15 @@ def dashboard_f(project_id=None, folder_id=None):
                             pagination_html = pagination_html + "<li class=\"page-item\">"
                         pagination_html = pagination_html + "<a class=\"page-link\" " \
                                                             + "href=\"" \
-                                                            + url_for('dashboard', project_id=project_alias) \
-                                                            + "?folder_id=" + folder_id + "&tab=1&page={}\">{}</a>".format(i, i) \
+                                                            + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                            + "?tab=1&page={}\">{}</a>".format(i, i) \
                                                             + "</li>"
                 if (no_pages - page) > 4:
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                         "href=\"#\">...</a></li>"
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                      + "href=\"" + url_for('dashboard', project_id=project_alias) \
-                                      + "?folder_id=" + str(folder_id) \
-                                      + "&tab=1&page={last}\">{last}</a></li>".format(last=(no_pages - 1))
+                                      + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                      + "?tab=1&page={last}\">{last}</a></li>".format(last=(no_pages))
                 if page == no_pages:
                     pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                         "href=\"#\">Next</a></li>"
@@ -1141,8 +1313,8 @@ def dashboard_f(project_id=None, folder_id=None):
                                                             "href=\"#\">Next</a></li>"
                     else:
                         pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                        + "href=\"" + url_for('dashboard', project_id=project_alias) \
-                                                        + "?folder_id=" + folder_id + "&tab=1&page={}\">".format(page + 1) \
+                                                        + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                        + "?tab=1&page={}\">".format(page + 1) \
                                                         + "Next</a></li>"
                 pagination_html = pagination_html + "</ul></nav>"
                 folder_qc_check = query_database("SELECT "
@@ -1258,7 +1430,8 @@ def dashboard_f(project_id=None, folder_id=None):
                                                                border=0,
                                                                escape=False,
                                                                classes=["display", "compact", "table-striped"])],
-                           folder_links=folder_links
+                           folder_links=folder_links,
+                           form=form
                            )
 
 
@@ -1266,6 +1439,16 @@ def dashboard_f(project_id=None, folder_id=None):
 @app.route('/dashboard/<project_id>/', methods=['GET'], strict_slashes=False)
 def dashboard(project_id):
     """Dashboard for a project"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
@@ -1381,9 +1564,11 @@ def dashboard(project_id):
         else:
             user_name = ""
             is_admin = False
-        folder_links = query_database("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
-                                                           {'folder_id': folder_id})
-        logging.info("folder_links: {}".format(folder_links))
+        folder_links = None
+        folder_id = None
+        tab = None
+        folder_name = None
+        folder_qc = None
         return render_template('dashboard.html',
                            project_id=project_id,
                            project_info=project_info,
@@ -1414,7 +1599,8 @@ def dashboard(project_id):
                                                                border=0,
                                                                escape=False,
                                                                classes=["display", "compact", "table-striped"])],
-                           folder_links=folder_links
+                           folder_links=folder_links,
+                           form=form
                            )
 
 
@@ -1422,6 +1608,16 @@ def dashboard(project_id):
 @app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False)
 def file(file_id):
     """File details"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     if file_id is None:
         error_msg = "File ID is missing."
         return render_template('error.html', error_msg=error_msg), 400
@@ -1475,7 +1671,8 @@ def file(file_id):
                            tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped"])],
-                           file_links=file_links
+                           file_links=file_links,
+                           form=form
                            )
 
 
@@ -1501,6 +1698,72 @@ def file_json(file_id):
                                             " FROM file_checks WHERE file_id = %(file_id)s",
                          {'file_id': file_id})
     return jsonify({"data": file_checks})
+
+
+@cache.memoize()
+@app.route('/dashboard/<project_alias>/search', methods=['GET'], strict_slashes=False)
+def search(project_alias):
+    """Search files"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    q = request.values.get('q')
+    metadata = request.values.get('metadata')
+    page = request.values.get('page')
+    if page is None:
+        page = 0
+    offset = page * 50
+    project_info = query_database("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
+                                  {'project_alias': project_alias})[0]
+    if q is None:
+        error_msg = "No search query was submitted."
+        return render_template('error.html', error_msg=error_msg), 400
+    else:
+        logging.info("q: {}".format(q))
+        logging.info("metadata: {}".format(metadata))
+        logging.info("offset: {}".format(offset))
+        if metadata is None or metadata == '0':
+            results = query_database("SELECT "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, '{}' || file_id) as preview_image, fd.project_folder "
+                                     " FROM files f, folders fd, projects p "
+                                     " WHERE f.folder_id = fd.folder_id AND "
+                                     "  f.file_name ILIKE '%%{}%%' AND "
+                                     "  fd.project_id = p.project_id AND "
+                                     "  p.project_alias = %(project_alias)s "
+                                     " ORDER BY f.file_name"
+                                     " LIMIT 50 "
+                                     " OFFSET {} ".format(settings.jpg_previews, q, offset),
+                         {'project_alias': project_alias})
+        else:
+            results = query_database("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
+                                     "              FROM files_exif "
+                                     "              WHERE value ILIKE '%%{}%%')"
+                                     "SELECT "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, '{}' || file_id) as preview_image, fd.project_folder "
+                                     " FROM files f, m, folders fd, projects p "
+                                     " WHERE f.folder_id = fd.folder_id AND "
+                                     "  f.file_name ILIKE '%%{}%%' AND "
+                                     "  f.file_id = m.file_id AND "
+                                     "  fd.project_id = p.project_id AND "
+                                     "  p.project_alias = %(project_alias)s "
+                                     "  GROUP BY f.file_id, f.folder_id, f.file_name, f.preview_image, fd.project_folder "
+                                     " ORDER BY f.file_name"
+                                     " LIMIT 50 "
+                                     " OFFSET {} ".format(q, settings.jpg_previews, q, offset),
+                                     {'project_alias': project_alias})
+    return render_template('search.html',
+                           results=results,
+                           project_info=project_info,
+                           project_alias=project_alias,
+                           q=q,
+                           form=form)
 
 
 @app.route("/logout", methods=['GET'], strict_slashes=False)
