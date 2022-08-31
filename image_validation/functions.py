@@ -434,7 +434,8 @@ def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for image files
     """
-    logger.info("filename: {}".format(filename))
+    logger.info("filename: {}/{}".format(folder_path, filename))
+    main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
     filename_suffix = Path(filename).suffix[1:]
@@ -449,7 +450,7 @@ def process_image(filename, folder_path, folder_id, logger):
     logger.debug(db_cursor.query.decode("utf-8"))
     if file_id is None:
         # Get modified date for file
-        file_timestamp_float = os.path.getmtime("{}/{}/{}".format(folder_path, settings.main_files_path, filename))
+        file_timestamp_float = os.path.getmtime(main_file_path)
         file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
         db_cursor.execute(queries.insert_file,
                           {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
@@ -480,7 +481,7 @@ def process_image(filename, folder_path, folder_id, logger):
         logger.debug(db_cursor.query.decode("utf-8"))
         file_checks = file_checks + 1
     # Get filesize from TIF:
-    file_size = os.path.getsize("{}/{}/{}".format(folder_path, settings.main_files_path, filename))
+    file_size = os.path.getsize(main_file_path)
     db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
         file_size})
     logger.debug(db_cursor.query.decode("utf-8"))
