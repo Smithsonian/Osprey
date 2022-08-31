@@ -629,13 +629,13 @@ def process_image(filename, folder_path, folder_id, logger):
             conn.close()
             return True
         # Generate jpg preview, if needed
-        jpg_prev = jpgpreview(file_id, folder_id, filename, logger)
+        jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
         # Compare MD5 between source and copy
         db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
         logger.debug(db_cursor.query.decode("utf-8"))
         result = db_cursor.fetchone()
         if result is None:
-            file_md5 = filemd5(filename)
+            file_md5 = filemd5(main_file_path)
             db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
             logger.debug(db_cursor.query.decode("utf-8"))
         if 'jhove' in settings.project_file_checks:
@@ -651,7 +651,7 @@ def process_image(filename, folder_path, folder_id, logger):
             result = db_cursor.fetchone()[0]
             if result != 0:
                 # Imagemagick check
-                magick_validate(file_id, filename, db_cursor)
+                magick_validate(file_id, main_file_path, db_cursor)
         if 'stitched_jpg' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
             logger.debug(db_cursor.query.decode("utf-8"))
@@ -668,20 +668,20 @@ def process_image(filename, folder_path, folder_id, logger):
             result = db_cursor.fetchone()[0]
             if result != 0:
                 # check if tif has multiple pages
-                tifpages(file_id, filename, db_cursor)
+                tifpages(file_id, main_file_path, db_cursor)
         if 'tif_compression' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
             if result != 0:
                 # check if tif is compressed
-                tif_compression(file_id, filename, db_cursor)
+                tif_compression(file_id, main_file_path, db_cursor)
         # Get exif from TIF
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
         logger.debug(db_cursor.query.decode("utf-8"))
         check_exif = db_cursor.fetchone()[0]
         if check_exif == 0:
-            file_exif(file_id, filename, filename_suffix.lower(), db_cursor)
+            file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor)
         # Get exif from RAW
         db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
         logger.debug(db_cursor.query.decode("utf-8"))
