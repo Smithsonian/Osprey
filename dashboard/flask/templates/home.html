@@ -30,7 +30,7 @@
             <div class="col-sm-3">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
-                        <h1>{{ objects_digitized }}</h1>
+                        <h1>{{ summary_stats.objects_digitized }}</h1>
                         <h5>Specimens/Objects Digitized</h5>
                     </div>
                 </div>
@@ -38,7 +38,7 @@
             <div class="col-sm-3">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
-                        <h1>{{ images_captured }}</h1>
+                        <h1>{{ summary_stats.images_captured }}</h1>
                         <h5>Images Captured</h5>
                     </div>
                 </div>
@@ -46,7 +46,7 @@
             <div class="col-sm-3">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
-                        <h1>{{ digitization_projects }}</h1>
+                        <h1>{{ summary_stats.digitization_projects }}</h1>
                         <h5>Digitization Projects</h5>
                     </div>
                 </div>
@@ -54,7 +54,125 @@
             <div class="col-sm-3">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
-                        <h1>{{ active_projects }}</h1>
+                        <h1>{{ summary_stats.active_projects }}</h1>
+                        <h5>Active Projects</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div id="chart_summary" class="chart w-100"></div>
+            </div>
+        </div>
+
+        <br>
+
+        <p>Select one of the tabs at the top to see the specific projects of each team.</p>
+
+</div>
+    <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
+
+        <div class="row">
+            <div class="col">
+                <br>
+
+                <h2>Mass Digitization Projects</h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ md_stats.objects_digitized }}</h1>
+                        <h5>Specimens/Objects Digitized</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ md_stats.images_captured }}</h1>
+                        <h5>Images Captured</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ md_stats.digitization_projects }}</h1>
+                        <h5>Digitization Projects</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ md_stats.active_projects }}</h1>
+                        <h5>Active Projects</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+
+                <h2>List of projects</h2>
+
+                    {% for table in tables_md %}
+                               {{ table|safe }}
+                    {% endfor %}
+
+                <small>* Value was estimated</small>
+                <br>
+                <div id="chart_summary" class="chart w-100"></div>
+            </div>
+        </div>
+
+
+    </div>
+    <div class="tab-pane fade" id="is" role="tabpanel" aria-labelledby="is-tab">
+
+         <div class="row">
+            <div class="col">
+                <br>
+
+                <h2>Imaging Services Projects</h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ is_stats.objects_digitized }}</h1>
+                        <h5>Specimens/Objects Digitized</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ is_stats.images_captured }}</h1>
+                        <h5>Images Captured</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ is_stats.digitization_projects }}</h1>
+                        <h5>Digitization Projects</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ is_stats.active_projects }}</h1>
                         <h5>Active Projects</h5>
                     </div>
                 </div>
@@ -63,57 +181,20 @@
 
         <hr>
 
-        <div id="chart" class="chart" style="width: 100%;"></div>
+        <h2>List of projects</h2>
 
-{#        <p><small>Data updated on: {{ timestamp }}</small></p>#}
-
-{#        <h2>Projects</h2>#}
-{##}
-{#            {% for table in tables %}#}
-{#                       {{ table|safe }}#}
-{#            {% endfor %}#}
+            {% for table in tables_is %}
+                       {{ table|safe }}
+            {% endfor %}
 
 
-        <div class="row">
-
-            <div class="col-7">
-
-                <h4>Dashboard for each project:</h4>
-                    <ul>
-                        {% for project in projects %}
-                          <li>
-                              <a href="{{ url_for('dashboard', project_id=project.project_alias) }}">{{ project.project_title }}</a>
-                              <small>
-                                <span class="badge rounded-pill bg-primary">{{ project.project_unit }}</span>
-                                {% if project.project_start == project.project_end %}
-                                    ({{ project.project_start }})
-                                {% elif project.project_end == None %}
-                                    ({{ project.project_start }} - )
-                                {% else %}
-                                    ({{ project.project_start }} - {{ project.project_end }})
-                                {% endif %}
-                              </small>
-
-                          </li>
-                        {% endfor %}
-                    </ul>
-            </div>
-
-            <div class="col">
-                &nbsp;
-            </div>
-
-
-    </div>
-</div>
-    <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
-        <br><h2>Mass Digitization Projects</h2><p>Coming Soon...</p>
-    </div>
-    <div class="tab-pane fade" id="is" role="tabpanel" aria-labelledby="is-tab">
-        <br><h2>Imaging Services Projects</h2><p>Coming Soon...</p>
     </div>
     <div class="tab-pane fade" id="inf" role="tabpanel" aria-labelledby="inf-tab">
-        <br><h2>Informatics Projects</h2><p>Coming Soon...</p>
+
+        <br>
+
+        <h2>Informatics Projects</h2><p>Coming Soon...</p>
+
     </div>
 </div>
 
@@ -125,9 +206,41 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
     <script type="text/javascript">
-        var graphs = {{graphJSON | safe}};
-        Plotly.plot('chart',graphs,{});
+        var graph_s = {{graphJSON_summary | safe}};
+        Plotly.newPlot('chart_summary',graph_s,{});
+
+        var graph_md = {{graphJSON_md | safe}};
+        Plotly.newPlot('chart_md',graph_md,{});
+
+        var graph_is = {{graphJSON_is | safe}};
+        Plotly.newPlot('chart_is',graph_is,{});
     </script>
 
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            var table1 = $('#list_projects_md').DataTable({
+                "pageLength": 20,
+                order: [[0, 'desc']],
+                "ordering": false,
+                "searching": false,
+                "lengthChange": false
+            });
+
+            table1.column( 0 ).visible( false );
+
+            var table2 = $('#list_projects_is').DataTable({
+                "pageLength": 20,
+                order: [[0, 'desc']],
+                "ordering": false,
+                "searching": false,
+                "lengthChange": false
+            });
+
+            table2.column( 0 ).visible( false );
+
+        });
+    </script>
 
 {% endblock %}
