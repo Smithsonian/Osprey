@@ -413,34 +413,17 @@ def update_folder_stats(folder_id, folder_path, db_cursor, logger):
             f_errors = 0
     db_cursor.execute(queries.update_folder_errors, {'folder_id': folder_id, 'f_errors': f_errors})
     logger.debug(db_cursor.query.decode("utf-8"))
-    # MD5 files
-    #if 'md5_hash' in settings.project_file_checks:
-    #    folder_tif_md5 = None
-    #    folder_raw_md5 = None
     if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
         md5_exists = 0
-        # db_cursor.execute(queries.update_folders_md5,
-        #                   {'folder_id': folder_id, 'filetype': 'tif', 'md5': 0})
-        # folder_tif_md5 = True
-        # logger.debug(db_cursor.query.decode("utf-8"))
     else:
         md5_exists = 1
     db_cursor.execute(queries.update_folders_md5,
                       {'folder_id': folder_id, 'filetype': 'tif', 'md5': md5_exists})
-    #folder_tif_md5 = False
     logger.debug(db_cursor.query.decode("utf-8"))
     if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
         md5_raw_exists = 0
-        # db_cursor.execute(queries.update_folders_md5,
-        #                   {'folder_id': folder_id, 'filetype': 'raw', 'md5': 0})
-        # folder_raw_md5 = True
-        # logger.debug(db_cursor.query.decode("utf-8"))
     else:
         md5_raw_exists = 1
-        # db_cursor.execute(queries.update_folders_md5,
-        #                   {'folder_id': folder_id, 'filetype': 'raw', 'md5': 1})
-        # folder_raw_md5 = False
-        # logger.debug(db_cursor.query.decode("utf-8"))
     db_cursor.execute(queries.update_folders_md5,
                       {'folder_id': folder_id, 'filetype': 'raw', 'md5': md5_raw_exists})
     logger.debug(db_cursor.query.decode("utf-8"))
@@ -451,6 +434,7 @@ def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for image files
     """
+    logger.info("filename: {}".format(filename))
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
     filename_suffix = Path(filename).suffix[1:]
@@ -471,7 +455,6 @@ def process_image(filename, folder_path, folder_id, logger):
                           {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
         logger.debug(db_cursor.query.decode("utf-8"))
         file_id = db_cursor.fetchone()[0]
-        logger.debug(db_cursor.query.decode("utf-8"))
     else:
         file_id = file_id[0]
     # Check if file is OK
@@ -501,19 +484,16 @@ def process_image(filename, folder_path, folder_id, logger):
     db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
         file_size})
     logger.debug(db_cursor.query.decode("utf-8"))
-    logger.debug(db_cursor.query.decode("utf-8"))
     # Get exif from TIF
     db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
     logger.debug(db_cursor.query.decode("utf-8"))
     check_exif = db_cursor.fetchone()[0]
-    logger.debug(db_cursor.query.decode("utf-8"))
     if check_exif == 0:
         file_checks = file_checks + 1
     # Check if MD5 is stored
     db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix.lower()})
     logger.debug(db_cursor.query.decode("utf-8"))
     result = db_cursor.fetchone()
-    logger.debug(db_cursor.query.decode("utf-8"))
     if result is None:
         file_checks = file_checks + 1
     if file_checks == 0:
@@ -527,14 +507,12 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 # FilePair check
                 pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
                                              'raw_pair', db_cursor)
                 file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check))
                 db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
-                logger.debug(db_cursor.query.decode("utf-8"))
                 logger.debug(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if file_checks == 0:
@@ -545,7 +523,6 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 # valid name in file
                 valid_name(file_id, filename_stem, db_cursor)
@@ -558,20 +535,17 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 # Check in project
                 db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
                                                          'project_id': settings.project_id, 'file_id': file_id})
                 logger.debug(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
-                logger.debug(db_cursor.query.decode("utf-8"))
                 if len(result) == 0:
                     unique_file = 0
                     db_cursor.execute(queries.file_check,
                                       {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
                                        'check_info': ""})
-                    logger.debug(db_cursor.query.decode("utf-8"))
                     logger.debug(db_cursor.query.decode("utf-8"))
                     file_checks = file_checks - 1
                 else:
@@ -580,7 +554,6 @@ def process_image(filename, folder_path, folder_id, logger):
                         db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
                         logger.debug(db_cursor.query.decode("utf-8"))
                         folder_dupe = db_cursor.fetchone()
-                        logger.debug(db_cursor.query.decode("utf-8"))
                         db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
                                                                'check_results': unique_file,
                                                                'check_info': "File with same name in {}".format(
@@ -594,12 +567,10 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'project_id': settings.project_id})
                 logger.debug(db_cursor.query.decode("utf-8"))
                 result = db_cursor.fetchall()
-                logger.debug(db_cursor.query.decode("utf-8"))
                 folders = ""
                 if len(result) == 0:
                     old_name = 0
@@ -610,7 +581,6 @@ def process_image(filename, folder_path, folder_id, logger):
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
                                    'check_info': folders})
-                logger.debug(db_cursor.query.decode("utf-8"))
                 logger.debug(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if 'prefix' in settings.project_file_checks:
@@ -631,7 +601,6 @@ def process_image(filename, folder_path, folder_id, logger):
                 db_cursor.execute(queries.file_check,
                                   {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_res,
                                    'check_info': prefix_info})
-                logger.debug(db_cursor.query.decode("utf-8"))
                 logger.debug(db_cursor.query.decode("utf-8"))
                 file_checks = file_checks - 1
         if 'suffix' in settings.project_file_checks:
@@ -664,7 +633,6 @@ def process_image(filename, folder_path, folder_id, logger):
         db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
         logger.debug(db_cursor.query.decode("utf-8"))
         result = db_cursor.fetchone()
-        logger.debug(db_cursor.query.decode("utf-8"))
         if result is None:
             file_md5 = filemd5(filename)
             db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
@@ -673,7 +641,6 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 # JHOVE check
                 jhove_validate(file_id, filename, db_cursor)
@@ -698,7 +665,6 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
             if result != 0:
                 # check if tif has multiple pages
                 tifpages(file_id, filename, db_cursor)
@@ -815,7 +781,6 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
         ###############
         for file in files:
             logger.info("Running checks on file {}".format(file))
-            # process_image(file, folder_path, folder_id, db_cursor, logger)
             process_image(file, folder_path, folder_id, logger)
             # Update folder stats
             update_folder_stats(folder_id, folder_path, db_cursor, logger)
