@@ -434,8 +434,8 @@ def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for image files
     """
-    logger.info("filename: {}/{}".format(folder_path, filename))
     main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
+    logger.info("filename: {}".format(main_file_path))
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
     filename_suffix = Path(filename).suffix[1:]
