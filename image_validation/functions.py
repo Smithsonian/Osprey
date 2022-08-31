@@ -116,6 +116,8 @@ def jhove_validate(file_id, filename, db_cursor):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     (out, err) = p.communicate()
+    logging.info("jhove out: {}".format(out))
+    logging.info("jhove err: {}".format(err))
     # Open and read the results xml
     try:
         with open(xml_file) as fd:
