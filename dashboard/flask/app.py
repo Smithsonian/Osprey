@@ -519,7 +519,7 @@ def login():
 
 @cache.memoize()
 @app.route('/about/', methods=['GET'], strict_slashes=False)
-def about_system():
+def about():
     """About page for the system"""
     if current_user.is_authenticated:
         user_exists = True
