@@ -110,14 +110,14 @@ def handle_invalid_usage(error):
 def page_not_found(e):
     logging.error(e)
     error_msg = "Error: {}".format(e)
-    return render_template('error.html', error_msg=error_msg), 404
+    return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 404
 
 
 @app.errorhandler(500)
 def page_not_found(e):
     logging.error(e)
     error_msg = "There was a system error."
-    return render_template('error.html', error_msg=error_msg), 500
+    return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 500
 
 
 # Database
@@ -723,7 +723,7 @@ def qc_process(folder_id):
                                        form=form)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', error_msg=error_msg, form=form), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
@@ -1206,6 +1206,13 @@ def dashboard_f(project_id=None, folder_id=None):
         user_exists = False
         username = None
 
+    # Check if folder exists
+    folder_check = query_database("SELECT folder_id FROM folders WHERE folder_id = %(folder_id)s AND project_id IN (SELECT project_id FROM projects WHERE project_alias = %(project_id)s)",
+                                      {'folder_id': folder_id, 'project_id': project_id})
+    if folder_check is None:
+        error_msg = "Folder was not found."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+
     # Declare the login form
     form = LoginForm(request.form)
 
@@ -1217,7 +1224,7 @@ def dashboard_f(project_id=None, folder_id=None):
             tab = int(tab)
         except:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', error_msg=error_msg), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
     logging.info("tab: {}".format(tab))
     page = request.values.get('page')
     if page is None or page == '':
@@ -1227,19 +1234,19 @@ def dashboard_f(project_id=None, folder_id=None):
             page = int(page)
         except:
             error_msg = "Invalid page number."
-            return render_template('error.html', error_msg=error_msg), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
     logging.info("page: {}".format(page))
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
     else:
         project_id_check = query_database("SELECT project_id FROM projects WHERE "
                                           " project_alias = %(project_id)s",
                                           {'project_id': project_id})
         if len(project_id_check) == 0:
             error_msg = "Project was not found."
-            return render_template('error.html', error_msg=error_msg), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
         else:
             project_alias = project_id
             project_id = project_id_check[0]['project_id']
@@ -1265,7 +1272,7 @@ def dashboard_f(project_id=None, folder_id=None):
             filechecks_list = project_info['project_checks'].split(',')
         except:
             error_msg = "Project is not available."
-            return render_template('error.html', error_msg=error_msg), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
         project_total = query_database("SELECT count(*) as no_files "
                                        "    FROM files "
                                        "    WHERE folder_id IN (SELECT folder_id "
@@ -1324,7 +1331,7 @@ def dashboard_f(project_id=None, folder_id=None):
             logging.info("folder_name: {}".format(len(folder_name)))
             if len(folder_name) == 0:
                 error_msg = "Folder does not exist in this project."
-                return render_template('error.html', error_msg=error_msg, project_alias=project_alias), 404
+                return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
             else:
                 folder_name = folder_name[0]
             folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %("
@@ -1587,14 +1594,14 @@ def dashboard(project_id):
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
     else:
         project_id_check = query_database("SELECT project_id FROM projects WHERE "
                                           " project_alias = %(project_id)s",
                                           {'project_id': project_id})
         if len(project_id_check) == 0:
             error_msg = "Project was not found."
-            return render_template('error.html', error_msg=error_msg), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
         else:
             project_alias = project_id
             project_id = project_id_check[0]['project_id']
@@ -1620,7 +1627,7 @@ def dashboard(project_id):
             filechecks_list = project_info['project_checks'].split(',')
         except:
             error_msg = "Project is not available."
-            return render_template('error.html', error_msg=error_msg), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
         project_total = query_database("SELECT count(*) as no_files "
                                        "    FROM files "
                                        "    WHERE folder_id IN (SELECT folder_id "
@@ -1760,13 +1767,13 @@ def file(file_id):
 
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
     else:
         try:
             file_id = int(file_id)
         except:
             error_msg = "Invalid File ID."
-            return render_template('error.html', error_msg=error_msg), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
     folder_info = query_database("SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
                          {'file_id': file_id})[0]
     project_alias = query_database("SELECT COALESCE(project_alias, project_id::text) as project_id FROM projects "
@@ -1836,13 +1843,13 @@ def file_json(file_id):
     #file_id = int(request.values.get('file_id'))
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
     else:
         try:
             file_id = int(file_id)
         except:
             error_msg = "Invalid File ID."
-            return render_template('error.html', error_msg=error_msg), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
     file_checks = query_database("SELECT file_check, CASE WHEN check_results = 0 THEN '<div style=\"background: "
                                  "#198754; color:white;padding:8px;\">OK</div>' "
                                             "       WHEN check_results = 9 THEN 'Pending' "
@@ -1877,7 +1884,7 @@ def search(project_alias):
                                   {'project_alias': project_alias})[0]
     if q is None:
         error_msg = "No search query was submitted."
-        return render_template('error.html', error_msg=error_msg), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
     else:
         logging.info("q: {}".format(q))
         logging.info("metadata: {}".format(metadata))
