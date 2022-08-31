@@ -426,9 +426,16 @@ def login():
                                    "                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
                                                    "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
                                                    "         as project_dates, "
-                                   " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '*' ELSE "
+                                   " '<div class=\"progress\" style=\"height: 20px;\"><div class=\"progress-bar\" role=\"progressbar\" aria-label=\"Progress of the project\" style=\"width: ' "
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   " '%%;\" aria-valuenow=\"'"
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   " '\" aria-valuemin=\"0\" aria-valuemax=\"100\">'"
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   "'%%</div></div>' as project_progress,"
+                                   " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '**' ELSE "
                                                         " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
-                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '*' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken "
+                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken "
                                    " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) "
                                    " WHERE p.skip_project IS NOT True AND p.project_section = 'MD' "
                                    " GROUP BY "
@@ -443,10 +450,11 @@ def login():
                 "project_status": "Status",
                 "project_manager": "PM",
                 "project_dates": "Dates",
+                "project_progress": "Project Progress<sup>*</sup>",
                 "objects_digitized": "Objects Digitized",
                 "images_taken": "Images Captured"
     })
-
+    logging.info(list_projects_md)
     list_projects_is = pd.DataFrame(query_database("SELECT "
                                                    " p.projects_order, p.project_unit, "
                                                    " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"/dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
@@ -457,6 +465,13 @@ def login():
                                    "                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
                                                    "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
                                                    "         as project_dates, "
+                                                   " '<div class=\"progress\" style=\"height: 20px;\"><div class=\"progress-bar\" role=\"progressbar\" aria-label=\"Progress of the project\" style=\"width: ' "
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   " '%%;\" aria-valuenow=\"'"
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   " '\" aria-valuemin=\"0\" aria-valuemax=\"100\">'"
+                                                   " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
+                                                   "'%%</div></div>' as project_progress,"
                                                    " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '*' ELSE "
                                                    " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
                                                    " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '*' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken "
@@ -474,6 +489,7 @@ def login():
         "project_status": "Status",
         "project_manager": "PM",
         "project_dates": "Dates",
+        "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Objects Digitized",
         "images_taken": "Images Captured"
     })

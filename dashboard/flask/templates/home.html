@@ -71,6 +71,8 @@
 
         <p>Select one of the tabs at the top to see the specific projects of each team.</p>
 
+        <p>Some of the data is courtesy of the DAMS team.</p>
+
 </div>
     <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
 
@@ -126,9 +128,10 @@
                                {{ table|safe }}
                     {% endfor %}
 
-                <small>* Value was estimated</small>
+                <p><small>* Progress is based on the number of specimens/objects expected to be digitized. This value may change during production due to a number of reasons.</small></p>
+                <p><small>** Value was estimated</small></p>
                 <br>
-                <div id="chart_summary" class="chart w-100"></div>
+
             </div>
         </div>
 
@@ -187,6 +190,8 @@
                        {{ table|safe }}
             {% endfor %}
 
+            <p><small>* Progress is based on the number of specimens/objects expected to be digitized. This value may change during production due to a number of reasons.</small></p>
+            <br>
 
     </div>
     <div class="tab-pane fade" id="inf" role="tabpanel" aria-labelledby="inf-tab">
