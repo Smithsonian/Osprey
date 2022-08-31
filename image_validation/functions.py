@@ -644,7 +644,7 @@ def process_image(filename, folder_path, folder_id, logger):
             result = db_cursor.fetchone()[0]
             if result != 0:
                 # JHOVE check
-                jhove_validate(file_id, filename, db_cursor)
+                jhove_validate(file_id, main_file_path, db_cursor)
         if 'magick' in settings.project_file_checks:
             db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
             logger.debug(db_cursor.query.decode("utf-8"))
