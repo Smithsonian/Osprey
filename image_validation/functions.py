@@ -732,7 +732,7 @@ def process_image(filename, folder_path, folder_id, logger):
         # if os.path.isfile(local_tempfile):
         #     os.remove(local_tempfile)
         file_updated_at(file_id, db_cursor)
-        shutil.rmtree(tmp_folder, ignore_errors=True)
+        shutil.rmtree(settings.tmp_folder, ignore_errors=True)
         # Disconnect from db
         conn.close()
         return True
