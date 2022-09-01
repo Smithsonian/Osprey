@@ -107,7 +107,8 @@ def jhove_validate(file_id, filename, db_cursor, logger):
     Validate the file with JHOVE
     """
     # Where to write the results
-    xml_file = "{}/jhove_{}_{}.xml".format(settings.tmp_folder, file_id, randint(100, 100000))
+    #xml_file = "{}/jhove_{}_{}.xml".format(settings.tmp_folder, file_id, randint(100, 100000))
+    xml_file = "jhove_{}_{}.xml".format(file_id, randint(100, 100000))
     logger.debug("jhove_xml: {} {}".format(file_id, xml_file))
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
