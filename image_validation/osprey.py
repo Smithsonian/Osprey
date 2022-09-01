@@ -100,8 +100,8 @@ def main():
         logger.error("Database error: {}".format(e))
         sys.exit(1)
     # Clear project shares
-    db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    # db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
+    # logger.debug(db_cursor.query.decode("utf-8"))
     # Update project
     db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks),
                                                      'project_id': settings.project_id})
