@@ -474,8 +474,8 @@ def process_image(filename, folder_path, folder_id, logger):
         file_id = db_cursor.fetchone()[0]
     else:
         file_id = file_id[0]
-    # # Check if file is OK
-    # file_checks = 0
+    # Check if file is OK
+    file_checks = 0
     for filecheck in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -484,15 +484,22 @@ def process_image(filename, folder_path, folder_id, logger):
             db_cursor.execute(queries.file_check,
                               {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
             logger.debug(db_cursor.query.decode("utf-8"))
-            # result = 1
-        # else:
-        #     result = result[0]
-        #     if result == 9:
-        #         result = 1
-        # file_checks = file_checks + result
-    # Check if JPG preview exists
-    preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
-    preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+            result = 1
+        else:
+            result = result[0]
+            if result == 9:
+                result = 1
+        file_checks = file_checks + result
+    # Generate jpg preview, if needed
+    jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
+    # Compare MD5 between source and copy
+    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    result = db_cursor.fetchone()
+    if result is None:
+        file_md5 = filemd5(main_file_path, logger)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
+        logger.debug(db_cursor.query.decode("utf-8"))
     # if os.path.isfile(preview_image) is False:
     #     logger.debug(db_cursor.query.decode("utf-8"))
     #     file_checks = file_checks + 1
@@ -519,6 +526,32 @@ def process_image(filename, folder_path, folder_id, logger):
     #     conn.close()
     #     return True
     # else:
+    # Get exif from TIF
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    check_exif = db_cursor.fetchone()[0]
+    if check_exif == 0:
+        file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor, logger)
+    # Get exif from RAW
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    check_exif = db_cursor.fetchone()[0]
+    if check_exif == 0:
+        pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
+                                    'raw_pair', db_cursor)
+        if os.path.isfile(
+                "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
+            file_exif(file_id,
+                      "{}/{}/{}".format(folder_path,
+                                        settings.raw_files_path,
+                                        pair_file),
+                      'raw', db_cursor, logger)
+    # Nothing to do, return
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        # Disconnect from db
+        conn.close()
+        return True
     # Checks that do not need a local copy
     if 'raw_pair' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
@@ -644,16 +677,7 @@ def process_image(filename, folder_path, folder_id, logger):
     #     # Disconnect from db
     #     conn.close()
     #     return True
-    # Generate jpg preview, if needed
-    jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
-    # Compare MD5 between source and copy
-    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    result = db_cursor.fetchone()
-    if result is None:
-        file_md5 = filemd5(main_file_path, logger)
-        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
-        logger.debug(db_cursor.query.decode("utf-8"))
+
     if 'jhove' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -692,30 +716,7 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # check if tif is compressed
             tif_compression(file_id, main_file_path, db_cursor, logger)
-    # Get exif from TIF
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    check_exif = db_cursor.fetchone()[0]
-    if check_exif == 0:
-        file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor, logger)
-    # Get exif from RAW
-    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
-    logger.debug(db_cursor.query.decode("utf-8"))
-    check_exif = db_cursor.fetchone()[0]
-    if check_exif == 0:
-        pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
-                                     'raw_pair', db_cursor)
-        if os.path.isfile(
-                "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
-            file_exif(file_id,
-                      "{}/{}/{}".format(folder_path,
-                                           settings.raw_files_path,
-                                           pair_file),
-                      'raw', db_cursor, logger)
-    # if os.path.isfile(local_tempfile):
-    #     os.remove(local_tempfile)
-    file_updated_at(file_id, db_cursor)
-    shutil.rmtree(settings.tmp_folder, ignore_errors=True)
+    # shutil.rmtree(settings.tmp_folder, ignore_errors=True)
     # Disconnect from db
     conn.close()
     return True

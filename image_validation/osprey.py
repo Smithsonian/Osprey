@@ -28,7 +28,7 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-ver = "1.1.2"
+ver = "1.1.3"
 
 ############################################
 # Logging
