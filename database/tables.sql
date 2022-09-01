@@ -190,6 +190,7 @@ CREATE TABLE files (
 ALTER TABLE files ADD CONSTRAINT files_constr UNIQUE (file_name, folder_id);
 CREATE INDEX files_fileid_idx ON files USING BTREE(file_id);
 CREATE INDEX files_folderid_idx ON files USING BTREE(folder_id);
+CREATE INDEX files_ffid_idx ON files USING BTREE(folder_id, file_id);
 CREATE INDEX files_uan_idx ON files USING BTREE(dams_uan);
 
 
@@ -263,6 +264,7 @@ CREATE INDEX files_exif_tagid_idx ON files_exif USING BTREE(tagid);
 CREATE INDEX files_exif_taggroup_idx ON files_exif USING BTREE(taggroup);
 
 
+
 --files_size
 DROP TABLE IF EXISTS files_size CASCADE;
 create table files_size (
@@ -291,8 +293,9 @@ ALTER TABLE file_checks ADD CONSTRAINT fileid_and_filecheck UNIQUE (file_id, fil
 CREATE INDEX file_checks_file_id_idx ON file_checks USING BTREE(file_id);
 CREATE INDEX file_checks_file_check_idx ON file_checks USING BTREE(file_check);
 CREATE INDEX file_checks_check_results_idx ON file_checks USING BTREE(check_results);
-CREATE INDEX file_checks_fc_id_idx ON file_checks USING BTREE(folder_id, check_results);
+CREATE INDEX file_checks_fc_id_idx ON file_checks USING BTREE(check_results, folder_id);
 CREATE INDEX file_checks_ff_id_idx ON file_checks USING BTREE(folder_id, file_id);
+CREATE INDEX file_checks_cf_id_idx ON file_checks USING BTREE(file_check, file_id);
 
 
 --file_postprocessing
