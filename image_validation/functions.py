@@ -102,12 +102,13 @@ def file_updated_at(file_id, db_cursor):
     return True
 
 
-def jhove_validate(file_id, filename, db_cursor):
+def jhove_validate(file_id, filename, db_cursor, logger):
     """
     Validate the file with JHOVE
     """
     # Where to write the results
     xml_file = "{}/jhove_{}_{}.xml".format(settings.tmp_folder, file_id, randint(100, 100000))
+    logger.debug("jhove_xml: {} {}".format(file_id, xml_file))
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     # Run JHOVE
@@ -116,12 +117,15 @@ def jhove_validate(file_id, filename, db_cursor):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     (out, err) = p.communicate()
+    logger.debug("jhove_out: {} {}".format(file_id, out))
+    logger.debug("jhove_err: {} {}".format(file_id, err))
     # Open and read the results xml
     try:
         with open(xml_file) as fd:
             doc = xmltodict.parse(fd.read())
     except Exception as e:
         error_msg = "Could not find result file from JHOVE ({}) ({})".format(xml_file, e)
+        logger.error("jhove_err: {} {}".format(file_id, error_msg))
         db_cursor.execute(queries.file_check,
                           {'file_id': file_id, 'file_check': 'jhove', 'check_results': 9, 'check_info': error_msg})
         return False
@@ -146,10 +150,11 @@ def jhove_validate(file_id, filename, db_cursor):
     #                                        'check_info': file_status})
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
                                            'check_info': jhove_results})
+    logger.debug("jhove_results: {} {}".format(file_id, jhove_results))
     return True
 
 
-def magick_validate(file_id, filename, db_cursor, paranoid=False):
+def magick_validate(file_id, filename, db_cursor, logger, paranoid=False):
     """
     Validate the file with Imagemagick
     """
@@ -163,18 +168,22 @@ def magick_validate(file_id, filename, db_cursor, paranoid=False):
         magick_identify = 0
     else:
         magick_identify = 1
+        logger.debug("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
+        logger.debug("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
     magick_identify_info = out + err
     db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify,
                                            'check_info': magick_identify_info.decode('latin-1')})
     return True
 
 
-def tif_compression(file_id, filename, db_cursor):
+def tif_compression(file_id, filename, db_cursor, logger):
     """
     Check if the image has LZW compression
     """
     p = subprocess.Popen(['exiftool', '-T', '-compression', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
+    logger.debug("tif_compression_out: {} {}".format(file_id, out.decode('UTF-8')))
+    logger.debug("tif_compression_err: {} {}".format(file_id, err.decode('UTF-8')))
     compressed_info = out.decode('UTF-8').replace('\n', '')
     if compressed_info == "LZW":
         f_compressed = 0
@@ -204,12 +213,14 @@ def valid_name(file_id, filename, db_cursor):
     return True
 
 
-def tifpages(file_id, filename, db_cursor):
+def tifpages(file_id, filename, db_cursor, logger):
     """
     Check if TIF has multiple pages
     """
     p = subprocess.Popen(['identify', '-format', '%n\\n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
+    logger.debug("tifpages_out: {} {}".format(file_id, out.decode('UTF-8')))
+    logger.debug("tifpages_err: {} {}".format(file_id, err.decode('UTF-8')))
     try:
         if int(len(out.split())) == 1:
             pages_vals = 0
@@ -225,7 +236,7 @@ def tifpages(file_id, filename, db_cursor):
     return True
 
 
-def file_exif(file_id, filename, filetype, db_cursor):
+def file_exif(file_id, filename, filetype, db_cursor, logger):
     """
     Extract the EXIF info from the RAW file
     """
@@ -241,11 +252,12 @@ def file_exif(file_id, filename, filetype, db_cursor):
                               {'file_id': file_id, 'filetype': filetype, 'taggroup': tag[0], 'tagid': tag[1],
                                'tag': tag[2], 'value': tag[3]})
         except Exception as e:
+            logger.error("exif: {} {}".format(file_id, e))
             continue
     return True
 
 
-def filemd5(filepath):
+def filemd5(filepath, logger):
     """
     Get MD5 hash of a file
     """
@@ -258,6 +270,7 @@ def filemd5(filepath):
         file_md5 = md5_hash.hexdigest()
     else:
         file_md5 = ""
+    logger.debug("file_md5: {} {}".format(filepath, file_md5))
     return file_md5
 
 
@@ -323,7 +336,7 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
 #     return True
 
 
-def check_stitched_jpg(file_id, filename, db_cursor):
+def check_stitched_jpg(file_id, filename, db_cursor, logger):
     """
     Run checks for jpg files that were stitched from 2 images
     """
@@ -337,12 +350,14 @@ def check_stitched_jpg(file_id, filename, db_cursor):
         magick_identify = 1
         magick_identify_info = err
         magick_return = False
+        logger.debug("stitched_out: {} {}".format(file_id, out.decode('UTF-8')))
+        logger.debug("stitched_err: {} {}".format(file_id, err.decode('UTF-8')))
     db_cursor.execute(queries.file_check,
                       {'file_id': file_id, 'file_check': 'stitched_jpg', 'check_results': magick_identify,
                        'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
     if magick_return:
         # Store MD5
-        file_md5 = filemd5(filename)
+        file_md5 = filemd5(filename, logger)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
     return True
 
@@ -458,251 +473,251 @@ def process_image(filename, folder_path, folder_id, logger):
         file_id = db_cursor.fetchone()[0]
     else:
         file_id = file_id[0]
-    # Check if file is OK
-    file_checks = 0
-    for filecheck in settings.project_file_checks:
-        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        result = db_cursor.fetchone()
-        if result is None:
-            db_cursor.execute(queries.file_check,
-                              {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = 1
-        else:
-            result = result[0]
-            if result == 9:
-                result = 1
-        file_checks = file_checks + result
+    # # Check if file is OK
+    # file_checks = 0
+    # for filecheck in settings.project_file_checks:
+    #     db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
+    #     logger.debug(db_cursor.query.decode("utf-8"))
+    #     result = db_cursor.fetchone()
+    #     if result is None:
+    #         db_cursor.execute(queries.file_check,
+    #                           {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
+    #         logger.debug(db_cursor.query.decode("utf-8"))
+    #         result = 1
+    #     else:
+    #         result = result[0]
+    #         if result == 9:
+    #             result = 1
+    #     file_checks = file_checks + result
     # Check if JPG preview exists
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
-    if os.path.isfile(preview_image) is False:
-        logger.debug(db_cursor.query.decode("utf-8"))
-        file_checks = file_checks + 1
+    # if os.path.isfile(preview_image) is False:
+    #     logger.debug(db_cursor.query.decode("utf-8"))
+    #     file_checks = file_checks + 1
     # Get filesize from TIF:
     file_size = os.path.getsize(main_file_path)
     db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
         file_size})
     logger.debug(db_cursor.query.decode("utf-8"))
     # Get exif from TIF
+    # db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    # check_exif = db_cursor.fetchone()[0]
+    # if check_exif == 0:
+    #     file_checks = file_checks + 1
+    # Check if MD5 is stored
+    # db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+    # logger.debug(db_cursor.query.decode("utf-8"))
+    # result = db_cursor.fetchone()
+    # if result is None:
+    #     file_checks = file_checks + 1
+    # if file_checks == 0:
+    #     file_updated_at(file_id, db_cursor)
+    #     # Disconnect from db
+    #     conn.close()
+    #     return True
+    # else:
+    # Checks that do not need a local copy
+    if 'raw_pair' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # FilePair check
+            pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
+                                         'raw_pair', db_cursor)
+            file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check), logger)
+            db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    # if file_checks == 0:
+    #     # Disconnect from db
+    #     conn.close()
+    #     return True
+    if 'valid_name' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # valid name in file
+            valid_name(file_id, filename_stem, db_cursor)
+            # file_checks = file_checks - 1
+    # if file_checks == 0:
+    #     # Disconnect from db
+    #     conn.close()
+    #     return True
+    if 'unique_file' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # Check in project
+            db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
+                                                     'project_id': settings.project_id, 'file_id': file_id})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchall()
+            if len(result) == 0:
+                unique_file = 0
+                db_cursor.execute(queries.file_check,
+                                  {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
+                                   'check_info': ""})
+                logger.debug(db_cursor.query.decode("utf-8"))
+                # file_checks = file_checks - 1
+            else:
+                unique_file = 1
+                for dupe in result:
+                    db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+                    folder_dupe = db_cursor.fetchone()
+                    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
+                                                           'check_results': unique_file,
+                                                           'check_info': "File with same name in {}".format(
+                                                               folder_dupe[0])})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+    # if file_checks == 0:
+    #     # Disconnect from db
+    #     conn.close()
+    #     return True
+    if 'dupe_elsewhere' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'project_id': settings.project_id})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchall()
+            folders = ""
+            if len(result) == 0:
+                old_name = 0
+            else:
+                old_name = 1
+                for fol in result:
+                    folders = folders + "," + fol[0]
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
+                               'check_info': folders})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    if 'prefix' in settings.project_file_checks:
+        if settings.filename_prefix is None:
+            logger.debug(db_cursor.query.decode("utf-8"))
+            sys.exit(1)
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'prefix'})
+        result = db_cursor.fetchone()[0]
+        logger.debug(db_cursor.query.decode("utf-8"))
+        if result != 0:
+            if filename_stem.startswith(settings.filename_prefix):
+                prefix_res = 0
+                prefix_info = ""
+            else:
+                logger.debug(db_cursor.query.decode("utf-8"))
+                prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
+                                                                                         settings.filename_prefix)
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_res,
+                               'check_info': prefix_info})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    if 'suffix' in settings.project_file_checks:
+        if settings.filename_prefix is None:
+            logger.debug(db_cursor.query.decode("utf-8"))
+            sys.exit(1)
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'suffix'})
+        result = db_cursor.fetchone()[0]
+        logger.debug(db_cursor.query.decode("utf-8"))
+        if result != 0:
+            if filename_stem.endswith(settings.filename_suffix):
+                prefix_res = 0
+                prefix_info = ""
+            else:
+                prefix_res = 1
+                prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
+                                                                                         settings.filename_suffix)
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id, 'file_check': 'suffix', 'check_results': prefix_res,
+                               'check_info': prefix_info})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    # if file_checks == 0:
+    #     # Disconnect from db
+    #     conn.close()
+    #     return True
+    # Generate jpg preview, if needed
+    jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
+    # Compare MD5 between source and copy
+    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    result = db_cursor.fetchone()
+    if result is None:
+        file_md5 = filemd5(main_file_path, logger)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
+        logger.debug(db_cursor.query.decode("utf-8"))
+    if 'jhove' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # JHOVE check
+            jhove_validate(file_id, main_file_path, db_cursor, logger)
+    if 'magick' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # Imagemagick check
+            magick_validate(file_id, main_file_path, db_cursor, logger)
+    if 'stitched_jpg' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # JPG check
+            stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
+            stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
+            check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
+                               db_cursor, logger)
+    if 'tifpages' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # check if tif has multiple pages
+            tifpages(file_id, main_file_path, db_cursor, logger)
+    if 'tif_compression' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # check if tif is compressed
+            tif_compression(file_id, main_file_path, db_cursor, logger)
+    # Get exif from TIF
     db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
     logger.debug(db_cursor.query.decode("utf-8"))
     check_exif = db_cursor.fetchone()[0]
     if check_exif == 0:
-        file_checks = file_checks + 1
-    # Check if MD5 is stored
-    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+        file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor, logger)
+    # Get exif from RAW
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
     logger.debug(db_cursor.query.decode("utf-8"))
-    result = db_cursor.fetchone()
-    if result is None:
-        file_checks = file_checks + 1
-    if file_checks == 0:
-        file_updated_at(file_id, db_cursor)
-        # Disconnect from db
-        conn.close()
-        return True
-    else:
-        # Checks that do not need a local copy
-        if 'raw_pair' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # FilePair check
-                pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
-                                             'raw_pair', db_cursor)
-                file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check))
-                db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
-        if file_checks == 0:
-            # Disconnect from db
-            conn.close()
-            return True
-        if 'valid_name' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # valid name in file
-                valid_name(file_id, filename_stem, db_cursor)
-                file_checks = file_checks - 1
-        if file_checks == 0:
-            # Disconnect from db
-            conn.close()
-            return True
-        if 'unique_file' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # Check in project
-                db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
-                                                         'project_id': settings.project_id, 'file_id': file_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchall()
-                if len(result) == 0:
-                    unique_file = 0
-                    db_cursor.execute(queries.file_check,
-                                      {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
-                                       'check_info': ""})
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    file_checks = file_checks - 1
-                else:
-                    unique_file = 1
-                    for dupe in result:
-                        db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-                        folder_dupe = db_cursor.fetchone()
-                        db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
-                                                               'check_results': unique_file,
-                                                               'check_info': "File with same name in {}".format(
-                                                                   folder_dupe[0])})
-                        logger.debug(db_cursor.query.decode("utf-8"))
-        if file_checks == 0:
-            # Disconnect from db
-            conn.close()
-            return True
-        if 'dupe_elsewhere' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'project_id': settings.project_id})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                result = db_cursor.fetchall()
-                folders = ""
-                if len(result) == 0:
-                    old_name = 0
-                else:
-                    old_name = 1
-                    for fol in result:
-                        folders = folders + "," + fol[0]
-                db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
-                                   'check_info': folders})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
-        if 'prefix' in settings.project_file_checks:
-            if settings.filename_prefix is None:
-                logger.debug(db_cursor.query.decode("utf-8"))
-                sys.exit(1)
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'prefix'})
-            result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
-            if result != 0:
-                if filename_stem.startswith(settings.filename_prefix):
-                    prefix_res = 0
-                    prefix_info = ""
-                else:
-                    logger.debug(db_cursor.query.decode("utf-8"))
-                    prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
-                                                                                             settings.filename_prefix)
-                db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_res,
-                                   'check_info': prefix_info})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
-        if 'suffix' in settings.project_file_checks:
-            if settings.filename_prefix is None:
-                logger.debug(db_cursor.query.decode("utf-8"))
-                sys.exit(1)
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'suffix'})
-            result = db_cursor.fetchone()[0]
-            logger.debug(db_cursor.query.decode("utf-8"))
-            if result != 0:
-                if filename_stem.endswith(settings.filename_suffix):
-                    prefix_res = 0
-                    prefix_info = ""
-                else:
-                    prefix_res = 1
-                    prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
-                                                                                             settings.filename_suffix)
-                db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'suffix', 'check_results': prefix_res,
-                                   'check_info': prefix_info})
-                logger.debug(db_cursor.query.decode("utf-8"))
-                file_checks = file_checks - 1
-        if file_checks == 0:
-            # Disconnect from db
-            conn.close()
-            return True
-        # Generate jpg preview, if needed
-        jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
-        # Compare MD5 between source and copy
-        db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        result = db_cursor.fetchone()
-        if result is None:
-            file_md5 = filemd5(main_file_path)
-            db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
-            logger.debug(db_cursor.query.decode("utf-8"))
-        if 'jhove' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # JHOVE check
-                jhove_validate(file_id, main_file_path, db_cursor)
-        if 'magick' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # Imagemagick check
-                magick_validate(file_id, main_file_path, db_cursor)
-        if 'stitched_jpg' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # JPG check
-                stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
-                stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
-                check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
-                                   db_cursor)
-        if 'tifpages' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # check if tif has multiple pages
-                tifpages(file_id, main_file_path, db_cursor)
-        if 'tif_compression' in settings.project_file_checks:
-            db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = db_cursor.fetchone()[0]
-            if result != 0:
-                # check if tif is compressed
-                tif_compression(file_id, main_file_path, db_cursor)
-        # Get exif from TIF
-        db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        check_exif = db_cursor.fetchone()[0]
-        if check_exif == 0:
-            file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor)
-        # Get exif from RAW
-        db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        check_exif = db_cursor.fetchone()[0]
-        if check_exif == 0:
-            pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
-                                         'raw_pair', db_cursor)
-            if os.path.isfile(
-                    "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
-                file_exif(file_id,
-                          "{}/{}/{}".format(folder_path,
-                                               settings.raw_files_path,
-                                               pair_file),
-                          'raw', db_cursor)
-        # if os.path.isfile(local_tempfile):
-        #     os.remove(local_tempfile)
-        file_updated_at(file_id, db_cursor)
-        shutil.rmtree(settings.tmp_folder, ignore_errors=True)
-        # Disconnect from db
-        conn.close()
-        return True
+    check_exif = db_cursor.fetchone()[0]
+    if check_exif == 0:
+        pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
+                                     'raw_pair', db_cursor)
+        if os.path.isfile(
+                "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
+            file_exif(file_id,
+                      "{}/{}/{}".format(folder_path,
+                                           settings.raw_files_path,
+                                           pair_file),
+                      'raw', db_cursor, logger)
+    # if os.path.isfile(local_tempfile):
+    #     os.remove(local_tempfile)
+    file_updated_at(file_id, db_cursor)
+    shutil.rmtree(settings.tmp_folder, ignore_errors=True)
+    # Disconnect from db
+    conn.close()
+    return True
 
 
 def run_checks_folder(project_id, folder_path, db_cursor, logger):

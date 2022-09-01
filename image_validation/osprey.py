@@ -28,7 +28,7 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-ver = "1.1.1"
+ver = "1.1.2"
 
 ############################################
 # Logging
@@ -186,8 +186,8 @@ if __name__ == "__main__":
                         db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
                                            {'folder_id': folder_id})
                         conn2.close()
-                except:
-                    print("folder_id not found")
+                except Exception as e:
+                    print("Error: {}".format(e))
                 # Compress logs
                 compress_log()
                 sys.exit(0)
@@ -202,8 +202,8 @@ if __name__ == "__main__":
                         db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
                                            {'folder_id': folder_id})
                         conn2.close()
-                except:
-                    print("folder_id not found")
+                except Exception as e:
+                    print("Error: {}".format(e))
                 # Compress logs
                 compress_log()
                 sys.exit(1)
