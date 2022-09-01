@@ -281,6 +281,7 @@ CREATE INDEX files_size_filetype_idx ON files_size USING BTREE(filetype);
 DROP TABLE IF EXISTS file_checks CASCADE;
 CREATE TABLE file_checks (
     file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    folder_id integer REFERENCES folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE,
     file_check text,
     check_results integer,
     check_info text,
@@ -290,7 +291,8 @@ ALTER TABLE file_checks ADD CONSTRAINT fileid_and_filecheck UNIQUE (file_id, fil
 CREATE INDEX file_checks_file_id_idx ON file_checks USING BTREE(file_id);
 CREATE INDEX file_checks_file_check_idx ON file_checks USING BTREE(file_check);
 CREATE INDEX file_checks_check_results_idx ON file_checks USING BTREE(check_results);
-
+CREATE INDEX file_checks_fc_id_idx ON file_checks USING BTREE(folder_id, check_results);
+CREATE INDEX file_checks_ff_id_idx ON file_checks USING BTREE(folder_id, file_id);
 
 
 --file_postprocessing

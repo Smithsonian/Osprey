@@ -128,7 +128,11 @@ def jhove_validate(file_id, filename, db_cursor, logger):
         error_msg = "Could not find result file from JHOVE ({}) ({})".format(xml_file, e)
         logger.error("jhove_err: {} {}".format(file_id, error_msg))
         db_cursor.execute(queries.file_check,
-                          {'file_id': file_id, 'file_check': 'jhove', 'check_results': 9, 'check_info': error_msg})
+                          {'file_id': file_id,
+                           'folder_id': folder_id,
+                           'file_check': 'jhove',
+                           'check_results': 9,
+                           'check_info': error_msg})
         return False
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
@@ -149,7 +153,10 @@ def jhove_validate(file_id, filename, db_cursor, logger):
         jhove_results = jhove_results + '\n' + file_status
     # db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
     #                                        'check_info': file_status})
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'jhove', 'check_results': jhove_val,
+    db_cursor.execute(queries.file_check, {'file_id': file_id,
+                                           'folder_id': folder_id,
+                                           'file_check': 'jhove',
+                                           'check_results': jhove_val,
                                            'check_info': jhove_results})
     logger.debug("jhove_results: {} {}".format(file_id, jhove_results))
     return True
@@ -172,7 +179,10 @@ def magick_validate(file_id, filename, db_cursor, logger, paranoid=False):
         logger.debug("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
         logger.debug("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
     magick_identify_info = out + err
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'magick', 'check_results': magick_identify,
+    db_cursor.execute(queries.file_check, {'file_id': file_id,
+                                           'folder_id': folder_id,
+                                           'file_check': 'magick',
+                                           'check_results': magick_identify,
                                            'check_info': magick_identify_info.decode('latin-1')})
     return True
 
@@ -191,7 +201,10 @@ def tif_compression(file_id, filename, db_cursor, logger):
     else:
         f_compressed = 1
     db_cursor.execute(queries.file_check,
-                      {'file_id': file_id, 'file_check': 'tif_compression', 'check_results': f_compressed,
+                      {'file_id': file_id,
+                       'folder_id': folder_id,
+                       'file_check': 'tif_compression',
+                       'check_results': f_compressed,
                        'check_info': compressed_info})
     return True
 
@@ -209,7 +222,10 @@ def valid_name(file_id, filename, db_cursor):
         filename_check = 0
         filename_check_info = "Filename {} in list".format(Path(filename).stem)
     db_cursor.execute(queries.file_check,
-                      {'file_id': file_id, 'file_check': 'valid_name', 'check_results': filename_check,
+                      {'file_id': file_id,
+                       'folder_id': folder_id,
+                       'file_check': 'valid_name',
+                       'check_results': filename_check,
                        'check_info': filename_check_info})
     return True
 
@@ -232,7 +248,10 @@ def tifpages(file_id, filename, db_cursor, logger):
     except Exception as e:
         no_pages = "Unknown ({})".format(e)
         pages_vals = 1
-    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'tifpages', 'check_results': pages_vals,
+    db_cursor.execute(queries.file_check, {'file_id': file_id,
+                                           'folder_id': folder_id,
+                                           'file_check': 'tifpages',
+                                           'check_results': pages_vals,
                                            'check_info': no_pages})
     return True
 
@@ -293,7 +312,10 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type, db_curs
         file_pair = 0
         file_pair_info = "Related file {} found (file_id: {})".format(derivative_file, file_id)
     db_cursor.execute(queries.file_check,
-                      {'file_id': file_id, 'file_check': derivative_type, 'check_results': file_pair,
+                      {'file_id': file_id,
+                       'folder_id': folder_id,
+                       'file_check': derivative_type,
+                       'check_results': file_pair,
                        'check_info': file_pair_info})
     return derivative_file
 
@@ -354,7 +376,10 @@ def check_stitched_jpg(file_id, filename, db_cursor, logger):
         logger.debug("stitched_out: {} {}".format(file_id, out.decode('UTF-8')))
         logger.debug("stitched_err: {} {}".format(file_id, err.decode('UTF-8')))
     db_cursor.execute(queries.file_check,
-                      {'file_id': file_id, 'file_check': 'stitched_jpg', 'check_results': magick_identify,
+                      {'file_id': file_id,
+                       'folder_id': folder_id,
+                       'file_check': 'stitched_jpg',
+                       'check_results': magick_identify,
                        'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
     if magick_return:
         # Store MD5
@@ -487,7 +512,11 @@ def process_image(filename, folder_path, folder_id, logger):
         result = db_cursor.fetchone()
         if result is None:
             db_cursor.execute(queries.file_check,
-                              {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': filecheck,
+                               'check_results': 9,
+                               'check_info': ''})
             logger.debug(db_cursor.query.decode("utf-8"))
             result = 1
         else:
@@ -594,7 +623,10 @@ def process_image(filename, folder_path, folder_id, logger):
             if len(result) == 0:
                 unique_file = 0
                 db_cursor.execute(queries.file_check,
-                                  {'file_id': file_id, 'file_check': 'unique_file', 'check_results': unique_file,
+                                  {'file_id': file_id,
+                                   'folder_id': folder_id,
+                                   'file_check': 'unique_file',
+                                   'check_results': unique_file,
                                    'check_info': ""})
                 logger.debug(db_cursor.query.decode("utf-8"))
                 # file_checks = file_checks - 1
@@ -604,7 +636,9 @@ def process_image(filename, folder_path, folder_id, logger):
                     db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
                     logger.debug(db_cursor.query.decode("utf-8"))
                     folder_dupe = db_cursor.fetchone()
-                    db_cursor.execute(queries.file_check, {'file_id': file_id, 'file_check': 'unique_file',
+                    db_cursor.execute(queries.file_check, {'file_id': file_id,
+                                                           'folder_id': folder_id,
+                                                           'file_check': 'unique_file',
                                                            'check_results': unique_file,
                                                            'check_info': "File with same name in {}".format(
                                                                folder_dupe[0])})
@@ -629,7 +663,10 @@ def process_image(filename, folder_path, folder_id, logger):
                 for fol in result:
                     folders = folders + "," + fol[0]
             db_cursor.execute(queries.file_check,
-                              {'file_id': file_id, 'file_check': 'dupe_elsewhere', 'check_results': old_name,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'dupe_elsewhere',
+                               'check_results': old_name,
                                'check_info': folders})
             logger.debug(db_cursor.query.decode("utf-8"))
             # file_checks = file_checks - 1
@@ -649,7 +686,10 @@ def process_image(filename, folder_path, folder_id, logger):
                 prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
                                                                                          settings.filename_prefix)
             db_cursor.execute(queries.file_check,
-                              {'file_id': file_id, 'file_check': 'prefix', 'check_results': prefix_res,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'prefix',
+                               'check_results': prefix_res,
                                'check_info': prefix_info})
             logger.debug(db_cursor.query.decode("utf-8"))
             # file_checks = file_checks - 1
@@ -669,7 +709,10 @@ def process_image(filename, folder_path, folder_id, logger):
                 prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
                                                                                          settings.filename_suffix)
             db_cursor.execute(queries.file_check,
-                              {'file_id': file_id, 'file_check': 'suffix', 'check_results': prefix_res,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'suffix',
+                               'check_results': prefix_res,
                                'check_info': prefix_info})
             logger.debug(db_cursor.query.decode("utf-8"))
             # file_checks = file_checks - 1

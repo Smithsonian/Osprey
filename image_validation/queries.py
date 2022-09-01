@@ -16,7 +16,7 @@ folder_processing_update = "UPDATE folders SET processing = %(processing)s WHERE
 
 file_updated_at = "UPDATE files SET updated_at = NOW() where file_id = %(file_id)s"
 
-file_check = "INSERT INTO file_checks (file_id, file_check, check_results, check_info) VALUES (%(file_id)s, %(file_check)s, %(check_results)s, %(check_info)s) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %(check_results)s, check_info = %(check_info)s"
+file_check = "INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info) VALUES (%(file_id)s, %(folder_id)s, %(file_check)s, %(check_results)s, %(check_info)s) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %(check_results)s, check_info = %(check_info)s"
 
 save_md5 = "INSERT INTO file_md5 (file_id, filetype, md5) VALUES (%(file_id)s, %(filetype)s, %(md5)s) ON CONFLICT (file_id, filetype) DO UPDATE SET md5 = %(md5)s"
 
@@ -78,9 +78,9 @@ get_folders = "SELECT folder_id, path FROM folders WHERE project_id = %(project_
 
 update_nofiles = "UPDATE folders f SET no_files = d.no_files FROM (SELECT count(*) AS no_files, folder_id FROM files WHERE folder_id = %(folder_id)s GROUP BY folder_id) d WHERE f.folder_id = d.folder_id"
 
-get_fileserrors = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = %(folder_id)s) AND check_results = 1"
+get_fileserrors = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE folder_id = %(folder_id)s AND check_results = 1"
 
-get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE file_id IN (SELECT file_id FROM files WHERE folder_id = %(folder_id)s) AND check_results = 9"
+get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE folder_id = %(folder_id)s AND check_results = 9"
 
 update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
 
