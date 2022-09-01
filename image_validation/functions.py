@@ -475,20 +475,20 @@ def process_image(filename, folder_path, folder_id, logger):
         file_id = file_id[0]
     # # Check if file is OK
     # file_checks = 0
-    # for filecheck in settings.project_file_checks:
-    #     db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-    #     logger.debug(db_cursor.query.decode("utf-8"))
-    #     result = db_cursor.fetchone()
-    #     if result is None:
-    #         db_cursor.execute(queries.file_check,
-    #                           {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
-    #         logger.debug(db_cursor.query.decode("utf-8"))
-    #         result = 1
-    #     else:
-    #         result = result[0]
-    #         if result == 9:
-    #             result = 1
-    #     file_checks = file_checks + result
+    for filecheck in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()
+        if result is None:
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id, 'file_check': filecheck, 'check_results': 9, 'check_info': ''})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # result = 1
+        # else:
+        #     result = result[0]
+        #     if result == 9:
+        #         result = 1
+        # file_checks = file_checks + result
     # Check if JPG preview exists
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
