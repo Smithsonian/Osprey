@@ -472,6 +472,11 @@ def process_image(filename, folder_path, folder_id, logger):
                           {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
         logger.debug(db_cursor.query.decode("utf-8"))
         file_id = db_cursor.fetchone()[0]
+        # Get filesize from TIF:
+        file_size = os.path.getsize(main_file_path)
+        db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
+            file_size})
+        logger.debug(db_cursor.query.decode("utf-8"))
     else:
         file_id = file_id[0]
     # Check if file is OK
@@ -503,11 +508,6 @@ def process_image(filename, folder_path, folder_id, logger):
     # if os.path.isfile(preview_image) is False:
     #     logger.debug(db_cursor.query.decode("utf-8"))
     #     file_checks = file_checks + 1
-    # Get filesize from TIF:
-    file_size = os.path.getsize(main_file_path)
-    db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
-        file_size})
-    logger.debug(db_cursor.query.decode("utf-8"))
     # Get exif from TIF
     # db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
     # logger.debug(db_cursor.query.decode("utf-8"))
