@@ -179,6 +179,7 @@ if __name__ == "__main__":
                 logger.info("Ctrl-c detected. Leaving program.")
                 try:
                     if 'folder_id' in globals():
+                        logger.info("folder_id in globals: {}".format(folder_id))
                         conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
                                                  password=settings.db_password, connect_timeout=60)
                         conn2.autocommit = True
@@ -187,7 +188,7 @@ if __name__ == "__main__":
                                            {'folder_id': folder_id})
                         conn2.close()
                 except Exception as e:
-                    print("Error: {}".format(e))
+                    logging.error("Error: {}".format(e))
                 # Compress logs
                 compress_log()
                 sys.exit(0)
@@ -195,6 +196,7 @@ if __name__ == "__main__":
                 logger.error("There was an error: {}".format(e))
                 try:
                     if 'folder_id' in globals():
+                        logger.info("folder_id in globals: {}".format(folder_id))
                         conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
                                                  password=settings.db_password, connect_timeout=60)
                         conn2.autocommit = True
@@ -203,7 +205,7 @@ if __name__ == "__main__":
                                            {'folder_id': folder_id})
                         conn2.close()
                 except Exception as e:
-                    print("Error: {}".format(e))
+                    logging.error("Error: {}".format(e))
                 # Compress logs
                 compress_log()
                 sys.exit(1)
