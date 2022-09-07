@@ -1,0 +1,9 @@
+# Database
+host=""
+database=""
+user=""
+password = ""
+
+AppID = ""
+AppKey  = ""
+
