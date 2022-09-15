@@ -183,6 +183,7 @@ CREATE TABLE files (
     file_timestamp     timestamp with time zone,
     item_no            text,
     dams_uan           text,
+    edan_id            text,
     preview_image      text,
     created_at         timestamp with time zone DEFAULT NOW(),
     updated_at         timestamp with time zone DEFAULT NOW()
@@ -192,6 +193,7 @@ CREATE INDEX files_fileid_idx ON files USING BTREE(file_id);
 CREATE INDEX files_folderid_idx ON files USING BTREE(folder_id);
 CREATE INDEX files_ffid_idx ON files USING BTREE(folder_id, file_id);
 CREATE INDEX files_uan_idx ON files USING BTREE(dams_uan);
+CREATE INDEX files_eid_idx ON files USING BTREE(edan_id);
 
 
 CREATE TRIGGER trigger_updated_at_files
@@ -248,20 +250,207 @@ CREATE INDEX file_md5_filetype_idx ON file_md5 USING BTREE(filetype);
 --files_exif
 DROP TABLE IF EXISTS files_exif CASCADE;
 create table files_exif (
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    filetype text default 'RAW',
+    file_id integer,
+    filetype text default 'TIF',
     tag text,
     taggroup text,
     tagid text,
     value text,
+    UNIQUE (file_id, tag, filetype),
     updated_at timestamp with time zone DEFAULT NOW()
 );
-ALTER TABLE files_exif ADD CONSTRAINT file_and_tag_andtype UNIQUE (file_id, tag, filetype);
-CREATE INDEX files_exif_file_id_idx ON files_exif USING BTREE(file_id);
-CREATE INDEX files_exif_filetype_idx ON files_exif USING BTREE(filetype);
-CREATE INDEX files_exif_tag_idx ON files_exif USING BTREE(tag);
-CREATE INDEX files_exif_tagid_idx ON files_exif USING BTREE(tagid);
-CREATE INDEX files_exif_taggroup_idx ON files_exif USING BTREE(taggroup);
+CREATE INDEX files_exif1_file_id_idx ON files_exif USING BTREE(file_id);
+CREATE INDEX files_exif1_filetype_idx ON files_exif USING BTREE(filetype);
+CREATE INDEX files_exif1_fid_idx ON files_exif USING BTREE(file_id, filetype);
+CREATE INDEX files_exif1_tag_idx ON files_exif USING BTREE(tag);
+CREATE INDEX files_exif1_tagid_idx ON files_exif USING BTREE(tagid);
+CREATE INDEX files_exif1_taggroup_idx ON files_exif USING BTREE(taggroup);
+
+--
+--     --files_exif partitioned by id
+--     CREATE TABLE files_exif_00 (
+--         CHECK (file_id < 200000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_01 (
+--         CHECK (file_id >= 200000::int AND file_id < 400000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_02 (
+--         CHECK (file_id >= 400000::int AND file_id < 600000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_03 (
+--         CHECK (file_id >= 600000::int AND file_id < 800000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_04 (
+--         CHECK (file_id >= 800000::int AND file_id < 1000000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_05 (
+--         CHECK (file_id >= 1000000::int AND file_id < 1200000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_06 (
+--         CHECK (file_id >= 1200000::int AND file_id < 1400000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_07 (
+--         CHECK (file_id >= 1400000::int AND file_id < 1600000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_08 (
+--         CHECK (file_id >= 1600000::int AND file_id < 1800000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_09 (
+--         CHECK (file_id >= 1800000::int AND file_id < 2000000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_10 (
+--         CHECK (file_id >= 2000000::int AND file_id < 2200000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_11 (
+--         CHECK (file_id >= 2200000::int AND file_id < 2400000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_12 (
+--         CHECK (file_id >= 2400000::int AND file_id < 2600000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_13 (
+--         CHECK (file_id >= 2600000::int AND file_id < 2800000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_14 (
+--         CHECK (file_id >= 2800000::int AND file_id < 3000000::int)
+--     ) INHERITS (files_exif);
+--
+--     CREATE TABLE files_exif_15 (
+--         CHECK (file_id >= 3000000::int)
+--     ) INHERITS (files_exif);
+--
+--     ALTER TABLE files_exif_00 ADD CONSTRAINT files_exif_00_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_01 ADD CONSTRAINT files_exif_01_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_02 ADD CONSTRAINT files_exif_02_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_03 ADD CONSTRAINT files_exif_03_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_04 ADD CONSTRAINT files_exif_04_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_05 ADD CONSTRAINT files_exif_05_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_06 ADD CONSTRAINT files_exif_06_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_07 ADD CONSTRAINT files_exif_07_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_08 ADD CONSTRAINT files_exif_08_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_09 ADD CONSTRAINT files_exif_09_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_10 ADD CONSTRAINT files_exif_10_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_11 ADD CONSTRAINT files_exif_11_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_12 ADD CONSTRAINT files_exif_12_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_13 ADD CONSTRAINT files_exif_13_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_14 ADD CONSTRAINT files_exif_14_fexif UNIQUE (file_id, tag, filetype);
+--     ALTER TABLE files_exif_15 ADD CONSTRAINT files_exif_15_fexif UNIQUE (file_id, tag, filetype);
+--
+--
+--     ----------------------
+--     --Function to insert into the specific subtable
+--     ----------------------
+--
+--     CREATE OR REPLACE FUNCTION exif_insert_data() RETURNS TRIGGER AS $$
+--     BEGIN
+--         IF ( NEW.file_id < 200000::int ) THEN INSERT INTO files_exif_00 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 200000::int AND NEW.file_id < 400000::int ) THEN INSERT INTO files_exif_01 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 400000::int AND NEW.file_id < 600000::int ) THEN INSERT INTO files_exif_02 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 600000::int AND NEW.file_id < 800000::int ) THEN INSERT INTO files_exif_03 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 800000::int AND NEW.file_id < 1000000::int ) THEN INSERT INTO files_exif_04 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 1000000::int AND NEW.file_id < 1200000::int ) THEN INSERT INTO files_exif_05 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 1200000::int AND NEW.file_id < 1400000::int ) THEN INSERT INTO files_exif_06 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 1400000::int AND NEW.file_id < 1600000::int ) THEN INSERT INTO files_exif_07 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 1600000::int AND NEW.file_id < 1800000::int ) THEN INSERT INTO files_exif_08 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 1800000::int AND NEW.file_id < 2000000::int ) THEN INSERT INTO files_exif_09 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 2000000::int AND NEW.file_id < 2200000::int ) THEN INSERT INTO files_exif_10 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 2200000::int AND NEW.file_id < 2400000::int ) THEN INSERT INTO files_exif_11 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 2400000::int AND NEW.file_id < 2600000::int ) THEN INSERT INTO files_exif_12 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 2600000::int AND NEW.file_id < 2800000::int ) THEN INSERT INTO files_exif_13 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 2800000::int AND NEW.file_id < 3000000::int ) THEN INSERT INTO files_exif_14 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--           ELSIF
+--           ( NEW.file_id >= 3000000::int ) THEN INSERT INTO files_exif_15 VALUES (NEW.*) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET NEW.value = value;
+--
+--         END IF;
+--         RETURN NULL;
+--     END;
+--     $$ LANGUAGE plpgsql;
+--
+--
+--     ----------------------
+--     --Trigger for insert
+--     ----------------------
+--     CREATE TRIGGER exif_insert_trigger
+--     BEFORE INSERT ON files_exif
+--     FOR EACH ROW EXECUTE PROCEDURE exif_insert_data();
+--
+--
+--     CREATE INDEX files_exif_00_file_id_idx ON files_exif_00 USING BTREE(file_id);
+--     CREATE INDEX files_exif_00_filetype_idx ON files_exif_00 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_01_file_id_idx ON files_exif_01 USING BTREE(file_id);
+--     CREATE INDEX files_exif_01_filetype_idx ON files_exif_01 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_02_file_id_idx ON files_exif_02 USING BTREE(file_id);
+--     CREATE INDEX files_exif_02_filetype_idx ON files_exif_02 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_03_file_id_idx ON files_exif_03 USING BTREE(file_id);
+--     CREATE INDEX files_exif_03_filetype_idx ON files_exif_03 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_04_file_id_idx ON files_exif_04 USING BTREE(file_id);
+--     CREATE INDEX files_exif_04_filetype_idx ON files_exif_04 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_05_file_id_idx ON files_exif_05 USING BTREE(file_id);
+--     CREATE INDEX files_exif_05_filetype_idx ON files_exif_05 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_06_file_id_idx ON files_exif_06 USING BTREE(file_id);
+--     CREATE INDEX files_exif_06_filetype_idx ON files_exif_06 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_07_file_id_idx ON files_exif_07 USING BTREE(file_id);
+--     CREATE INDEX files_exif_07_filetype_idx ON files_exif_07 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_08_file_id_idx ON files_exif_08 USING BTREE(file_id);
+--     CREATE INDEX files_exif_08_filetype_idx ON files_exif_08 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_09_file_id_idx ON files_exif_09 USING BTREE(file_id);
+--     CREATE INDEX files_exif_09_filetype_idx ON files_exif_09 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_10_file_id_idx ON files_exif_10 USING BTREE(file_id);
+--     CREATE INDEX files_exif_10_filetype_idx ON files_exif_10 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_11_file_id_idx ON files_exif_11 USING BTREE(file_id);
+--     CREATE INDEX files_exif_11_filetype_idx ON files_exif_11 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_12_file_id_idx ON files_exif_12 USING BTREE(file_id);
+--     CREATE INDEX files_exif_12_filetype_idx ON files_exif_12 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_13_file_id_idx ON files_exif_13 USING BTREE(file_id);
+--     CREATE INDEX files_exif_13_filetype_idx ON files_exif_13 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_14_file_id_idx ON files_exif_14 USING BTREE(file_id);
+--     CREATE INDEX files_exif_14_filetype_idx ON files_exif_14 USING BTREE(filetype);
+--
+--     CREATE INDEX files_exif_15_file_id_idx ON files_exif_15 USING BTREE(file_id);
+--     CREATE INDEX files_exif_15_filetype_idx ON files_exif_15 USING BTREE(filetype);
+
+
 
 
 
@@ -287,15 +476,262 @@ CREATE TABLE file_checks (
     file_check text,
     check_results integer,
     check_info text,
+    UNIQUE (file_id, file_check),
     updated_at timestamp with time zone DEFAULT NOW()
 );
-ALTER TABLE file_checks ADD CONSTRAINT fileid_and_filecheck UNIQUE (file_id, file_check);
-CREATE INDEX file_checks_file_id_idx ON file_checks USING BTREE(file_id);
-CREATE INDEX file_checks_file_check_idx ON file_checks USING BTREE(file_check);
-CREATE INDEX file_checks_check_results_idx ON file_checks USING BTREE(check_results);
-CREATE INDEX file_checks_fc_id_idx ON file_checks USING BTREE(check_results, folder_id);
-CREATE INDEX file_checks_ff_id_idx ON file_checks USING BTREE(folder_id, file_id);
-CREATE INDEX file_checks_cf_id_idx ON file_checks USING BTREE(file_check, file_id);
+CREATE INDEX file_checks1_file_id_idx ON file_checks USING BTREE(file_id);
+CREATE INDEX file_checks1_file_check_idx ON file_checks USING BTREE(file_check);
+CREATE INDEX file_checks1_check_results_idx ON file_checks USING BTREE(check_results);
+CREATE INDEX file_checks1_fc_id_idx ON file_checks USING BTREE(check_results, folder_id);
+CREATE INDEX file_checks1_ff_id_idx ON file_checks USING BTREE(folder_id, file_id);
+CREATE INDEX file_checks1_cf_id_idx ON file_checks USING BTREE(file_check, file_id);
+
+--
+--     --file_checks partitioned by id
+--     CREATE TABLE file_checks_00 (
+--         CHECK (file_id < 200000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_00 ADD CONSTRAINT file_checks_00_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_01 (
+--         CHECK (file_id >= 200000::int AND file_id < 400000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_01 ADD CONSTRAINT file_checks_01_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_02 (
+--         CHECK (file_id >= 400000::int AND file_id < 600000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_02 ADD CONSTRAINT file_checks_02_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_03 (
+--         CHECK (file_id >= 600000::int AND file_id < 800000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_03 ADD CONSTRAINT file_checks_03_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_04 (
+--         CHECK (file_id >= 800000::int AND file_id < 1000000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_04 ADD CONSTRAINT file_checks_04_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_05 (
+--         CHECK (file_id >= 1000000::int AND file_id < 1200000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_05 ADD CONSTRAINT file_checks_05_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_06 (
+--         CHECK (file_id >= 1200000::int AND file_id < 1400000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_06 ADD CONSTRAINT file_checks_06_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_07 (
+--         CHECK (file_id >= 1400000::int AND file_id < 1600000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_07 ADD CONSTRAINT file_checks_07_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_08 (
+--         CHECK (file_id >= 1600000::int AND file_id < 1800000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_08 ADD CONSTRAINT file_checks_08_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_09 (
+--         CHECK (file_id >= 1800000::int AND file_id < 2000000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_09 ADD CONSTRAINT file_checks_09_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_10 (
+--         CHECK (file_id >= 2000000::int AND file_id < 2200000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_10 ADD CONSTRAINT file_checks_10_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_11 (
+--         CHECK (file_id >= 2200000::int AND file_id < 2400000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_11 ADD CONSTRAINT file_checks_11_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_12 (
+--         CHECK (file_id >= 2400000::int AND file_id < 2600000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_12 ADD CONSTRAINT file_checks_12_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_13 (
+--         CHECK (file_id >= 2600000::int AND file_id < 2800000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_13 ADD CONSTRAINT file_checks_13_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_14 (
+--         CHECK (file_id >= 2800000::int AND file_id < 3000000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_14 ADD CONSTRAINT file_checks_14_fcheck UNIQUE (file_id, file_check);
+--
+--     CREATE TABLE file_checks_15 (
+--         CHECK (file_id >= 3000000::int)
+--     ) INHERITS (file_checks);
+--
+--     ALTER TABLE file_checks_15 ADD CONSTRAINT file_checks_15_fcheck UNIQUE (file_id, file_check);
+--
+--
+--     ----------------------
+--     --Function to insert into the specific subtable
+--     ----------------------
+--
+--     CREATE OR REPLACE FUNCTION checks_insert_data() RETURNS TRIGGER AS $$
+--     BEGIN
+--         IF ( NEW.file_id < 200000::int ) THEN INSERT INTO file_checks_00 VALUES (NEW.*);
+--           ELSIF
+--           ( NEW.file_id >= 200000::int AND NEW.file_id < 400000::int ) THEN INSERT INTO file_checks_01 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 400000::int AND NEW.file_id < 600000::int ) THEN INSERT INTO file_checks_02 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 600000::int AND NEW.file_id < 800000::int ) THEN INSERT INTO file_checks_03 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 800000::int AND NEW.file_id < 1000000::int ) THEN INSERT INTO file_checks_04 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 1000000::int AND NEW.file_id < 1200000::int ) THEN INSERT INTO file_checks_05 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 1200000::int AND NEW.file_id < 1400000::int ) THEN INSERT INTO file_checks_06 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 1400000::int AND NEW.file_id < 1600000::int ) THEN INSERT INTO file_checks_07 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 1600000::int AND NEW.file_id < 1800000::int ) THEN INSERT INTO file_checks_08 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 1800000::int AND NEW.file_id < 2000000::int ) THEN INSERT INTO file_checks_09 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 2000000::int AND NEW.file_id < 2200000::int ) THEN INSERT INTO file_checks_10 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 2200000::int AND NEW.file_id < 2400000::int ) THEN INSERT INTO file_checks_11 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 2400000::int AND NEW.file_id < 2600000::int ) THEN INSERT INTO file_checks_12 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 2600000::int AND NEW.file_id < 2800000::int ) THEN INSERT INTO file_checks_13 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 2800000::int AND NEW.file_id < 3000000::int ) THEN INSERT INTO file_checks_14 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--           ELSIF
+--           ( NEW.file_id >= 3000000::int ) THEN INSERT INTO file_checks_15 VALUES (NEW.*) ON CONFLICT (file_id, file_check) DO UPDATE SET value = NEW.value;
+--
+--         END IF;
+--         RETURN NULL;
+--     END;
+--     $$ LANGUAGE plpgsql;
+--
+--
+--     ----------------------
+--     --Trigger for insert
+--     ----------------------
+--     CREATE TRIGGER checks_insert_trigger
+--     BEFORE INSERT ON file_checks
+--     FOR EACH ROW EXECUTE PROCEDURE checks_insert_data();
+--
+--     --Indices
+--     CREATE INDEX file_checks_00_file_id_idx ON file_checks_00 USING BTREE(file_id);
+--     CREATE INDEX file_checks_00_file_check_idx ON file_checks_00 USING BTREE(file_check);
+--     CREATE INDEX file_checks_00_fc_id_idx ON file_checks_00 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_00_ff_id_idx ON file_checks_00 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_00_cf_id_idx ON file_checks_00 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_01_file_id_idx ON file_checks_01 USING BTREE(file_id);
+--     CREATE INDEX file_checks_01_file_check_idx ON file_checks_01 USING BTREE(file_check);
+--     CREATE INDEX file_checks_01_fc_id_idx ON file_checks_01 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_01_ff_id_idx ON file_checks_01 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_01_cf_id_idx ON file_checks_01 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_02_file_id_idx ON file_checks_02 USING BTREE(file_id);
+--     CREATE INDEX file_checks_02_file_check_idx ON file_checks_02 USING BTREE(file_check);
+--     CREATE INDEX file_checks_02_fc_id_idx ON file_checks_02 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_02_ff_id_idx ON file_checks_02 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_02_cf_id_idx ON file_checks_02 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_03_file_id_idx ON file_checks_03 USING BTREE(file_id);
+--     CREATE INDEX file_checks_03_file_check_idx ON file_checks_03 USING BTREE(file_check);
+--     CREATE INDEX file_checks_03_fc_id_idx ON file_checks_03 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_03_ff_id_idx ON file_checks_03 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_03_cf_id_idx ON file_checks_03 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_04_file_id_idx ON file_checks_04 USING BTREE(file_id);
+--     CREATE INDEX file_checks_04_file_check_idx ON file_checks_04 USING BTREE(file_check);
+--     CREATE INDEX file_checks_04_fc_id_idx ON file_checks_04 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_04_ff_id_idx ON file_checks_04 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_04_cf_id_idx ON file_checks_04 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_05_file_id_idx ON file_checks_05 USING BTREE(file_id);
+--     CREATE INDEX file_checks_05_file_check_idx ON file_checks_05 USING BTREE(file_check);
+--     CREATE INDEX file_checks_05_fc_id_idx ON file_checks_05 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_05_ff_id_idx ON file_checks_05 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_05_cf_id_idx ON file_checks_05 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_06_file_id_idx ON file_checks_06 USING BTREE(file_id);
+--     CREATE INDEX file_checks_06_file_check_idx ON file_checks_06 USING BTREE(file_check);
+--     CREATE INDEX file_checks_06_fc_id_idx ON file_checks_06 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_06_ff_id_idx ON file_checks_06 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_06_cf_id_idx ON file_checks_06 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_07_file_id_idx ON file_checks_07 USING BTREE(file_id);
+--     CREATE INDEX file_checks_07_file_check_idx ON file_checks_07 USING BTREE(file_check);
+--     CREATE INDEX file_checks_07_fc_id_idx ON file_checks_07 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_07_ff_id_idx ON file_checks_07 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_07_cf_id_idx ON file_checks_07 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_08_file_id_idx ON file_checks_08 USING BTREE(file_id);
+--     CREATE INDEX file_checks_08_file_check_idx ON file_checks_08 USING BTREE(file_check);
+--     CREATE INDEX file_checks_08_fc_id_idx ON file_checks_08 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_08_ff_id_idx ON file_checks_08 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_08_cf_id_idx ON file_checks_08 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_09_file_id_idx ON file_checks_09 USING BTREE(file_id);
+--     CREATE INDEX file_checks_09_file_check_idx ON file_checks_09 USING BTREE(file_check);
+--     CREATE INDEX file_checks_09_fc_id_idx ON file_checks_09 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_09_ff_id_idx ON file_checks_09 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_09_cf_id_idx ON file_checks_09 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_10_file_id_idx ON file_checks_10 USING BTREE(file_id);
+--     CREATE INDEX file_checks_10_file_check_idx ON file_checks_10 USING BTREE(file_check);
+--     CREATE INDEX file_checks_10_fc_id_idx ON file_checks_10 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_10_ff_id_idx ON file_checks_10 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_10_cf_id_idx ON file_checks_10 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_11_file_id_idx ON file_checks_11 USING BTREE(file_id);
+--     CREATE INDEX file_checks_11_file_check_idx ON file_checks_11 USING BTREE(file_check);
+--     CREATE INDEX file_checks_11_fc_id_idx ON file_checks_11 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_11_ff_id_idx ON file_checks_11 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_11_cf_id_idx ON file_checks_11 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_12_file_id_idx ON file_checks_12 USING BTREE(file_id);
+--     CREATE INDEX file_checks_12_file_check_idx ON file_checks_12 USING BTREE(file_check);
+--     CREATE INDEX file_checks_12_fc_id_idx ON file_checks_12 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_12_ff_id_idx ON file_checks_12 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_12_cf_id_idx ON file_checks_12 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_13_file_id_idx ON file_checks_13 USING BTREE(file_id);
+--     CREATE INDEX file_checks_13_file_check_idx ON file_checks_13 USING BTREE(file_check);
+--     CREATE INDEX file_checks_13_fc_id_idx ON file_checks_13 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_13_ff_id_idx ON file_checks_13 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_13_cf_id_idx ON file_checks_13 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_14_file_id_idx ON file_checks_14 USING BTREE(file_id);
+--     CREATE INDEX file_checks_14_file_check_idx ON file_checks_14 USING BTREE(file_check);
+--     CREATE INDEX file_checks_14_fc_id_idx ON file_checks_14 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_14_ff_id_idx ON file_checks_14 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_14_cf_id_idx ON file_checks_14 USING BTREE(file_check, file_id);
+--
+--     CREATE INDEX file_checks_15_file_id_idx ON file_checks_15 USING BTREE(file_id);
+--     CREATE INDEX file_checks_15_file_check_idx ON file_checks_15 USING BTREE(file_check);
+--     CREATE INDEX file_checks_15_fc_id_idx ON file_checks_15 USING BTREE(check_results, folder_id);
+--     CREATE INDEX file_checks_15_ff_id_idx ON file_checks_15 USING BTREE(folder_id, file_id);
+--     CREATE INDEX file_checks_15_cf_id_idx ON file_checks_15 USING BTREE(file_check, file_id);
 
 
 --file_postprocessing
@@ -371,6 +807,7 @@ CREATE TABLE projects_stats (
     images_taken integer,
     images_in_dams integer,
     images_in_cis integer,
+    images_public integer,
     transcription integer,
     transcription_qc integer,
     transcription_in_cis integer,
@@ -390,46 +827,6 @@ CREATE INDEX projects_updated_at_idx on projects_stats USING BTREE(updated_at);
 
 --For pivot tables
 CREATE extension tablefunc;
-
-
----------------
--- Add logging
----------------
-DROP TABLE process_logging CASCADE;
-CREATE TABLE process_logging (
-    table_id serial PRIMARY KEY,
-    project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    date_time timestamp with time zone DEFAULT NOW(),
-    log_area text,
-    log_text text,
-    log_type text DEFAULT 'info'
-);
-CREATE INDEX process_logging_idx ON process_logging USING BTREE(table_id);
-CREATE INDEX process_logging_pid_idx ON process_logging USING BTREE(project_id);
-CREATE INDEX process_logging_fid_idx ON process_logging USING BTREE(file_id);
-CREATE INDEX process_logging_log_idx ON process_logging USING BTREE(log_area);
-CREATE INDEX process_logging_dt_idx ON process_logging USING BTREE(date_time);
-
-
-
-DROP TABLE process_logging_5d CASCADE;
-CREATE TABLE process_logging_5d (
-    table_id serial PRIMARY KEY,
-    project_id integer,
-    file_id integer,
-    date_time timestamp with time zone DEFAULT NOW(),
-    log_area text,
-    log_text text,
-    log_type text DEFAULT 'info'
-);
-CREATE INDEX process_logging_5d_idx ON process_logging_5d USING BTREE(table_id);
-CREATE INDEX process_logging_5d_pid_idx ON process_logging_5d USING BTREE(project_id);
-CREATE INDEX process_logging_5d_fid_idx ON process_logging_5d USING BTREE(file_id);
-CREATE INDEX process_logging_5d_log_idx ON process_logging_5d USING BTREE(log_area);
-CREATE INDEX process_logging_5d_dt_idx ON process_logging_5d USING BTREE(date_time);
-
-
 
 
 
