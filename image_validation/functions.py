@@ -16,7 +16,7 @@ from pathlib import Path
 import shutil
 import locale
 # from pqdm.processes import pqdm
-# import itertools
+import itertools
 
 # For MD5
 import hashlib
@@ -25,7 +25,6 @@ import hashlib
 import psycopg2
 
 # Parallel
-# import itertools
 from multiprocessing import Pool
 
 # Get settings and queries
@@ -989,3 +988,342 @@ def run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logg
     # Set as done processing
     db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
     return folder_id
+
+
+
+def process_image_p(filename, folder_path, folder_id, logfile_folder):
+    """
+    Run checks for image files
+    """
+    import settings
+    import random
+    import time
+    import logging
+    import logging.handlers
+    from logging.handlers import RotatingFileHandler
+    # logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
+    # logging.basicConfig(level=logging.DEBUG,
+    #                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+    #                     datefmt='%m-%d %H:%M:%S',
+    #                     handlers=[RotatingFileHandler(logfile, maxBytes=10000000,
+    #                                                   backupCount=100)])
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logger = logging.getLogger("osprey")
+    logging.getLogger('osprey_file').addHandler(console)
+    logger.setLevel(logging.DEBUG)
+    #
+    main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
+    logger.info("filename: {}".format(main_file_path))
+    folder_id = int(folder_id)
+    filename_stem = Path(filename).stem
+    filename_suffix = Path(filename).suffix[1:]
+    # Connect to database
+    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                            password=settings.db_password, connect_timeout=60)
+    conn.autocommit = True
+    db_cursor = conn.cursor()
+    # Check if file exists, insert if not
+    db_cursor.execute(queries.select_file_id, {'file_name': filename_stem, 'folder_id': folder_id})
+    file_id = db_cursor.fetchone()
+    logger.debug(db_cursor.query.decode("utf-8"))
+    if file_id is None:
+        # Get modified date for file
+        file_timestamp_float = os.path.getmtime(main_file_path)
+        file_timestamp = datetime.fromtimestamp(file_timestamp_float).strftime('%Y-%m-%d %H:%M:%S')
+        db_cursor.execute(queries.insert_file,
+                          {'file_name': filename_stem, 'folder_id': folder_id, 'file_timestamp': file_timestamp})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        file_id = db_cursor.fetchone()[0]
+        # Get filesize from TIF:
+        file_size = os.path.getsize(main_file_path)
+        db_cursor.execute(queries.save_filesize, {'file_id': file_id, 'filetype': filename_suffix.lower(), 'filesize':
+            file_size})
+        logger.debug(db_cursor.query.decode("utf-8"))
+    else:
+        file_id = file_id[0]
+    # Check if file is OK
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    # Generate jpg preview, if needed
+    jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
+    # Compare MD5 between source and copy
+    db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    result = db_cursor.fetchone()
+    if result is None:
+        file_md5 = filemd5(main_file_path, logger)
+        db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
+        logger.debug(db_cursor.query.decode("utf-8"))
+    # Get exif from TIF
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    check_exif = db_cursor.fetchone()[0]
+    if check_exif == 0:
+        file_exif(file_id, main_file_path, filename_suffix.lower(), db_cursor, logger)
+    # Get exif from RAW
+    db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': 'raw'})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    check_exif = db_cursor.fetchone()[0]
+    if check_exif == 0:
+        pair_file = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
+                                    'raw_pair', db_cursor)
+        if os.path.isfile(
+                "{}/{}/{}".format(folder_path, settings.raw_files_path, pair_file)):
+            file_exif(file_id,
+                      "{}/{}/{}".format(folder_path,
+                                        settings.raw_files_path,
+                                        pair_file),
+                      'raw', db_cursor, logger)
+    # Nothing to do, return
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    logger.info("Running checks on file {} ({}; folder_id: {})".format(filename_stem, file_id, folder_id))
+    # Checks that do not need a local copy
+    if 'raw_pair' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # FilePair check
+            pair_check = file_pair_check(file_id, filename, "{}/{}".format(folder_path, settings.raw_files_path),
+                                         'raw_pair', db_cursor)
+            file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check), logger)
+            db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
+            logger.debug(db_cursor.query.decode("utf-8"))
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'valid_name' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # valid name in file
+            valid_name(file_id, filename_stem, db_cursor)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'unique_file' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # Check in project
+            db_cursor.execute(queries.check_unique, {'file_name': filename_stem, 'folder_id': folder_id,
+                                                     'project_id': settings.project_id, 'file_id': file_id})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchall()
+            if len(result) == 0:
+                unique_file = 0
+                db_cursor.execute(queries.file_check,
+                                  {'file_id': file_id,
+                                   'folder_id': folder_id,
+                                   'file_check': 'unique_file',
+                                   'check_results': unique_file,
+                                   'check_info': ""})
+                logger.debug(db_cursor.query.decode("utf-8"))
+                # file_checks = file_checks - 1
+            else:
+                unique_file = 1
+                for dupe in result:
+                    db_cursor.execute(queries.not_unique, {'folder_id': dupe[1]})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+                    folder_dupe = db_cursor.fetchone()
+                    db_cursor.execute(queries.file_check, {'file_id': file_id,
+                                                           'folder_id': folder_id,
+                                                           'file_check': 'unique_file',
+                                                           'check_results': unique_file,
+                                                           'check_info': "File with same name in {}".format(
+                                                               folder_dupe[0])})
+                    logger.debug(db_cursor.query.decode("utf-8"))
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'dupe_elsewhere' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            db_cursor.execute(queries.check_unique_old, {'file_name': filename_stem, 'project_id': settings.project_id})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            result = db_cursor.fetchall()
+            folders = ""
+            if len(result) == 0:
+                old_name = 0
+            else:
+                old_name = 1
+                for fol in result:
+                    folders = folders + "," + fol[0]
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'dupe_elsewhere',
+                               'check_results': old_name,
+                               'check_info': folders})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'prefix' in settings.project_file_checks:
+        if settings.filename_prefix is None:
+            logger.debug(db_cursor.query.decode("utf-8"))
+            sys.exit(1)
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'prefix'})
+        result = db_cursor.fetchone()[0]
+        logger.debug(db_cursor.query.decode("utf-8"))
+        if result != 0:
+            if filename_stem.startswith(settings.filename_prefix):
+                prefix_res = 0
+                prefix_info = ""
+            else:
+                logger.debug(db_cursor.query.decode("utf-8"))
+                prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
+                                                                                         settings.filename_prefix)
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'prefix',
+                               'check_results': prefix_res,
+                               'check_info': prefix_info})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            # file_checks = file_checks - 1
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'suffix' in settings.project_file_checks:
+        if settings.filename_prefix is None:
+            logger.debug(db_cursor.query.decode("utf-8"))
+            sys.exit(1)
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'suffix'})
+        result = db_cursor.fetchone()[0]
+        logger.debug(db_cursor.query.decode("utf-8"))
+        if result != 0:
+            if filename_stem.endswith(settings.filename_suffix):
+                prefix_res = 0
+                prefix_info = ""
+            else:
+                prefix_res = 1
+                prefix_info = "Filename '{}' does not match required prefix '{}'".format(filename_stem,
+                                                                                         settings.filename_suffix)
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': 'suffix',
+                               'check_results': prefix_res,
+                               'check_info': prefix_info})
+            logger.debug(db_cursor.query.decode("utf-8"))
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'jhove' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # JHOVE check
+            jhove_validate(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'magick' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # Imagemagick check
+            magick_validate(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'stitched_jpg' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # JPG check
+            stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
+            stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
+            check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
+                               db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'tifpages' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # check if tif has multiple pages
+            tifpages(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
+    if 'tif_compression' in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()[0]
+        if result != 0:
+            # check if tif is compressed
+            tif_compression(file_id, main_file_path, db_cursor, logger)
+    # Disconnect from db
+    conn.close()
+    return True
+
+

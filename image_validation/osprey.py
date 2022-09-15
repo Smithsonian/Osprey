@@ -15,6 +15,7 @@ import time
 from subprocess import run
 import random
 import sys
+import os
 
 # For Postgres
 import psycopg2
@@ -28,7 +29,7 @@ from functions import *
 # Import queries from queries.py file
 import queries
 
-ver = "1.1.3"
+ver = "1.2.0"
 
 ############################################
 # Logging
@@ -38,7 +39,7 @@ log_folder = "logs"
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logfile_folder = '{log_folder}/{curtime}'.format(log_folder=log_folder, curtime=current_time)
+logfile_folder = '{script_path}/{log_folder}/{curtime}'.format(script_path=os.getcwd(), log_folder=log_folder, curtime=current_time)
 if not os.path.exists(logfile_folder):
     os.makedirs(logfile_folder)
 logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
@@ -126,8 +127,8 @@ def main():
         random.shuffle(folders)
         # Check each folder
         for folder in folders:
-            run_checks_folder(settings.project_id, folder, db_cursor, logger)
-            # run_checks_folder_p(settings.project_id, folder, logfile_folder, db_cursor, logger)
+            # run_checks_folder(settings.project_id, folder, db_cursor, logger)
+            run_checks_folder_p(settings.project_id, folder, logfile_folder, db_cursor, logger)
     # Disconnect from db
     conn.close()
     return
