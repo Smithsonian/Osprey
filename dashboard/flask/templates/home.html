@@ -27,7 +27,7 @@
         <br>
 
         <div class="row">
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ summary_stats.objects_digitized }}</h1>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ summary_stats.images_captured }}</h1>
@@ -43,7 +43,15 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ summary_stats.images_public }}</h1>
+                        <h5>Public Images</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ summary_stats.digitization_projects }}</h1>
@@ -51,7 +59,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ summary_stats.active_projects }}</h1>
@@ -73,7 +81,7 @@
 
         <p>Some of the data is courtesy of the DAMS team.</p>
 
-</div>
+    </div>
     <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
 
         <div class="row">
@@ -85,7 +93,7 @@
         </div>
 
         <div class="row">
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ md_stats.objects_digitized }}</h1>
@@ -93,7 +101,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ md_stats.images_captured }}</h1>
@@ -101,7 +109,15 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ md_stats.images_public }}</h1>
+                        <h5>Public Images</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ md_stats.digitization_projects }}</h1>
@@ -109,7 +125,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ md_stats.active_projects }}</h1>
@@ -119,21 +135,16 @@
             </div>
         </div>
 
-        <div class="row">
-            <div class="col">
 
-                <h2>List of projects</h2>
+            <h2>List of projects</h2>
 
-                    {% for table in tables_md %}
-                               {{ table|safe }}
-                    {% endfor %}
+                {% for table in tables_md %}
+                           {{ table|safe }}
+                {% endfor %}
 
-                <p><small>* Progress is based on the number of specimens/objects expected to be digitized. This value may change during production due to a number of reasons.</small></p>
-                <p><small>** Value was estimated</small></p>
-                <br>
-
-            </div>
-        </div>
+            <p><small>* Progress is based on the number of specimens/objects expected to be digitized. This value may change during production due to a number of reasons.</small></p>
+            <p><small>** Value was estimated</small></p>
+            <br>
 
 
     </div>
@@ -148,7 +159,7 @@
         </div>
 
         <div class="row">
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ is_stats.objects_digitized }}</h1>
@@ -156,7 +167,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ is_stats.images_captured }}</h1>
@@ -164,7 +175,15 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
+                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
+                    <div class="alert alert-success" role="alert">
+                        <h1>{{ is_stats.images_public }}</h1>
+                        <h5>Public Images</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ is_stats.digitization_projects }}</h1>
@@ -172,7 +191,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-3">
+            <div class="col">
                 <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
                     <div class="alert alert-success" role="alert">
                         <h1>{{ is_stats.active_projects }}</h1>
@@ -182,7 +201,6 @@
             </div>
         </div>
 
-        <hr>
 
         <h2>List of projects</h2>
 
@@ -208,17 +226,21 @@
 
 {% block javascripts %}
 
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Plotly -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/plotly-2.14.0.min.js') }}"
+    ></script>
 
     <script type="text/javascript">
         var graph_s = {{graphJSON_summary | safe}};
         Plotly.newPlot('chart_summary',graph_s,{});
 
-        var graph_md = {{graphJSON_md | safe}};
-        Plotly.newPlot('chart_md',graph_md,{});
+        //var graph_md = {{graphJSON_md | safe}};
+        //Plotly.newPlot('chart_md',graph_md,{});
 
-        var graph_is = {{graphJSON_is | safe}};
-        Plotly.newPlot('chart_is',graph_is,{});
+        //var graph_is = {{graphJSON_is | safe}};
+        //Plotly.newPlot('chart_is',graph_is,{});
     </script>
 
 

@@ -7,15 +7,16 @@
     <title>{% block title %}
     {% endblock %}</title>
 
-    <!-- Bootstrap CSS -->
-    <link
-            href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
-            rel="stylesheet"
-            />
 
     <!-- Datatables -->
     <link
             href="{{ url_for('static', filename='css/datatables.min.css') }}"
+            rel="stylesheet"
+            />
+
+    <!-- Bootstrap CSS -->
+    <link
+            href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
             rel="stylesheet"
             />
 
@@ -92,7 +93,7 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;">Login</a> |
+                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;">Login</a> | {% endif %}
                         <a href="{{ url_for('about') }}" style="color: #FFFFFF;" title="About">About</a> |
                         <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a>
                     </small>
@@ -110,6 +111,10 @@
     </nav>
 
     <br>
+
+    <div class="alert alert-warning m-100" role="alert">
+        Note: This system is in development. The contents might change and be updated without notice. A stable production system will be deployed soon.
+    </div>
 
     {% block content %}
     {% endblock %}
@@ -201,8 +206,15 @@
     <!-- Bootstrap -->
     <script
             type="text/javascript"
+            src="{{ url_for('static', filename='js/bootstrap.min.js') }}"
+    ></script>
+
+    <!-- Bootstrap -->
+    <script
+            type="text/javascript"
             src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"
     ></script>
+
 
     <!-- Datatables -->
     <script
@@ -210,11 +222,7 @@
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
     ></script>
 
-    <!-- Plotly -->
-    <script
-            type="text/javascript"
-            src="{{ url_for('static', filename='js/plotly-2.14.0.min.js') }}"
-    ></script>
+
 
 
     {% block javascripts %}

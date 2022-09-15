@@ -40,11 +40,13 @@
             <!-- File Links -->
 
             <small>
-                <a><a href="{{ file_details.preview_image }}"><i class="fa-solid fa-download"></i> Download JPG</a>
+                <a href="{{ file_details.preview_image }}"><i class="fa-solid fa-download"></i> Download JPG</a>
 
                 {% for link in file_links %}
                     <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
                 {% endfor %}
+
+                <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank">Collections Search</a>
 
             </small>
         </p>

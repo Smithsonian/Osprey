@@ -114,10 +114,16 @@ def page_not_found(e):
 
 
 @app.errorhandler(500)
-def page_not_found(e):
+def sys_error(e):
     logging.error(e)
     error_msg = "There was a system error."
     return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 500
+
+
+# @app.before_request
+# def check_under_maintenance():
+#     if os.path.exists("maintenance"): # Check if a "maintenance" file exists (whatever it is empty or not)
+#         return render_template('error_simple.html', error_msg="The system is in maintenance mode. Please try again later.",), 503
 
 
 # Database
@@ -126,11 +132,10 @@ try:
                             database=settings.database,
                             user=settings.user,
                             password=settings.password)
+    conn.autocommit = True
 except psycopg2.Error as e:
     logging.error(e)
-    raise InvalidUsage('System error', status_code=500)
-
-conn.autocommit = True
+    raise InvalidUsage('System error')
 
 
 def query_database(query, parameters=""):
@@ -141,6 +146,7 @@ def query_database(query, parameters=""):
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
+        raise InvalidUsage('System error', status_code=500)
     cur.execute('SET statement_timeout = 5000')
     # Run query
     try:
@@ -149,6 +155,7 @@ def query_database(query, parameters=""):
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
+        raise InvalidUsage('System error', status_code=500)
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
         data = None
@@ -167,8 +174,9 @@ def query_database_2(query, parameters=""):
     try:
         cur.execute(query, parameters)
         logging.info("cur.query: {}".format(cur.query))
-    except:
+    except Exception as error:
         logging.error("cur.query: {}".format(cur.query))
+        raise InvalidUsage('System error', status_code=500)
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
         cur.close()
@@ -313,67 +321,84 @@ def login():
     graphJSON_summary = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
     # MD
-    df = pd.DataFrame(query_database("with d as ("
-                                     "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' "
-                                     "      AND project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)      "
-                                     "      group by date)"
-                                     "select "
-                                     " date, 'Images' as itype, "
-                                     " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
-                                     " from d "
-                                     " union "
-                                     " select date,"
-                                     "'Objects' as itype,"
-                                     "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
-                                     " from d "
-                                     " order by date "
-                                     ))
+    # df = pd.DataFrame(query_database("with d as ("
+    #                                  "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' "
+    #                                  "      AND project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)      "
+    #                                  "      group by date)"
+    #                                  "select "
+    #                                  " date, 'Images' as itype, "
+    #                                  " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
+    #                                  " from d "
+    #                                  " union "
+    #                                  " select date,"
+    #                                  "'Objects' as itype,"
+    #                                  "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
+    #                                  " from d "
+    #                                  " order by date "
+    #                                  ))
+    #
+    # fig = px.line(df, x="date", y="no_images", color='itype',
+    #               labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
+    #               markers=True)
+    # fig.update_layout(legend=dict(
+    #     yanchor="top",
+    #     y=0.99,
+    #     xanchor="left",
+    #     x=0.01
+    # ))
+    # fig.update_layout(height=580)
+    # graphJSON_md = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-    fig = px.line(df, x="date", y="no_images", color='itype',
-                  labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
-                  markers=True)
-    fig.update_layout(legend=dict(
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    ))
-    fig.update_layout(height=580)
-
-    graphJSON_md = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
-    fig = px.line(df, x="date", y="no_images", color='itype',
-                  labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
-                  markers=True)
-    fig.update_layout(legend=dict(
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    ))
-    fig.update_layout(height=580)
-
-    graphJSON_is = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    # IS
+    # df = pd.DataFrame(query_database("with d as ("
+    #                                  "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' "
+    #                                  "      AND project_id IN (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)      "
+    #                                  "      group by date)"
+    #                                  "select "
+    #                                  " date, 'Images' as itype, "
+    #                                  " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
+    #                                  " from d "
+    #                                  " union "
+    #                                  " select date,"
+    #                                  "'Objects' as itype,"
+    #                                  "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
+    #                                  " from d "
+    #                                  " order by date "
+    #                                  ))
+    #
+    # fig = px.line(df, x="date", y="no_images", color='itype',
+    #               labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
+    #               markers=True)
+    # fig.update_layout(legend=dict(
+    #     yanchor="top",
+    #     y=0.99,
+    #     xanchor="left",
+    #     x=0.01
+    # ))
+    # fig.update_layout(height=580)
+    #
+    # graphJSON_is = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
     # Summary stats
     summary_stats = {}
-    summary_stats['objects_digitized'] = "{:,}".format(query_database("SELECT SUM(objects_digitized) as total from projects_stats_detail where time_interval ='monthly' AND project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
-    summary_stats['images_captured'] = "{:,}".format(query_database("SELECT SUM(images_captured) as total from projects_stats_detail where time_interval ='monthly' AND project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
+    summary_stats['objects_digitized'] = "{:,}".format(query_database("SELECT SUM(objects_digitized) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
+    summary_stats['images_captured'] = "{:,}".format(query_database("SELECT SUM(images_taken) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
     summary_stats['digitization_projects'] = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True")[0]['total'])
     summary_stats['active_projects'] = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True AND project_status='Ongoing'")[0]['total'])
+    summary_stats['images_public'] = "{:,}".format(query_database("SELECT SUM(images_public) as total FROM projects_stats WHERE project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
 
     # MD stats
     md_stats = {}
     md_stats['objects_digitized'] = "{:,}".format(query_database(
         "SELECT SUM(objects_digitized) as total "
-        "from projects_stats_detail "
-        "where time_interval ='monthly' AND project_id IN "
+        "from projects_stats "
+        "where project_id IN "
         "   (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
             )[0]['total'])
     md_stats['images_captured'] = "{:,}".format(query_database(
-        "SELECT SUM(images_captured) as total "
-        "from projects_stats_detail "
-        "where time_interval ='monthly' AND project_id IN "
+        "SELECT SUM(images_taken) as total "
+        "from projects_stats "
+        "WHERE project_id IN "
         "   (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
             )[0]['total'])
     md_stats['digitization_projects'] = "{:,}".format(
@@ -388,19 +413,21 @@ def login():
         "WHERE project_section = 'MD' AND"
         " skip_project IS NOT True AND"
         " project_status='Ongoing'")[0]['total'])
+    md_stats['images_public'] = "{:,}".format(query_database(
+        "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'MD')")[0]['total'])
 
     # IS stats
     is_stats = {}
     is_stats['objects_digitized'] = "{:,}".format(query_database(
         "SELECT SUM(objects_digitized) as total "
-        "from projects_stats_detail "
-        "where time_interval ='monthly' AND project_id IN "
+        "from projects_stats "
+        "where project_id IN "
         "   (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
     )[0]['total'])
     is_stats['images_captured'] = "{:,}".format(query_database(
-        "SELECT SUM(images_captured) as total "
-        "from projects_stats_detail "
-        "where time_interval ='monthly' AND project_id IN "
+        "SELECT SUM(images_taken) as total "
+        "from projects_stats "
+        "where project_id IN "
         "   (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
     )[0]['total'])
     is_stats['digitization_projects'] = "{:,}".format(
@@ -415,6 +442,8 @@ def login():
         "WHERE project_section = 'IS' AND"
         " skip_project IS NOT True AND"
         " project_status='Ongoing'")[0]['total'])
+    is_stats['images_public'] = "{:,}".format(query_database(
+        "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')")[0]['total'])
 
     list_projects_md = pd.DataFrame(query_database("SELECT " 
                                    " p.projects_order, p.project_unit, "
@@ -435,13 +464,14 @@ def login():
                                                    "'%%</div></div>' as project_progress,"
                                    " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '**' ELSE "
                                                         " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
-                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken "
+                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken, "
+                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) END as images_public "
                                    " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) "
                                    " WHERE p.skip_project IS NOT True AND p.project_section = 'MD' "
                                    " GROUP BY "
                                    "        p.project_id, p.project_title, p.project_unit, p.project_acronym, p.project_status, p.project_description, "
                                    "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
-                                   "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized"
+                                   "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
                                    " ORDER BY p.projects_order DESC"))
 
     list_projects_md = list_projects_md.rename(columns={
@@ -452,7 +482,8 @@ def login():
                 "project_dates": "Dates",
                 "project_progress": "Project Progress<sup>*</sup>",
                 "objects_digitized": "Objects Digitized",
-                "images_taken": "Images Captured"
+                "images_taken": "Images Captured",
+                "images_public": "Public Images"
     })
     logging.info(list_projects_md)
     list_projects_is = pd.DataFrame(query_database("SELECT "
@@ -472,15 +503,15 @@ def login():
                                                    " '\" aria-valuemin=\"0\" aria-valuemax=\"100\">'"
                                                    " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
                                                    "'%%</div></div>' as project_progress,"
-                                                   " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '*' ELSE "
-                                                   " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
-                                                   " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '*' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken "
+                                                   " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) as objects_digitized, "
+                                                   " coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) as images_taken, "
+                                                   " coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) as images_public "
                                                    " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) "
                                                    " WHERE p.skip_project IS NOT True AND p.project_section = 'IS' "
                                                    " GROUP BY "
                                                    "        p.project_id, p.project_title, p.project_unit, p.project_acronym, p.project_status, p.project_description, "
                                                    "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
-                                                   "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized"
+                                                   "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
                                                    " ORDER BY p.projects_order DESC"))
 
     list_projects_is = list_projects_is.rename(columns={
@@ -491,11 +522,14 @@ def login():
         "project_dates": "Dates",
         "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Objects Digitized",
-        "images_taken": "Images Captured"
+        "images_taken": "Images Captured",
+        "images_public": "Public Images"
     })
 
     #timestamp = datetime.today().strftime('%d %b %Y at %H:%M %p')
 
+    # graphJSON_md = graphJSON_md,
+    # graphJSON_is = graphJSON_is,
     return render_template('home.html',
                            projects=projects,
                            form=form,
@@ -503,8 +537,6 @@ def login():
                            user_exists=user_exists,
                            username=username,
                            graphJSON_summary=graphJSON_summary,
-                           graphJSON_md=graphJSON_md,
-                           graphJSON_is=graphJSON_is,
                            summary_stats=summary_stats,
                            md_stats=md_stats,
                            is_stats=is_stats,
@@ -513,7 +545,8 @@ def login():
                                                 classes=["display", "compact", "table-striped", "w-100"])],
                            tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "compact", "table-striped", "w-100"])]
+                                                               classes=["display", "compact", "table-striped", "w-100"])],
+                           asklogin=True
                            )
 
 
@@ -901,12 +934,15 @@ def home():
                                        "              FROM folders "
                                        "              WHERE project_id = %(project_id)s)",
                                        {'project_id': project['project_id']})
-        project_ok = query_database("WITH data AS ("
-                                    "   SELECT file_id, sum(check_results) as check_results "
-                                    "   FROM file_checks "
-                                    "   WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN "
-                                    " (SELECT folder_id from folders WHERE project_id = %(project_id)s)) "
-                                    "   GROUP BY file_id) "
+        project_ok = query_database("WITH a AS ("
+                                    "   SELECT file_id FROM files WHERE folder_id IN "
+                                    "       (SELECT folder_id from folders WHERE project_id = %(project_id)s)"
+                                    "  ),"
+                                    "   data AS ("
+                                    "   SELECT c.file_id, sum(check_results) as check_results "
+                                    "   FROM file_checks c, a "
+                                    "   WHERE c.file_id = a.file_id "
+                                    "   GROUP BY c.file_id) "
                                     " SELECT count(file_id) as no_files "
                                     " FROM data WHERE check_results = 0",
                                     {'project_id': project['project_id']})
@@ -1319,6 +1355,10 @@ def dashboard_f(project_id=None, folder_id=None):
                                      "WHERE project_id = %(project_id)s))",
                                      {'project_id': project_id})
         project_stats['running'] = format(int(project_running[0]['no_files']), ',d')
+        project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
+                                        " project_id = %(project_id)s",
+                                        {'project_id': project_id})
+        project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
         project_folders = query_database("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, "
                                          "f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
                                          "f.delivered_to_dams, "
@@ -1508,6 +1548,10 @@ def dashboard_f(project_id=None, folder_id=None):
                                                                  " ORDER BY file_name",
                                                     {'folder_id': folder_id}))
                 logging.info("project_postprocessing {}".format(project_info['project_postprocessing']))
+                post_processing_df['file_name'] = '<a href="/file/' \
+                                               + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
+                                               + post_processing_df['file_name'].astype(str) \
+                                               + '</a>'
                 if project_info['project_postprocessing'] is not None:
                     project_postprocessing = project_info['project_postprocessing'].split(',')
                     for fcheck in project_postprocessing:
@@ -1572,7 +1616,7 @@ def dashboard_f(project_id=None, folder_id=None):
                                                            index=False,
                                                            border=0,
                                                            escape=False,
-                                                           classes=["display", "compact", "table-striped"])],
+                                                           classes=["display", "compact", "table-striped", "w-100"])],
                            titles=[''],
                            username=user_name,
                            project_admin=project_admin,
@@ -1587,14 +1631,14 @@ def dashboard_f(project_id=None, folder_id=None):
                                                                index=False,
                                                                border=0,
                                                                escape=False,
-                                                               classes=["display", "compact", "table-striped"])],
+                                                               classes=["display", "compact", "table-striped", "w-100"])],
                            folder_links=folder_links,
                            form=form
                            )
 
 
 
-@app.route('/dashboard/<project_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/dashboard/<project_id>/', methods=['GET','POST'], strict_slashes=False)
 def dashboard(project_id):
     """Dashboard for a project"""
     if current_user.is_authenticated:
@@ -1674,6 +1718,10 @@ def dashboard(project_id):
                                      "WHERE project_id = %(project_id)s))",
                                      {'project_id': project_id})
         project_stats['running'] = format(int(project_running[0]['no_files']), ',d')
+        project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
+                                        " project_id = %(project_id)s",
+                                        {'project_id': project_id})
+        project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
         project_folders = query_database("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, "
                                          "f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
                                          "f.delivered_to_dams, "
@@ -1797,16 +1845,18 @@ def file(file_id):
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
     file_details = query_database("WITH data AS ("
-                                  "         SELECT file_id, %(preview)s || file_id as preview_image, folder_id, file_name "
+                                  "         SELECT file_id, "
+                                  "             COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
+                                  "             folder_id, file_name, dams_uan "
                                   "             FROM files "
                               "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
                                   " UNION "
-                                  "         SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, folder_id, file_name "
+                                  "         SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, folder_id, file_name, dams_uan "
                                   "             FROM files "
                               "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
                                   "             ORDER BY file_name"
                                   "),"
-                              "data2 AS (SELECT file_id, preview_image, folder_id, file_name,"
+                              "data2 AS (SELECT file_id, preview_image, folder_id, file_name, dams_uan, "
                               "         lag(file_id,1) over (order by file_name) prev_id,"
                               "         lag(file_id,-1) over (order by file_name) next_id "
                               " FROM data)"

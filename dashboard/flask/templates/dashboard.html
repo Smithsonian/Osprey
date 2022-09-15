@@ -28,17 +28,25 @@
     </div>
     <div class="col">
         <div class="card">
-          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>
+          <h2><span class="badge bg-info d-flex">{{ project_stats.public }} Public Files</span></h2>
           <div class="card-body">
-            <p class="card-text">Files that failed one or more checks</p>
+            <p class="card-text">Files published to the public</p>
           </div>
         </div>
     </div>
     <div class="col">
         <div class="card">
-          <h2><span class="badge bg-secondary d-flex">{{ project_stats.running }} Running</span></h2>
+          <h2><span class="badge bg-warning d-flex">{{ project_stats.running }} Running</span></h2>
           <div class="card-body">
             <p class="card-text">Files that are currently being checked</p>
+          </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>
+          <div class="card-body">
+            <p class="card-text">Files that failed one or more checks</p>
           </div>
         </div>
     </div>
@@ -227,6 +235,12 @@
     <script type="text/javascript">
         $(document).ready( function () {
             $('#files_table').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
                 "order": [],
                 lengthMenu: [
                     [25, 50, 100, -1],
