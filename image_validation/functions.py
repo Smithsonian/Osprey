@@ -473,6 +473,30 @@ def update_folder_stats(folder_id, folder_path, db_cursor, logger):
     return True
 
 
+def file_checks_summary(file_id, db_cursor, logger):
+    file_checks = 0
+    for filecheck in settings.project_file_checks:
+        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        result = db_cursor.fetchone()
+        if result is None:
+            db_cursor.execute(queries.file_check,
+                              {'file_id': file_id,
+                               'folder_id': folder_id,
+                               'file_check': filecheck,
+                               'check_results': 9,
+                               'check_info': ''})
+            logger.debug(db_cursor.query.decode("utf-8"))
+            result = 1
+        else:
+            result = result[0]
+            if result == 9:
+                result = 1
+        file_checks = file_checks + result
+    # Nothing to do, return
+    return file_checks
+
+
 def process_image(filename, folder_path, folder_id, logger):
     """
     Run checks for image files
@@ -507,25 +531,7 @@ def process_image(filename, folder_path, folder_id, logger):
     else:
         file_id = file_id[0]
     # Check if file is OK
-    file_checks = 0
-    for filecheck in settings.project_file_checks:
-        db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-        logger.debug(db_cursor.query.decode("utf-8"))
-        result = db_cursor.fetchone()
-        if result is None:
-            db_cursor.execute(queries.file_check,
-                              {'file_id': file_id,
-                               'folder_id': folder_id,
-                               'file_check': filecheck,
-                               'check_results': 9,
-                               'check_info': ''})
-            logger.debug(db_cursor.query.decode("utf-8"))
-            result = 1
-        else:
-            result = result[0]
-            if result == 9:
-                result = 1
-        file_checks = file_checks + result
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
     # Compare MD5 between source and copy
@@ -576,11 +582,14 @@ def process_image(filename, folder_path, folder_id, logger):
             file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, pair_check), logger)
             db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'raw', 'md5': file_md5})
             logger.debug(db_cursor.query.decode("utf-8"))
-            # file_checks = file_checks - 1
-    # if file_checks == 0:
-    #     # Disconnect from db
-    #     conn.close()
-    #     return True
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'valid_name' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'valid_name'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -588,11 +597,14 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # valid name in file
             valid_name(file_id, filename_stem, db_cursor)
-            # file_checks = file_checks - 1
-    # if file_checks == 0:
-    #     # Disconnect from db
-    #     conn.close()
-    #     return True
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'unique_file' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'unique_file'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -626,10 +638,14 @@ def process_image(filename, folder_path, folder_id, logger):
                                                            'check_info': "File with same name in {}".format(
                                                                folder_dupe[0])})
                     logger.debug(db_cursor.query.decode("utf-8"))
-    # if file_checks == 0:
-    #     # Disconnect from db
-    #     conn.close()
-    #     return True
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'dupe_elsewhere' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'dupe_elsewhere'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -653,6 +669,14 @@ def process_image(filename, folder_path, folder_id, logger):
                                'check_info': folders})
             logger.debug(db_cursor.query.decode("utf-8"))
             # file_checks = file_checks - 1
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'prefix' in settings.project_file_checks:
         if settings.filename_prefix is None:
             logger.debug(db_cursor.query.decode("utf-8"))
@@ -676,6 +700,14 @@ def process_image(filename, folder_path, folder_id, logger):
                                'check_info': prefix_info})
             logger.debug(db_cursor.query.decode("utf-8"))
             # file_checks = file_checks - 1
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'suffix' in settings.project_file_checks:
         if settings.filename_prefix is None:
             logger.debug(db_cursor.query.decode("utf-8"))
@@ -698,12 +730,14 @@ def process_image(filename, folder_path, folder_id, logger):
                                'check_results': prefix_res,
                                'check_info': prefix_info})
             logger.debug(db_cursor.query.decode("utf-8"))
-            # file_checks = file_checks - 1
-    # if file_checks == 0:
-    #     # Disconnect from db
-    #     conn.close()
-    #     return True
-
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'jhove' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'jhove'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -711,6 +745,14 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # JHOVE check
             jhove_validate(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'magick' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'magick'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -718,6 +760,14 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # Imagemagick check
             magick_validate(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'stitched_jpg' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -728,6 +778,14 @@ def process_image(filename, folder_path, folder_id, logger):
             stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
             check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
                                db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'tifpages' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tifpages'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -735,6 +793,14 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # check if tif has multiple pages
             tifpages(file_id, main_file_path, db_cursor, logger)
+    # Check if all checks are OK now
+    file_checks = file_checks_summary(file_id, db_cursor, logger)
+    if file_checks == 0:
+        file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
+        # Disconnect from db
+        conn.close()
+        return True
     if 'tif_compression' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'tif_compression'})
         logger.debug(db_cursor.query.decode("utf-8"))
@@ -742,7 +808,6 @@ def process_image(filename, folder_path, folder_id, logger):
         if result != 0:
             # check if tif is compressed
             tif_compression(file_id, main_file_path, db_cursor, logger)
-    # shutil.rmtree(settings.tmp_folder, ignore_errors=True)
     # Disconnect from db
     conn.close()
     return True
@@ -837,90 +902,90 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     return folder_id
 
 
-# run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logger):
-#     """
-#     Process a folder in parallel
-#     """
-#     logger.info("Processing folder: {}".format(folder_path))
-#     folder_name = os.path.basename(folder_path)
-#     # Check if the folder exists in the database
-#     global folder_id
-#     folder_id = check_folder(folder_name, folder_path, project_id, db_cursor)
-#     if folder_id is None:
-#         logger.error("Folder {} had an error".format(folder_name))
-#         return None
-#     # Check if folder is ready or in DAMS
-#     db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
-#     logger.debug(db_cursor.query.decode("utf-8"))
-#     f_in_dams = db_cursor.fetchone()
-#     if f_in_dams[0] == 0:
-#         # Folder ready for DAMS, skip
-#         logger.info("Folder ready for DAMS, skipping {}".format(folder_path))
-#         return folder_id
-#     elif f_in_dams[0] == 1:
-#         # Folder in DAMS already, skip
-#         logger.info("Folder in DAMS, skipping {}".format(folder_path))
-#         return folder_id
-#     # Check if another process is running it
-#     db_cursor.execute(queries.folder_check_processing,
-#                       {'folder_id': folder_id})
-#     folder_check = db_cursor.fetchone()
-#     if folder_check[0] == True and folder_check[1] < 1800:
-#         # Skip
-#         logger.info("Folder checking in another process, skipping {} ({})"
-#                     "".format(folder_path, folder_id))
-#         return folder_id
-#     # Set as processing
-#     db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
-#     # Reset folder error information
-#     db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
-#     if os.path.isdir("{}/{}".format(folder_path, settings.main_files_path)) is False:
-#         logger.info("Missing MAIN folder in {}".format(folder_path))
-#         db_cursor.execute(queries.update_folder_status9,
-#                           {'error_info': "Missing MAIN folder", 'folder_id': folder_id})
-#         logger.debug(db_cursor.query.decode("utf-8"))
-#         db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
-#         logger.debug(db_cursor.query.decode("utf-8"))
-#         # Set as processing
-#         db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
-#         return folder_id
-#     else:
-#         logger.info("MAIN folder found in {}".format(folder_path))
-#         folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
-#         os.chdir(folder_full_path)
-#         # Get all files in the folder
-#         files = glob.glob("*.*")
-#         # Remove md5 files from list
-#         files = [file for file in files if Path(file).suffix != '.md5']
-#         if len(files) > 0:
-#             preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
-#             # Create subfolder if it doesn't exists
-#             if not os.path.exists(preview_file_path):
-#                 os.makedirs(preview_file_path)
-#         ###############
-#         # Parallel
-#         ###############
-#         no_tasks = len(files)
-#         print_str = "Started parallel run of {notasks} tasks on {workers} workers"
-#         print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
-#             settings.no_workers))
-#         logger.info(print_str)
-#         # Process files in parallel
-#         inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(logfile_folder))
-#         with Pool() as pool:
-#             pool.starmap(process_image_p, inputs)
-#             pool.close()
-#             pool.join()
-#         ###############
-#         for file in files:
-#             logger.info("Running checks on file {}".format(file))
-#             process_image(file, folder_path, folder_id, logger)
-#             # Update folder stats
-#             update_folder_stats(folder_id, folder_path, db_cursor, logger)
-#     folder_updated_at(folder_id, db_cursor, logger)
-#     # Update folder stats
-#     update_folder_stats(folder_id, folder_path, db_cursor, logger)
-#     logger.debug(db_cursor.query.decode("utf-8"))
-#     # Set as done processing
-#     db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
-#     return folder_id
+run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logger):
+    """
+    Process a folder in parallel
+    """
+    logger.info("Processing folder: {}".format(folder_path))
+    folder_name = os.path.basename(folder_path)
+    # Check if the folder exists in the database
+    global folder_id
+    folder_id = check_folder(folder_name, folder_path, project_id, db_cursor)
+    if folder_id is None:
+        logger.error("Folder {} had an error".format(folder_name))
+        return None
+    # Check if folder is ready or in DAMS
+    db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    f_in_dams = db_cursor.fetchone()
+    if f_in_dams[0] == 0:
+        # Folder ready for DAMS, skip
+        logger.info("Folder ready for DAMS, skipping {}".format(folder_path))
+        return folder_id
+    elif f_in_dams[0] == 1:
+        # Folder in DAMS already, skip
+        logger.info("Folder in DAMS, skipping {}".format(folder_path))
+        return folder_id
+    # Check if another process is running it
+    db_cursor.execute(queries.folder_check_processing,
+                      {'folder_id': folder_id})
+    folder_check = db_cursor.fetchone()
+    if folder_check[0] == True and folder_check[1] < 1800:
+        # Skip
+        logger.info("Folder checking in another process, skipping {} ({})"
+                    "".format(folder_path, folder_id))
+        return folder_id
+    # Set as processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
+    # Reset folder error information
+    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
+    if os.path.isdir("{}/{}".format(folder_path, settings.main_files_path)) is False:
+        logger.info("Missing MAIN folder in {}".format(folder_path))
+        db_cursor.execute(queries.update_folder_status9,
+                          {'error_info': "Missing MAIN folder", 'folder_id': folder_id})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        # Set as processing
+        db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
+        return folder_id
+    else:
+        logger.info("MAIN folder found in {}".format(folder_path))
+        folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
+        os.chdir(folder_full_path)
+        # Get all files in the folder
+        files = glob.glob("*.*")
+        # Remove md5 files from list
+        files = [file for file in files if Path(file).suffix != '.md5']
+        if len(files) > 0:
+            preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
+            # Create subfolder if it doesn't exists
+            if not os.path.exists(preview_file_path):
+                os.makedirs(preview_file_path)
+        ###############
+        # Parallel
+        ###############
+        no_tasks = len(files)
+        print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+        print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+            settings.no_workers))
+        logger.info(print_str)
+        # Process files in parallel
+        inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(logfile_folder))
+        with Pool() as pool:
+            pool.starmap(process_image_p, inputs)
+            pool.close()
+            pool.join()
+        ###############
+        # for file in files:
+        #     logger.info("Running checks on file {}".format(file))
+        #     process_image(file, folder_path, folder_id, logger)
+        #     # Update folder stats
+        #     update_folder_stats(folder_id, folder_path, db_cursor, logger)
+    folder_updated_at(folder_id, db_cursor, logger)
+    # Update folder stats
+    update_folder_stats(folder_id, folder_path, db_cursor, logger)
+    logger.debug(db_cursor.query.decode("utf-8"))
+    # Set as done processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
+    return folder_id
