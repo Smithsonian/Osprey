@@ -180,15 +180,14 @@ if __name__ == "__main__":
                 # print("Ctrl-c detected. Leaving program.")
                 logger.info("Ctrl-c detected. Leaving program.")
                 try:
-                    if 'folder_id' in globals():
-                        logger.info("folder_id in globals: {}".format(folder_id))
-                        conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                                 password=settings.db_password, connect_timeout=60)
-                        conn2.autocommit = True
-                        db_cursor2 = conn2.cursor()
-                        db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                           {'folder_id': folder_id})
-                        conn2.close()
+                    # Clear running folders
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                             password=settings.db_password, connect_timeout=60)
+                    conn2.autocommit = True
+                    db_cursor2 = conn2.cursor()
+                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE project_id = %(project_id)s",
+                                       {'project_id': settings.project_id})
+                    conn2.close()
                 except Exception as e:
                     logging.error("Error: {}".format(e))
                 # Compress logs
@@ -197,15 +196,14 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error("There was an error: {}".format(e))
                 try:
-                    if 'folder_id' in globals():
-                        logger.info("folder_id in globals: {}".format(folder_id))
-                        conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                                 password=settings.db_password, connect_timeout=60)
-                        conn2.autocommit = True
-                        db_cursor2 = conn2.cursor()
-                        db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE folder_id = %(folder_id)s",
-                                           {'folder_id': folder_id})
-                        conn2.close()
+                    # Clear running folders
+                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
+                                             password=settings.db_password, connect_timeout=60)
+                    conn2.autocommit = True
+                    db_cursor2 = conn2.cursor()
+                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE project_id = %(project_id)s",
+                                       {'project_id': settings.project_id})
+                    conn2.close()
                 except Exception as e:
                     logging.error("Error: {}".format(e))
                 # Compress logs

@@ -990,7 +990,6 @@ def run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logg
     return folder_id
 
 
-
 def process_image_p(filename, folder_path, folder_id, logfile_folder):
     """
     Run checks for image files
