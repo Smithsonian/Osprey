@@ -26,7 +26,7 @@ import psycopg2
 
 # Parallel
 # import itertools
-# from multiprocessing import Pool
+from multiprocessing import Pool
 
 # Get settings and queries
 import settings
@@ -408,13 +408,15 @@ def jpgpreview(file_id, folder_id, filename, logger):
         os.makedirs(preview_file_path)
     # Delete old image, if exists
     if os.path.isfile(preview_image):
-        im = Image.open(filename)
-        width, height = im.size
-        if width != settings.previews_size and height != settings.previews_size:
-            # Size in settings changed, create new image
-            os.remove(preview_image)
-        else:
-            return True
+        logger.info("JPG file exists ({}; {})".format(filename, file_id))
+        return True
+        # im = Image.open(filename)
+        # width, height = im.size
+        # if width != settings.previews_size and height != settings.previews_size:
+        #     # Size in settings changed, create new image
+        #     os.remove(preview_image)
+        # else:
+        #     return True
     if settings.previews_size == "full":
         p = subprocess.Popen(['convert', '-quality', '80', '-quiet', '{}[0]'.format(filename), preview_image],
         stdout=PIPE, stderr=PIPE)
@@ -534,27 +536,6 @@ def process_image(filename, folder_path, folder_id, logger):
         file_md5 = filemd5(main_file_path, logger)
         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': filename_suffix, 'md5': file_md5})
         logger.debug(db_cursor.query.decode("utf-8"))
-    # if os.path.isfile(preview_image) is False:
-    #     logger.debug(db_cursor.query.decode("utf-8"))
-    #     file_checks = file_checks + 1
-    # Get exif from TIF
-    # db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-    # logger.debug(db_cursor.query.decode("utf-8"))
-    # check_exif = db_cursor.fetchone()[0]
-    # if check_exif == 0:
-    #     file_checks = file_checks + 1
-    # Check if MD5 is stored
-    # db_cursor.execute(queries.select_file_md5, {'file_id': file_id, 'filetype': filename_suffix.lower()})
-    # logger.debug(db_cursor.query.decode("utf-8"))
-    # result = db_cursor.fetchone()
-    # if result is None:
-    #     file_checks = file_checks + 1
-    # if file_checks == 0:
-    #     file_updated_at(file_id, db_cursor)
-    #     # Disconnect from db
-    #     conn.close()
-    #     return True
-    # else:
     # Get exif from TIF
     db_cursor.execute(queries.check_exif, {'file_id': file_id, 'filetype': filename_suffix.lower()})
     logger.debug(db_cursor.query.decode("utf-8"))
@@ -578,9 +559,11 @@ def process_image(filename, folder_path, folder_id, logger):
     # Nothing to do, return
     if file_checks == 0:
         file_updated_at(file_id, db_cursor)
+        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
         # Disconnect from db
         conn.close()
         return True
+    logger.info("Running checks on file {} ({}; folder_id: {})".format(filename_stem, file_id, folder_id))
     # Checks that do not need a local copy
     if 'raw_pair' in settings.project_file_checks:
         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'raw_pair'})
@@ -853,3 +836,90 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
     return folder_id
 
+run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logger)
+    """
+    Process a folder in parallel
+    """
+    logger.info("Processing folder: {}".format(folder_path))
+    folder_name = os.path.basename(folder_path)
+    # Check if the folder exists in the database
+    global folder_id
+    folder_id = check_folder(folder_name, folder_path, project_id, db_cursor)
+    if folder_id is None:
+        logger.error("Folder {} had an error".format(folder_name))
+        return None
+    # Check if folder is ready or in DAMS
+    db_cursor.execute(queries.folder_in_dams, {'folder_id': folder_id})
+    logger.debug(db_cursor.query.decode("utf-8"))
+    f_in_dams = db_cursor.fetchone()
+    if f_in_dams[0] == 0:
+        # Folder ready for DAMS, skip
+        logger.info("Folder ready for DAMS, skipping {}".format(folder_path))
+        return folder_id
+    elif f_in_dams[0] == 1:
+        # Folder in DAMS already, skip
+        logger.info("Folder in DAMS, skipping {}".format(folder_path))
+        return folder_id
+    # Check if another process is running it
+    db_cursor.execute(queries.folder_check_processing,
+                      {'folder_id': folder_id})
+    folder_check = db_cursor.fetchone()
+    if folder_check[0] == True and folder_check[1] < 1800:
+        # Skip
+        logger.info("Folder checking in another process, skipping {} ({})"
+                    "".format(folder_path, folder_id))
+        return folder_id
+    # Set as processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 't'})
+    # Reset folder error information
+    db_cursor.execute(queries.update_folder_0, {'folder_id': folder_id})
+    if os.path.isdir("{}/{}".format(folder_path, settings.main_files_path)) is False:
+        logger.info("Missing MAIN folder in {}".format(folder_path))
+        db_cursor.execute(queries.update_folder_status9,
+                          {'error_info': "Missing MAIN folder", 'folder_id': folder_id})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        db_cursor.execute(queries.del_folder_files, {'folder_id': folder_id})
+        logger.debug(db_cursor.query.decode("utf-8"))
+        # Set as processing
+        db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
+        return folder_id
+    else:
+        logger.info("MAIN folder found in {}".format(folder_path))
+        folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
+        os.chdir(folder_full_path)
+        # Get all files in the folder
+        files = glob.glob("*.*")
+        # Remove md5 files from list
+        files = [file for file in files if Path(file).suffix != '.md5']
+        if len(files) > 0:
+            preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
+            # Create subfolder if it doesn't exists
+            if not os.path.exists(preview_file_path):
+                os.makedirs(preview_file_path)
+        ###############
+        # Parallel
+        ###############
+        no_tasks = len(files)
+        print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+        print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+            settings.no_workers))
+        logger.info(print_str)
+        # Process files in parallel
+        inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(logfile_folder))
+        with Pool() as pool:
+            pool.starmap(process_image_p, inputs)
+            pool.close()
+            pool.join()
+        ###############
+        for file in files:
+            logger.info("Running checks on file {}".format(file))
+            process_image(file, folder_path, folder_id, logger)
+            # Update folder stats
+            update_folder_stats(folder_id, folder_path, db_cursor, logger)
+    folder_updated_at(folder_id, db_cursor, logger)
+    # Update folder stats
+    update_folder_stats(folder_id, folder_path, db_cursor, logger)
+    logger.debug(db_cursor.query.decode("utf-8"))
+    # Set as done processing
+    db_cursor.execute(queries.folder_processing_update, {'folder_id': folder_id, 'processing': 'f'})
+    return folder_id
