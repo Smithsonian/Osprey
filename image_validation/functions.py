@@ -167,9 +167,9 @@ def magick_validate(file_id, filename, db_cursor, logger, paranoid=False):
     """
     if paranoid:
         p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+                             stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     else:
-        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     (out, err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -233,7 +233,7 @@ def tifpages(file_id, filename, db_cursor, logger):
     """
     Check if TIF has multiple pages
     """
-    p = subprocess.Popen(['identify', '-format', '%n\\n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(['identify', '-format', '%n\\n', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     (out, err) = p.communicate()
     logger.debug("tifpages_out: {} {}".format(file_id, out.decode('UTF-8')))
     logger.debug("tifpages_err: {} {}".format(file_id, err.decode('UTF-8')))
@@ -362,7 +362,7 @@ def check_stitched_jpg(file_id, filename, db_cursor, logger):
     """
     Run checks for jpg files that were stitched from 2 images
     """
-    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     (out, err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
@@ -418,11 +418,11 @@ def jpgpreview(file_id, folder_id, filename, logger):
         #     return True
     if settings.previews_size == "full":
         p = subprocess.Popen(['convert', '-quality', '80', '-quiet', '{}[0]'.format(filename), preview_image],
-        stdout=PIPE, stderr=PIPE)
+        stdout=PIPE, stderr=PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     else:
         p = subprocess.Popen(['convert', '-quality', '80', '-quiet', '{}[0]'.format(filename), '-resize',
                               '{imgsize}x{imgsize}'.format(imgsize=settings.previews_size),
-                              preview_image], stdout=PIPE, stderr=PIPE)
+                              preview_image], stdout=PIPE, stderr=PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     out = p.communicate()
     if os.path.isfile(preview_image):
         logger.info(out)
@@ -971,7 +971,7 @@ def run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logg
         logger.info(print_str)
         # Process files in parallel
         inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(logfile_folder))
-        with Pool() as pool:
+        with Pool(settings.no_workers) as pool:
             pool.starmap(process_image_p, inputs)
             pool.close()
             pool.join()
