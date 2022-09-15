@@ -120,3 +120,5 @@ check_folder_md5/logs/
 *.txt
 
 .idea
+
+edan.py
