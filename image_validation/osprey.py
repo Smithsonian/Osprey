@@ -123,10 +123,11 @@ def main():
             logger.info("No folders found in: {}".format(project_path))
             continue
         # Shuffle folders
-        random.shuffle(folders)
+        # random.shuffle(folders)
         # Check each folder
         for folder in folders:
-            run_checks_folder(settings.project_id, folder, db_cursor, logger)
+            # run_checks_folder(settings.project_id, folder, db_cursor, logger)
+            run_checks_folder_p(settings.project_id, folder, logfile_folder, db_cursor, logger)
     # Disconnect from db
     conn.close()
     return
