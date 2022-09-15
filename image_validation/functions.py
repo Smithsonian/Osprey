@@ -902,7 +902,7 @@ def run_checks_folder(project_id, folder_path, db_cursor, logger):
     return folder_id
 
 
-run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logger):
+def run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logger):
     """
     Process a folder in parallel
     """
