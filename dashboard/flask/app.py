@@ -278,15 +278,21 @@ def login():
                               "     FROM qc_users "
                               "     WHERE username = %(username)s AND pass = MD5(%(password)s)",
                               {'username': username, 'password': password})
-
-        if user:
-            user_obj = User(user[0]['user_id'], user[0]['username'], user[0][
-                'full_name'],
-                            user[0]['user_active'])
-            login_user(user_obj)
-            return redirect(url_for('home'))
+        logging.info(user)
+        if len(user) == 1:
+            logging.info(user[0]['user_active'])
+            if user[0]['user_active']:
+                user_obj = User(user[0]['user_id'], user[0]['username'], user[0][
+                    'full_name'],
+                                user[0]['user_active'])
+                login_user(user_obj)
+                return redirect(url_for('home'))
+            else:
+                msg = "Error, user not known or password was incorrect"
+                return redirect(url_for('not_user'))
         else:
             msg = "Error, user not known or password was incorrect"
+            return redirect(url_for('not_user'))
     projects = query_database("select project_title, project_id, filecheck_link, project_alias, "
                               "     to_char(project_start, 'Mon-YYYY') as project_start, "
                               "     to_char(project_end, 'Mon-YYYY') as project_end,"
@@ -567,7 +573,7 @@ def about():
                            form=form)
 
 
-@app.route('/qc_process/<folder_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/qc_process/<folder_id>/', methods=['GET','POST'], strict_slashes=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
@@ -617,7 +623,11 @@ def qc_process(folder_id):
                                    {'folder_id': folder_id})[0]
     project_settings = query_database("SELECT qc_percent FROM qc_settings "
                                    " WHERE project_id = %(project_id)s",
-                                   {'project_id': project_id['project_id']})[0]
+                                   {'project_id': project_id['project_id']})
+    if len(project_settings) == 0:
+        project_settings= {'qc_percent': 0.1}
+    else:
+        project_settings = project_settings[0]
     folder_qc_check = query_database("SELECT "
                                      "  CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                      "          WHEN q.qc_status = 1 THEN 'QC Failed' "
@@ -838,10 +848,14 @@ def qc(project_id):
     if project_admin == None:
         # Not allowed
         return redirect(url_for('home'))
-    project_settings = query_database("SELECT s.qc_percent FROM qc_settings s, projects p "
-                                   " WHERE p.project_alias = %(project_id)s AND"
-                                      " s.project_id = p.project_id ",
-                                   {'project_id': project_id})[0]
+    project_settings = query_database("SELECT coalesce(s.qc_percent, 0.1) as qc_percent FROM projects p "
+                                      "     LEFT JOIN qc_settings s ON (s.project_id = p.project_id) "
+                                   " WHERE p.project_alias = %(project_id)s ",
+                                   {'project_id': project_id})
+    if len (project_settings) == 0:
+        project_settings = {'qc_percent': 0.1}
+    else:
+        project_settings = project_settings[0]
     project = query_database("SELECT * FROM projects "
                              " WHERE project_alias = %(project_id)s ",
                              {'project_id': project_id})[0]
@@ -1996,6 +2010,18 @@ def search(project_alias):
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
+
+@app.route("/notuser", methods=['GET'], strict_slashes=False)
+def not_user():
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    logout_user()
+    return render_template('notuser.html',
+                           form=form)
+
 
 
 #####################################
