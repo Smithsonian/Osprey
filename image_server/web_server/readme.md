@@ -5,12 +5,14 @@ Based on the [flask mod_wsgi documentation](https://flask.palletsprojects.com/en
  * apache.config - Replace the values in brackets and add to your apache2/httpd config
  * app.wsgi - the WSGI script to place in the path specified in the config file that runs the Flask app
 
-In RHEL: 
-```bash 
-sudo dnf install mod_wsgi httpd
+In RHEL:
+```bash
+sudo yum install python3-devel
+sudo dnf groupinstall "Development Tools"
+sudo dnf install mod_wsgi httpd httpd-devel
 ```
 
-In Ubuntu: 
+In Ubuntu:
 
 ```bash
 sudo apt-get install libapache2-mod-wsgi-py3

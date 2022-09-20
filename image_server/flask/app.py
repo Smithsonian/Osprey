@@ -192,12 +192,15 @@ def get_preview(file_id=None):
                 filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
             else:
                 filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
-                img = Image.open(filename)
-                wpercent = (int(width) / float(img.size[0]))
-                hsize = int((float(img.size[1]) * float(wpercent)))
-                img = img.resize((int(width), hsize), Image.ANTIALIAS)
-                filename = "/tmp/{}_{}.jpg".format(file_id, width)
-                img.save(filename)
+                if os.path.isfile(filename):
+                    img = Image.open(filename)
+                    wpercent = (int(width) / float(img.size[0]))
+                    hsize = int((float(img.size[1]) * float(wpercent)))
+                    img = img.resize((int(width), hsize), Image.ANTIALIAS)
+                    filename = "/tmp/{}_{}.jpg".format(file_id, width)
+                    img.save(filename)
+                else:
+                    filename = "static/na.jpg"
         except:
             filename = "static/na.jpg"
     if not os.path.isfile(filename):
