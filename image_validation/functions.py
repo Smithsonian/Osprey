@@ -112,10 +112,13 @@ def jhove_validate(file_id, filename, db_cursor, logger):
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     # Run JHOVE
-    p = subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename])
-    p = subprocess.Popen([settings.jhove_path, filename],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+    p = subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE
+                       )
+    # p = subprocess.Popen([settings.jhove_path, filename],
+    #                         stdout=subprocess.PIPE,
+    #                         stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     logger.debug("jhove_out: {} {}".format(file_id, out))
     logger.debug("jhove_err: {} {}".format(file_id, err))
@@ -951,6 +954,10 @@ def run_checks_folder_p(project_id, folder_path, logfile_folder, db_cursor, logg
     else:
         logger.info("MAIN folder found in {}".format(folder_path))
         folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
+        folder_raw_path = "{}/{}".format(folder_path, settings.raw_files_path)
+        if len(folder_full_path) != len(folder_raw_path):
+            db_cursor.execute(queries.folder_mismatch_count, {'folder_id': folder_id, 'error_info': "No. of files do not match (main: {}, raw: {})".format(len(folder_full_path), len(folder_raw_path))})
+            logger.debug(db_cursor.query.decode("utf-8"))
         os.chdir(folder_full_path)
         # Get all files in the folder
         files = glob.glob("*.*")

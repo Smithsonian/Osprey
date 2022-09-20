@@ -1374,7 +1374,7 @@ def dashboard_f(project_id=None, folder_id=None):
                                         {'project_id': project_id})
         project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
         project_folders = query_database("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, "
-                                         "f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
+                                         "f.file_errors, f.status, f.error_info, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
                                          "f.delivered_to_dams, "
                                          " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
                                          "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
@@ -1737,7 +1737,7 @@ def dashboard(project_id):
                                         {'project_id': project_id})
         project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
         project_folders = query_database("SELECT f.project_folder, f.folder_id, coalesce(f.no_files, 0) as no_files, "
-                                         "f.file_errors, f.status, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
+                                         "f.file_errors, f.status, f.error_info, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
                                          "f.delivered_to_dams, "
                                          " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
                                          "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "

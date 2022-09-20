@@ -84,3 +84,4 @@ get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks 
 
 update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
 
+folder_mismatch_count = "UPDATE folders SET status = 1, error_info = %(error_info)s WHERE folder_id = %(folder_id)s"
