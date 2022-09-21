@@ -10,7 +10,7 @@ from flask import request
 from flask import jsonify
 from flask import send_file
 # caching
-from flask_caching import Cache
+# from flask_caching import Cache
 
 import logging
 import locale
@@ -47,16 +47,16 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 # Cache config
-config = {
-    "DEBUG": True,  # some Flask specific configs
-    "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
-    "CACHE_DIR": "{}/cache".format(os.getcwd()),
-    "CACHE_DEFAULT_TIMEOUT": 300
-}
+# config = {
+#     "DEBUG": True,  # some Flask specific configs
+#     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
+#     "CACHE_DIR": "{}/cache".format(os.getcwd()),
+#     "CACHE_DEFAULT_TIMEOUT": 300
+# }
 app = Flask(__name__)
 # tell Flask to use the above defined config
-app.config.from_mapping(config)
-cache = Cache(app)
+# app.config.from_mapping(config)
+# cache = Cache(app)
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -119,7 +119,7 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error', status_code=500)
 
 
-@cache.memoize()
+# @cache.memoize()
 def query_database(query_template, parameters="", logging=None):
     try:
         with open(query_template) as f:
@@ -151,7 +151,7 @@ def query_database(query_template, parameters="", logging=None):
 ###################################
 # System routes
 ###################################
-@cache.memoize()
+# @cache.memoize()
 @app.route('/', methods=['GET', 'POST'])
 def home_system():
     """Main homepage for the system"""
@@ -161,7 +161,7 @@ def home_system():
 #################################
 # MassDigi-specific routes
 #################################
-@cache.memoize()
+# @cache.memoize()
 @app.route('/previewimage/<int:file_id>/', methods=['GET'], strict_slashes=False)
 def get_preview(file_id=None):
     """Return image previews from Mass Digi Projects."""
