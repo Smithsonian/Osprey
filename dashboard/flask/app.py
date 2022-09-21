@@ -1414,12 +1414,10 @@ def dashboard_f(project_id=None, folder_id=None):
                 offset = (page - 1) * no_items
             files_df = query_database("WITH data AS (SELECT file_id, %(preview)s || file_id as preview_image, "
                                       "         folder_id, file_name FROM files "
-                                      "WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
-                                      "  ORDER BY file_name),"
+                                      "WHERE folder_id = %(folder_id)s),"
                                       "data2 AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
                                       "         folder_id, file_name FROM files "
-                                      "WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
-                                      "  ORDER BY file_name)"
+                                      "WHERE folder_id = %(folder_id)s)"
                                       " SELECT file_id, preview_image, folder_id, file_name,"
                                       "         lag(file_id,1) over (order by file_name) prev_id,"
                                       "         lag(file_id,-1) over (order by file_name) next_id "
@@ -1429,8 +1427,27 @@ def dashboard_f(project_id=None, folder_id=None):
                                       "         lag(file_id,1) over (order by file_name) prev_id,"
                                       "         lag(file_id,-1) over (order by file_name) next_id "
                                       " FROM data2 "
+                                      " ORDER BY file_name "
                                       "LIMIT {} OFFSET {}".format(no_items, offset),
                                       {'folder_id': folder_id, 'preview': settings.jpg_previews})
+            # files_df = query_database("WITH data AS (SELECT file_id, %(preview)s || file_id as preview_image, "
+            #                           "         folder_id, file_name FROM files "
+            #                           "WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))),"
+            #                           "data2 AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
+            #                           "         folder_id, file_name FROM files "
+            #                           "WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}')))"
+            #                           " SELECT file_id, preview_image, folder_id, file_name,"
+            #                           "         lag(file_id,1) over (order by file_name) prev_id,"
+            #                           "         lag(file_id,-1) over (order by file_name) next_id "
+            #                           " FROM data "
+            #                           " UNION "
+            #                           " SELECT file_id, preview_image, folder_id, file_name,"
+            #                           "         lag(file_id,1) over (order by file_name) prev_id,"
+            #                           "         lag(file_id,-1) over (order by file_name) next_id "
+            #                           " FROM data2 "
+            #                           " ORDER BY file_name "
+            #                           "LIMIT {} OFFSET {}".format(no_items, offset),
+            #                           {'folder_id': folder_id, 'preview': settings.jpg_previews})
             # for row in files_df:
             #     row['prev'] =
             files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
