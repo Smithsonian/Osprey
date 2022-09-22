@@ -112,13 +112,13 @@ def jhove_validate(file_id, filename, db_cursor, logger):
     if os.path.isfile(xml_file):
         os.unlink(xml_file)
     # Run JHOVE
-    p = subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename],
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE
-                       )
-    # p = subprocess.Popen([settings.jhove_path, filename],
-    #                         stdout=subprocess.PIPE,
-    #                         stderr=subprocess.PIPE)
+    # p = subprocess.run([settings.jhove_path, "-h", "xml", "-o", xml_file, filename],
+    #                            stdout=subprocess.PIPE,
+    #                            stderr=subprocess.PIPE
+    #                    )
+    p = subprocess.Popen([settings.jhove_path, "-h", "xml", "-o", xml_file, filename],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     logger.debug("jhove_out: {} {}".format(file_id, out))
     logger.debug("jhove_err: {} {}".format(file_id, err))
