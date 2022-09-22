@@ -78,9 +78,9 @@ get_folders = "SELECT folder_id, path FROM folders WHERE project_id = %(project_
 
 update_nofiles = "UPDATE folders f SET no_files = d.no_files FROM (SELECT count(*) AS no_files, folder_id FROM files WHERE folder_id = %(folder_id)s GROUP BY folder_id) d WHERE f.folder_id = d.folder_id"
 
-get_fileserrors = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE folder_id = %(folder_id)s AND check_results = 1"
+get_fileserrors = "SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 1"
 
-get_filespending = "SELECT COUNT(DISTINCT file_id) AS no_files FROM file_checks WHERE folder_id = %(folder_id)s AND check_results = 9"
+get_filespending = "SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9"
 
 update_folder_errors = "UPDATE folders SET file_errors = %(f_errors)s WHERE folder_id = %(folder_id)s"
 
