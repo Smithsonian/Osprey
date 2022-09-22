@@ -429,8 +429,7 @@ def jpgpreview(file_id, folder_id, filename, logger):
     out = p.communicate()
     if os.path.isfile(preview_image):
         logger.info(out)
-        os.chmod(preview_image, stat.S_IROTH)
-        os.chmod(preview_image, stat.S_IRGRP)
+        os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
         return True
     else:
         logger.error("File:{}|msg:{}".format(filename, out))
