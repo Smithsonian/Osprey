@@ -283,7 +283,7 @@ try:
         WITH dpo_images AS (
             SELECT
                 f.file_name,
-                date_trunc('month', fol.date)::date as date,,
+                date_trunc('month', fol.date)::date as date,
                 fol.project_id
             FROM
                 files f,
