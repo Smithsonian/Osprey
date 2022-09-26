@@ -105,6 +105,33 @@ except Exception as error:
     sys.exit(1)
 
 
+# Update DAMS UAN
+try:
+    cur.execute("""
+        UPDATE files f SET dams_uan = d.dams_uan
+            FROM
+            (
+            SELECT
+                f.file_id,
+                d.dams_uan
+            FROM
+                dams_cdis_file_status_view_dpo d,
+                files f,
+                folders fol,
+                projects p 
+            WHERE
+                d.file_name = f.file_name || '.tif' AND
+                f.folder_id = fol.folder_id AND
+                fol.project_id = %(project_id)s AND 
+                p.process_summary = d.project_cd 
+                 ) d
+            WHERE f.file_id = d.file_id
+        """, {'project_id': project_id})
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
+
+
 # Update public images
 try:
     cur.execute("""
