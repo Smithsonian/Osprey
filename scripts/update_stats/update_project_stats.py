@@ -246,7 +246,7 @@ try:
           GROUP BY date
         ),
         dateseries AS (
-              SELECT date_trunc('week', dd)::date as date 
+              SELECT DISTINCT date_trunc('week', dd)::date as date 
                 FROM generate_series
                         ( (select min(date) FROM di)::timestamp
                         , (select max(date) FROM di)::timestamp
@@ -304,7 +304,7 @@ try:
           GROUP BY date
         ),
         dateseries AS (
-              SELECT date_trunc('month', dd)::date as date 
+              SELECT DISTINCT date_trunc('month', dd)::date as date 
                 FROM generate_series
                         ( (select min(date) FROM di)::timestamp
                         , (select max(date) FROM di)::timestamp
