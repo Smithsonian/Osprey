@@ -12,13 +12,13 @@
     <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Summary</button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#md" type="button" role="tab" aria-controls="md" aria-selected="false">Mass Digitization</button>
+    <button class="nav-link" id="md-tab" data-bs-toggle="tab" data-bs-target="#md" type="button" role="tab" aria-controls="md" aria-selected="false">Mass Digitization</button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#is" type="button" role="tab" aria-controls="is" aria-selected="false">Imaging Services</button>
+    <button class="nav-link" id="is-tab" data-bs-toggle="tab" data-bs-target="#is" type="button" role="tab" aria-controls="is" aria-selected="false">Imaging Services</button>
   </li>
     <li class="nav-item" role="presentation">
-    <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#inf" type="button" role="tab" aria-controls="inf" aria-selected="false">Informatics</button>
+    <button class="nav-link" id="inf-tab" data-bs-toggle="tab" data-bs-target="#inf" type="button" role="tab" aria-controls="inf" aria-selected="false">Informatics</button>
   </li>
 </ul>
 <div class="tab-content" id="myTabContent">
@@ -28,50 +28,70 @@
 
         <div class="row">
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ summary_stats.objects_digitized }}</h1>
-                        <h5>Specimens/Objects Digitized</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Specimens/Objects Digitized
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ summary_stats.objects_digitized }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ summary_stats.images_captured }}</h1>
-                        <h5>Images Captured</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Images Captured
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ summary_stats.images_captured }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ summary_stats.images_public }}</h1>
-                        <h5>Public Images</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Public Images
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ summary_stats.images_public }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ summary_stats.digitization_projects }}</h1>
-                        <h5>Digitization Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Digitization Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ summary_stats.digitization_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ summary_stats.active_projects }}</h1>
-                        <h5>Active Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Active Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ summary_stats.active_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
         </div>
 
         <div class="row">
             <div class="col">
-                <div id="chart_summary" class="chart w-100"></div>
+                <div id="chart_summary" class="chart w-100" aria-label="Line graphs of cumulative object and image count from digitization projects from August 2013 to present."></div>
             </div>
         </div>
 
@@ -94,49 +114,69 @@
 
         <div class="row">
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ md_stats.objects_digitized }}</h1>
-                        <h5>Specimens/Objects Digitized</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Specimens/Objects Digitized
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ md_stats.objects_digitized }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ md_stats.images_captured }}</h1>
-                        <h5>Images Captured</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Images Captured
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ md_stats.images_captured }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ md_stats.images_public }}</h1>
-                        <h5>Public Images</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Public Images
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ md_stats.images_public }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ md_stats.digitization_projects }}</h1>
-                        <h5>Digitization Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Digitization Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ md_stats.digitization_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ md_stats.active_projects }}</h1>
-                        <h5>Active Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Active Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ md_stats.active_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
         </div>
 
-
-            <h2>List of projects</h2>
+            <br>
+            <h2>List of MD projects:</h2>
 
                 {% for table in tables_md %}
                            {{ table|safe }}
@@ -160,49 +200,68 @@
 
         <div class="row">
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ is_stats.objects_digitized }}</h1>
-                        <h5>Specimens/Objects Digitized</h5>
-                    </div>
+                 <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Specimens/Objects Digitized
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ is_stats.objects_digitized }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ is_stats.images_captured }}</h1>
-                        <h5>Images Captured</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Images Captured
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ is_stats.images_captured }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ is_stats.images_public }}</h1>
-                        <h5>Public Images</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Public Images
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ is_stats.images_public }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ is_stats.digitization_projects }}</h1>
-                        <h5>Digitization Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Digitization Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ is_stats.digitization_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
             <div class="col">
-                <div id="topsummary3" class="shiny-html-output shiny-bound-output" aria-live="polite">
-                    <div class="alert alert-success" role="alert">
-                        <h1>{{ is_stats.active_projects }}</h1>
-                        <h5>Active Projects</h5>
-                    </div>
+
+                <div class="card text-white bg-primary">
+                  <div class="card-header">
+                    Active Projects
+                  </div>
+                  <div class="card-body">
+                    <h1>{{ is_stats.active_projects }}</h1>
+                  </div>
                 </div>
+
             </div>
         </div>
 
-
-        <h2>List of projects</h2>
+        <br>
+        <h2>List of IS projects:</h2>
 
             {% for table in tables_is %}
                        {{ table|safe }}

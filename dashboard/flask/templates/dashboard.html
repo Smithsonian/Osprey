@@ -28,7 +28,7 @@
     </div>
     <div class="col">
         <div class="card">
-          <h2><span class="badge bg-info d-flex">{{ project_stats.public }} Public Files</span></h2>
+          <h2><span class="badge bg-primary d-flex">{{ project_stats.public }} Public Files</span></h2>
           <div class="card-body">
             <p class="card-text">Files published to the public</p>
           </div>
@@ -36,7 +36,7 @@
     </div>
     <div class="col">
         <div class="card">
-          <h2><span class="badge bg-warning d-flex">{{ project_stats.running }} Running</span></h2>
+          <h2><span class="badge bg-primary d-flex">{{ project_stats.running }} Running</span></h2>
           <div class="card-body">
             <p class="card-text">Files that are currently being checked</p>
           </div>
@@ -89,32 +89,36 @@
                     {% for folder in project_folders %}
                     <tr>
                         <td>
+                            <h6>
+
                             {% if folder.project_folder == folder_name.project_folder %}
                                 <strong><a href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a></strong>
                             {% else %}
                                 <a href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
                             {% endif %}
                             <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
-                        {% if folder.file_errors == 1 %}
-                            <span class="badge bg-danger">Files with errors</span>
-                        {% endif %}
-                        {% if folder.qc_status == "QC Pending" %}
-                            <span class="badge bg-secondary">QC Pending</span>
-                        {% elif folder.qc_status == "QC Passed" %}
-                            <span class="badge bg-success">QC Passed</span>
-                        {% elif folder.qc_status == "QC Failed" %}
-                            <span class="badge bg-danger">QC Failed</span>
-                        {% endif %}
+                            {% if folder.file_errors == 1 %}
+                                <span class="badge bg-danger">Files with errors</span>
+                            {% endif %}
+                            {% if folder.qc_status == "QC Pending" %}
+                                <span class="badge bg-secondary">QC Pending</span>
+                            {% elif folder.qc_status == "QC Passed" %}
+                                <span class="badge bg-success">QC Passed</span>
+                            {% elif folder.qc_status == "QC Failed" %}
+                                <span class="badge bg-danger">QC Failed</span>
+                            {% endif %}
 
-                        {% if folder.delivered_to_dams == 1 %}
-                            <span class="badge bg-success">Delivered to DAMS</span>
-                        {% elif folder.delivered_to_dams == 0 %}
-                            <span class="badge bg-secondary">Ready for DAMS </span>
-                        {% endif %}
+                            {% if folder.delivered_to_dams == 1 %}
+                                <span class="badge bg-success">Delivered to DAMS</span>
+                            {% elif folder.delivered_to_dams == 0 %}
+                                <span class="badge bg-secondary">Ready for DAMS </span>
+                            {% endif %}
 
-                        {% if folder.status != 0 %}
-                            <span class="badge bg-danger">Folder Error: {{ folder.error_info }}</span>
-                        {% endif %}
+                            {% if folder.status != 0 %}
+                                <span class="badge bg-danger">Folder Error: {{ folder.error_info }}</span>
+                            {% endif %}
+
+                            </h6>
 
                         </td>
                     </tr>
@@ -159,16 +163,16 @@
                 {% endif %}
 
                 <br>
-                <h4>Files in the Folder: <strong>{{ folder_name.project_folder }}</strong></h4>
+                <p><strong>Files in the Folder: <strong>{{ folder_name.project_folder }}</strong></p>
 
                 {% for table in tables %}
                        {{ table|safe }}
                 {% endfor %}
 
           </div>
-          <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-profile-tab">
+          <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-lightbox-tab">
               <br>
-                <h4>Image Previews for the Folder: <strong>{{ folder_name.project_folder }}</strong></h4>
+                <p><strong>Image Previews for the Folder: <strong>{{ folder_name.project_folder }}</strong></p>
 
                   <div class="row">
                       <div class="col">
@@ -183,7 +187,7 @@
                 {% for file in files_df %}
                     <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
                             data-bs-info="{{ file.preview_image }}" title="Image Preview">
-                      <img src="{{ file.preview_image }}/?max=160" width="160px" style="padding: 10px;"><br>
+                      <img src="{{ file.preview_image }}/?max=160" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
                         <small>{{ file.file_name }}</small>
                   </button>
 
@@ -213,7 +217,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
-                           <img src="#" style="width: 100%;" id="imagepreview">
+                           <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

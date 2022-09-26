@@ -34,7 +34,7 @@
         <h4>{{ file_details.file_name }} Image Preview (JPG):</h4>
         <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
         <p><small>Click on the image to zoom in. Use the mousewheel to zoom in and out; press 'Esc' to close the image.</small><br>
-            <img src="{{ file_details.preview_image }}" style="width:100%;" id="previmg">
+            <img src="{{ file_details.preview_image }}" style="width:100%;" id="previmg" alt="Preview image of {{ file_details.file_name }}">
         </p>
 
             <!-- File Links -->
@@ -118,7 +118,7 @@
               <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Check Details</h5>
+                    <h5 class="modal-title" id="checkmodalLabel">Check Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
                   <div class="modal-body">

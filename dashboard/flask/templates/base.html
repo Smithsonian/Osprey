@@ -82,10 +82,10 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a> |
-                        <a href="{{ url_for('home') }}" style="color: #FFFFFF;" title="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a> |
-                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" title="About">About</a> |
-                        <a href="{{ url_for('logout') }}" style="color: #FFFFFF;" title="Logout">Logout</a>
+                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" aria-label="See all projects">All Projects</a> |
+                        <a href="{{ url_for('home') }}" style="color: #FFFFFF;" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a> |
+                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" aria-label="Go to about page">About</a> |
+                        <a href="{{ url_for('logout') }}" style="color: #FFFFFF;" aria-label="Logout of the system">Logout</a>
                     </small>
                 </div>
 
@@ -93,20 +93,16 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;">Login</a> | {% endif %}
-                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" title="About">About</a> |
-                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" title="All Projects">All Projects</a>
+                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;" aria-label="Login into the system">Login</a> | {% endif %}
+                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" aria-label="Go to about page">About</a> |
+                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" aria-label="See all Projects">All Projects</a>
                     </small>
                 </div>
-
-
 
             {% endif %}
 
             </div>
-
             </div>
-
         </div>
     </nav>
 
@@ -126,14 +122,14 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="loginModalLabel">Log In to the System</h5>
+        <h1 class="modal-title" id="loginModalLabel">Log In to the System</h1>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
 
         <form method="post" action="" class="p-4 p-md-4 border rounded-3 bg-light">
 
-        <h4>Login:</h4>
+        <h1>Login:</h1>
 
         {{ form.hidden_tag() }}
 
@@ -147,11 +143,11 @@
 
         <div class="form-floating mb-3">
             {{ form.username(class="form-control", aria_label='Username') }}
-            <label for="floatingInput">Username</label>
+            <label for="username">Username</label>
         </div>
         <div class="form-floating mb-3">
             {{ form.password(class="form-control", aria_label='Username', type="password") }}
-            <label for="floatingPassword">Password</label>
+            <label for="password">Password</label>
         </div>
         <br />
 
@@ -176,7 +172,7 @@
   <div class="container-fluid">
       <div class="row">
         <div class="col">
-            <a href="https://dpo.si.edu" target="_blank"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="DPO Logo"></a>
+            <a href="https://dpo.si.edu" target="_blank"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
             <p><a href="https://www.si.edu/ocio" target="_blank" class="text-white">Office of the Chief Information Officer</a></p>
