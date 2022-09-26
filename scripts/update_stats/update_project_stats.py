@@ -42,67 +42,109 @@ else:
 ############################################
 # Run
 ############################################
+#Update QC-passed images
 try:
     cur.execute("""
-        with dimages as (SELECT
-              f.file_name,
-              fol.date
-              fROM
-              files f,
-              folders fol
-              where
-              f.folder_id = fol.folder_id and
-                dams_uan is not null
-                and fol.project_id = %(project_id)s),
-      images as (SELECT
-                    f.file_name,
-                    fol.date
-                    fROM
-                    files f,
-                    folders fol
-                    where
-                    f.folder_id = fol.folder_id and
-                    fol.project_id = %(project_id)s),
-            project_objects AS (SELECT
-                          f.file_name,
-                          fol.date
-                          fROM
-                          files f,
-                          folders fol
-                          where
-                          f.folder_id = fol.folder_id and
-                            fol.project_id = %(project_id)s),
-            dams_images as (
-        SELECT
-            count(distinct file_name) as images
-        FROM
-            dimages
-          ),
-          objects as (
-      SELECT
-          count(distinct file_name) as objects
-      FROM
-          project_objects
-        ),
-        images_captured as (
-    SELECT
-        count(distinct file_name) as images
-    FROM
-        images
-      )
-      update
-        projects_stats
+        WITH dpo_images AS 
+          (
+            SELECT
+                count(f.file_name) as no_images,
+                fol.date,
+                fol.project_id
+            FROM
+                files f,
+                folders fol,
+                qc_folders q
+            WHERE
+                f.folder_id = fol.folder_id AND
+                fol.folder_id = q.folder_id AND
+                q.qc_status = 0 AND   
+                fol.project_id = %(project_id)s
+            GROUP BY 
+                fol.date,
+                fol.project_id
+            ),
+        dpo_objects AS (
+            SELECT
+                (i.no_images * p.project_img_2_object) as no_objects,
+                i.date
+            FROM
+                dpo_images i,
+                projects p 
+            WHERE
+                p.project_id = i.project_id
+            ),
+        total_images AS (
+            SELECT 
+                sum(i.no_images)::int as total_img,
+                project_id
+            FROM 
+                dpo_images i
+            GROUP BY 
+                project_id 
+            ),
+        total_obj AS (
+            SELECT 
+                sum(o.no_objects)::int as total_obj
+            FROM 
+                dpo_objects o
+            )
+        UPDATE
+            projects_stats p 
         SET
-          objects_digitized = objects.objects::int,
-          images_public = dams_images.images::int,
-          images_taken = images_captured.images::int,
-          updated_at = NOW()
+            objects_digitized = o.total_obj,
+            images_taken = i.total_img,
+            updated_at = NOW()
         FROM
-        images_captured, objects, dams_images
-        WHERE project_id = %(project_id)s        
+            total_images i, 
+            total_obj o
+        WHERE p.project_id = i.project_id
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
+    sys.exit(1)
+
+
+# Update public images
+try:
+    cur.execute("""
+        with dams_images as (
+            SELECT
+                f.file_name,
+                fol.date,
+                fol.project_id 
+            FROM
+                files f,
+                folders fol
+            WHERE 
+                f.folder_id = fol.folder_id AND 
+                dams_uan IS NOT NULL AND 
+                fol.project_id = %(project_id)s
+            ),
+        images as (
+            SELECT
+                count(distinct file_name) as total_img,
+                project_id
+            FROM
+                dams_images
+            GROUP BY 
+                project_id 
+            )
+        
+        UPDATE 
+            projects_stats p
+        SET
+            images_public = i.total_img::int,
+            updated_at = NOW()
+        FROM
+            images i
+        WHERE 
+            p.project_id = i.project_id  
+        """, {'project_id': project_id})
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
+
 
 
 # clear stats
@@ -113,107 +155,129 @@ try:
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
+    sys.exit(1)
 
 
 # daily
 try:
     cur.execute("""
-             with dams_images as (
-    SELECT
-          f.file_name,
-          max(fol.date) as date
-    FROM
-          files f,
-          folders fol
-    WHERE
-          f.folder_id = fol.folder_id and
-          dams_uan is not null and
-          fol.project_id = %(project_id)s
-    GROUP BY f.file_name
-        ),
-        di as (
-          SELECT
-              count(file_name) as no_images,
-              date
-          FROM
-              dams_images
-              group by date
-        ),
-    dateseries AS (
-        SELECT date_trunc('day', dd)::date as date
-          FROM generate_series
-                  ( (select min(date) FROM di)::timestamp
-                  , (select max(date) FROM di)::timestamp
-                  , '1 day'::interval) dd
-        )
-
-      insert into
-        projects_stats_detail
-        (project_id, time_interval, date, objects_digitized, images_captured)
-        (
-        SELECT
-          %(project_id)s,
-          'daily',
-          ds.date,
-          coalesce(di.no_images, 0),
-          coalesce(di.no_images, 0)
-      FROM
-        dateseries ds LEFT JOIN di ON (ds.date = di.date)
-      )        
+        WITH dpo_images AS (
+            SELECT
+                count(f.file_name) as no_images,
+                fol.date,
+                fol.project_id
+            FROM
+                files f,
+                folders fol,
+                qc_folders q
+            WHERE
+                f.folder_id = fol.folder_id AND
+                fol.folder_id = q.folder_id AND
+                q.qc_status = 0 AND
+                fol.project_id = %(project_id)s
+            GROUP BY 
+                fol.date,
+                fol.project_id
+                ),
+        dpo_objects AS (
+            SELECT
+                (i.no_images * p.project_img_2_object) as no_objects,
+                i.date
+            FROM
+                dpo_images i,
+                projects p 
+            WHERE
+                p.project_id = i.project_id
+                ),
+        dateseries AS (
+              SELECT date_trunc('day', dd)::date as date,
+                      %(project_id)s as project_id 
+                FROM generate_series
+                        ( (select min(date) FROM dpo_images)::timestamp
+                        , (select max(date) FROM dpo_images)::timestamp
+                        , '1 day'::interval) dd
+              )
+        
+        INSERT INTO
+              projects_stats_detail
+              (project_id, time_interval, date, objects_digitized, images_captured)
+              (
+                SELECT
+                  ds.project_id,
+                  'daily',
+                  ds.date,
+                  coalesce(o.no_objects, 0),
+                  coalesce(i.no_images, 0)
+              FROM
+                dateseries ds 
+                    LEFT JOIN dpo_images i ON (ds.date = i.date)
+                    LEFT JOIN dpo_objects o ON (ds.date = o.date)
+              )
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
-
+    sys.exit(1)
 
 
 # weekly
 try:
     cur.execute("""
-  with dams_images as (
-    SELECT
-          f.file_name,
-          max(fol.date) as date
-    FROM
-          files f,
-          folders fol
-    WHERE
-          f.folder_id = fol.folder_id and
-          dams_uan is not null and
-          fol.project_id = %(project_id)s
-    GROUP BY f.file_name
-        ),
-        di as (
-          SELECT
-              count(file_name) as no_images,
-              date_trunc('week', date)::date as date
-          FROM
-              dams_images
-              group by date
-        ),
-    dateseries AS (
-        SELECT distinct(date_trunc('week', dd)::date) as date
-          FROM generate_series
-                  ( (select min(date) FROM di)::timestamp
-                  , (select max(date) FROM di)::timestamp
-                  , '1 day'::interval) dd
-        )
+        WITH dpo_images AS (
+            SELECT
+                count(f.file_name) as no_images,
+                fol.date,
+                fol.project_id
+            FROM
+                files f,
+                folders fol,
+                qc_folders q
+            WHERE
+                f.folder_id = fol.folder_id AND
+                fol.folder_id = q.folder_id AND
+                q.qc_status = 0 AND
+                fol.project_id = %(project_id)s
+            GROUP BY 
+                fol.date,
+                fol.project_id
+                ),
+        dpo_objects AS (
+            SELECT
+                (i.no_images * p.project_img_2_object) as no_objects,
+                i.date
+            FROM
+                dpo_images i,
+                projects p 
+            WHERE
+                p.project_id = i.project_id
+                ),
+        dateseries AS (
+              SELECT date_trunc('week', dd)::date as date,
+                      %(project_id)s as project_id 
+                FROM generate_series
+                        ( (select min(date) FROM dpo_images)::timestamp
+                        , (select max(date) FROM dpo_images)::timestamp
+                        , '1 day'::interval) dd
+              )
 
-      insert into
-        projects_stats_detail
-        (project_id, time_interval, date, objects_digitized, images_captured)
-        (
-        SELECT
-          %(project_id)s,
-          'weekly',
-          ds.date,
-          coalesce(di.no_images, 0),
-          coalesce(di.no_images, 0)
-      FROM
-        dateseries ds LEFT JOIN di ON (ds.date = di.date)
-      )  
+        INSERT INTO
+              projects_stats_detail
+              (project_id, time_interval, date, objects_digitized, images_captured)
+              (
+                SELECT
+                  ds.project_id,
+                  'weekly',
+                  ds.date,
+                  coalesce(o.no_objects, 0),
+                  coalesce(i.no_images, 0)
+              FROM
+                dateseries ds 
+                    LEFT JOIN dpo_images i ON (ds.date = i.date)
+                    LEFT JOIN dpo_objects o ON (ds.date = o.date)
+              )
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
+    sys.exit(1)
 
 
 
@@ -221,51 +285,63 @@ except Exception as error:
 # monthly
 try:
     cur.execute("""
-            with dams_images as (
-    SELECT
-          f.file_name,
-          date_trunc('month', max(fol.date))::date as date
-    FROM
-          files f,
-          folders fol
-    WHERE
-          f.folder_id = fol.folder_id and
-          dams_uan is not null and
-          fol.project_id = %(project_id)s
-    GROUP BY f.file_name
-        ),
-        di as (
-          SELECT
-              count(*) as no_images,
-              date
-          FROM
-              dams_images
-              group by date
-        ),
-    dateseries AS (
-        SELECT distinct(date_trunc('month', dd)::date) as date
-          FROM generate_series
-                  ( (select min(date) FROM di)::timestamp
-                  , (select max(date) FROM di)::timestamp
-                  , '1 day'::interval) dd
-        )
+        WITH dpo_images AS (
+            SELECT
+                count(f.file_name) as no_images,
+                fol.date,
+                fol.project_id
+            FROM
+                files f,
+                folders fol,
+                qc_folders q
+            WHERE
+                f.folder_id = fol.folder_id AND
+                fol.folder_id = q.folder_id AND
+                q.qc_status = 0 AND
+                fol.project_id = %(project_id)s
+            GROUP BY 
+                fol.date,
+                fol.project_id
+                ),
+        dpo_objects AS (
+            SELECT
+                (i.no_images * p.project_img_2_object) as no_objects,
+                i.date
+            FROM
+                dpo_images i,
+                projects p 
+            WHERE
+                p.project_id = i.project_id
+                ),
+        dateseries AS (
+              SELECT date_trunc('month', dd)::date as date,
+                      %(project_id)s as project_id 
+                FROM generate_series
+                        ( (select min(date) FROM dpo_images)::timestamp
+                        , (select max(date) FROM dpo_images)::timestamp
+                        , '1 day'::interval) dd
+              )
 
-      insert into
-        projects_stats_detail
-        (project_id, time_interval, date, objects_digitized, images_captured)
-        (
-        SELECT
-          %(project_id)s,
-          'monthly',
-          ds.date,
-          coalesce(di.no_images, 0),
-          coalesce(di.no_images, 0)
-      FROM
-        dateseries ds LEFT JOIN di ON (ds.date = di.date)
-      )
+        INSERT INTO
+              projects_stats_detail
+              (project_id, time_interval, date, objects_digitized, images_captured)
+              (
+                SELECT
+                  ds.project_id,
+                  'monthly',
+                  ds.date,
+                  coalesce(o.no_objects, 0),
+                  coalesce(i.no_images, 0)
+              FROM
+                dateseries ds 
+                    LEFT JOIN dpo_images i ON (ds.date = i.date)
+                    LEFT JOIN dpo_objects o ON (ds.date = o.date)
+              )
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
+    sys.exit(1)
+
 
 
 

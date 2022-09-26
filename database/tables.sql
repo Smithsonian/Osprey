@@ -34,6 +34,7 @@ CREATE TABLE projects (
     project_start date,
     project_end date,
     project_datastorage text,
+    project_img_2_object numeric DEFAULT 1.0,
     dpoir boolean DEFAULT 't',
     stats_estimated bool DEFAULT 't',
     images_estimated bool DEFAULT 'f',
