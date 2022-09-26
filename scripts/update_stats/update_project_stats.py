@@ -203,7 +203,7 @@ try:
               (project_id, time_interval, date, objects_digitized, images_captured)
               (
                 SELECT
-                  ds.project_id,
+                  ds.project_id::int,
                   'daily',
                   ds.date,
                   coalesce(o.no_objects, 0),
@@ -264,7 +264,7 @@ try:
               (project_id, time_interval, date, objects_digitized, images_captured)
               (
                 SELECT
-                  ds.project_id,
+                  ds.project_id::int,
                   'weekly',
                   ds.date,
                   coalesce(o.no_objects, 0),
@@ -327,7 +327,7 @@ try:
               (project_id, time_interval, date, objects_digitized, images_captured)
               (
                 SELECT
-                  ds.project_id,
+                  ds.project_id::int,
                   'monthly',
                   ds.date,
                   coalesce(o.no_objects, 0),
