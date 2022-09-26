@@ -225,7 +225,7 @@ try:
         WITH dpo_images AS (
             SELECT
                 f.file_name,
-                fol.date,
+                date_trunc('week', fol.date)::date as date,
                 fol.project_id
             FROM
                 files f,
@@ -240,7 +240,7 @@ try:
         di as (
           SELECT
               count(file_name) as no_images,
-              date_trunc('week', date)::date as date
+              date
           FROM
               dpo_images
           GROUP BY date
@@ -283,7 +283,7 @@ try:
         WITH dpo_images AS (
             SELECT
                 f.file_name,
-                fol.date,
+                date_trunc('month', fol.date)::date as date,,
                 fol.project_id
             FROM
                 files f,
@@ -298,7 +298,7 @@ try:
         di as (
           SELECT
               count(file_name) as no_images,
-              date_trunc('month', date)::date as date
+              date
           FROM
               dpo_images
           GROUP BY date
