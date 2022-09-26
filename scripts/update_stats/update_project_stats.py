@@ -224,7 +224,7 @@ try:
     cur.execute("""
         WITH dpo_images AS (
             SELECT
-                count(f.file_name) as no_images,
+                f.file_name,
                 fol.date,
                 fol.project_id
             FROM
@@ -236,26 +236,20 @@ try:
                 fol.folder_id = q.folder_id AND
                 q.qc_status = 0 AND
                 fol.project_id = %(project_id)s
-            GROUP BY 
-                fol.date,
-                fol.project_id
                 ),
-        dpo_objects AS (
-            SELECT
-                (i.no_images * p.project_img_2_object) as no_objects,
-                i.date
-            FROM
-                dpo_images i,
-                projects p 
-            WHERE
-                p.project_id = i.project_id
-                ),
+        di as (
+          SELECT
+              count(file_name) as no_images,
+              date_trunc('week', date)::date as date
+          FROM
+              dpo_images
+          GROUP BY date
+        ),
         dateseries AS (
-              SELECT date_trunc('week', dd)::date as date,
-                      %(project_id)s as project_id 
+              SELECT date_trunc('week', dd)::date as date 
                 FROM generate_series
-                        ( (select min(date) FROM dpo_images)::timestamp
-                        , (select max(date) FROM dpo_images)::timestamp
+                        ( (select min(date) FROM di)::timestamp
+                        , (select max(date) FROM di)::timestamp
                         , '1 day'::interval) dd
               )
 
@@ -264,15 +258,16 @@ try:
               (project_id, time_interval, date, objects_digitized, images_captured)
               (
                 SELECT
-                  ds.project_id::int,
+                  p.project_id,
                   'weekly',
                   ds.date,
-                  coalesce(o.no_objects, 0),
-                  coalesce(i.no_images, 0)
+                  coalesce((di.no_images * p.project_img_2_object), 0),
+                  coalesce(di.no_images, 0)
               FROM
                 dateseries ds 
-                    LEFT JOIN dpo_images i ON (ds.date = i.date)
-                    LEFT JOIN dpo_objects o ON (ds.date = o.date)
+                    LEFT JOIN di ON (ds.date = di.date),
+                projects p
+                WHERE p.project_id = %(project_id)s
               )
         """, {'project_id': project_id})
 except Exception as error:
@@ -287,7 +282,7 @@ try:
     cur.execute("""
         WITH dpo_images AS (
             SELECT
-                count(f.file_name) as no_images,
+                f.file_name,
                 fol.date,
                 fol.project_id
             FROM
@@ -299,26 +294,20 @@ try:
                 fol.folder_id = q.folder_id AND
                 q.qc_status = 0 AND
                 fol.project_id = %(project_id)s
-            GROUP BY 
-                fol.date,
-                fol.project_id
                 ),
-        dpo_objects AS (
-            SELECT
-                (i.no_images * p.project_img_2_object) as no_objects,
-                i.date
-            FROM
-                dpo_images i,
-                projects p 
-            WHERE
-                p.project_id = i.project_id
-                ),
+        di as (
+          SELECT
+              count(file_name) as no_images,
+              date_trunc('month', date)::date as date
+          FROM
+              dpo_images
+          GROUP BY date
+        ),
         dateseries AS (
-              SELECT date_trunc('month', dd)::date as date,
-                      %(project_id)s as project_id 
+              SELECT date_trunc('month', dd)::date as date 
                 FROM generate_series
-                        ( (select min(date) FROM dpo_images)::timestamp
-                        , (select max(date) FROM dpo_images)::timestamp
+                        ( (select min(date) FROM di)::timestamp
+                        , (select max(date) FROM di)::timestamp
                         , '1 day'::interval) dd
               )
 
@@ -327,15 +316,16 @@ try:
               (project_id, time_interval, date, objects_digitized, images_captured)
               (
                 SELECT
-                  ds.project_id::int,
+                  p.project_id,
                   'monthly',
                   ds.date,
-                  coalesce(o.no_objects, 0),
-                  coalesce(i.no_images, 0)
+                  coalesce((di.no_images * p.project_img_2_object), 0),
+                  coalesce(di.no_images, 0)
               FROM
                 dateseries ds 
-                    LEFT JOIN dpo_images i ON (ds.date = i.date)
-                    LEFT JOIN dpo_objects o ON (ds.date = o.date)
+                    LEFT JOIN di ON (ds.date = di.date),
+                projects p
+                WHERE p.project_id = %(project_id)s
               )
         """, {'project_id': project_id})
 except Exception as error:
