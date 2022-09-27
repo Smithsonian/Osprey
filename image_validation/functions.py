@@ -398,7 +398,7 @@ def jpgpreview(file_id, folder_id, filename, logger):
         logger.error("JPG preview folder is not set in settings file")
         sys.exit(1)
     disk_check = shutil.disk_usage(settings.jpg_previews)
-    if (disk_check.free / disk_check.total) < 0.1:
+    if (disk_check.free / disk_check.total) < settings.jpg_previews_free:
         logger.error("JPG storage location is running out of space ({}%) - {}".format(
                                                    round(disk_check.free / disk_check.total, 4) * 100,
                                                     settings.jpg_previews))

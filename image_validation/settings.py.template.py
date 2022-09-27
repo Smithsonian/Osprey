@@ -85,6 +85,8 @@ jhove_path = "/usr/local/jhove/jhove"
 
 # Path of where to save the JPG previews and size
 jpg_previews = ""
+# How much space to leave free, in decimal (0.1 is 10%)
+jpg_previews_free = 0.1
 # Set previews_size = 'full' to keep the same size as the main image
 previews_size = "full"
 
