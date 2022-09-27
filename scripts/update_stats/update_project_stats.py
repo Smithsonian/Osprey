@@ -148,8 +148,7 @@ try:
                         projects p 
                   WHERE
                         f.folder_id = fol.folder_id AND
-                        fol.project_id = %(project_id)s AND 
-                        p.process_summary = d.project_cd AND 
+                        fol.project_id = %(project_id)s AND
                         f.dams_uan IS NOT NULL                         
                     ) a
                 ) 
@@ -175,7 +174,6 @@ try:
                   WHERE
                         f.folder_id = fol.folder_id AND
                         fol.project_id = %(project_id)s AND 
-                        p.process_summary = d.project_cd AND 
                         f.dams_uan IS NOT NULL                         
                     ) a
                 ) 
