@@ -144,14 +144,13 @@ try:
                         f.file_id
                   FROM
                         files f,
-                        dams_cdis_file_status_view_dpo d,
                         folders fol,
                         projects p 
                   WHERE
-                        d.file_name = f.file_name || '.tif' AND
                         f.folder_id = fol.folder_id AND
                         fol.project_id = %(project_id)s AND 
-                        p.process_summary = d.project_cd 
+                        p.process_summary = d.project_cd AND 
+                        f.dams_uan IS NOT NULL                         
                     ) a
                 ) 
                 ON CONFLICT (file_id, post_step) DO UPDATE SET post_results = 0
@@ -159,6 +158,33 @@ try:
 except Exception as error:
     print("Error: {}".format(error))
     sys.exit(1)
+
+
+try:
+    cur.execute("""
+        INSERT INTO file_postprocessing (file_id, post_step, post_results)
+            (SELECT file_id, 'public', 0
+                FROM
+                (
+                  SELECT
+                        f.file_id
+                  FROM
+                        files f,
+                        folders fol,
+                        projects p 
+                  WHERE
+                        f.folder_id = fol.folder_id AND
+                        fol.project_id = %(project_id)s AND 
+                        p.process_summary = d.project_cd AND 
+                        f.dams_uan IS NOT NULL                         
+                    ) a
+                ) 
+                ON CONFLICT (file_id, post_step) DO UPDATE SET post_results = 0
+        """, {'project_id': project_id})
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
+
 
 
 # Set as delivered folder
