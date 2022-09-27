@@ -163,7 +163,7 @@
                 {% endif %}
 
                 <br>
-                <p><strong>Files in the Folder: <strong>{{ folder_name.project_folder }}</strong></p>
+                <p><strong>Files in the Folder: {{ folder_name.project_folder }}</strong></p>
 
                 {% for table in tables %}
                        {{ table|safe }}
@@ -172,7 +172,7 @@
           </div>
           <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-lightbox-tab">
               <br>
-                <p><strong>Image Previews for the Folder: <strong>{{ folder_name.project_folder }}</strong></p>
+                <p><strong>Image Previews for the Folder: {{ folder_name.project_folder }}</strong></p>
 
                   <div class="row">
                       <div class="col">
