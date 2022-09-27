@@ -144,8 +144,7 @@ try:
                         f.file_id
                   FROM
                         files f,
-                        folders fol,
-                        projects p 
+                        folders fol
                   WHERE
                         f.folder_id = fol.folder_id AND
                         fol.project_id = %(project_id)s AND
@@ -169,8 +168,7 @@ try:
                         f.file_id
                   FROM
                         files f,
-                        folders fol,
-                        projects p 
+                        folders fol
                   WHERE
                         f.folder_id = fol.folder_id AND
                         fol.project_id = %(project_id)s AND 
