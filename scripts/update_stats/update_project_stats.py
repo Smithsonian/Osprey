@@ -132,6 +132,89 @@ except Exception as error:
     sys.exit(1)
 
 
+
+# Set as delivered
+try:
+    cur.execute("""
+        INSERT INTO file_postprocessing (file_id, post_step, post_results)
+            (SELECT file_id, 'in_dams', 0
+                FROM
+                (
+                  SELECT
+                        f.file_id
+                  FROM
+                        files f,
+                        dams_cdis_file_status_view_dpo d,
+                        folders fol,
+                        projects p 
+                  WHERE
+                        d.file_name = f.file_name || '.tif' AND
+                        f.folder_id = fol.folder_id AND
+                        fol.project_id = %(project_id)s AND 
+                        p.process_summary = d.project_cd 
+                    ) a
+                ) 
+                ON CONFLICT (file_id, post_step) DO UPDATE SET post_results = 0
+        """, {'project_id': project_id})
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
+
+
+# Set as delivered folder
+try:
+    cur.execute("""
+        WITH files_ok AS (
+                SELECT 
+                    count(f.file_id) as no_files,
+                    f.folder_id
+                FROM 
+                    files f,
+                    folders fol,
+                    file_postprocessing fp
+                WHERE 
+                    fp.post_step = 'in_dams' AND 
+                    fp.post_results = 0 AND 
+                    fol.folder_id = f.folder_id AND
+                    fol.project_id = %(project_id)s AND 
+                    fp.file_id = f.file_id
+                GROUP BY 
+                    f.folder_id
+            ),
+            files_count AS (
+                SELECT 
+                    count(f.file_id) as no_files,
+                    f.folder_id
+                FROM 
+                    files f,
+                    folders fol
+                WHERE 
+                    fol.folder_id = f.folder_id AND
+                    fol.project_id = %(project_id)s
+                GROUP BY 
+                    f.folder_id
+            ),
+            to_update AS (
+                SELECT 
+                    fc.folder_id 
+                FROM 
+                    files_count fc,
+                    files_ok ok 
+                WHERE 
+                    fc.folder_id = ok.folder_id AND
+                    fc.no_files = ok.no_files
+            ) 
+        UPDATE folders f
+            SET delivered_to_dams = 0
+            FROM to_update t 
+            WHERE f.folder_id = t.folder_id
+        """, {'project_id': project_id})
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
+
+
+
 # Update public images
 try:
     cur.execute("""
