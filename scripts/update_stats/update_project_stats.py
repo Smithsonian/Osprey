@@ -205,7 +205,7 @@ try:
                     fc.no_files = ok.no_files
             ) 
         UPDATE folders f
-            SET delivered_to_dams = 0
+            SET delivered_to_dams = 1
             FROM to_update t 
             WHERE f.folder_id = t.folder_id
         """, {'project_id': project_id})
