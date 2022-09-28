@@ -53,18 +53,11 @@ try:
              FROM
              (
              SELECT
-             f.file_id
+                file_id
              FROM
-             dams_vfcu_file_view_dpo d,
-             files f,
-             folders fold,
-             projects p
+                files
              WHERE
-             fold.folder_id = f.folder_id AND
-             fold.project_id = p.project_id AND
-             d.project_cd = p.process_summary AND
-             d.media_file_name = f.file_name || '.tif' AND
-             f.folder_id = %(folder_id)s
+                folder_id = %(folder_id)s
              )
             a
             ) ON
