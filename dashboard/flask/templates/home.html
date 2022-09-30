@@ -91,7 +91,7 @@
 
         <div class="row">
             <div class="col">
-                <div id="chart_summary" class="chart w-100" aria-label="Line graphs of cumulative object and image count from digitization projects from August 2013 to present."></div>
+                <div id="chart_summary" class="chart w-auto" aria-label="Line graphs of cumulative object and image count from digitization projects from August 2013 to present."></div>
             </div>
         </div>
 
@@ -293,7 +293,9 @@
 
     <script type="text/javascript">
         var graph_s = {{graphJSON_summary | safe}};
-        Plotly.newPlot('chart_summary',graph_s,{});
+        Plotly.newPlot('chart_summary',graph_s,{},{
+            responsive: true,
+        });
 
         //var graph_md = {{graphJSON_md | safe}};
         //Plotly.newPlot('chart_md',graph_md,{});
