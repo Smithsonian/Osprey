@@ -472,6 +472,7 @@ CREATE INDEX files_size_filetype_idx ON files_size USING BTREE(filetype);
 --file_checks
 DROP TABLE IF EXISTS file_checks CASCADE;
 CREATE TABLE file_checks (
+    table_id serial PRIMARY KEY,
     file_id integer REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE,
     folder_id integer REFERENCES folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE,
     file_check text,
