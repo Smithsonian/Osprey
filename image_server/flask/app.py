@@ -228,9 +228,9 @@ def get_herbarium(file_name=None):
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     else:
-        file_id = data[0]['file_id']
-        folder_id = data[0]['folder_id']
-        preview_image = data[0]['preview_image']
+        file_id = data['file_id']
+        folder_id = data['folder_id']
+        preview_image = data['preview_image']
         logging.info("data: {}".format(data))
         if preview_image != None:
             redirect(preview_image, code=302)
