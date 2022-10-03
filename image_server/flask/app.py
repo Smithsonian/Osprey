@@ -213,7 +213,7 @@ def get_preview(file_id=None):
         return send_file("static/na.jpg", mimetype='image/jpeg')
 
 
-@app.route('/herbarium_barcode/<int:file_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/herbarium_barcode/<file_name>/', methods=['GET'], strict_slashes=False)
 def get_herbarium(file_name=None):
     """Return image previews from the NMNH Herbarium."""
     if file_name is None:
