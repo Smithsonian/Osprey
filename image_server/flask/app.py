@@ -228,9 +228,10 @@ def get_herbarium(file_name=None):
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     else:
-        file_id = data[0][0]#['file_id']
-        folder_id = data[0]['folder_id']
-        preview_image = data[0]['preview_image']
+        data = data[0]
+        file_id = data['file_id']
+        folder_id = data['folder_id']
+        preview_image = data['preview_image']
         logging.info("data: {}".format(data))
         if preview_image != None:
             redirect(preview_image, code=302)
@@ -241,9 +242,11 @@ def get_herbarium(file_name=None):
             else:
                 width = request.args.get('size')
             if width is None:
-                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id, file_id)
+                logging.info("245")
             else:
-                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id, file_id)
+                logging.info("248")
                 if os.path.isfile(filename):
                     img = Image.open(filename)
                     wpercent = (int(width) / float(img.size[0]))
@@ -254,6 +257,8 @@ def get_herbarium(file_name=None):
                 else:
                     filename = "static/na.jpg"
     if not os.path.isfile(filename):
+        logging.info(filename)
+        logging.info("259")
         filename = "static/na.jpg"
     #
     logging.info(filename)
