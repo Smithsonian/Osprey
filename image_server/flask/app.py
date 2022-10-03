@@ -232,7 +232,7 @@ def get_herbarium(file_name=None):
             file_id = data[0]
             folder_id = data[1]
             preview_link = data[2]
-            if preview_link != '':
+            if preview_link != None:
                 redirect(preview_link, code=302)
             else:
                 max = request.args.get('max')
