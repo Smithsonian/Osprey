@@ -1,0 +1,1 @@
+SELECT folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1
