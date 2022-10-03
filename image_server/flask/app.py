@@ -213,6 +213,58 @@ def get_preview(file_id=None):
         return send_file("static/na.jpg", mimetype='image/jpeg')
 
 
+@app.route('/herbarium_barcode/<int:file_id>/', methods=['GET'], strict_slashes=False)
+def get_herbarium(file_name=None):
+    """Return image previews from the NMNH Herbarium."""
+    if file_name is None:
+        raise InvalidUsage('file_name missing', status_code=400)
+    #
+    data = query_database('queries/get_file_from_filename.sql', {'file_name': file_name}, logging=logging)
+    logging.info("data: {}".format(data))
+    if data == None:
+        filename = "static/na.jpg"
+        return send_file(filename, mimetype='image/jpeg')
+    elif len(data) == 0:
+        filename = "static/na.jpg"
+        return send_file(filename, mimetype='image/jpeg')
+    else:
+        try:
+            file_id = data[0]
+            folder_id = data[1]
+            preview_link = data[2]
+            if preview_link != '':
+                redirect(preview_link, code=302)
+            else:
+                max = request.args.get('max')
+                if max is not None:
+                    width = max
+                else:
+                    width = request.args.get('size')
+                if width is None:
+                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                else:
+                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                    if os.path.isfile(filename):
+                        img = Image.open(filename)
+                        wpercent = (int(width) / float(img.size[0]))
+                        hsize = int((float(img.size[1]) * float(wpercent)))
+                        img = img.resize((int(width), hsize), Image.ANTIALIAS)
+                        filename = "/tmp/{}_{}.jpg".format(file_id, width)
+                        img.save(filename)
+                    else:
+                        filename = "static/na.jpg"
+        except:
+            filename = "static/na.jpg"
+    if not os.path.isfile(filename):
+        filename = "static/na.jpg"
+    #
+    logging.error(filename)
+    try:
+        return send_file(filename, mimetype='image/jpeg')
+    except:
+        return send_file("static/na.jpg", mimetype='image/jpeg')
+
+
 #####################################
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
