@@ -230,10 +230,10 @@ def get_herbarium(file_name=None):
     else:
         file_id = data[0]['file_id']
         folder_id = data[0]['folder_id']
-        preview_link = data[0]['preview_link']
+        preview_image = data[0]['preview_image']
         logging.info("data: {}".format(data))
-        if preview_link != None:
-            redirect(preview_link, code=302)
+        if preview_image != None:
+            redirect(preview_image, code=302)
         else:
             max = request.args.get('max')
             if max is not None:
