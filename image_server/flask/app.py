@@ -228,34 +228,31 @@ def get_herbarium(file_name=None):
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     else:
-        try:
-            file_id = data[0]['file_id']
-            folder_id = data[0]['folder_id']
-            preview_link = data[0]['preview_link']
-            logging.info("data: {}".format(data))
-            if preview_link != None:
-                redirect(preview_link, code=302)
+        file_id = data[0]['file_id']
+        folder_id = data[0]['folder_id']
+        preview_link = data[0]['preview_link']
+        logging.info("data: {}".format(data))
+        if preview_link != None:
+            redirect(preview_link, code=302)
+        else:
+            max = request.args.get('max')
+            if max is not None:
+                width = max
             else:
-                max = request.args.get('max')
-                if max is not None:
-                    width = max
+                width = request.args.get('size')
+            if width is None:
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+            else:
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                if os.path.isfile(filename):
+                    img = Image.open(filename)
+                    wpercent = (int(width) / float(img.size[0]))
+                    hsize = int((float(img.size[1]) * float(wpercent)))
+                    img = img.resize((int(width), hsize), Image.ANTIALIAS)
+                    filename = "/tmp/{}_{}.jpg".format(file_id, width)
+                    img.save(filename)
                 else:
-                    width = request.args.get('size')
-                if width is None:
-                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
-                else:
-                    filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
-                    if os.path.isfile(filename):
-                        img = Image.open(filename)
-                        wpercent = (int(width) / float(img.size[0]))
-                        hsize = int((float(img.size[1]) * float(wpercent)))
-                        img = img.resize((int(width), hsize), Image.ANTIALIAS)
-                        filename = "/tmp/{}_{}.jpg".format(file_id, width)
-                        img.save(filename)
-                    else:
-                        filename = "static/na.jpg"
-        except:
-            filename = "static/na.jpg"
+                    filename = "static/na.jpg"
     if not os.path.isfile(filename):
         filename = "static/na.jpg"
     #
