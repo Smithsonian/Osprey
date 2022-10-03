@@ -232,6 +232,7 @@ def get_herbarium(file_name=None):
             file_id = data[0]
             folder_id = data[1]
             preview_link = data[2]
+            logging.info("data: {}".format(data))
             if preview_link != None:
                 redirect(preview_link, code=302)
             else:
@@ -258,7 +259,7 @@ def get_herbarium(file_name=None):
     if not os.path.isfile(filename):
         filename = "static/na.jpg"
     #
-    logging.error(filename)
+    logging.info(filename)
     try:
         return send_file(filename, mimetype='image/jpeg')
     except:
