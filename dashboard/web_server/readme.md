@@ -11,7 +11,6 @@ sudo dnf install mod_wsgi httpd
 ```
 
 In Ubuntu: 
-
 ```bash
 sudo apt-get install libapache2-mod-wsgi-py3
 sudo a2enconf mod-wsgi
