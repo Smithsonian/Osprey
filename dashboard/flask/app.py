@@ -9,15 +9,12 @@ from flask import request
 from flask import jsonify
 from flask import redirect
 from flask import url_for
-from flask import send_file
+# from flask import send_file
 # caching
 from flask_caching import Cache
 
-from PIL import Image
-
 import logging
 import locale
-# import simplejson as json
 import os
 import math
 import pandas as pd
@@ -25,7 +22,6 @@ import json
 
 import psycopg2
 import psycopg2.extras
-# from psycopg2.extensions import AsIs
 
 from flask_login import LoginManager
 from flask_login import login_required
@@ -110,6 +106,8 @@ def handle_invalid_usage(error):
 def page_not_found(e):
     logging.error(e)
     error_msg = "Error: {}".format(e)
+    # Declare the login form
+    form = LoginForm(request.form)
     return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 404
 
 
@@ -117,13 +115,9 @@ def page_not_found(e):
 def sys_error(e):
     logging.error(e)
     error_msg = "There was a system error."
+    # Declare the login form
+    form = LoginForm(request.form)
     return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 500
-
-
-# @app.before_request
-# def check_under_maintenance():
-#     if os.path.exists("maintenance"): # Check if a "maintenance" file exists (whatever it is empty or not)
-#         return render_template('error_simple.html', error_msg="The system is in maintenance mode. Please try again later.",), 503
 
 
 # Database
@@ -326,65 +320,6 @@ def login():
     fig.update_layout(height=580)
     graphJSON_summary = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # MD
-    # df = pd.DataFrame(query_database("with d as ("
-    #                                  "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' "
-    #                                  "      AND project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)      "
-    #                                  "      group by date)"
-    #                                  "select "
-    #                                  " date, 'Images' as itype, "
-    #                                  " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
-    #                                  " from d "
-    #                                  " union "
-    #                                  " select date,"
-    #                                  "'Objects' as itype,"
-    #                                  "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
-    #                                  " from d "
-    #                                  " order by date "
-    #                                  ))
-    #
-    # fig = px.line(df, x="date", y="no_images", color='itype',
-    #               labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
-    #               markers=True)
-    # fig.update_layout(legend=dict(
-    #     yanchor="top",
-    #     y=0.99,
-    #     xanchor="left",
-    #     x=0.01
-    # ))
-    # fig.update_layout(height=580)
-    # graphJSON_md = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
-    # IS
-    # df = pd.DataFrame(query_database("with d as ("
-    #                                  "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' "
-    #                                  "      AND project_id IN (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)      "
-    #                                  "      group by date)"
-    #                                  "select "
-    #                                  " date, 'Images' as itype, "
-    #                                  " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
-    #                                  " from d "
-    #                                  " union "
-    #                                  " select date,"
-    #                                  "'Objects' as itype,"
-    #                                  "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
-    #                                  " from d "
-    #                                  " order by date "
-    #                                  ))
-    #
-    # fig = px.line(df, x="date", y="no_images", color='itype',
-    #               labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
-    #               markers=True)
-    # fig.update_layout(legend=dict(
-    #     yanchor="top",
-    #     y=0.99,
-    #     xanchor="left",
-    #     x=0.01
-    # ))
-    # fig.update_layout(height=580)
-    #
-    # graphJSON_is = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
     # Summary stats
     summary_stats = {}
     summary_stats['objects_digitized'] = "{:,}".format(query_database("SELECT SUM(objects_digitized) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
@@ -532,10 +467,6 @@ def login():
         "images_public": "Public Images"
     })
 
-    #timestamp = datetime.today().strftime('%d %b %Y at %H:%M %p')
-
-    # graphJSON_md = graphJSON_md,
-    # graphJSON_is = graphJSON_is,
     return render_template('home.html',
                            projects=projects,
                            form=form,
@@ -667,6 +598,11 @@ def qc_process(folder_id):
         'no_errors': folder_stats2[0]['no_errors']
     }
     logging.info("qc_status: {} | no_files: {}".format(folder_qc['qc_status'], folder_stats['no_files']))
+    project_alias = query_database("SELECT project_alias FROM projects WHERE project_id IN "
+                                   "   (SELECT project_id "
+                                   "       FROM folders "
+                                   "       WHERE folder_id = %(folder_id)s)",
+                                   {'folder_id': folder_id})[0]
     if folder_qc['qc_status'] == "QC Pending" and folder_stats['no_files'] > 0:
         # Setup the files for QC
         in_qc = query_database("SELECT count(*) as no_files FROM qc_files WHERE folder_id = %(folder_id)s",
@@ -731,7 +667,7 @@ def qc_process(folder_id):
                             "   FROM file_checks "
                             "   WHERE file_id = %(file_id)s",
                             {'file_id': file_qc['file_id']})
-                image_url = settings.jpg_previews + str(file_qc['file_id'])
+                image_url = settings.jpg_previews + str(file_qc['file_id']) + '/?'
                 file_metadata = pd.DataFrame(query_database("SELECT tag, taggroup, tagid, value "
                                                             "   FROM files_exif "
                                                             "   WHERE file_id = %(file_id)s "
@@ -745,11 +681,7 @@ def qc_process(folder_id):
                             "                   FROM files "
                             "                   WHERE file_id = %(file_id)s)",
                             {'file_id': file_qc['file_id']})[0]
-                project_alias = query_database("SELECT project_alias FROM projects WHERE project_id IN "
-                                            "   (SELECT project_id "
-                                            "       FROM folders "
-                                            "       WHERE folder_id = %(folder_id)s)",
-                                            {'folder_id': folder_id})[0]
+
                 return render_template('qc_file.html',
                                        folder=folder,
                                        qc_stats=qc_stats,
@@ -782,7 +714,7 @@ def qc_process(folder_id):
                                        form=form)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias['project_alias']), 400
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
@@ -1272,12 +1204,15 @@ def dashboard_f(project_id=None, folder_id=None):
         user_exists = False
         username = None
 
+    # Declare the login form
+    form = LoginForm(request.form)
+
     # Check if folder exists
     folder_check = query_database("SELECT folder_id FROM folders WHERE folder_id = %(folder_id)s AND project_id IN (SELECT project_id FROM projects WHERE project_alias = %(project_id)s)",
                                       {'folder_id': folder_id, 'project_id': project_id})
     if folder_check is None:
         error_msg = "Folder was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -1290,7 +1225,7 @@ def dashboard_f(project_id=None, folder_id=None):
             tab = int(tab)
         except:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 400
     logging.info("tab: {}".format(tab))
     page = request.values.get('page')
     if page is None or page == '':
@@ -1300,19 +1235,19 @@ def dashboard_f(project_id=None, folder_id=None):
             page = int(page)
         except:
             error_msg = "Invalid page number."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 400
     logging.info("page: {}".format(page))
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
     else:
         project_id_check = query_database("SELECT project_id FROM projects WHERE "
                                           " project_alias = %(project_id)s",
                                           {'project_id': project_id})
         if len(project_id_check) == 0:
             error_msg = "Project was not found."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
         else:
             project_alias = project_id
             project_id = project_id_check[0]['project_id']
@@ -1412,44 +1347,15 @@ def dashboard_f(project_id=None, folder_id=None):
                 offset = 0
             else:
                 offset = (page - 1) * no_items
-            files_df = query_database("WITH data AS (SELECT file_id, %(preview)s || file_id as preview_image, "
-                                      "         folder_id, file_name FROM files "
-                                      "WHERE folder_id = %(folder_id)s),"
-                                      "data2 AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
-                                      "         folder_id, file_name FROM files "
-                                      "WHERE folder_id = %(folder_id)s)"
-                                      " SELECT file_id, preview_image, folder_id, file_name,"
-                                      "         lag(file_id,1) over (order by file_name) prev_id,"
-                                      "         lag(file_id,-1) over (order by file_name) next_id "
-                                      " FROM data "
-                                      " UNION "
-                                      " SELECT file_id, preview_image, folder_id, file_name,"
-                                      "         lag(file_id,1) over (order by file_name) prev_id,"
-                                      "         lag(file_id,-1) over (order by file_name) next_id "
-                                      " FROM data2 "
-                                      " ORDER BY file_name "
-                                      "LIMIT {} OFFSET {}".format(no_items, offset),
-                                      {'folder_id': folder_id, 'preview': settings.jpg_previews})
-            # files_df = query_database("WITH data AS (SELECT file_id, %(preview)s || file_id as preview_image, "
-            #                           "         folder_id, file_name FROM files "
-            #                           "WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))),"
-            #                           "data2 AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
-            #                           "         folder_id, file_name FROM files "
-            #                           "WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}')))"
-            #                           " SELECT file_id, preview_image, folder_id, file_name,"
-            #                           "         lag(file_id,1) over (order by file_name) prev_id,"
-            #                           "         lag(file_id,-1) over (order by file_name) next_id "
-            #                           " FROM data "
-            #                           " UNION "
-            #                           " SELECT file_id, preview_image, folder_id, file_name,"
-            #                           "         lag(file_id,1) over (order by file_name) prev_id,"
-            #                           "         lag(file_id,-1) over (order by file_name) next_id "
-            #                           " FROM data2 "
-            #                           " ORDER BY file_name "
-            #                           "LIMIT {} OFFSET {}".format(no_items, offset),
-            #                           {'folder_id': folder_id, 'preview': settings.jpg_previews})
-            # for row in files_df:
-            #     row['prev'] =
+            files_df = query_database(
+                "WITH data AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id || '/?') as preview_image, "
+                "         folder_id, file_name FROM files "
+                "WHERE folder_id = %(folder_id)s)"
+                " SELECT file_id, preview_image, folder_id, file_name"
+                " FROM data "
+                " ORDER BY file_name "
+                "LIMIT {} OFFSET {}".format(no_items, offset),
+                {'folder_id': folder_id, 'preview': settings.jpg_previews})
             files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                       {'folder_id': folder_id})[0]
             files_count = files_count['no_files']
@@ -1477,7 +1383,7 @@ def dashboard_f(project_id=None, folder_id=None):
                                                 {'file_check': fcheck, 'folder_id': folder_id}))
                     logging.info("list_files.size: {}".format(list_files.shape[0]))
                     preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
-                                                             "  COALESCE(f.preview_image, '{}' || f.file_id) as preview_image "
+                                                             "  COALESCE(f.preview_image, '{}' || f.file_id || '/?') as preview_image "
                                                              " FROM files f "
                                                              "  where  "
                                                              "   f.folder_id = %(folder_id)s".format(settings.jpg_previews),
@@ -1668,7 +1574,6 @@ def dashboard_f(project_id=None, folder_id=None):
                            )
 
 
-
 @app.route('/dashboard/<project_id>/', methods=['GET','POST'], strict_slashes=False)
 def dashboard(project_id):
     """Dashboard for a project"""
@@ -1685,14 +1590,14 @@ def dashboard(project_id):
     project_stats = {}
     if project_id is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 404
     else:
         project_id_check = query_database("SELECT project_id FROM projects WHERE "
                                           " project_alias = %(project_id)s",
                                           {'project_id': project_id})
         if len(project_id_check) == 0:
             error_msg = "Project was not found."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
         else:
             project_alias = project_id
             project_id = project_id_check[0]['project_id']
@@ -1937,7 +1842,8 @@ def file_empty():
 @app.route('/file_json/<file_id>/', methods=['GET'], strict_slashes=False)
 def file_json(file_id):
     """File details"""
-    #file_id = int(request.values.get('file_id'))
+    # Declare the login form
+    form = LoginForm(request.form)
     if file_id is None:
         error_msg = "File ID is missing."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
@@ -2029,7 +1935,6 @@ def logout():
     return redirect(url_for('login'))
 
 
-
 @app.route("/notuser", methods=['GET'], strict_slashes=False)
 def not_user():
     # Declare the login form
@@ -2038,7 +1943,6 @@ def not_user():
     logout_user()
     return render_template('notuser.html',
                            form=form)
-
 
 
 #####################################
