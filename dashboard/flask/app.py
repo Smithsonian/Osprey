@@ -1398,10 +1398,12 @@ def dashboard_f(project_id=None, folder_id=None):
                                                + folder_files_df['file_name'].astype(str) \
                                                + '</a> ' \
                                                + '<button type="button" class="btn btn-light btn-sm" ' \
-                                                 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                                                 'data-bs-info="' + folder_files_df['preview_image'] \
+                                               + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
+                                               + 'data-bs-info="' + folder_files_df['preview_image'] \
+                                               + '" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) + '/"' \
+                                               + '" data-bs-text = "Details of the file ' + folder_files_df['file_name'].astype(str) \
                                                + '" title="Image Preview">' \
-                                                    '<i class="fa-regular fa-image"></i></button>'
+                                               + '<i class="fa-regular fa-image"></i></button>'
                 folder_files_df = folder_files_df.drop(['file_id'], axis=1)
                 folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
                 # Pagination

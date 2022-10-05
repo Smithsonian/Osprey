@@ -186,7 +186,8 @@
 
                 {% for file in files_df %}
                     <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
-                            data-bs-info="{{ file.preview_image }}" title="Image Preview">
+                            data-bs-info="{{ file.preview_image }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"
+                            data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">
                       <img src="{{ file.preview_image }}&max=160" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
                         <small>{{ file.file_name }}</small>
                   </button>
@@ -217,6 +218,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
+                          <p><a href="#" id="filelink">Link</a></p>
                            <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>
                       <div class="modal-footer">
@@ -414,13 +416,17 @@
               var button = event.relatedTarget
               // Extract info from data-bs-* attributes
               var checkinfo = button.getAttribute('data-bs-info')
+              var filelink = button.getAttribute('data-bs-link')
+              var filetext = button.getAttribute('data-bs-text')
               // If necessary, you could initiate an AJAX request here
               // and then do the updating in a callback.
               //
               // Update the modal's content.
               var modalBody1 = previewmodal1.querySelector('.modal-body img')
-
               modalBody1.src = checkinfo + '&max=1200';
+              var modalBody2 = previewmodal1.querySelector('.modal-body a')
+              modalBody2.href = filelink;
+              previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
             });
 
 
