@@ -7,4 +7,4 @@ password = ""
 
 jpg_previews = ""
 
-secret_key = ""
+secret_key = b''
