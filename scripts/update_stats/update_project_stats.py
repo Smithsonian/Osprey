@@ -48,7 +48,7 @@ try:
         WITH dpo_images AS 
           (
             SELECT
-                count(f.file_name) as no_images,
+                count(distinct f.file_name) as no_images,
                 fol.date,
                 fol.project_id
             FROM
@@ -108,24 +108,31 @@ except Exception as error:
 # Update DAMS UAN
 try:
     cur.execute("""
-        UPDATE files f SET dams_uan = d.dams_uan
+        UPDATE files f SET dams_uan = e.dams_uan
             FROM
             (
-            SELECT
-                f.file_id,
-                d.dams_uan
-            FROM
-                dams_cdis_file_status_view_dpo d,
-                files f,
-                folders fol,
-                projects p 
-            WHERE
-                d.file_name = f.file_name || '.tif' AND
-                f.folder_id = fol.folder_id AND
-                fol.project_id = %(project_id)s AND 
-                p.process_summary = d.project_cd 
-                 ) d
-            WHERE f.file_id = d.file_id
+            SELECT 
+                file_id, dams_uan 
+            FROM (
+                SELECT
+                    max(f.file_id) as file_id,
+                    max(d.dams_uan) as dams_uan
+                FROM
+                    dams_cdis_file_status_view_dpo d,
+                    files f,
+                    folders fol,
+                    projects p 
+                WHERE
+                    d.file_name = f.file_name || '.tif' AND
+                    f.folder_id = fol.folder_id AND
+                    fol.project_id = %(project_id)s AND 
+                    p.process_summary = d.project_cd
+                GROUP BY 
+                    f.file_name 
+                     ) d
+            ) e
+            
+            WHERE f.file_id = e.file_id
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
@@ -295,7 +302,7 @@ try:
     cur.execute("""
         WITH dpo_images AS (
             SELECT
-                count(f.file_name) as no_images,
+                count(DISTINCT f.file_name) as no_images,
                 fol.date,
                 fol.project_id
             FROM
@@ -371,7 +378,7 @@ try:
                 ),
         di as (
           SELECT
-              count(file_name) as no_images,
+              count(distinct file_name) as no_images,
               date
           FROM
               dpo_images
@@ -429,7 +436,7 @@ try:
                 ),
         di as (
           SELECT
-              count(file_name) as no_images,
+              count(distinct file_name) as no_images,
               date
           FROM
               dpo_images
