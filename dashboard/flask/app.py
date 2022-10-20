@@ -1281,12 +1281,14 @@ def dashboard_f(project_id=None, folder_id=None):
                                        "                        WHERE project_id = %(project_id)s)",
                                        {'project_id': project_id})
         project_stats['total'] = format(int(project_total[0]['no_files']), ',d')
-        project_ok = query_database("WITH data AS (SELECT "
-                    "       file_id, sum(check_results) as check_results "
-                    "       FROM file_checks "
-                    "       WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN "
-                                                " (SELECT folder_id from folders WHERE project_id = %(project_id)s)) "
-                    "   GROUP BY file_id) "
+        project_ok = query_database("WITH "
+                                    "folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s), "
+                                    "files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id), "
+                                    "data AS (SELECT "
+                    "       f.file_id, sum(check_results) as check_results "
+                    "       FROM file_checks f, files_q q "
+                    "       WHERE f.file_id = q.file_id "
+                    "   GROUP BY f.file_id) "
                     " SELECT count(file_id) as no_files "
                     " FROM data WHERE check_results = 0",
                                        {'project_id': project_id})
@@ -1633,15 +1635,17 @@ def dashboard(project_id):
                                        "                        WHERE project_id = %(project_id)s)",
                                        {'project_id': project_id})
         project_stats['total'] = format(int(project_total[0]['no_files']), ',d')
-        project_ok = query_database("WITH data AS (SELECT "
-                    "       file_id, sum(check_results) as check_results "
-                    "       FROM file_checks "
-                    "       WHERE file_id in (SELECT file_id FROM files WHERE folder_id IN "
-                                                " (SELECT folder_id from folders WHERE project_id = %(project_id)s)) "
-                    "   GROUP BY file_id) "
-                    " SELECT count(file_id) as no_files "
-                    " FROM data WHERE check_results = 0",
-                                       {'project_id': project_id})
+        project_ok = query_database("WITH "
+                                    "folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s), "
+                                    "files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id), "
+                                    "data AS (SELECT "
+                                    "       f.file_id, sum(check_results) as check_results "
+                                    "       FROM file_checks f, files_q q "
+                                    "       WHERE f.file_id = q.file_id "
+                                    "   GROUP BY f.file_id) "
+                                    " SELECT count(file_id) as no_files "
+                                    " FROM data WHERE check_results = 0",
+                                    {'project_id': project_id})
         project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
         project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
                                      "= 1 AND "
