@@ -132,6 +132,7 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error')
 
 
+@cache.memoize()
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -159,6 +160,7 @@ def query_database(query, parameters=""):
     return data
 
 
+@cache.memoize()
 def query_database_2(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -840,6 +842,7 @@ def qc(project_id):
                                form=form)
 
 
+@cache.memoize(60)
 @app.route('/home/', methods=['GET'], strict_slashes=False)
 @login_required
 def home():
@@ -1060,16 +1063,36 @@ def create_new_project():
                                "    (%(project_id)s, %(user_id)s) RETURNING id",
                                {'project_id': project_id,
                                 'user_id': current_user.id})
-    unitstaff = p_unitstaff.split(',')
-    if len(unitstaff) > 0:
-        for staff in unitstaff:
-            staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
-                                 {'username': staff.strip()})
-            if staff_user_id is not None:
-                user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                            "    (%(project_id)s, %(user_id)s) RETURNING id",
-                                            {'project_id': project_id,
-                                             'user_id': staff_user_id})
+    if current_user.id != '101':
+        user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                    "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                    {'project_id': project_id,
+                                     'user_id': '101'})
+    if current_user.id != '106':
+        user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                    "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                    {'project_id': project_id,
+                                     'user_id': '106'})
+    staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+                                   {'username': username})
+    if staff_user_id is not None:
+        user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                        "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                        {'project_id': project_id,
+                                         'user_id': staff_user_id[0]['user_id']})
+    if p_unitstaff != '':
+        unitstaff = p_unitstaff.split(',')
+        logging.info("unitstaff: {}".format(p_unitstaff))
+        logging.info("len_unitstaff: {}".format(len(unitstaff)))
+        if len(unitstaff) > 0:
+            for staff in unitstaff:
+                staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+                                     {'username': staff.strip()})
+                if staff_user_id is not None:
+                    user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                                "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                                {'project_id': project_id,
+                                                 'user_id': staff_user_id})
     return redirect(url_for('home', _anchor=p_alias))
 
 
@@ -1194,6 +1217,7 @@ def project_update(project_alias):
     return redirect(url_for('home', _anchor=project_alias))
 
 
+@cache.memoize(60)
 @app.route('/dashboard/<project_id>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
 def dashboard_f(project_id=None, folder_id=None):
     """Dashboard for a project"""
@@ -1578,6 +1602,7 @@ def dashboard_f(project_id=None, folder_id=None):
                            )
 
 
+@cache.memoize(60)
 @app.route('/dashboard/<project_id>/', methods=['GET','POST'], strict_slashes=False)
 def dashboard(project_id):
     """Dashboard for a project"""
@@ -1752,12 +1777,13 @@ def dashboard(project_id):
                            )
 
 
+@cache.memoize(60)
 @app.route('/dashboard/', methods=['GET'], strict_slashes=False)
 def dashboard_empty():
     return redirect(url_for('login'))
 
 
-@cache.memoize()
+@cache.memoize(60)
 @app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False)
 def file(file_id):
     """File details"""
@@ -1844,7 +1870,7 @@ def file_empty():
     return redirect(url_for('login'))
 
 
-@cache.memoize()
+@cache.memoize(60)
 @app.route('/file_json/<file_id>/', methods=['GET'], strict_slashes=False)
 def file_json(file_id):
     """File details"""
