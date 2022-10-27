@@ -984,3 +984,26 @@ CREATE TRIGGER trigger_updated_qc_files
   BEFORE UPDATE ON qc_files
   FOR EACH ROW
   EXECUTE PROCEDURE updated_at_files();
+
+
+--herbarium_sheets view
+DROP MATERIALIZED VIEW IF EXISTS herbarium_sheets;
+CREATE MATERIALIZED VIEW herbarium_sheets AS
+(
+  SELECT
+      file_id,
+      file_name,
+      created_at
+  FROM
+      files f,
+      folders fol
+  WHERE
+    	f.folder_id = fol.folder_id AND
+      fol.project_id = ANY('{100,131}')
+);
+
+CREATE INDEX herbarium_sheets_fid_idx ON herbarium_sheets USING BTREE(file_id);
+CREATE INDEX herbarium_sheets_fname_idx ON herbarium_sheets USING BTREE(file_name);
+
+grant select on herbarium_sheets to osprey_ro;
+-- REFRESH MATERIALIZED VIEW herbarium_sheets;

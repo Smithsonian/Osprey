@@ -45,7 +45,7 @@ else:
 #Update QC-passed images
 try:
     cur.execute("""
-        WITH dpo_images AS 
+        WITH dpo_images AS
           (
             SELECT
                 count(distinct f.file_name) as no_images,
@@ -58,9 +58,9 @@ try:
             WHERE
                 f.folder_id = fol.folder_id AND
                 fol.folder_id = q.folder_id AND
-                q.qc_status = 0 AND   
+                q.qc_status = 0 AND
                 fol.project_id = %(project_id)s
-            GROUP BY 
+            GROUP BY
                 fol.date,
                 fol.project_id
             ),
@@ -70,33 +70,33 @@ try:
                 i.date
             FROM
                 dpo_images i,
-                projects p 
+                projects p
             WHERE
                 p.project_id = i.project_id
             ),
         total_images AS (
-            SELECT 
+            SELECT
                 sum(i.no_images)::int as total_img,
                 project_id
-            FROM 
+            FROM
                 dpo_images i
-            GROUP BY 
-                project_id 
+            GROUP BY
+                project_id
             ),
         total_obj AS (
-            SELECT 
+            SELECT
                 sum(o.no_objects)::int as total_obj
-            FROM 
+            FROM
                 dpo_objects o
             )
         UPDATE
-            projects_stats p 
+            projects_stats p
         SET
             objects_digitized = o.total_obj,
             images_taken = i.total_img,
             updated_at = NOW()
         FROM
-            total_images i, 
+            total_images i,
             total_obj o
         WHERE p.project_id = i.project_id
         """, {'project_id': project_id})
@@ -111,8 +111,8 @@ try:
         UPDATE files f SET dams_uan = e.dams_uan
             FROM
             (
-            SELECT 
-                file_id, dams_uan 
+            SELECT
+                file_id, dams_uan
             FROM (
                 SELECT
                     max(f.file_id) as file_id,
@@ -121,17 +121,17 @@ try:
                     dams_cdis_file_status_view_dpo d,
                     files f,
                     folders fol,
-                    projects p 
+                    projects p
                 WHERE
                     d.file_name = f.file_name || '.tif' AND
                     f.folder_id = fol.folder_id AND
-                    fol.project_id = %(project_id)s AND 
+                    fol.project_id = %(project_id)s AND
                     p.process_summary = d.project_cd
-                GROUP BY 
-                    f.file_name 
+                GROUP BY
+                    f.file_name
                      ) d
             ) e
-            
+
             WHERE f.file_id = e.file_id
         """, {'project_id': project_id})
 except Exception as error:
@@ -155,9 +155,9 @@ try:
                   WHERE
                         f.folder_id = fol.folder_id AND
                         fol.project_id = %(project_id)s AND
-                        f.dams_uan IS NOT NULL                         
+                        f.dams_uan IS NOT NULL
                     ) a
-                ) 
+                )
                 ON CONFLICT (file_id, post_step) DO UPDATE SET post_results = 0
         """, {'project_id': project_id})
 except Exception as error:
@@ -178,10 +178,10 @@ try:
                         folders fol
                   WHERE
                         f.folder_id = fol.folder_id AND
-                        fol.project_id = %(project_id)s AND 
-                        f.dams_uan IS NOT NULL                         
+                        fol.project_id = %(project_id)s AND
+                        f.dams_uan IS NOT NULL
                     ) a
-                ) 
+                )
                 ON CONFLICT (file_id, post_step) DO UPDATE SET post_results = 0
         """, {'project_id': project_id})
 except Exception as error:
@@ -194,48 +194,48 @@ except Exception as error:
 try:
     cur.execute("""
         WITH files_ok AS (
-                SELECT 
+                SELECT
                     count(f.file_id) as no_files,
                     f.folder_id
-                FROM 
+                FROM
                     files f,
                     folders fol,
                     file_postprocessing fp
-                WHERE 
-                    fp.post_step = 'in_dams' AND 
-                    fp.post_results = 0 AND 
+                WHERE
+                    fp.post_step = 'in_dams' AND
+                    fp.post_results = 0 AND
                     fol.folder_id = f.folder_id AND
-                    fol.project_id = %(project_id)s AND 
+                    fol.project_id = %(project_id)s AND
                     fp.file_id = f.file_id
-                GROUP BY 
+                GROUP BY
                     f.folder_id
             ),
             files_count AS (
-                SELECT 
+                SELECT
                     count(f.file_id) as no_files,
                     f.folder_id
-                FROM 
+                FROM
                     files f,
                     folders fol
-                WHERE 
+                WHERE
                     fol.folder_id = f.folder_id AND
                     fol.project_id = %(project_id)s
-                GROUP BY 
+                GROUP BY
                     f.folder_id
             ),
             to_update AS (
-                SELECT 
-                    fc.folder_id 
-                FROM 
+                SELECT
+                    fc.folder_id
+                FROM
                     files_count fc,
-                    files_ok ok 
-                WHERE 
+                    files_ok ok
+                WHERE
                     fc.folder_id = ok.folder_id AND
                     fc.no_files = ok.no_files
-            ) 
+            )
         UPDATE folders f
             SET delivered_to_dams = 1
-            FROM to_update t 
+            FROM to_update t
             WHERE f.folder_id = t.folder_id
         """, {'project_id': project_id})
 except Exception as error:
@@ -251,13 +251,13 @@ try:
             SELECT
                 f.file_name,
                 fol.date,
-                fol.project_id 
+                fol.project_id
             FROM
                 files f,
                 folders fol
-            WHERE 
-                f.folder_id = fol.folder_id AND 
-                dams_uan IS NOT NULL AND 
+            WHERE
+                f.folder_id = fol.folder_id AND
+                dams_uan IS NOT NULL AND
                 fol.project_id = %(project_id)s
             ),
         images as (
@@ -266,19 +266,19 @@ try:
                 project_id
             FROM
                 dams_images
-            GROUP BY 
-                project_id 
+            GROUP BY
+                project_id
             )
-        
-        UPDATE 
+
+        UPDATE
             projects_stats p
         SET
             images_public = i.total_img::int,
             updated_at = NOW()
         FROM
             images i
-        WHERE 
-            p.project_id = i.project_id  
+        WHERE
+            p.project_id = i.project_id
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
@@ -289,8 +289,8 @@ except Exception as error:
 # clear stats
 try:
     cur.execute("""
-       delete from projects_stats_detail 
-        WHERE project_id = %(project_id)s        
+       delete from projects_stats_detail
+        WHERE project_id = %(project_id)s
         """, {'project_id': project_id})
 except Exception as error:
     print("Error: {}".format(error))
@@ -314,7 +314,7 @@ try:
                 fol.folder_id = q.folder_id AND
                 q.qc_status = 0 AND
                 fol.project_id = %(project_id)s
-            GROUP BY 
+            GROUP BY
                 fol.date,
                 fol.project_id
                 ),
@@ -324,19 +324,19 @@ try:
                 i.date
             FROM
                 dpo_images i,
-                projects p 
+                projects p
             WHERE
                 p.project_id = i.project_id
                 ),
         dateseries AS (
               SELECT date_trunc('day', dd)::date as date,
-                      %(project_id)s as project_id 
+                      %(project_id)s as project_id
                 FROM generate_series
                         ( (select min(date) FROM dpo_images)::timestamp
                         , (select max(date) FROM dpo_images)::timestamp
                         , '1 day'::interval) dd
               )
-        
+
         INSERT INTO
               projects_stats_detail
               (project_id, time_interval, date, objects_digitized, images_captured)
@@ -348,7 +348,7 @@ try:
                   coalesce(o.no_objects, 0),
                   coalesce(i.no_images, 0)
               FROM
-                dateseries ds 
+                dateseries ds
                     LEFT JOIN dpo_images i ON (ds.date = i.date)
                     LEFT JOIN dpo_objects o ON (ds.date = o.date)
               )
@@ -385,7 +385,7 @@ try:
           GROUP BY date
         ),
         dateseries AS (
-              SELECT DISTINCT date_trunc('week', dd)::date as date 
+              SELECT DISTINCT date_trunc('week', dd)::date as date
                 FROM generate_series
                         ( (select min(date) FROM di)::timestamp
                         , (select max(date) FROM di)::timestamp
@@ -403,7 +403,7 @@ try:
                   coalesce((di.no_images * p.project_img_2_object), 0),
                   coalesce(di.no_images, 0)
               FROM
-                dateseries ds 
+                dateseries ds
                     LEFT JOIN di ON (ds.date = di.date),
                 projects p
                 WHERE p.project_id = %(project_id)s
@@ -443,7 +443,7 @@ try:
           GROUP BY date
         ),
         dateseries AS (
-              SELECT DISTINCT date_trunc('month', dd)::date as date 
+              SELECT DISTINCT date_trunc('month', dd)::date as date
                 FROM generate_series
                         ( (select min(date) FROM di)::timestamp
                         , (select max(date) FROM di)::timestamp
@@ -461,7 +461,7 @@ try:
                   coalesce((di.no_images * p.project_img_2_object), 0),
                   coalesce(di.no_images, 0)
               FROM
-                dateseries ds 
+                dateseries ds
                     LEFT JOIN di ON (ds.date = di.date),
                 projects p
                 WHERE p.project_id = %(project_id)s
@@ -472,6 +472,14 @@ except Exception as error:
     sys.exit(1)
 
 
+
+# Update materialized views
+
+try:
+    cur.execute("REFRESH MATERIALIZED VIEW herbarium_sheets")
+except Exception as error:
+    print("Error: {}".format(error))
+    sys.exit(1)
 
 
 cur.close()
