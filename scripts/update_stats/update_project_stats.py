@@ -126,7 +126,8 @@ try:
                     d.file_name = f.file_name || '.tif' AND
                     f.folder_id = fol.folder_id AND
                     fol.project_id = %(project_id)s AND
-                    p.process_summary = d.project_cd
+                    p.process_summary = d.project_cd AND
+                    d.to_dams_ingest_dt > p.project_start 
                 GROUP BY
                     f.file_name
                      ) d

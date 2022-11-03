@@ -873,9 +873,9 @@ def home():
                               "     AND p.project_alias IS NOT NULL "
                               " ORDER BY p.projects_order DESC",
                                   {'username': user_name})
-    logging.info("projects: {}".format(projects))
     project_list = []
     for project in projects:
+        logging.info("project: {}".format(project))
         project_total = query_database("SELECT count(*) as no_files "
                                        "    FROM files "
                                        "    WHERE folder_id IN ("
@@ -899,6 +899,9 @@ def home():
                                      "= 1 AND "
                                      "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))",
                                      {'project_id': project['project_id']})
+        project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
+                                        " project_id = %(project_id)s",
+                                        {'project_id': project['project_id']})
         project_running = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE "
                                          "check_results "
                                          "= 9 AND "
@@ -931,6 +934,7 @@ def home():
                 'errors': format(int(project_err[0]['no_files']), ',d'),
                 'ok': format(int(project_ok[0]['no_files']), ',d'),
                 'running': format(int(project_running[0]['no_files']), ',d'),
+                'public': format(int(project_public[0]['no_files']), ',d'),
                 'ok_percent': ok_percent,
                 'error_percent': error_percent,
                 'running_percent': running_percent,
@@ -938,7 +942,8 @@ def home():
                 'project_start': project['project_start'],
                 'project_end': project['project_end'],
                 'qc_status': project['qc_status'],
-                'project_unit': project['project_unit']
+                'project_unit': project['project_unit'],
+
             })
     return render_template('userhome.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr, form=form)

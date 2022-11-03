@@ -14,7 +14,6 @@
                     <a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>
                     <a class="btn btn-info btn-sm disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
                 </p>
-                <hr>
             {% endif %}
 
             <h1>My Projects:</h1>
@@ -24,70 +23,91 @@
         </div>
     </div>
 
-    {% for project in project_list %}
-        <a id="{{ project.project_alias }}"></a>
-          <h2>{{ project.project_title }}
-                <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
-                {% if project.qc_status == 1 %}
-                    <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Run QC</a>
-                {% endif %}
-                {% if is_admin %}
-                    <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a>
-                {% endif %}
-          </h2>
+    <hr>
 
-        <p>
-            <small><span class="badge bg-primary">{{ project.project_unit }}</span>
-                {% if project.project_start == project.project_end %}
-                    {{ project.project_start }}
-                {% elif project.project_end == None %}
-                    {{ project.project_start }} -
-                {% else %}
-                    {{ project.project_start }} - {{ project.project_end }}
-                {% endif %}
-            </small>
-        </p>
 
-        <div class="row">
+    <!-- List of projects -->
 
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-primary d-flex">{{ project.total }} Total Files</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Total number of files in project</p>
-                  </div>
+    <table class="table table-striped">
+
+        {% for project in project_list %}
+            <tr>
+            <td>
+
+                <a id="{{ project.project_alias }}"></a>
+                  <h2>{{ project.project_title }}
+                        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
+                        {% if project.qc_status == 1 %}
+                            <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Run QC</a>
+                        {% endif %}
+                        {% if is_admin %}
+                            <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a>
+                        {% endif %}
+                  </h2>
+
+                <p>
+                    <small><span class="badge bg-info">ID:{{ project.project_id }}</span> <span class="badge bg-primary">{{ project.project_unit }}</span>
+                        {% if project.project_start == project.project_end %}
+                            {{ project.project_start }}
+                        {% elif project.project_end == None %}
+                            {{ project.project_start }} -
+                        {% else %}
+                            {{ project.project_start }} - {{ project.project_end }}
+                        {% endif %}
+                    </small>
+                </p>
+
+                <div class="row">
+
+                    <div class="col">
+                        <div class="card">
+                          <h4><span class="badge bg-primary d-flex">{{ project.total }} Total Files</span></h4>
+                          <div class="card-body">
+                            <p class="card-text">Total number of files in project</p>
+                          </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                          <h4><span class="badge bg-success d-flex">{{ project.ok }} Files OK</span></h4>
+                          <div class="card-body">
+                            <p class="card-text">Files that passed all the checks</p>
+                          </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                          <h4><span class="badge bg-success d-flex">{{ project.public }} Public Files</span></h4>
+                          <div class="card-body">
+                            <p class="card-text">Files published to the public</p>
+                          </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                          <h4><span class="badge bg-danger d-flex">{{ project.errors }} Files with Errors</span></h4>
+                          <div class="card-body">
+                            <p class="card-text">Files that failed one or more checks</p>
+                          </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                          <h4><span class="badge bg-secondary d-flex">{{ project.running }} Running</span></h4>
+                          <div class="card-body">
+                            <p class="card-text">Files that are currently being checked</p>
+                          </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-success d-flex">{{ project.ok }} Files OK</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that passed all the checks</p>
-                  </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-danger d-flex">{{ project.errors }} Files with Errors</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that failed one or more checks</p>
-                  </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card">
-                  <h4><span class="badge bg-secondary d-flex">{{ project.running }} Running</span></h4>
-                  <div class="card-body">
-                    <p class="card-text">Files that are currently being checked</p>
-                  </div>
-                </div>
-            </div>
-        </div>
 
             <br><br>
 
-        <hr>
+            </td>
+            </tr>
 
-      {% endfor %}
+          {% endfor %}
+
+    </table>
 
 {% endblock %}
