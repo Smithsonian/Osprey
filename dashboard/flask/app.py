@@ -132,7 +132,7 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error')
 
 
-@cache.memoize()
+# @cache.memoize()
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -160,7 +160,7 @@ def query_database(query, parameters=""):
     return data
 
 
-@cache.memoize()
+# @cache.memoize()
 def query_database_2(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -842,7 +842,7 @@ def qc(project_id):
                                form=form)
 
 
-@cache.memoize(60)
+
 @app.route('/home/', methods=['GET'], strict_slashes=False)
 @login_required
 def home():
