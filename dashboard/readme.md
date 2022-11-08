@@ -35,4 +35,4 @@ deactivate
 sudo chown -R apache:apache /var/www/app
 ```
 
-Setup apache2/httpd as described in the [web_server](../web_server) folder
+Setup apache2/httpd as described in the [web_server](web_server) folder
