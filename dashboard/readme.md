@@ -1,3 +1,13 @@
+# Osprey Dashboard
+
+This dashboard presents the progress in each project and highlights any issues in the files.
+
+![Main dashboard](https://user-images.githubusercontent.com/2302171/200641626-1f560bac-6245-447d-9a1f-b72249a47ca9.png)
+
+
+![Example Project](https://user-images.githubusercontent.com/2302171/200641552-ac89022c-e79e-421d-9ac9-c120cbdb20a5.png)
+
+
 ## Setup
 
 The app currently expects a Postgres database. Install and populate the database according to the instructions in [database/tables.sql](../database/tables.sql).
