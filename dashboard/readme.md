@@ -1,4 +1,6 @@
-## Run Locally
+## Setup
+
+The app currently expects a Postgres database. Install and populate the database according to the instructions in [database/tables.sql](../database/tables.sql).
 
 To install the required environment and modules to the default location:
 
