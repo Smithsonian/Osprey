@@ -57,14 +57,16 @@
 <div class="row">
     <div class="col-3" style="font-size: 0.9em;">
 
-        <!-- Search -->
-        <form action="{{ url_for('search', project_alias=project_alias) }}" method="GET">
+
+
+        <!-- Search Folders -->
+        <form action="{{ url_for('search_folders', project_alias=project_alias) }}" method="GET">
         <div class="row">
             <div class="col-8">
-                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" placeholder="Search Files in the Project">
+                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search Folders" placeholder="Search Folders in the Project">
             </div>
             <div class="col">
-                <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
+                <button type="submit" class="btn btn-primary btn-sm">Search Folders</button></form>
             </div>
         </div>
 
@@ -122,6 +124,21 @@
     </div>
 
     <div class="col" style="font-size: 0.9em;">
+
+         <!-- Search Files -->
+        <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
+        <div class="row">
+            <div class="col-8">
+                &nbsp;
+            </div>
+            <div class="col-3">
+                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+            </div>
+            <div class="col">
+                <button type="submit" class="btn btn-primary btn-sm">Search Files</button></form>
+            </div>
+        </div>
+
 
     {% if folder_name != None %}
 

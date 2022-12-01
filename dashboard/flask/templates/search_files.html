@@ -11,10 +11,10 @@
 
 
     <!-- Search -->
-    <form action="{{ url_for('search', project_alias=project_alias) }}" method="GET">
+    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
     <div class="row">
         <div class="col-6">
-            <h2>Search Results</h2>
+            <h2>File Search Results</h2>
         </div>
         <div class="col-3">
             <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" value={{ q }}>

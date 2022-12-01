@@ -22,6 +22,7 @@ import json
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.extensions
 
 from flask_login import LoginManager
 from flask_login import login_required
@@ -1782,6 +1783,147 @@ def dashboard(project_id):
                            )
 
 
+# @cache.memoize(60)
+# @app.route('/ajax/foldertable/<int:folder_id>/', methods=['GET', 'POST'], strict_slashes=False)
+# def dashboard_ajax(folder_id=None):
+#     """Data for DataTables using AJAX"""
+#     # Check if folder exists
+#     folder_check = query_database("SELECT folder_id FROM folders WHERE folder_id = %(folder_id)s",
+#                                       {'folder_id': folder_id})
+#     data = {}
+#     data['draw'] = 1
+#     data['recordsTotal'] = 0
+#     data['recordsFiltered'] = 0
+#     data['data'] = None
+#     if folder_check is None or folder_id is None:
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#
+#     draw_q = request.values.get('draw')
+#     if draw_q is None:
+#         draw_q = 1
+#     try:
+#         draw_q = int(draw_q)
+#     except:
+#         logging.error("draw_q: {}".format(draw_q))
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#     logging.info("draw_q: {}".format(draw_q))
+#
+#     start_q = request.values.get('start')
+#     if start_q is None:
+#         start_q = 0
+#     try:
+#         start_q = int(start_q)
+#     except:
+#         logging.error("start_q: {}".format(start_q))
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#     logging.info("start_q: {}".format(start_q))
+#
+#     length_q = request.values.get('length')
+#     if length_q is None:
+#         length_q = 25
+#     try:
+#         length_q = int(length_q)
+#     except:
+#         logging.error("length_q: {}".format(length_q))
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#     logging.info("length_q: {}".format(length_q))
+#
+#     order_q = request.values.get('order')
+#     if order_q is None:
+#         order_q = 0
+#     try:
+#         order_q = int(order_q)
+#     except:
+#         logging.error("order_q: {}".format(order_q))
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#     logging.info("order_q: {}".format(order_q))
+#     if order_q == 0:
+#         order_q = 'file_name'
+#
+#     project_info = query_database("SELECT p.project_checks, p.project_postprocessing FROM projects p, folders f WHERE p.project_id = f.project_id AND f.folder_id = %(folder_id)s",
+#                          {'folder_id': folder_id})[0]
+#     try:
+#         filechecks_list = project_info['project_checks'].split(',')
+#     except:
+#         logging.error("filechecks_list: {}".format(project_info['project_checks']))
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#         return response
+#     folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files "
+#                                                   "     WHERE folder_id = %(folder_id)s "
+#                                                   "     ORDER BY %(order)s OFFSET %(offset)s LIMIT %(limit)s",
+#                                                   {'folder_id': folder_id, 'offset': start_q, 'limit': length_q, 'order': psycopg2.extensions.AsIs(order_q)}))
+#     files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
+#                               {'folder_id': folder_id})[0]
+#     data['recordsTotal'] = files_count['no_files']
+#     logging.info("no_files: {}".format(files_count['no_files']))
+#     if files_count['no_files'] == 0:
+#         logging.error("no_files: 0")
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#     else:
+#         for fcheck in filechecks_list:
+#             logging.info("fcheck: {}".format(fcheck))
+#             list_files = pd.DataFrame(query_database("SELECT f.file_id, "
+#                                         "   CASE WHEN check_results = 0 THEN 'OK' "
+#                                         "       WHEN check_results = 9 THEN 'Pending' "
+#                                         "       WHEN check_results = 1 THEN 'Failed' "
+#                                         "       ELSE 'Pending' END as {} "
+#                                         " FROM files f LEFT JOIN file_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+#                                         "  where  "
+#                                         "   f.folder_id = %(folder_id)s"
+#                                         "   ORDER BY %(order)s OFFSET %(offset)s LIMIT %(limit)s".format(fcheck),
+#                                         {'file_check': fcheck, 'folder_id': folder_id, 'offset': start_q, 'limit': length_q, 'order': psycopg2.extensions.AsIs(order_q)}))
+#             logging.info("list_files.size: {}".format(list_files.shape[0]))
+#             preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
+#                                                      "  COALESCE(f.preview_image, '{}' || f.file_id || '/?') as preview_image "
+#                                                      " FROM files f "
+#                                                      "  where  "
+#                                                      "   f.folder_id = %(folder_id)s"
+#                                                      "   ORDER BY %(order)s OFFSET %(offset)s LIMIT %(limit)s".format(settings.jpg_previews),
+#                                                      {'folder_id': folder_id, 'offset': start_q, 'limit': length_q, 'order': psycopg2.extensions.AsIs(order_q)}))
+#             if list_files.shape[0] > 0:
+#                 folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+#         folder_files_df = folder_files_df.sort_values(by=['file_name'])
+#         folder_files_df = folder_files_df.sort_values(by=filechecks_list)
+#         folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
+#         folder_files_df['file_name'] = '<a href="/file/' \
+#                                        + folder_files_df['file_id'].astype(str) + '/" title="File Details">' \
+#                                        + folder_files_df['file_name'].astype(str) \
+#                                        + '</a> ' \
+#                                        + '<button type="button" class="btn btn-light btn-sm" ' \
+#                                        + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
+#                                        + 'data-bs-info="' + folder_files_df['preview_image'] \
+#                                        + '" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) + '/"' \
+#                                        + '" data-bs-text = "Details of the file ' + folder_files_df['file_name'].astype(str) \
+#                                        + '" title="Image Preview">' \
+#                                        + '<i class="fa-regular fa-image"></i></button>'
+#         folder_files_df = folder_files_df.drop(['file_id'], axis=1)
+#         folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
+#         data['data'] = json.loads(folder_files_df.to_json(orient='table', index=False))['data']
+#         response = app.response_class(
+#             response=json.dumps(data), status=200, mimetype='application/json'
+#         )
+#     return response
+
+
 @cache.memoize(60)
 @app.route('/dashboard/', methods=['GET'], strict_slashes=False)
 def dashboard_empty():
@@ -1901,8 +2043,8 @@ def file_json(file_id):
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_alias>/search', methods=['GET'], strict_slashes=False)
-def search(project_alias):
+@app.route('/dashboard/<project_alias>/search_files', methods=['GET'], strict_slashes=False)
+def search_files(project_alias):
     """Search files"""
     if current_user.is_authenticated:
         user_exists = True
@@ -1958,8 +2100,99 @@ def search(project_alias):
                                      " LIMIT 50 "
                                      " OFFSET {} ".format(q, settings.jpg_previews, q, offset),
                                      {'project_alias': project_alias})
-    return render_template('search.html',
+    return render_template('search_files.html',
                            results=results,
+                           project_info=project_info,
+                           project_alias=project_alias,
+                           q=q,
+                           form=form)
+
+
+
+@cache.memoize()
+@app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], strict_slashes=False)
+def search_folders(project_alias):
+    """Search files"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    q = request.values.get('q')
+    page = request.values.get('page')
+    if page is None:
+        page = 0
+    offset = page * 50
+    project_info = query_database("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
+                                  {'project_alias': project_alias})[0]
+    if q is None:
+        error_msg = "No search query was submitted."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
+    else:
+        logging.info("q: {}".format(q))
+        logging.info("offset: {}".format(offset))
+        results = query_database("WITH pfolders AS (SELECT folder_id from folders WHERE project_id in (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)),"
+                                        " errors AS "
+                                        "         (SELECT folder_id, count(file_id) as no_files "
+                                        "             FROM qc_files "
+                                        "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                        "                 AND file_qc = 1 "
+                                        "               GROUP BY folder_id),"
+                                        "passed AS "
+                                        "         (SELECT folder_id, count(file_id) as no_files "
+                                        "             FROM qc_files "
+                                        "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                        "                 AND file_qc = 0 "
+                                        "               GROUP BY folder_id),"
+                                        "total AS (SELECT folder_id, count(file_id) as no_files FROM qc_files "
+                                        "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                        "                GROUP BY folder_id) "
+                                        " SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
+                                        "       f.no_files, f.file_errors "
+                                        " FROM folders f LEFT JOIN qc_folders q ON "
+                                        "       (f.folder_id = q.folder_id)"
+                                        "       LEFT JOIN qc_users u ON "
+                                        "           (q.qc_by = u.user_id)"
+                                        "       LEFT JOIN errors ON "
+                                        "           (f.folder_id = errors.folder_id)"
+                                        "       LEFT JOIN passed ON "
+                                        "           (f.folder_id = passed.folder_id)"
+                                        "       LEFT JOIN total ON "
+                                        "           (f.folder_id = total.folder_id),"
+                                        "   projects p "
+                                        " WHERE f.project_id = p.project_id "
+                                        "   AND p.project_alias = %(project_alias)s "
+                                        "   AND f.project_folder ILIKE '%%{}%%' "
+                                        "  ORDER BY f.project_folder ASC"
+                                        "  LIMIT 50 OFFSET {}".format(q, offset),
+                                        {'project_alias': project_alias})
+    results_df = pd.DataFrame({'folder': [], 'no_files': []})
+    for row in results:
+        # results_df["folder"] = '<a href="/dashboard/' + project_alias \
+        #                         + '/' \
+        #                         + str(row['folder_id']) \
+        #                         + '/" title="Folder Details">' \
+        #                         + row['project_folder'] \
+        #                         + '</a> '
+        # results_df["no_files"] = row['no_files']
+        results_df.loc[len(results_df.index)] = ['<a href="/dashboard/' + project_alias \
+                                + '/' \
+                                + str(row['folder_id']) \
+                                + '/" title="Folder Details">' \
+                                + row['project_folder'] \
+                                + '</a> ', str(row['no_files'])]
+    logging.info(results_df)
+    return render_template('search_folders.html',
+                           tables=[results_df.to_html(table_id='results',
+                                                           index=False,
+                                                           border=0,
+                                                           escape=False,
+                                                           classes=["display", "compact", "table-striped"])],
                            project_info=project_info,
                            project_alias=project_alias,
                            q=q,

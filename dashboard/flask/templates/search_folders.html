@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+
+{% block page_title %}{{ project_info.project_title }}{% endblock %}
+
+{% block homelink %}{{ url_for('dashboard', project_id=project_alias) }}{% endblock %}
+
+{% block content %}
+
+
+
+    <!-- Search -->
+    <form action="{{ url_for('search_folders', project_alias=project_alias) }}" method="GET">
+    <div class="row">
+        <div class="col-6">
+            <h2>Folder Search Results</h2>
+        </div>
+        <div class="col-3">
+            <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" value={{ q }}>
+        </div>
+        <div class="col-3">
+            <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            {% for table in tables %}
+                {{ table|safe }}
+            {% endfor %}
+        </div>
+        <div class="col">
+            &nbsp;
+        </div>
+    </div>
+
+
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            $('#results').DataTable({
+                "order": [],
+                lengthMenu: [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ]
+            })
+        });
+
+    </script>
+
+
+{% endblock %}
