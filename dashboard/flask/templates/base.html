@@ -45,12 +45,29 @@
         .chart {
             width: 100%;
         }
+
+        .skipnav { text-align: left; }
+          .skipnav a { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+          .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; }
+
+        .screen-reader-only {
+          position: absolute;
+          width: 1px;
+          clip: rect(0 0 0 0);
+          overflow: hidden;
+          white-space: nowrap;
+}
+
     </style>
 
 
     {% block head_blocks %}
     {% endblock %}
 
+    <!-- Font Awesome -->
+    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/brands.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/solid.min.css') }}" rel="stylesheet">
 
     <!-- favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
@@ -60,6 +77,8 @@
 
 </head>
 <body>
+
+<div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
 
 <div class="container-fluid">
 
@@ -111,6 +130,8 @@
     <div class="alert alert-warning m-100" role="alert">
         <small>Note: This system is in development. The contents might change and be updated without notice. A production system will be deployed soon.</small>
     </div>
+
+    <a name="maincontent"></a>
 
     {% block content %}
     {% endblock %}
@@ -166,23 +187,23 @@
   </div>
 </div>
 
-<footer class="page-footer font-small bg-secondary text-white pt-2" style="background: #3F4249!important;">
+<footer class="page-footer font-small bg-secondary pt-2" style="background: #3F4249!important;">
 <br>
   <!-- Footer Elements -->
   <div class="container-fluid">
       <div class="row">
         <div class="col">
-            <a href="https://dpo.si.edu" target="_blank"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
+            <a href="https://dpo.si.edu"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" target="_blank" class="text-white">Office of the Chief Information Officer</a></p>
+            <p><a href="https://www.si.edu/ocio" class="text-white">Office of the Chief Information Officer</a></p>
             <p><a href="{{ url_for('about') }}" class="text-white">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" target="_blank" class="text-white">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="text-white">Terms of Use</a></p>
         </div>
         <div class="col">
-            <p><a href="http://si.edu/" target="_blank" class="text-white">Smithsonian Home</a></p>
-            <p><a href="http://www.si.edu/Accessibility" target="_blank" class="text-white">Accessibility</a></p>
-            <p><a href="http://www.si.edu/Privacy" target="_blank" class="text-white">Privacy</a></p>
+            <p><a href="http://si.edu/" class="text-white">Smithsonian Home</a></p>
+            <p><a href="http://www.si.edu/Accessibility" class="text-white">Accessibility</a></p>
+            <p><a href="http://www.si.edu/Privacy" class="text-white">Privacy</a></p>
         </div>
 
     </div>
@@ -217,9 +238,6 @@
             type="text/javascript"
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
     ></script>
-
-
-
 
     {% block javascripts %}
     {% endblock %}
