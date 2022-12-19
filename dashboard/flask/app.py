@@ -19,6 +19,7 @@ import os
 import math
 import pandas as pd
 import json
+import time
 
 import psycopg2
 import psycopg2.extras
@@ -43,12 +44,13 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.1.0"
+site_ver = "2.2.0"
 
 cur_path = os.path.abspath(os.getcwd())
 
 # Logging
-logging.basicConfig(filename='app.log',
+current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+logging.basicConfig(filename='app_{}.log'.format(current_time),
                     level=logging.DEBUG,
                     filemode='a',
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
@@ -133,7 +135,6 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error')
 
 
-# @cache.memoize()
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -144,6 +145,7 @@ def query_database(query, parameters=""):
         logging.error("cur.query: {}".format(cur.query))
         raise InvalidUsage('System error', status_code=500)
     cur.execute('SET statement_timeout = 5000')
+    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     try:
         cur.execute(query, parameters)
@@ -161,7 +163,6 @@ def query_database(query, parameters=""):
     return data
 
 
-# @cache.memoize()
 def query_database_2(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -866,12 +867,16 @@ def home():
                               "     to_char(p.project_start, 'Mon-YYYY') as project_start, "
                               "     to_char(p.project_end, 'Mon-YYYY') as project_end,"
                               "     p.qc_status, p.project_unit "
-                                "  FROM qc_projects qp, "
-                                "       qc_users u, projects p "
-                                " WHERE qp.project_id = p.project_id "
+                              " FROM qc_projects qp, "
+                              "       qc_users u, "
+                              "       projects p "
+                              " WHERE qp.project_id = p.project_id "
                               "     AND qp.user_id = u.user_id "
                               "     AND u.username = %(username)s "
                               "     AND p.project_alias IS NOT NULL "
+                              " GROUP BY p.project_title, p.project_id, p.filecheck_link, p.project_alias, "
+                              "     p.project_start, p.project_end,"
+                              "     p.qc_status, p.project_unit "
                               " ORDER BY p.projects_order DESC",
                                   {'username': user_name})
     project_list = []

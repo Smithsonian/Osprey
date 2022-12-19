@@ -46,7 +46,7 @@
                     <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
                 {% endfor %}
 
-                <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank">Collections Search</a>
+                <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
 
             </small>
         </p>

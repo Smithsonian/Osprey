@@ -170,6 +170,22 @@ CREATE INDEX folders_links_fid_idx ON folders_links USING BTREE(folder_id);
 
 
 
+--folders_badges
+DROP TABLE IF EXISTS folders_badges CASCADE;
+CREATE TABLE folders_badges (
+    tableID         serial,
+    folder_id       integer REFERENCES folders(folder_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	badge_type 		text,
+	badge_css		text,
+    badge_text      text,
+    updated_at      timestamp with time zone DEFAULT NOW()
+);
+ALTER TABLE folders_badges ADD CONSTRAINT badge_type_text UNIQUE (folder_id, badge_type, badge_text);
+CREATE INDEX folders_badges_fid_idx ON folders_badges USING BTREE(folder_id);
+CREATE INDEX folders_badges_type_fid_idx ON folders_badges USING BTREE(badge_type);
+
+
+
 --files main table
 DROP TABLE IF EXISTS files CASCADE;
 DROP SEQUENCE IF EXISTS files_fileid_seq;
