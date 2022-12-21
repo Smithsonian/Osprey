@@ -245,6 +245,12 @@
 
     </div>
 </div>
+    <br>
+    {% if project_info.project_notice != None %}
+        <div class="alert alert-info m-100" role="alert">
+            <small>{{ project_info.project_notice | safe }}</small>
+        </div>
+    {% endif %}
 
 {% endblock %}
 
