@@ -1084,13 +1084,12 @@ def create_new_project():
                                     "    (%(project_id)s, %(user_id)s) RETURNING id",
                                     {'project_id': project_id,
                                      'user_id': '106'})
-    staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
-                                   {'username': username})
-    if staff_user_id is not None:
-        user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                        "    (%(project_id)s, %(user_id)s) RETURNING id",
-                                        {'project_id': project_id,
-                                         'user_id': staff_user_id[0]['user_id']})
+    # staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+    #                                {'username': username})
+    # user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+    #                                     "    (%(project_id)s, %(user_id)s) RETURNING id",
+    #                                     {'project_id': project_id,
+    #                                      'user_id': staff_user_id[0]['user_id']})
     if p_unitstaff != '':
         unitstaff = p_unitstaff.split(',')
         logging.info("unitstaff: {}".format(p_unitstaff))
@@ -1099,11 +1098,19 @@ def create_new_project():
             for staff in unitstaff:
                 staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
                                      {'username': staff.strip()})
-                if staff_user_id is not None:
+                if len(staff_user_id) == 1:
                     user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                                 "    (%(project_id)s, %(user_id)s) RETURNING id",
                                                 {'project_id': project_id,
-                                                 'user_id': staff_user_id})
+                                                 'user_id': staff_user_id[0]['user_id']})
+                else:
+                    user_project = query_database("INSERT INTO qc_users (username, user_active, is_admin) VALUES "
+                                                    "    (%(username)s, 'T', 'F') RETURNING user_id",
+                                                    {'username': staff.strip()})
+                    user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
+                                                    "    (%(project_id)s, %(user_id)s) RETURNING id",
+                                                    {'project_id': project_id,
+                                                     'user_id': user_project[0]['user_id']})
     return redirect(url_for('home', _anchor=p_alias))
 
 
