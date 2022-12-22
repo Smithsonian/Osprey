@@ -4,6 +4,14 @@
 
 {% block page_title %}File Details{% endblock %}
 
+{% block head_blocks %}
+
+
+
+{% endblock %}
+
+
+
 {% block content %}
 
 
@@ -31,16 +39,18 @@
 
     <div class="row">
 
-        <h4>{{ file_details.file_name }} Image Preview (JPG):</h4>
+        <h4>{{ file_details.file_name }} Image Preview:</h4>
         <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
-        <p><small>Click on the image to zoom in. Use the mousewheel to zoom in and out; press 'Esc' to close the image.</small><br>
-            <img src="{{ file_details.preview_image }}" style="width:100%;" id="previmg" alt="Preview image of {{ file_details.file_name }}">
-        </p>
+        <div id="img-container" style="width: 400px;">
+             <img src="{{ file_details.preview_image }}" class="zoom-image" alt="Preview image of {{ file_details.file_name }}">
+        </div>
+
 
             <!-- File Links -->
 
             <small>
-                <a href="{{ file_details.preview_image }}"><i class="fa-solid fa-download"></i> Download JPG</a>
+                <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a><br>
+                <a href="{{ file_details.preview_image }}">Download JPG <i class="fa-solid fa-download"></i></a>
 
                 {% for link in file_links %}
                     <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
@@ -51,18 +61,19 @@
             </small>
         </p>
 
+        <p><small>File ID: {{ file_details.file_id }}</small></p>
+
     </div>
 
     <div class="row">
 
     <div class="col-4">
 
-        <p><small>File ID: {{ file_details.file_id }}</small></p>
-
         <h4>Technical Checks:</h4>
         <p><small>Click on each result for details.</small></p>
 
         <table class="table compact table-striped" style="width:100%">
+        <caption>Click on each result for details.</caption>
         <thead>
             <tr>
                 <th>Check</th>
@@ -161,10 +172,6 @@
                 ],
             });
 
-            ezoom.onInit($('#previmg'), {
-                hideControlBtn:true
-            });
-
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
               // Button that triggered the modal
@@ -180,15 +187,26 @@
               modalBody.textContent = checkinfo
             })
 
+            // Image zoom
+            // https://github.com/malaman/js-image-zoom
+            var options1 = {
+                width: 400,
+                fillContainer: true,
+                offset: {vertical: 0, horizontal: 80}
+            };
+
+            // If the width and height of the image are not known or to adjust the image to the container of it
+            var options2 = {
+                zoomWidth: 800,
+                fillContainer: true,
+                offset: {vertical: 0, horizontal: 80}
+            };
+
+            new ImageZoom(document.getElementById("img-container"), options2);
+
         });
     </script>
 
-
-    <!-- Zoom -->
-    <script
-            type="text/javascript"
-            src="{{ url_for('static', filename='js/ezoom.js') }}"
-    ></script>
-
+    <script src="{{ url_for('static', filename='js/js-image-zoom.js') }}" type="application/javascript"></script>
 
 {% endblock %}
