@@ -7,7 +7,7 @@
 {% block content %}
 
 
-<ul class="nav nav-tabs" id="myTab" role="tablist">
+<ul class="nav nav-tabs" id="hometab" role="tablist">
   <li class="nav-item" role="presentation">
     <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Summary</button>
   </li>
@@ -21,7 +21,7 @@
     <button class="nav-link" id="inf-tab" data-bs-toggle="tab" data-bs-target="#inf" type="button" role="tab" aria-controls="inf" aria-selected="false">Informatics</button>
   </li>
 </ul>
-<div class="tab-content" id="myTabContent">
+<div class="tab-content" id="hometabContent">
     <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
 
         <br>
@@ -89,23 +89,27 @@
             </div>
         </div>
 
+    <hr>
+
         <div class="row">
             <div class="col">
-
+                <div><p>This graph shows the progress that the Collection Digitization Program of the Digitization Program Office has had in digitizing the Smithsonian collections.</p></div>
                 <div id="chart_summary" class="chart w-auto" aria-hidden="true"></div>
-                <div><p>This graph shows the progress that DPO has had in digitizing the Smithsonian collections. </p></div>
-                <!-- Accessible alternative -->
-                <div class="screen-reader-only">
-                    TABLE HERE
-                </div>
             </div>
         </div>
 
-        <br>
+        <div class="row">
+            <div class="col-4">
+                <!-- Accessible alternative -->
+                <div class="screen-reader-only">
+                    {% for table in summary_datatable %}
+                               {{ table|safe }}
+                    {% endfor %}
+                </div>
 
-        <p>Select one of the tabs at the top to see the specific projects of each team.</p>
-
-        <p>Some of the data is courtesy of the DAMS team.</p>
+            </div>
+            <div class="col">&nbsp;</div>
+        </div>
 
     </div>
     <div class="tab-pane fade" id="md" role="tabpanel" aria-labelledby="md-tab">
@@ -286,6 +290,10 @@
     </div>
 </div>
 
+    <br>
+    <p>Select one of the tabs at the top to see the specific projects of each team.</p>
+    <p>Thanks to the DAMS team for providing data used in these reports.</p>
+
 {% endblock %}
 
 
@@ -333,6 +341,16 @@
             });
 
             table2.column( 0 ).visible( false );
+
+            $('#summary_datatable').DataTable({
+                "pageLength": 50,
+                "ordering": false,
+                "searching": false,
+                "lengthChange": false
+            });
+
+            $('#summary_datatable').append('<caption style="caption-side: top">Cummulative number of images captured and objects digitized by the Digitization Program Office.</caption>');
+
 
         });
     </script>

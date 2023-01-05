@@ -63,7 +63,7 @@
         <form action="{{ url_for('search_folders', project_alias=project_alias) }}" method="GET">
         <div class="row">
             <div class="col-8">
-                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search Folders" placeholder="Search Folders in the Project">
+                <input type="text" class="form-control form-control-sm" id="search_fol" name="q" aria-label="Search Folders" placeholder="Search Folders in the Project">
             </div>
             <div class="col">
                 <button type="submit" class="btn btn-primary btn-sm">Search Folders</button></form>
@@ -74,12 +74,8 @@
 
         {#List of folders#}
         <div style="overflow-y: auto; height: 1200px;">
-            <table class="table table-striped border">
-                  <thead>
-                    <tr>
-                      <th scope="col">Folders</th>
-                    </tr>
-                  </thead>
+            <table class="table table-striped caption-top border">
+                <caption>List of Folders</caption>
                 <tbody>
                     {% for folder in project_folders %}
                     <tr>
@@ -132,7 +128,7 @@
                 &nbsp;
             </div>
             <div class="col-3">
-                <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+                <input type="text" class="form-control form-control-sm" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
             </div>
             <div class="col">
                 <button type="submit" class="btn btn-primary btn-sm">Search Files</button></form>
@@ -173,7 +169,7 @@
                 {% endif %}
 
                 <br>
-                <p><strong>Files in the Folder: {{ folder_name.project_folder }}</strong></p>
+{#                <p><strong>Files in the Folder: {{ folder_name.project_folder }}</strong></p>#}
 
                 {% for table in tables %}
                        {{ table|safe }}
@@ -260,6 +256,9 @@
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
+
+            $('#files_table').append('<caption style="caption-side: top">Files in the Folder: {{ folder_name.project_folder }}</caption>');
+
             $('#files_table').DataTable({
                 dom: 'Bfrtip',
                     buttons: [
@@ -268,6 +267,13 @@
                         'pdfHtml5'
                     ],
                 "order": [],
+                "columnDefs": [
+                    {
+                        'targets': 0,
+                        'createdCell':  function (td, cellData, rowData, row, col) {
+                            $(td).attr('scope', 'row');
+                        }
+                    }],
                 lengthMenu: [
                     [25, 50, 100, -1],
                     [25, 50, 100, 'All'],
@@ -343,8 +349,30 @@
                         $(row).find('td:eq(7)').css('background', '#e2e3e5');
                         $(row).find('td:eq(7)').css('color', 'black');
                     };
+                    if(data[8] == 'OK'){
+                        $(row).find('td:eq(8)').css('background', '#198754');
+                        $(row).find('td:eq(8)').css('color', 'white');
+                    } else if(data[8] == 'Failed'){
+                        $(row).find('td:eq(8)').css('background', '#dc3545');
+                        $(row).find('td:eq(8)').css('color', 'white');
+                    } else if(data[8] == 'Pending'){
+                        $(row).find('td:eq(8)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(8)').css('color', 'black');
+                    };
+                    if(data[9] == 'OK'){
+                        $(row).find('td:eq(9)').css('background', '#198754');
+                        $(row).find('td:eq(9)').css('color', 'white');
+                    } else if(data[9] == 'Failed'){
+                        $(row).find('td:eq(9)').css('background', '#dc3545');
+                        $(row).find('td:eq(9)').css('color', 'white');
+                    } else if(data[9] == 'Pending'){
+                        $(row).find('td:eq(9)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(9)').css('color', 'black');
+                    };
                 },
             });
+
+            $('#post_processing_table').append('<caption style="caption-side: top">Post production steps on the files in the Folder: {{ folder_name.project_folder }}</caption>');
 
             $('#post_processing_table').DataTable({
                 "order": [],
@@ -352,6 +380,13 @@
                     [25, 50, 100, -1],
                     [25, 50, 100, 'All'],
                 ],
+                "columnDefs": [
+                    {
+                        'targets': 0,
+                        'createdCell':  function (td, cellData, rowData, row, col) {
+                            $(td).attr('scope', 'row');
+                        }
+                    }],
                 'rowCallback': function(row, data, index){
                     if(data[1] == 'Completed'){
                         $(row).find('td:eq(1)').css('background', '#198754');
@@ -422,6 +457,26 @@
                     } else if(data[7] == 'Pending'){
                         $(row).find('td:eq(7)').css('background', '#e2e3e5');
                         $(row).find('td:eq(7)').css('color', 'black');
+                    };
+                    if(data[8] == 'Completed'){
+                        $(row).find('td:eq(8)').css('background', '#198754');
+                        $(row).find('td:eq(8)').css('color', 'white');
+                    } else if(data[8] == 'Failed'){
+                        $(row).find('td:eq(8)').css('background', '#dc3545');
+                        $(row).find('td:eq(8)').css('color', 'white');
+                    } else if(data[8] == 'Pending'){
+                        $(row).find('td:eq(8)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(8)').css('color', 'black');
+                    };
+                    if(data[9] == 'Completed'){
+                        $(row).find('td:eq(9)').css('background', '#198754');
+                        $(row).find('td:eq(9)').css('color', 'white');
+                    } else if(data[9] == 'Failed'){
+                        $(row).find('td:eq(9)').css('background', '#dc3545');
+                        $(row).find('td:eq(9)').css('color', 'white');
+                    } else if(data[9] == 'Pending'){
+                        $(row).find('td:eq(9)').css('background', '#e2e3e5');
+                        $(row).find('td:eq(9)').css('color', 'black');
                     };
                 },
             });
