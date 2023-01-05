@@ -51,11 +51,15 @@
           .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; }
 
         .screen-reader-only {
-          position: absolute;
-          width: 1px;
-          clip: rect(0 0 0 0);
-          overflow: hidden;
-          white-space: nowrap;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
         }
 
     </style>

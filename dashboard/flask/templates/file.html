@@ -7,9 +7,7 @@
 {% block head_blocks %}
 
 
-
 {% endblock %}
-
 
 
 {% block content %}
@@ -44,7 +42,6 @@
         <div id="img-container" style="width: 400px;">
              <img src="{{ file_details.preview_image }}" class="zoom-image" alt="Preview image of {{ file_details.file_name }}">
         </div>
-
 
             <!-- File Links -->
 
@@ -145,7 +142,7 @@
 
     </div>
     <div class="col">
-        <h4>Embedded Metadata:</h4>
+        {#<h4>Embedded Metadata:</h4>#}
             <div style="font-size: 0.9em;">
                 {% for table in tables %}
                        {{ table|safe }}
@@ -164,6 +161,9 @@
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
+
+            $('#file_metadata').append('<caption style="caption-side: top"><h4>Embedded metadata in the file: {{ file_details.file_name }}</h4></caption>');
+
             $('#file_metadata').DataTable({
                 "order": [],
                 lengthMenu: [

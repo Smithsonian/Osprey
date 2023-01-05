@@ -298,6 +298,22 @@ def login():
                               " FROM projects where project_alias is not null "
                               " ORDER BY projects_order DESC")
 
+    # Summary table
+    df = pd.DataFrame(query_database("with d as ("
+                                        "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
+                                    "select "
+                                          " to_char(d1.date, 'Mon YYYY') as Date, "
+                                          " to_char(sum(d1.images_captured) over (order by d1.date asc rows between unbounded preceding and current row), 'FM9,999,999,999') as Images, "
+                                          " to_char(sum(d2.objects_digitized) over (order by d2.date asc rows between unbounded preceding and current row), 'FM9,999,999,999') as Objects "
+                                        " from d d1, d d2 "
+                                     "      WHERE d1.date = d2.date "
+                                        " order by d1.date DESC "
+                                     ))
+
+    summary_datatable = pd.DataFrame(df)
+    columns = summary_datatable.columns
+    summary_datatable.columns = [x.title() for x in columns]
+
     # Summary chart
     df = pd.DataFrame(query_database("with d as ("
                                         "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
@@ -312,6 +328,7 @@ def login():
                                         " from d "
                                         " order by date "
                                      ))
+
     fig = px.line(df, x="date", y="no_images", color='itype',
                   labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
                   markers=True)
@@ -487,7 +504,11 @@ def login():
                            tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "compact", "table-striped", "w-100"])],
-                           asklogin=True
+                           asklogin=True,
+                           summary_datatable=[summary_datatable.to_html(table_id='summary_datatable', index=False,
+                                                               border=0, escape=False,
+                                                               classes=["display", "compact", "table-striped",
+                                                                        "w-100"])]
                            )
 
 
