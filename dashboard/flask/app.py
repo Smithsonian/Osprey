@@ -44,7 +44,7 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.2.0"
+site_ver = "2.2.1"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -117,7 +117,7 @@ def page_not_found(e):
 @app.errorhandler(500)
 def sys_error(e):
     logging.error(e)
-    error_msg = "There was a system error."
+    error_msg = "System error: {}".format(e)
     # Declare the login form
     form = LoginForm(request.form)
     return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 500
@@ -143,7 +143,10 @@ def query_database(query, parameters=""):
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
-        raise InvalidUsage('System error', status_code=500)
+        # Declare the login form
+        form = LoginForm(request.form)
+        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
+        # raise InvalidUsage('System error', status_code=500)
     cur.execute('SET statement_timeout = 5000')
     cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
@@ -153,7 +156,10 @@ def query_database(query, parameters=""):
     except Exception as error:
         logging.error("Error: {}".format(error))
         logging.error("cur.query: {}".format(cur.query))
-        raise InvalidUsage('System error', status_code=500)
+        # raise InvalidUsage('System error', status_code=500)
+        # Declare the login form
+        form = LoginForm(request.form)
+        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
         data = None
@@ -168,13 +174,17 @@ def query_database_2(query, parameters=""):
     logging.info("query: {}".format(query))
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('SET statement_timeout = 5000')
+    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     try:
         cur.execute(query, parameters)
         logging.info("cur.query: {}".format(cur.query))
     except Exception as error:
         logging.error("cur.query: {}".format(cur.query))
-        raise InvalidUsage('System error', status_code=500)
+        # raise InvalidUsage('System error', status_code=500)
+        # Declare the login form
+        form = LoginForm(request.form)
+        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
         cur.close()
@@ -643,8 +653,8 @@ def qc_process(folder_id):
                                     " SELECT folder_id, file_id "
                                     "  FROM files "
                                     "  WHERE folder_id = %(folder_id)s "
-                                    "  ORDER BY RANDOM() LIMIT {})".format(no_files_for_qc),
-                               {'folder_id': folder_id})
+                                    "  ORDER BY RANDOM() LIMIT %(qlimit)s)",
+                               {'folder_id': folder_id, 'qlimit': psycopg2.extensions.AsIs(no_files_for_qc)})
             return redirect(url_for('qc_process', folder_id=folder_id))
         else:
             qc_stats_q = query_database("WITH errors AS "
@@ -1348,12 +1358,12 @@ def dashboard_f(project_id=None, folder_id=None):
                                     "folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s), "
                                     "files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id), "
                                     "data AS (SELECT "
-                    "       f.file_id, sum(check_results) as check_results "
-                    "       FROM file_checks f, files_q q "
-                    "       WHERE f.file_id = q.file_id "
-                    "   GROUP BY f.file_id) "
-                    " SELECT count(file_id) as no_files "
-                    " FROM data WHERE check_results = 0",
+                                    "       f.file_id, sum(check_results) as check_results "
+                                    "       FROM file_checks f, files_q q "
+                                    "       WHERE f.file_id = q.file_id "
+                                    "   GROUP BY f.file_id) "
+                                    " SELECT count(file_id) as no_files "
+                                    " FROM data WHERE check_results = 0",
                                        {'project_id': project_id})
         project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
         project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
@@ -1419,8 +1429,8 @@ def dashboard_f(project_id=None, folder_id=None):
                 " SELECT file_id, preview_image, folder_id, file_name"
                 " FROM data "
                 " ORDER BY file_name "
-                "LIMIT {} OFFSET {}".format(no_items, offset),
-                {'folder_id': folder_id, 'preview': settings.jpg_previews})
+                "LIMIT %(no_items)s OFFSET %(offset)s",
+                {'folder_id': folder_id, 'preview': settings.jpg_previews, 'no_items': psycopg2.extensions.AsIs(no_items), 'offset': psycopg2.extensions.AsIs(offset)})
             files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                       {'folder_id': folder_id})[0]
             files_count = files_count['no_files']
@@ -1441,18 +1451,18 @@ def dashboard_f(project_id=None, folder_id=None):
                                                 "   CASE WHEN check_results = 0 THEN 'OK' "
                                                 "       WHEN check_results = 9 THEN 'Pending' "
                                                 "       WHEN check_results = 1 THEN 'Failed' "
-                                                "       ELSE 'Pending' END as {} "
+                                                "       ELSE 'Pending' END as %(fcheck)s "
                                                 " FROM files f LEFT JOIN file_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                                 "  where  "
-                                                "   f.folder_id = %(folder_id)s".format(fcheck),
-                                                {'file_check': fcheck, 'folder_id': folder_id}))
+                                                "   f.folder_id = %(folder_id)s",
+                                                {'fcheck': psycopg2.extensions.AsIs(fcheck), 'file_check': fcheck, 'folder_id': folder_id}))
                     logging.info("list_files.size: {}".format(list_files.shape[0]))
                     preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
-                                                             "  COALESCE(f.preview_image, '{}' || f.file_id || '/?') as preview_image "
+                                                             "  COALESCE(f.preview_image, %(jpg_previews)s || f.file_id || '/?') as preview_image "
                                                              " FROM files f "
                                                              "  where  "
-                                                             "   f.folder_id = %(folder_id)s".format(settings.jpg_previews),
-                                                             {'folder_id': folder_id}))
+                                                             "   f.folder_id = %(folder_id)s",
+                                                             {'jpg_previews': settings.jpg_previews, 'folder_id': folder_id}))
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
@@ -1563,13 +1573,14 @@ def dashboard_f(project_id=None, folder_id=None):
                                                                            "  CASE WHEN fp.post_results = 0 THEN 'Completed' "
                                                                            "      WHEN fp.post_results = 9 THEN 'Pending' "
                                                                            "      WHEN fp.post_results = 1 THEN 'Failed' "
-                                                                           "        ELSE 'Pending' END as {} "
+                                                                           "        ELSE 'Pending' END as %(fcheck)s "
                                                                            " FROM files f LEFT JOIN file_postprocessing fp "
                                                                            "        ON (f.file_id = fp.file_id "
-                                                                           "            AND fp.post_step = %(fcheck)s) "
-                                                                           " WHERE f.folder_id = %(folder_id)s".format(fcheck),
-                                                                           {'folder_id': folder_id,
-                                                                                'fcheck': fcheck}))
+                                                                           "            AND fp.post_step = %(post_step)s) "
+                                                                           " WHERE f.folder_id = %(folder_id)s",
+                                                                           {'fcheck': psycopg2.extensions.AsIs(fcheck),
+                                                                                'folder_id': folder_id,
+                                                                                'post_step': fcheck}))
                         if post_processing_vals.size != 0:
                             post_processing_df = post_processing_df.merge(post_processing_vals, how='outer', on='file_id')
                     post_processing_df = post_processing_df.drop(['file_id'], axis=1)
@@ -2094,6 +2105,10 @@ def search_files(project_alias):
     page = request.values.get('page')
     if page is None:
         page = 0
+    try:
+        page = int(page)
+    except:
+        page = 0
     offset = page * 50
     project_info = query_database("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias})[0]
@@ -2106,33 +2121,39 @@ def search_files(project_alias):
         logging.info("offset: {}".format(offset))
         if metadata is None or metadata == '0':
             results = query_database("SELECT "
-                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, '{}' || file_id) as preview_image, fd.project_folder "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, %(jpg_previews)s || file_id) as preview_image, fd.project_folder "
                                      " FROM files f, folders fd, projects p "
                                      " WHERE f.folder_id = fd.folder_id AND "
-                                     "  f.file_name ILIKE '%%{}%%' AND "
+                                     "  f.file_name ILIKE %(q)s AND "
                                      "  fd.project_id = p.project_id AND "
                                      "  p.project_alias = %(project_alias)s "
                                      " ORDER BY f.file_name"
                                      " LIMIT 50 "
-                                     " OFFSET {} ".format(settings.jpg_previews, q, offset),
-                         {'project_alias': project_alias})
+                                     " OFFSET %(offset)s ",
+                                {'project_alias': project_alias,
+                                    'jpg_previews': settings.jpg_previews,
+                                    'q': '%%' + q + '%%',
+                                    'offset': psycopg2.extensions.AsIs(offset)})
         else:
             results = query_database("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
                                      "              FROM files_exif "
-                                     "              WHERE value ILIKE '%%{}%%')"
+                                     "              WHERE value ILIKE %(q)s)"
                                      "SELECT "
-                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, '{}' || file_id) as preview_image, fd.project_folder "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, %(jpg_previews)s || file_id) as preview_image, fd.project_folder "
                                      " FROM files f, m, folders fd, projects p "
                                      " WHERE f.folder_id = fd.folder_id AND "
-                                     "  f.file_name ILIKE '%%{}%%' AND "
+                                     "  f.file_name ILIKE %(q)s AND "
                                      "  f.file_id = m.file_id AND "
                                      "  fd.project_id = p.project_id AND "
                                      "  p.project_alias = %(project_alias)s "
                                      "  GROUP BY f.file_id, f.folder_id, f.file_name, f.preview_image, fd.project_folder "
                                      " ORDER BY f.file_name"
                                      " LIMIT 50 "
-                                     " OFFSET {} ".format(q, settings.jpg_previews, q, offset),
-                                     {'project_alias': project_alias})
+                                     " OFFSET %(offset)s ",
+                                     {'project_alias': project_alias,
+                                       'jpg_previews': settings.jpg_previews,
+                                       'q': '%%' + q + '%%',
+                                       'offset': psycopg2.extensions.AsIs(offset)})
     return render_template('search_files.html',
                            results=results,
                            project_info=project_info,
@@ -2200,19 +2221,14 @@ def search_folders(project_alias):
                                         "   projects p "
                                         " WHERE f.project_id = p.project_id "
                                         "   AND p.project_alias = %(project_alias)s "
-                                        "   AND f.project_folder ILIKE '%%{}%%' "
+                                        "   AND f.project_folder ILIKE %(q)s "
                                         "  ORDER BY f.project_folder ASC"
-                                        "  LIMIT 50 OFFSET {}".format(q, offset),
-                                        {'project_alias': project_alias})
+                                        "  LIMIT 50 OFFSET %(offset)s",
+                                        {'project_alias': project_alias,
+                                            'q': '%%' + q + '%%',
+                                            'offset': psycopg2.extensions.AsIs(offset)})
     results_df = pd.DataFrame({'folder': [], 'no_files': []})
     for row in results:
-        # results_df["folder"] = '<a href="/dashboard/' + project_alias \
-        #                         + '/' \
-        #                         + str(row['folder_id']) \
-        #                         + '/" title="Folder Details">' \
-        #                         + row['project_folder'] \
-        #                         + '</a> '
-        # results_df["no_files"] = row['no_files']
         results_df.loc[len(results_df.index)] = ['<a href="/dashboard/' + project_alias \
                                 + '/' \
                                 + str(row['folder_id']) \
