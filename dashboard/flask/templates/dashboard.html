@@ -259,6 +259,7 @@
 
             $('#files_table').append('<caption style="caption-side: top">Files in the Folder: {{ folder_name.project_folder }}</caption>');
 
+            // columDefs from https://stackoverflow.com/a/41626727
             $('#files_table').DataTable({
                 dom: 'Bfrtip',
                     buttons: [
