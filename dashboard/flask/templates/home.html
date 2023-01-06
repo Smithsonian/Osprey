@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}DPO Collection Digitization Projects{% endblock %}
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
 
-{% block page_title %}DPO Collection Digitization Projects{% endblock %}
+{% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
 
 {% block content %}
 
@@ -186,7 +186,6 @@
         </div>
 
             <br>
-            <h2>List of MD projects:</h2>
 
                 {% for table in tables_md %}
                            {{ table|safe }}
@@ -271,7 +270,6 @@
         </div>
 
         <br>
-        <h2>List of IS projects:</h2>
 
             {% for table in tables_is %}
                        {{ table|safe }}
@@ -311,16 +309,18 @@
             responsive: true,
         });
 
-        //var graph_md = {{graphJSON_md | safe}};
-        //Plotly.newPlot('chart_md',graph_md,{});
-
-        //var graph_is = {{graphJSON_is | safe}};
-        //Plotly.newPlot('chart_is',graph_is,{});
     </script>
 
 
     <!-- Datatables -->
     <script type="text/javascript">
+
+        $('#summary_datatable').append('<caption style="caption-side: top;"><h4>Cummulative number of images captured and objects digitized by the Digitization Program Office.</h4></caption>');
+
+        $('#list_projects_md').append('<caption style="caption-side: top;"><h4>List of projects</h4></caption>');
+
+        $('#list_projects_is').append('<caption style="caption-side: top;"><h4>List of projects</h4></caption>');
+
         $(document).ready( function () {
             var table1 = $('#list_projects_md').DataTable({
                 "pageLength": 20,
@@ -348,9 +348,6 @@
                 "searching": false,
                 "lengthChange": false
             });
-
-            $('#summary_datatable').append('<caption style="caption-side: top">Cummulative number of images captured and objects digitized by the Digitization Program Office.</caption>');
-
 
         });
     </script>
