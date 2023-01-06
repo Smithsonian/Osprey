@@ -2,7 +2,7 @@
 
 {% block title %}Project Dashboard{% endblock %}
 
-{% block page_title %}File Details{% endblock %}
+{% block page_title %}Image Details{% endblock %}
 
 {% block head_blocks %}
 
@@ -11,8 +11,6 @@
 
 
 {% block content %}
-
-
 
     <div class="row">
 
@@ -36,122 +34,113 @@
     </div>
 
     <div class="row">
+        <div class="col-4">
+            <h4>{{ file_details.file_name }} Image Preview:</h4>
+            <!-- <small><em>Use your mouse over the image to zoom in</em></small> -->
+            <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
+            <!-- <div id="img-container" style="width: 600px;"> -->
 
-        <h4>{{ file_details.file_name }} Image Preview:</h4>
-        <small><em>Use your mouse over the image to zoom in</em></small>
-        <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
-        <div id="img-container" style="width: 400px;">
-             <img src="{{ file_details.preview_image }}" class="zoom-image" alt="Preview image of {{ file_details.file_name }}">
+                <p><small>
+                    <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
+                    <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" style="width: 600px;">
+            <!-- </div> -->
+                    <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+                <!-- File Links -->
+
+                    <!-- <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a><br> -->
+                    <!-- <a href="{{ file_details.preview_image }}">Download JPG <i class="fa-solid fa-download"></i></a> -->
+
+                    {% for link in file_links %}
+                        <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
+                    {% endfor %}
+
+                    <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+
+                <br>File ID: {{ file_details.file_id }}
+                </small>
+                </p>
+
+                <table class="table compact table-striped" style="width:100%">
+                    <caption style="caption-side: top;"><h4>File Technical Checks</h4></caption>
+                <thead>
+                    <tr>
+                        <th>Check</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for check in file_checks %}
+                        <tr>
+                            <td>
+                                <strong>{{ check.file_check }}</strong><br>
+                                <small>
+                                    {% if check.file_check == 'tif_compression' %}
+                                        TIF file is compressed.
+                                    {% elif check.file_check == 'tifpages' %}
+                                        Check that there are no more than 1 page in the TIF, usually a thumbnail.
+                                    {% elif check.file_check == 'magick' %}
+                                        File is valid according to ImageMagick.
+                                    {% elif check.file_check == 'jhove' %}
+                                        File is valid according to JHOVE.
+                                    {% elif check.file_check == 'unique_file' %}
+                                        Filename is unique in the project.
+                                    {% elif check.file_check == 'raw_pair' %}
+                                        Raw file was found for the image.
+                                    {% elif check.file_check == 'valid_name' %}
+                                        Filename is in the list of allowed names.
+                                    {% elif check.file_check == 'old_name' %}
+                                        Filename was not found in list outside the project.
+                                    {% elif check.file_check == 'derivative' %}
+                                        Derivative file is present.
+                                    {% elif check.file_check == 'prefix' %}
+                                        Filename has the correct prefix.
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if check.check_results == 0 %}
+                                    <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
+                                {% elif check.check_results == 1 %}
+                                    <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
+                                {% elif check.check_results == 9 %}
+                                    <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+
+                </table>
+
+
+                    <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="checkmodalLabel">Check Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            <pre>#</pre>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
         </div>
-
-            <!-- File Links -->
-
-            <small>
-                <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a><br>
-                <a href="{{ file_details.preview_image }}">Download JPG <i class="fa-solid fa-download"></i></a>
-
-                {% for link in file_links %}
-                    <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
-                {% endfor %}
-
-                <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
-
-            </small>
-        </p>
-
-        <p><small>File ID: {{ file_details.file_id }}</small></p>
-
-    </div>
-
-    <div class="row">
-
-    <div class="col-4">
-
-        <h4>Technical Checks:</h4>
-        <p><small>Click on each result for details.</small></p>
-
-        <table class="table compact table-striped" style="width:100%">
-        <caption>Click on each result for details.</caption>
-        <thead>
-            <tr>
-                <th>Check</th>
-                <th>Result</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for check in file_checks %}
-                <tr>
-                    <td>
-                        <strong>{{ check.file_check }}</strong><br>
-                        <small>
-                            {% if check.file_check == 'tif_compression' %}
-                                TIF file is compressed.
-                            {% elif check.file_check == 'tifpages' %}
-                                Check that there are no more than 1 page in the TIF, usually a thumbnail.
-                            {% elif check.file_check == 'magick' %}
-                                File is valid according to ImageMagick.
-                            {% elif check.file_check == 'jhove' %}
-                                File is valid according to JHOVE.
-                            {% elif check.file_check == 'unique_file' %}
-                                Filename is unique in the project.
-                            {% elif check.file_check == 'raw_pair' %}
-                                Raw file was found for the image.
-                            {% elif check.file_check == 'valid_name' %}
-                                Filename is in the list of allowed names.
-                            {% elif check.file_check == 'old_name' %}
-                                Filename was not found in list outside the project.
-                            {% elif check.file_check == 'derivative' %}
-                                Derivative file is present.
-                            {% elif check.file_check == 'prefix' %}
-                                Filename has the correct prefix.
-                            {% endif %}
-                        </small>
-                    </td>
-                    <td>
-                        {% if check.check_results == 0 %}
-                            <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
-                        {% elif check.check_results == 1 %}
-                            <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
-                        {% elif check.check_results == 9 %}
-                            <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
-                        {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-
-        </table>
-
-
-            <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="checkmodalLabel">Check Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                  </div>
-                  <div class="modal-body">
-                    <pre>#</pre>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-    </div>
-    <div class="col">
-        {#<h4>Embedded Metadata:</h4>#}
+        <div class="col">
+            <!--Embedded Metadata:</h4> -->
             <div style="font-size: 0.9em;">
                 {% for table in tables %}
                        {{ table|safe }}
                 {% endfor %}
             </div>
+        </div>
     </div>
 
-</div>
 
 
 {% endblock %}
@@ -163,7 +152,7 @@
     <script type="text/javascript">
         $(document).ready( function () {
 
-            $('#file_metadata').append('<caption style="caption-side: top"><h4>Embedded metadata in the file: {{ file_details.file_name }}</h4></caption>');
+            $('#file_metadata').append('<caption style="caption-side: top;"><h4>Embedded metadata in the file: {{ file_details.file_name }}</h4></caption>');
 
             $('#file_metadata').DataTable({
                 "order": [],
@@ -190,24 +179,24 @@
 
             // Image zoom
             // https://github.com/malaman/js-image-zoom
-            var options1 = {
-                width: 400,
-                fillContainer: true,
-                offset: {vertical: 0, horizontal: 80}
-            };
+            // var options1 = {
+            //     width: 400,
+            //     fillContainer: true,
+            //     offset: {vertical: 0, horizontal: 80}
+            // };
 
             // If the width and height of the image are not known or to adjust the image to the container of it
-            var options2 = {
-                zoomWidth: 800,
-                fillContainer: true,
-                offset: {vertical: 0, horizontal: 80}
-            };
+            // var options2 = {
+            //     zoomWidth: 800,
+            //     fillContainer: true,
+            //     offset: {vertical: 0, horizontal: 80}
+            // };
 
-            new ImageZoom(document.getElementById("img-container"), options2);
+            // new ImageZoom(document.getElementById("img-container"), options2);
 
         });
     </script>
 
-    <script src="{{ url_for('static', filename='js/js-image-zoom.js') }}" type="application/javascript"></script>
+    <!-- <script src="{{ url_for('static', filename='js/js-image-zoom.js') }}" type="application/javascript"></script> -->
 
 {% endblock %}

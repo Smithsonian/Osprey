@@ -1,6 +1,6 @@
 #!flask/bin/python
 #
-# DPO QC System for Digitization Projects
+# DPO Dashboard
 #
 # Import flask
 from flask import Flask
@@ -9,7 +9,7 @@ from flask import request
 from flask import jsonify
 from flask import redirect
 from flask import url_for
-# from flask import send_file
+
 # caching
 from flask_caching import Cache
 
@@ -2019,7 +2019,11 @@ def file(file_id):
                               "         lag(file_id,1) over (order by file_name) prev_id,"
                               "         lag(file_id,-1) over (order by file_name) next_id "
                               " FROM data)"
-                              " SELECT * FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
+                              " SELECT "
+                                  " file_id, "
+                                  "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE preview_image || '?' END AS preview_image, "
+                                  " folder_id, file_name, dams_uan, prev_id, next_id "
+                                  "FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
                               {'folder_id': folder_info['folder_id'], 'file_id': file_id, 'preview': settings.jpg_previews})[0]
     file_checks = query_database("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
                                             " ELSE check_info END AS check_info "
