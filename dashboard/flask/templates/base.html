@@ -4,8 +4,10 @@
   <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>{% block title %}
-    {% endblock %}</title>
+
+    <!-- SI Elements -->
+    <link rel="preload" href="{{ url_for('static', filename='css/qfv0ytn.css') }}" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/qfv0ytn.css') }}">
 
 
     <!-- Datatables -->
@@ -21,10 +23,7 @@
             />
 
     <!-- Font Awesome -->
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-      rel="stylesheet"
-    />
+    <link href="{{ url_for('static', filename='css/fontawesome.all.min.css') }}" rel="stylesheet" />
 
 
     <style>
@@ -62,6 +61,26 @@
             border-width: 0;
         }
 
+        .navtitle{
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+            color: #FFFFFF;
+            font-size: 1.6rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            padding: 0.8rem 1rem;
+            text-decoration: none;
+        }
+
+
+        .navitems {
+            color: #FFFFFF;
+            text-decoration: none;
+            padding-left: 1rem;
+        }
+        {#font-family: "minion-pro",Helvetica,Arial,sans-serif;#}
+        {#font-size: 1.1rem;#}
+        {#font-weight: 500;#}
+        {#letter-spacing: 1px;#}
     </style>
 
     {% block head_blocks %}
@@ -78,6 +97,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
 
+    <title class="pagetitle">{% block title %}
+    {% endblock %}</title>
+
 </head>
 <body>
 
@@ -88,7 +110,7 @@
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
+            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
               </button>
@@ -104,10 +126,10 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" aria-label="See all projects">All Projects</a> |
-                        <a href="{{ url_for('home') }}" style="color: #FFFFFF;" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a> |
-                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" aria-label="Go to about page">About</a> |
-                        <a href="{{ url_for('logout') }}" style="color: #FFFFFF;" aria-label="Logout of the system">Logout</a>
+                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a>
+                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all projects">All Projects</a>
+                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system">Logout</a>
                     </small>
                 </div>
 
@@ -115,9 +137,9 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" style="color: #FFFFFF;" aria-label="Login into the system">Login</a> | {% endif %}
-                        <a href="{{ url_for('about') }}" style="color: #FFFFFF;" aria-label="Go to about page">About</a> |
-                        <a href="{{ url_for('login') }}" style="color: #FFFFFF;" aria-label="See all Projects">All Projects</a>
+                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all Projects">All Projects</a>
+                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system">Login</a> {% endif %}
+                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
                     </small>
                 </div>
 
@@ -166,11 +188,11 @@
         <br />
 
         <div class="form-floating mb-3">
-            {{ form.username(class="form-control", aria_label='Username') }}
+            {{ form.username(class="form-control", aria_label='Username', autocomplete="off") }}
             <label for="username">Username</label>
         </div>
         <div class="form-floating mb-3">
-            {{ form.password(class="form-control", aria_label='Username', type="password") }}
+            {{ form.password(class="form-control", aria_label='Password', type="password", autocomplete="off") }}
             <label for="password">Password</label>
         </div>
         <br />
