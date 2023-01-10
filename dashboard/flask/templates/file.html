@@ -36,19 +36,14 @@
     <div class="row">
         <div class="col-4">
             <h4>{{ file_details.file_name }} Image Preview:</h4>
-            <!-- <small><em>Use your mouse over the image to zoom in</em></small> -->
-            <!-- Image zoom from: https://www.jqueryscript.net/zoom/image-viewer-ezoom.html -->
-            <!-- <div id="img-container" style="width: 600px;"> -->
 
                 <p><small>
                     <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
                     <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" style="width: 600px;">
-            <!-- </div> -->
-                    <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
-                <!-- File Links -->
 
-                    <!-- <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a><br> -->
-                    <!-- <a href="{{ file_details.preview_image }}">Download JPG <i class="fa-solid fa-download"></i></a> -->
+                    <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+
+                    <!-- File Links -->
 
                     {% for link in file_links %}
                         <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
@@ -177,26 +172,7 @@
               modalBody.textContent = checkinfo
             })
 
-            // Image zoom
-            // https://github.com/malaman/js-image-zoom
-            // var options1 = {
-            //     width: 400,
-            //     fillContainer: true,
-            //     offset: {vertical: 0, horizontal: 80}
-            // };
-
-            // If the width and height of the image are not known or to adjust the image to the container of it
-            // var options2 = {
-            //     zoomWidth: 800,
-            //     fillContainer: true,
-            //     offset: {vertical: 0, horizontal: 80}
-            // };
-
-            // new ImageZoom(document.getElementById("img-container"), options2);
-
         });
     </script>
-
-    <!-- <script src="{{ url_for('static', filename='js/js-image-zoom.js') }}" type="application/javascript"></script> -->
 
 {% endblock %}

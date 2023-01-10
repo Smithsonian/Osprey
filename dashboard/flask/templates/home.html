@@ -4,6 +4,16 @@
 
 {% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
 
+{% block head_blocks %}
+
+    <style>
+        div.dt-buttons {
+            float: right;
+        }
+    </style>
+
+{% endblock %}
+
 {% block content %}
 
 
@@ -94,7 +104,7 @@
         <div class="row">
             <div class="col">
                 <div><p>This graph shows the progress that the Collection Digitization Program of the Digitization Program Office has had in digitizing the Smithsonian collections.</p></div>
-                <div id="chart_summary" class="chart w-auto" aria-hidden="true"></div>
+                <div id="chart_summary" class="chart w-100" aria-hidden="true"></div>
             </div>
         </div>
 
@@ -300,13 +310,13 @@
     <!-- Plotly -->
     <script
             type="text/javascript"
-            src="{{ url_for('static', filename='js/plotly-2.14.0.min.js') }}"
+            src="{{ url_for('static', filename='js/plotly-2.16.1.min.js') }}"
     ></script>
 
     <script type="text/javascript">
         var graph_s = {{graphJSON_summary | safe}};
         Plotly.newPlot('chart_summary',graph_s,{},{
-            responsive: true,
+            responsive: true
         });
 
     </script>
@@ -323,6 +333,12 @@
 
         $(document).ready( function () {
             var table1 = $('#list_projects_md').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
                 "pageLength": 20,
                 order: [[0, 'desc']],
                 "ordering": false,
@@ -333,6 +349,12 @@
             table1.column( 0 ).visible( false );
 
             var table2 = $('#list_projects_is').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
                 "pageLength": 20,
                 order: [[0, 'desc']],
                 "ordering": false,
@@ -343,6 +365,12 @@
             table2.column( 0 ).visible( false );
 
             $('#summary_datatable').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
                 "pageLength": 50,
                 "ordering": false,
                 "searching": false,
