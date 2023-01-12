@@ -91,12 +91,15 @@
                             {% if folder.file_errors == 1 %}
                                 <span class="badge bg-danger">Files with errors</span>
                             {% endif %}
-                            {% if folder.qc_status == "QC Pending" %}
-                                <span class="badge bg-secondary">QC Pending</span>
-                            {% elif folder.qc_status == "QC Passed" %}
-                                <span class="badge bg-success">QC Passed</span>
-                            {% elif folder.qc_status == "QC Failed" %}
-                                <span class="badge bg-danger">QC Failed</span>
+
+                            {% if project_info.qc_status == "1" %}
+                                {% if folder.qc_status == "QC Pending" %}
+                                    <span class="badge bg-secondary">QC Pending</span>
+                                {% elif folder.qc_status == "QC Passed" %}
+                                    <span class="badge bg-success">QC Passed</span>
+                                {% elif folder.qc_status == "QC Failed" %}
+                                    <span class="badge bg-danger">QC Failed</span>
+                                {% endif %}
                             {% endif %}
 
                             {% if folder.delivered_to_dams == 1 %}
@@ -259,6 +262,13 @@
             $('#files_table').append('<caption style="caption-side: top">Files in the Folder: {{ folder_name.project_folder }}</caption>');
 
             // columDefs from https://stackoverflow.com/a/41626727
+            //    serverSide: true,
+            //    processing: true,
+            //    ajax: {
+            //        url: '/ajax/foldertable/{{ folder_id }}/',
+            //        type: 'GET'
+            //    },
+            // "order": [[0, 'asc']],
             $('#files_table').DataTable({
                 dom: 'Bfrtip',
                     buttons: [
