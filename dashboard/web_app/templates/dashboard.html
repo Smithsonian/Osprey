@@ -75,7 +75,7 @@
         {#List of folders#}
         <div style="overflow-y: auto; height: 1200px;">
             <table class="table table-striped caption-top border">
-                <caption>List of Folders</caption>
+                <caption><h5>List of Folders</h5></caption>
                 <tbody>
                     {% for folder in project_folders %}
                     <tr>
@@ -87,12 +87,14 @@
                             {% else %}
                                 <a href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
                             {% endif %}
+
                             <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
+
                             {% if folder.file_errors == 1 %}
                                 <span class="badge bg-danger">Files with errors</span>
                             {% endif %}
 
-                            {% if project_info.qc_status == "1" %}
+                            {% if project_info.qc_status == 1 %}
                                 {% if folder.qc_status == "QC Pending" %}
                                     <span class="badge bg-secondary">QC Pending</span>
                                 {% elif folder.qc_status == "QC Passed" %}
@@ -259,7 +261,7 @@
     <script type="text/javascript">
         $(document).ready( function () {
 
-            $('#files_table').append('<caption style="caption-side: top">Files in the Folder: {{ folder_name.project_folder }}</caption>');
+            $('#files_table').append('<caption style="caption-side: top"><h5>Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
 
             // columDefs from https://stackoverflow.com/a/41626727
             //    serverSide: true,
