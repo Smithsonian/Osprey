@@ -2296,7 +2296,7 @@ def routes_list():
     return jsonify(func_list)
 
 
-@app.route('/api/2.0/projects/', methods=['GET'], strict_slashes=False)
+@app.route('/api/projects/', methods=['GET'], strict_slashes=False)
 @cache.memoize()
 def get_projects():
     """Get the list of projects."""
@@ -2323,7 +2323,7 @@ def get_projects():
     return jsonify(data)
 
 
-@app.route('/api/2.0/projects/<project_alias>', methods=['GET'], strict_slashes=False)
+@app.route('/api/projects/<project_alias>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
 def get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
@@ -2355,7 +2355,7 @@ def get_project_details(project_alias=None):
                                      "status, "
                                      "notes, "
                                      "error_info, "
-                                     "to_char(date, 'YYYY-MM-DD') as date, "
+                                     "to_char(date, 'YYYY-MM-DD') as capture_date, "
                                      "no_files, "
                                      "file_errors "
                                  "FROM folders WHERE project_id = %(project_id)s",
@@ -2381,7 +2381,7 @@ def get_project_details(project_alias=None):
     return jsonify(data[0])
 
 
-@app.route('/api/2.0/folders/<folder_id>', methods=['GET'], strict_slashes=False)
+@app.route('/api/folders/<folder_id>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
 def get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
@@ -2392,7 +2392,7 @@ def get_folder_details(folder_id=None):
                              "status, "
                              "notes, "
                              "error_info, "
-                             "to_char(date, 'YYYY-MM-DD') as date, "
+                             "to_char(date, 'YYYY-MM-DD') as capture_date, "
                              "no_files, "
                              "file_errors "
                              "FROM folders WHERE folder_id = %(folder_id)s",
@@ -2441,7 +2441,7 @@ def get_folder_details(folder_id=None):
     return jsonify(data[0])
 
 
-@app.route('/api/2.0/files/<file_id>', methods=['GET'], strict_slashes=False)
+@app.route('/api/files/<file_id>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
 def get_file_details(file_id=None):
     """Get the details of a file."""
