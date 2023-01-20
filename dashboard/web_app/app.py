@@ -44,7 +44,7 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.2.1"
+site_ver = "2.3.0"
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -2283,7 +2283,7 @@ def not_user():
 ###################################
 @app.route('/api/', methods=['GET'], strict_slashes=False)
 @cache.memoize()
-def routes_list():
+def api_route_list():
     """Print available routes in JSON"""
     # Adapted from https://stackoverflow.com/a/17250154
     func_list = {}
@@ -2298,7 +2298,7 @@ def routes_list():
 
 @app.route('/api/projects/', methods=['GET'], strict_slashes=False)
 @cache.memoize()
-def get_projects():
+def api_get_projects():
     """Get the list of projects."""
     data = query_database("SELECT "
                           "project_id, "
@@ -2325,7 +2325,7 @@ def get_projects():
 
 @app.route('/api/projects/<project_alias>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
-def get_project_details(project_alias=None):
+def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
     data = query_database("SELECT "
                               "project_id, "
@@ -2383,7 +2383,7 @@ def get_project_details(project_alias=None):
 
 @app.route('/api/folders/<folder_id>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
-def get_folder_details(folder_id=None):
+def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
     data = query_database("SELECT "
                              "folder_id, "
@@ -2411,10 +2411,16 @@ def get_folder_details(folder_id=None):
                                  "FROM files WHERE folder_id = %(folder_id)s",
                               {'folder_id': folder_id})
         for file in files:
-            file_checks = query_database("SELECT check_info, check_results, file_check, updated_at::timestamp "
-                                   "FROM file_checks WHERE file_id = %(file_id)s",
-                                   {'file_id': file['file_id']})
-            file_post = query_database("SELECT post_step, post_results, post_info, updated_at::timestamp "
+            # file_checks = query_database("SELECT check_info, check_results, file_check, updated_at::timestamp "
+            #                        "FROM file_checks WHERE file_id = %(file_id)s",
+            #                        {'file_id': file['file_id']})
+            file_checks = query_database("SELECT check_results, file_check, updated_at::timestamp "
+                                         "FROM file_checks WHERE file_id = %(file_id)s",
+                                         {'file_id': file['file_id']})
+            # file_post = query_database("SELECT post_step, post_results, post_info, updated_at::timestamp "
+            #                            "FROM file_postprocessing WHERE file_id = %(file_id)s",
+            #                            {'file_id': file['file_id']})
+            file_post = query_database("SELECT post_step, post_results, updated_at::timestamp "
                                        "FROM file_postprocessing WHERE file_id = %(file_id)s",
                                        {'file_id': file['file_id']})
             file_md5 = query_database("SELECT filetype, md5, updated_at::timestamp "
@@ -2443,7 +2449,7 @@ def get_folder_details(folder_id=None):
 
 @app.route('/api/files/<file_id>', methods=['GET'], strict_slashes=False)
 @cache.memoize()
-def get_file_details(file_id=None):
+def api_get_file_details(file_id=None):
     """Get the details of a file."""
     data = query_database("SELECT "
                            "file_id, "
