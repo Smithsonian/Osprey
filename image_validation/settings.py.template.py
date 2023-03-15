@@ -80,7 +80,7 @@ sleep = 180
 
 
 # Path for JHOVE in system
-jhove_path = "/usr/local/jhove/jhove"
+jhove_path = "/usr/local/bin/jhove"
 
 
 # Path of where to save the JPG previews and size

@@ -1,3 +1,7 @@
+
+-- UUIDs
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 --Postgres function to update the column last_update on files when the row is updated
 CREATE FUNCTION updated_at_files() RETURNS TRIGGER
     LANGUAGE plpgsql
@@ -995,5 +999,30 @@ CREATE INDEX qc_files_fid_idx ON qc_files USING BTREE(file_id);
 
 CREATE TRIGGER trigger_updated_qc_files
   BEFORE UPDATE ON qc_files
+  FOR EACH ROW
+  EXECUTE PROCEDURE updated_at_files();
+
+
+
+
+
+
+
+
+--REPORTS
+DROP TABLE IF EXISTS data_reports CASCADE;
+create table data_reports (
+    report_id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id int NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    report_title text NOT NULL,
+    query text NOT NULL,
+    query_updated text NOT NULL,
+    updated_at timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX data_reports_rid_idx ON data_reports USING BTREE(report_id);
+CREATE INDEX data_reports_pid_idx ON data_reports USING BTREE(project_id);
+
+CREATE TRIGGER trigger_data_reports
+  BEFORE UPDATE ON data_reports
   FOR EACH ROW
   EXECUTE PROCEDURE updated_at_files();
