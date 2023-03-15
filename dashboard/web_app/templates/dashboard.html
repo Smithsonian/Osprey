@@ -58,6 +58,27 @@
     <div class="col-3" style="font-size: 0.9em;">
 
 
+        {% if proj_reports %}
+
+        <!-- Project Reports -->
+        <form action="{{ url_for('data_reports_form') }}" method="GET">
+        <div class="row">
+            <div class="col-8">
+                <input type="hidden" name="project_alias" value="{{ project_alias }}">
+                <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
+                    {% for report in reports %}
+                            <option value="{{ report.report_id }}">{{ report.report_title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col">
+                <button type="submit" class="btn btn-primary btn-sm">Open Report</button></form>
+            </div>
+        </div>
+
+        <hr>
+
+        {% endif %}
 
         <!-- Search Folders -->
         <form action="{{ url_for('search_folders', project_alias=project_alias) }}" method="GET">

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Reports{% endblock %}
+
+{% block page_title %}{{ project_info.project_title }}{% endblock %}
+
+{% block homelink %}{{ url_for('dashboard', project_id=project_alias) }}{% endblock %}
+
+{% block content %}
+
+    <h2>Report: {{ report.report_title }}</h2>
+
+    <pre>Data last updated on: {{ report_data_updated }}</pre>
+
+        {% for table in tables %}
+               {{ table|safe }}
+        {% endfor %}
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+
+            $('#report_data').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
+                "order": [],
+                "lengthMenu": [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ]
+                })
+            });
+    </script>
+
+{% endblock %}

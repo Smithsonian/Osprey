@@ -8,3 +8,6 @@ password = ""
 jpg_previews = ""
 
 secret_key = b''
+
+# dev or prod
+env = "dev"

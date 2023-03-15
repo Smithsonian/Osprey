@@ -44,7 +44,8 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.3.0"
+site_ver = "2.3.1"
+site_env = settings.env
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -521,7 +522,8 @@ def login():
                            summary_datatable=[summary_datatable.to_html(table_id='summary_datatable', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "compact", "table-striped",
-                                                                        "w-100"])]
+                                                                        "w-100"])],
+                           site_env=site_env
                            )
 
 
@@ -538,10 +540,11 @@ def about():
 
     # Declare the login form
     form = LoginForm(request.form)
-    return render_template('about.html', site_ver=site_ver, form=form)
+    return render_template('about.html', site_ver=site_ver, form=form,
+                           site_env=site_env)
 
 
-@app.route('/qc_process/<folder_id>/', methods=['GET','POST'], strict_slashes=False)
+@app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], strict_slashes=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
@@ -734,7 +737,8 @@ def qc_process(folder_id):
                                                                      escape=False,
                                                                      classes=["display", "compact", "table-striped"])],
                                        msg=msg,
-                                       form=form
+                                       form=form,
+                                       site_env=site_env
                                        )
             else:
                 error_files = query_database("SELECT f.file_name, q.* FROM qc_files q, files f "
@@ -748,10 +752,12 @@ def qc_process(folder_id):
                                        project_settings=project_settings,
                                        username=username,
                                        error_files=error_files,
-                                       form=form)
+                                       form=form,
+                                       site_env=site_env)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias['project_alias']), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias['project_alias'],
+                           site_env=site_env), 400
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
@@ -874,7 +880,8 @@ def qc(project_id):
                                project_settings=project_settings,
                                folder_qc_info=folder_qc_info,
                                project=project,
-                               form=form)
+                               form=form,
+                               site_env=site_env)
 
 
 @app.route('/home/', methods=['GET'], strict_slashes=False)
@@ -983,7 +990,8 @@ def home():
                 'project_unit': project['project_unit']
             })
     return render_template('userhome.html', project_list=project_list, username=user_name,
-                           is_admin=is_admin, ip_addr=ip_addr, form=form)
+                           is_admin=is_admin, ip_addr=ip_addr, form=form,
+                           site_env=site_env)
 
 
 @app.route('/new_project/', methods=['GET'], strict_slashes=False)
@@ -1014,7 +1022,8 @@ def new_project(msg=None):
                                is_admin=is_admin,
                                msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form)
+                               form=form,
+                               site_env=site_env)
 
 
 @app.route('/create_new_project/', methods=['POST'], strict_slashes=False)
@@ -1187,7 +1196,8 @@ def edit_project(project_id):
                                username=username,
                                is_admin=is_admin,
                                project=project,
-                               form=form)
+                               form=form,
+                               site_env=site_env)
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
@@ -1611,6 +1621,16 @@ def dashboard_f(project_id=None, folder_id=None):
     folder_links = query_database("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
                                                        {'folder_id': folder_id})
     logging.info("folder_links: {}".format(folder_links))
+
+    # Reports
+    reports = query_database("SELECT * FROM data_reports WHERE project_id = %(project_id)s",
+                                  {'project_id': project_id})
+
+    if len(reports) > 0:
+        proj_reports = True
+    else:
+        proj_reports = False
+
     return render_template('dashboard.html',
                        project_id=project_id,
                        project_info=project_info,
@@ -1642,7 +1662,10 @@ def dashboard_f(project_id=None, folder_id=None):
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped", "w-100"])],
                        folder_links=folder_links,
-                       form=form
+                       form=form,
+                       proj_reports=proj_reports,
+                       reports=reports,
+                       site_env=site_env
                        )
 
 
@@ -1786,6 +1809,16 @@ def dashboard(project_id):
     tab = None
     folder_name = None
     folder_qc = None
+
+    # Reports
+    reports = query_database("SELECT * FROM data_reports WHERE project_id = %(project_id)s",
+                                  {'project_id': project_id})
+
+    if len(reports) > 0:
+        proj_reports = True
+    else:
+        proj_reports = False
+
     return render_template('dashboard.html',
                        project_id=project_id,
                        project_info=project_info,
@@ -1817,7 +1850,10 @@ def dashboard(project_id):
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped"])],
                        folder_links=folder_links,
-                       form=form
+                       form=form,
+                       proj_reports=proj_reports,
+                       reports=reports,
+                       site_env=site_env
                        )
 
 
@@ -2002,13 +2038,15 @@ def file(file_id):
 
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
+                           site_env=site_env), 400
     else:
         try:
             file_id = int(file_id)
         except:
             error_msg = "Invalid File ID."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
+                           site_env=site_env), 400
     folder_info = query_database("SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
                          {'file_id': file_id})[0]
     project_alias = query_database("SELECT COALESCE(project_alias, project_id::text) as project_id FROM projects "
@@ -2068,7 +2106,8 @@ def file(file_id):
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped"])],
                            file_links=file_links,
-                           form=form
+                           form=form,
+                           site_env=site_env
                            )
 
 
@@ -2085,13 +2124,15 @@ def file_json(file_id):
     form = LoginForm(request.form)
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
+                           site_env=site_env), 400
     else:
         try:
             file_id = int(file_id)
         except:
             error_msg = "Invalid File ID."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
+                           site_env=site_env), 400
     file_checks = query_database("SELECT file_check, CASE WHEN check_results = 0 THEN '<div style=\"background: "
                                  "#198754; color:white;padding:8px;\">OK</div>' "
                                             "       WHEN check_results = 9 THEN 'Pending' "
@@ -2130,7 +2171,8 @@ def search_files(project_alias):
                                   {'project_alias': project_alias})[0]
     if q is None:
         error_msg = "No search query was submitted."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+                           site_env=site_env), 400
     else:
         logging.info("q: {}".format(q))
         logging.info("metadata: {}".format(metadata))
@@ -2175,7 +2217,8 @@ def search_files(project_alias):
                            project_info=project_info,
                            project_alias=project_alias,
                            q=q,
-                           form=form)
+                           form=form,
+                           site_env=site_env)
 
 
 @app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], strict_slashes=False)
@@ -2260,7 +2303,8 @@ def search_folders(project_alias):
                            project_info=project_info,
                            project_alias=project_alias,
                            q=q,
-                           form=form)
+                           form=form,
+                           site_env=site_env)
 
 
 @app.route("/logout", methods=['GET'], strict_slashes=False)
@@ -2275,7 +2319,8 @@ def not_user():
     form = LoginForm(request.form)
 
     logout_user()
-    return render_template('notuser.html', form=form)
+    return render_template('notuser.html', form=form,
+                           site_env=site_env)
 
 
 ###################################
@@ -2486,6 +2531,77 @@ def api_get_file_details(file_id=None):
     return jsonify(data[0])
 
 
+
+@app.route('/reports/', methods=['GET'], strict_slashes=False)
+def data_reports_form():
+    """Report of a project"""
+    project_alias = request.values.get("project_alias")
+    report_id = request.values.get("report_id")
+    return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
+
+
+
+@app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], strict_slashes=False)
+def data_reports(project_alias=None, report_id=None):
+    """Report of a project"""
+
+    if project_alias is None:
+        error_msg = "Project is not available."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    project_id = query_database("SELECT project_id FROM projects WHERE "
+                                      " project_alias = %(project_alias)s",
+                                      {'project_alias': project_alias})
+
+    if len(project_id) == 0:
+        error_msg = "Project was not found."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+
+    project_id = project_id[0]['project_id']
+
+    project_report_check = query_database("SELECT * FROM data_reports WHERE "
+                                      " project_id = %(project_id)s AND report_id = %(report_id)s",
+                                      {'project_id': project_id, 'report_id': report_id})
+    if len(project_report_check) == 0:
+        error_msg = "Report was not found."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+
+    logging.info("project_report_check: {}".format(project_report_check))
+
+    project_reports = query_database("SELECT * FROM data_reports WHERE project_id = %(project_id)s and report_id = %(report_id)s",
+                                {'project_id': project_id, 'report_id': report_id})
+
+    report_data = pd.DataFrame(query_database(project_reports[0]['query']))
+
+    report_data_updated = query_database(project_reports[0]['query_updated'])[0]['updated_at']
+
+    report = query_database("SELECT * FROM data_reports WHERE report_id = %(report_id)s", {'report_id': report_id})[0]
+    # logging.info("report: {}".format(report))
+    # app.logger.debug("report: {}".format(report))
+    project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
+                                  {'project_id': project_id})[0]
+
+    return render_template('reports.html',
+                       project_id=project_id,
+                       project_alias=project_alias,
+                       project_info=project_info,
+                       report=report,
+                       tables=[report_data.to_html(table_id='report_data',
+                                                       index=False,
+                                                       border=0,
+                                                       escape=False,
+                                                       classes=["display", "compact", "table-striped"])],
+                       report_data_updated=report_data_updated,
+                       form=form,
+                       site_env=site_env
+                       )
+
+
+
+
 #####################################
 if __name__ == '__main__':
-    app.run()
+    app.run( )
