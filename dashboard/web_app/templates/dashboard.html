@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+{% block title %}{{ project_info.project_title }} {{ folder_name.project_folder }} - Project Dashboard{% endblock %}
 
-{% block page_title %}{{ project_info.project_title }}{% endblock %}
+{% block page_title %}
+
+        {{ project_info.project_title }}
+
+{% endblock %}
 
 {% block homelink %}{{ url_for('dashboard', project_id=project_alias) }}{% endblock %}
 

@@ -1016,6 +1016,7 @@ create table data_reports (
     project_id int NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
     report_title text NOT NULL,
     query text NOT NULL,
+    query_api text NOT NULL,
     query_updated text NOT NULL,
     updated_at timestamp with time zone DEFAULT NOW()
 );

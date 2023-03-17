@@ -44,7 +44,7 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.3.1"
+site_ver = "2.3.2"
 site_env = settings.env
 
 cur_path = os.path.abspath(os.getcwd())
@@ -308,6 +308,9 @@ def login():
                               " FROM projects where project_alias is not null "
                               " ORDER BY projects_order DESC")
 
+    # Last update
+    last_update = query_database("SELECT TO_CHAR(MAX(updated_at), 'DD-Mon-YYYY') AS updated_at FROM projects_stats")
+
     # Summary table
     df = pd.DataFrame(query_database("with d as ("
                         "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
@@ -523,7 +526,8 @@ def login():
                                                                border=0, escape=False,
                                                                classes=["display", "compact", "table-striped",
                                                                         "w-100"])],
-                           site_env=site_env
+                           site_env=site_env,
+                           last_update=last_update[0]['updated_at']
                            )
 
 
@@ -1491,7 +1495,7 @@ def dashboard_f(project_id=None, folder_id=None):
             logging.info("no_pages: {}".format(no_pages))
             if page == 1:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" href=\"#\" " \
-                                                    "tabindex=\"-1\" aria-disabled=\"true\">Previous</a></li>"
+                                                    "tabindex=\"-1\">Previous</a></li>"
             else:
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
                                                     "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
@@ -2331,6 +2335,7 @@ def not_user():
 def api_route_list():
     """Print available routes in JSON"""
     # Adapted from https://stackoverflow.com/a/17250154
+    data = {}
     func_list = {}
     for rule in app.url_map.iter_rules():
         # Skip 'static' routes
@@ -2338,7 +2343,10 @@ def api_route_list():
             func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
         else:
             continue
-    return jsonify(func_list)
+    data['routes'] = func_list
+    data['sys_ver'] = site_ver
+    data['env'] = settings.env
+    return jsonify(data)
 
 
 @app.route('/api/projects/', methods=['GET'], strict_slashes=False)
@@ -2369,7 +2377,6 @@ def api_get_projects():
 
 
 @app.route('/api/projects/<project_alias>', methods=['GET'], strict_slashes=False)
-@cache.memoize()
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
     data = query_database("SELECT "
@@ -2423,6 +2430,10 @@ def api_get_project_details(project_alias=None):
                                      "FROM projects_stats WHERE project_id = %(project_id)s",
                                      {'project_id': data[0]['project_id']})
         data[0]['project_stats'] = project_stats[0]
+        # Reports
+        reports = query_database("SELECT report_id, report_title, updated_at FROM data_reports WHERE project_id = %(project_id)s",
+                                 {'project_id': data[0]['project_id']})
+        data[0]['reports'] = reports
     return jsonify(data[0])
 
 
@@ -2529,6 +2540,22 @@ def api_get_file_details(file_id=None):
                                    {'file_id': file_id})
         data[0]['file_postprocessing'] = file_post
     return jsonify(data[0])
+
+
+
+@app.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False)
+def api_get_report(report_id=None):
+    """Get the data from a project report."""
+    if report_id is None:
+        return None
+    else:
+        query = query_database("SELECT * FROM data_reports WHERE report_id = %(report_id)s",
+                                 {'report_id': report_id})
+        if len(query) == 0:
+            return None
+        else:
+            data = query_database(query[0]['query_api'])
+            return jsonify(data)
 
 
 
