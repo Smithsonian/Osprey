@@ -110,3 +110,15 @@ psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select folder_id, qc_st
 psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select folder_id, file_id, file_qc, qc_info, qc_by, qc_ip, updated_at::timestamp from qc_files) to 'qc_files.csv' CSV HEADER;"
 
 
+psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select report_id, project_id, report_title, query, query_api, query_updated, updated_at::timestamp from data_reports) to 'data_reports.csv' CSV HEADER;"
+
+
+psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select table_id, refid, archive_box, archive_type, archive_folder, unit_title, url, notes, updated_at::timestamp from jpc_data_aspace) to 'jpc_data_aspace.csv' CSV HEADER;"
+
+
+
+
+psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select * from dams_cdis_file_status_view_dpo) to 'dams_cdis_file_status_view_dpo.csv' CSV HEADER;"
+
+psql -U osprey -h si-fsosprey01.si.edu osprey -c "\copy (select * from dams_vfcu_file_view_dpo) to 'dams_vfcu_file_view_dpo.csv' CSV HEADER;"
+
