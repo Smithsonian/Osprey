@@ -21,10 +21,12 @@ ver = "0.2.0"
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 
-if len(sys.argv) == 2:
+if len(sys.argv) == 3:
     folder_id = sys.argv[1]
+    export_to = sys.argv[2]
 else:
     folder_id = None
+    export_to = settings.project_id
 
 
 ############################################
@@ -44,7 +46,7 @@ def main():
     files = db_cursor.fetchall()
     for file in files:
         print('file: {}'.format(file[1]))
-        shutil.copy("{}/{}/{}.jpg".format(settings.jpgs_folder, str(file[0])[0:2], file[0]), "{}/{}.jpg".format(settings.project_id, file[1]))
+        shutil.copy("{}/{}/{}.jpg".format(settings.jpgs_folder, str(file[0])[0:2], file[0]), "{}/{}.jpg".format(export_to, file[1]))
     # Disconnect from db
     conn.close()
     return
