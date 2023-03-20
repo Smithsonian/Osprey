@@ -37,16 +37,16 @@ def main():
     db_cursor = conn.cursor()
     if folder_id is None:
         # Get project's files
-        db_cursor.execute("SELECT file_id, file_name FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = %(project_id)s)", {'project_id': settings.project_id})
+        db_cursor.execute("SELECT file_id, file_name, folder_id FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = %(project_id)s)", {'project_id': settings.project_id})
     else:
         # Get project's files
         db_cursor.execute(
-            "SELECT file_id, file_name FROM files WHERE folder_id = %(folder_id)s",
+            "SELECT file_id, file_name, folder_id FROM files WHERE folder_id = %(folder_id)s",
             {'folder_id': folder_id})
     files = db_cursor.fetchall()
     for file in files:
         print('file: {}'.format(file[1]))
-        shutil.copy("{}/{}/{}.jpg".format(settings.jpgs_folder, str(file[0])[0:2], file[0]), "{}/{}.jpg".format(export_to, file[1]))
+        shutil.copy("{}/folder{}/{}.jpg".format(settings.jpgs_folder, file[2], file[0]), "{}/{}.jpg".format(export_to, file[1]))
     # Disconnect from db
     conn.close()
     return
