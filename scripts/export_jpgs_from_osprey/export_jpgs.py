@@ -32,7 +32,7 @@ else:
 ############################################
 def main():
     # Connect to the database
-    conn = psycopg2.connect(host = settings.db_host, database = settings.db_db, user = settings.db_user, connect_timeout = 60)
+    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user, connect_timeout=60)
     conn.autocommit = True
     db_cursor = conn.cursor()
     if folder_id is None:
