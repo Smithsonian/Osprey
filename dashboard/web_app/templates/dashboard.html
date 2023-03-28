@@ -71,7 +71,7 @@
                 <input type="hidden" name="project_alias" value="{{ project_alias }}">
                 <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
                     {% for report in reports %}
-                            <option value="{{ report.report_id }}">{{ report.report_title }}</option>
+                            <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
                     {% endfor %}
                 </select>
             </div>

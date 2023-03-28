@@ -20,10 +20,12 @@ import math
 import pandas as pd
 import json
 import time
+from uuid import UUID
 
 import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
+from psycopg2 import sql
 
 from flask_login import LoginManager
 from flask_login import login_required
@@ -136,6 +138,32 @@ except psycopg2.Error as e:
     raise InvalidUsage('System error')
 
 
+def validate_api_key(api_key):
+    logging.info("api_key: {}".format(api_key))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SET statement_timeout = 5000')
+    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
+    try:
+        api_key_check = UUID(api_key)
+    except ValueError:
+        logging.info("Invalid UUID: {}".format(api_key))
+        return False
+    # Run query
+    try:
+        cur.execute("SELECT key from api_keys WHERE key = %(api_key)s", {'api_key': api_key})
+        logging.info("cur.query: {}".format(cur.query))
+    except Exception as error:
+        logging.error("cur.query: {}".format(cur.query))
+        raise InvalidUsage('System error', status_code=500)
+    logging.info(cur.rowcount)
+    if cur.rowcount == 1:
+        cur.close()
+        return True
+    else:
+        cur.close()
+        return False
+
+
 def query_database(query, parameters=""):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
@@ -171,8 +199,8 @@ def query_database(query, parameters=""):
 
 
 def query_database_2(query, parameters=""):
-    logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
+    logging.info("parameters: {}".format(parameters))
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('SET statement_timeout = 5000')
     cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
@@ -193,6 +221,27 @@ def query_database_2(query, parameters=""):
     else:
         cur.close()
         return True
+
+
+def query_database_insert(query, parameters):
+    logging.info("query: {}".format(query))
+    logging.info("parameters: {}".format(parameters))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SET statement_timeout = 5000')
+    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
+    # Run query
+    try:
+        cur.execute(query, parameters)
+        logging.info("cur.query: {}".format(cur.query))
+    except Exception as error:
+        logging.error("cur.query: {}".format(cur.query))
+        logging.error("error: {}".format(error))
+        # raise InvalidUsage('System error', status_code=500)
+        # Declare the login form
+        form = LoginForm(request.form)
+        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
+    cur.close()
+    return True
 
 
 def user_perms(project_id, user_type='user'):
@@ -2349,10 +2398,15 @@ def api_route_list():
     return jsonify(data)
 
 
-@app.route('/api/projects/', methods=['GET'], strict_slashes=False)
-@cache.memoize()
+@app.route('/api/projects/', methods=['GET','POST'], strict_slashes=False)
 def api_get_projects():
     """Get the list of projects."""
+    # TEST
+    # For post use request.form.get("variable")
+    val = request.form.get("val")
+    logging.info("VAL: {}".format(val))
+    if val != "a":
+        raise InvalidUsage('This view is gone', status_code=401)
     data = query_database("SELECT "
                           "project_id, "
                           "project_title, "
@@ -2376,10 +2430,13 @@ def api_get_projects():
     return jsonify(data)
 
 
-@app.route('/api/projects/<project_alias>', methods=['GET'], strict_slashes=False)
+@app.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
-    data = query_database("SELECT "
+    api_key = request.form.get("api_key")
+    logging.info("api_key: {}".format(api_key))
+    if api_key is None or validate_api_key(api_key) is False:
+        data = query_database("SELECT "
                               "project_id, "
                               "project_title, "
                               "project_alias, "
@@ -2397,13 +2454,52 @@ def api_get_project_details(project_alias=None):
                               "CASE WHEN project_end IS NULL THEN NULL ELSE to_char(project_end, 'YYYY-MM-DD') END as project_end, "
                               "project_notice, "
                               "updated_at::timestamp "
-                          "FROM projects WHERE project_alias = %(project_alias)s",
-                          {'project_alias': project_alias})
-    if data is not None:
-        folders = query_database("SELECT "
+                              "FROM projects WHERE project_alias = %(project_alias)s",
+                              {'project_alias': project_alias})
+    else:
+        data = query_database("SELECT "
+                                  "project_id, "
+                                  "project_title, "
+                                  "project_alias, "
+                                  "project_unit, "
+                                  "project_checks, "
+                                  "project_postprocessing, "
+                                  "project_status, "
+                                  "project_description, "
+                                  "project_type, "
+                                  "project_method, "
+                                  "project_manager, "
+                                  "project_url, "
+                                  "project_area, "
+                                  "project_datastorage, "                              
+                                  "to_char(project_start, 'YYYY-MM-DD') AS project_start, "
+                                  "CASE WHEN project_end IS NULL THEN NULL ELSE to_char(project_end, 'YYYY-MM-DD') END as project_end, "
+                                  "project_notice, "
+                                  "updated_at::timestamp "
+                              "FROM projects WHERE project_alias = %(project_alias)s",
+                              {'project_alias': project_alias})
+    if data is None:
+        raise InvalidUsage('Project does not exists', status_code=401)
+    else:
+        if api_key is None or validate_api_key(api_key) is False:
+            folders = query_database("SELECT "
                                      "folder_id, "
                                      "project_id, "
                                      "project_folder as folder, "
+                                     "status, "
+                                     "notes, "
+                                     "error_info, "
+                                     "to_char(date, 'YYYY-MM-DD') as capture_date, "
+                                     "no_files, "
+                                     "file_errors "
+                                 "FROM folders WHERE project_id = %(project_id)s",
+                              {'project_id': data[0]['project_id']})
+        else:
+            folders = query_database("SELECT "
+                                     "folder_id, "
+                                     "project_id, "
+                                     "project_folder as folder, "
+                                     "path as folder_path, "
                                      "status, "
                                      "notes, "
                                      "error_info, "
@@ -2437,8 +2533,64 @@ def api_get_project_details(project_alias=None):
     return jsonify(data[0])
 
 
+@app.route('/api/update/projects/<project_alias>', methods=['POST'], strict_slashes=False)
+def api_update_project_details(project_alias=None):
+    """Update a project properties."""
+    api_key = request.form.get("api_key")
+    logging.info("api_key: {}".format(api_key))
+    if api_key is None:
+        raise InvalidUsage('Missing key', status_code=401)
+    else:
+        if validate_api_key(api_key):
+            # Value to update
+            proj_property = request.form.get("property")
+            value = request.form.get("value")
+            if property != "" and value != "":
+                if proj_property == "checks":
+                    column = "project_checks"
+                elif proj_property == "post":
+                    column = "project_postprocessing"
+                elif proj_property == "storage":
+                    column = "project_datastorage"
+                else:
+                    raise InvalidUsage('Invalid operation', status_code=401)
+                query = sql.SQL("UPDATE projects SET {field} = %s WHERE project_alias = %s").format(
+                    field=sql.Identifier(column))
+                data = query_database_insert(query, (value, project_alias))
+                return jsonify({"result": True})
+            else:
+                raise InvalidUsage('Missing args', status_code=400)
+        else:
+            raise InvalidUsage('Unauthorized', status_code=401)
+
+
+@app.route('/api/new/folder/<project_alias>', methods=['POST'], strict_slashes=False)
+def api_new_folder(project_alias=None):
+    """Update a project properties."""
+    api_key = request.form.get("api_key")
+    logging.info("api_key: {}".format(api_key))
+    if api_key is None:
+        raise InvalidUsage('Missing key', status_code=401)
+    else:
+        if validate_api_key(api_key):
+            # New folder info
+            folder = request.form.get("folder")
+            folder_path = request.form.get("folder_path")
+            if folder is not None and folder_path is not None:
+                query = sql.SQL(
+                    "INSERT INTO folders (project_folder, path, status, project_id) VALUES (%(project_folder)s, %(folder_path)s, 9, %(project_id)s) RETURNING folder_id"
+                    
+                    "UPDATE projects SET {field} = %s WHERE project_alias = %s").format(
+                    field=sql.Identifier(column))
+                data = query_database_insert(query, (value, project_alias))
+                return jsonify({"result": True})
+            else:
+                raise InvalidUsage('Missing args', status_code=400)
+        else:
+            raise InvalidUsage('Unauthorized', status_code=401)
+
+
 @app.route('/api/folders/<folder_id>', methods=['GET'], strict_slashes=False)
-@cache.memoize()
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
     data = query_database("SELECT "
@@ -2504,7 +2656,6 @@ def api_get_folder_details(folder_id=None):
 
 
 @app.route('/api/files/<file_id>', methods=['GET'], strict_slashes=False)
-@cache.memoize()
 def api_get_file_details(file_id=None):
     """Get the details of a file."""
     data = query_database("SELECT "
@@ -2544,6 +2695,7 @@ def api_get_file_details(file_id=None):
 
 
 @app.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False)
+@cache.memoize()
 def api_get_report(report_id=None):
     """Get the data from a project report."""
     if report_id is None:

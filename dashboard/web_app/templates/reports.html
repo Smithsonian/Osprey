@@ -10,7 +10,11 @@
 
     <h2>Report: {{ report.report_title }}</h2>
 
-    <pre>Data last updated on: {{ report_data_updated }}</pre>
+        {% if report.report_title_brief != "" %}
+            <p>{{ report.report_title_brief }}</p>
+        {% endif %}
+
+    <p>Data last updated on: {{ report_data_updated }}</p>
 
         {% for table in tables %}
                {{ table|safe }}

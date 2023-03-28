@@ -20,6 +20,7 @@ DROP SEQUENCE IF EXISTS projects_project_id_seq;
 CREATE SEQUENCE projects_project_id_seq MINVALUE 100;
 CREATE TABLE projects (
     project_id integer NOT NULL DEFAULT nextval('projects_project_id_seq') PRIMARY KEY,
+	proj_id uuid NOT NULL DEFAULT uuid_generate_v4(),
     project_title text,
     project_alias text,
     project_unit  text,
@@ -50,6 +51,7 @@ CREATE TABLE projects (
     updated_at timestamp with time zone DEFAULT NOW()
 );
 CREATE INDEX projects_pid_idx ON projects USING BTREE(project_id);
+CREATE INDEX projects_pjid_idx ON projects USING BTREE(proj_id);
 CREATE INDEX projects_palias_idx ON projects USING BTREE(project_alias);
 CREATE INDEX projects_status_idx ON projects USING BTREE(project_status);
 CREATE INDEX projects_dpoir_idx ON projects USING BTREE(dpoir);
@@ -61,11 +63,15 @@ ALTER TABLE projects ADD COLUMN project_type text DEFAULT 'production';
 DROP TABLE IF EXISTS projects_media CASCADE;
 CREATE TABLE projects_media (
     project_id integer REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	proj_id uuid NOT NULL DEFAULT uuid_generate_v4(),
     media_type text DEFAULT 'yt',
     media_title text,
     media_link text NOT NULL
 );
 CREATE INDEX projects_media_pid_idx ON projects_media USING BTREE(project_id);
+CREATE INDEX projects_media_pjd_idx ON projects_media USING BTREE(proj_id);
+
+UPDATE projects_media m SET proj_id = p.proj_id FROM projects p WHERE m.project_id=p.project_id;
 
 
 --Budget by project
@@ -937,8 +943,25 @@ CREATE TABLE qc_users (
 CREATE INDEX qc_users_un_idx ON qc_users USING BTREE(username);
 CREATE INDEX qc_users_up_idx ON qc_users USING BTREE(pass);
 CREATE INDEX qc_users_ua_idx ON qc_users USING BTREE(user_active);
-CREATE INDEX qc_users_pid_idx ON qc_users USING BTREE(project_id);
 
+
+DROP TABLE IF EXISTS users CASCADE;
+CREATE TABLE users (
+    uid uuid NOT NULL DEFAULT uuid_generate_v4() primary key,
+	user_id serial,
+    username text,
+    full_name text,
+    pass text,
+    user_active boolean DEFAULT 't',
+    is_admin boolean DEFAULT 'f'
+);
+CREATE INDEX users_un_idx ON users USING BTREE(uid);
+CREATE INDEX users_un_idx ON users USING BTREE(username);
+CREATE INDEX users_up_idx ON users USING BTREE(pass);
+CREATE INDEX users_ua_idx ON users USING BTREE(user_active);
+
+-- delete from users;
+-- insert into users (user_id, username, pass, user_active, is_admin, full_name) (select user_id, username, pass, user_active, is_admin, full_name from qc_users);
 
 
 --projects assigned to users
@@ -1015,6 +1038,7 @@ create table data_reports (
     report_id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
     project_id int NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
     report_title text NOT NULL,
+	report_title_brief text,
     query text NOT NULL,
     query_api text NOT NULL,
     query_updated text NOT NULL,
@@ -1027,3 +1051,31 @@ CREATE TRIGGER trigger_data_reports
   BEFORE UPDATE ON data_reports
   FOR EACH ROW
   EXECUTE PROCEDURE updated_at_files();
+
+
+
+
+
+-- API Keys
+DROP TABLE IF EXISTS api_keys CASCADE;
+create table api_keys (
+    table_id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
+    uid UUID NOT NULL REFERENCES users(uid) ON DELETE CASCADE ON UPDATE CASCADE,
+    key UUID NOT NULL,
+    expires_on timestamp with time zone,
+	usage_rate int NOT NULL DEFAULT 100,
+	updated_at timestamp with time zone DEFAULT NOW()
+);
+CREATE INDEX akeys_uid_idx ON api_keys USING BTREE(uid);
+CREATE INDEX akeys_key_idx ON api_keys USING BTREE(key);
+
+CREATE TRIGGER trigger_api_keys
+  BEFORE UPDATE ON api_keys
+  FOR EACH ROW
+  EXECUTE PROCEDURE updated_at_files();
+
+
+
+
+
+8d28814a59a445d1b8c69d0547cf4f43
