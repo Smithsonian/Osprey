@@ -27,6 +27,7 @@ import psycopg2.extras
 import psycopg2.extensions
 from psycopg2 import sql
 
+
 from flask_login import LoginManager
 from flask_login import login_required
 from flask_login import login_user
@@ -39,6 +40,8 @@ from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired
 
 from datetime import datetime
+
+import re
 
 # Plotly
 import plotly
@@ -53,7 +56,7 @@ cur_path = os.path.abspath(os.getcwd())
 
 # Logging
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logging.basicConfig(filename='app_{}.log'.format(current_time),
+logging.basicConfig(filename='{}/app_{}.log'.format(settings.log_folder, current_time),
                     level=logging.DEBUG,
                     filemode='a',
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
@@ -176,7 +179,7 @@ def query_database(query, parameters=""):
         form = LoginForm(request.form)
         return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
         # raise InvalidUsage('System error', status_code=500)
-    cur.execute('SET statement_timeout = 5000')
+    cur.execute('SET statement_timeout = 10000')
     cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     try:
@@ -223,13 +226,14 @@ def query_database_2(query, parameters=""):
         return True
 
 
-def query_database_insert(query, parameters):
+def query_database_insert(query, parameters, return_res=False):
     logging.info("query: {}".format(query))
     logging.info("parameters: {}".format(parameters))
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('SET statement_timeout = 5000')
     cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
+    data = False
     try:
         cur.execute(query, parameters)
         logging.info("cur.query: {}".format(cur.query))
@@ -240,8 +244,17 @@ def query_database_insert(query, parameters):
         # Declare the login form
         form = LoginForm(request.form)
         return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
+    logging.info("query_db_insert:cur.rowcount:{}".format(cur.rowcount))
+    if cur.rowcount == -1:
+        data = False
+    else:
+        if cur.rowcount == 0:
+            data = True
+        else:
+            if return_res:
+                data = cur.fetchall()
     cur.close()
-    return True
+    return data
 
 
 def user_perms(project_id, user_type='user'):
@@ -379,13 +392,11 @@ def login():
     # Summary chart
     df = pd.DataFrame(query_database("with d as ("
                         "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
-                    "select "
-                          " date, 'Images' as itype, "
+                    "select date, 'Images' as itype, "
                           " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
                         " from d "
                         " union "
-                        " select date,"
-                          "'Objects' as itype,"
+                        " select date, 'Objects' as itype,"
                           "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
                         " from d "
                         " order by date "
@@ -474,7 +485,7 @@ def login():
     list_projects_md = pd.DataFrame(query_database(
                " SELECT " 
                " p.projects_order, p.project_unit, "
-                        " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"/dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
+                        " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
                " p.project_status, "
                " p.project_manager, "
                                " CASE WHEN to_char(p.project_start, 'YYYY-MM') = to_char(p.project_end, 'YYYY-MM') THEN "
@@ -482,13 +493,6 @@ def login():
                "                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
                                "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
                                "         as project_dates, "
-               " '<div class=\"progress\" style=\"height: 20px;\"><div class=\"progress-bar\" role=\"progressbar\" aria-label=\"Progress of the project\" style=\"width: ' "
-                               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-                               " '%%;\" aria-valuenow=\"'"
-                               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-                               " '\" aria-valuemin=\"0\" aria-valuemax=\"100\">'"
-                               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-                               "'%%</div></div>' as project_progress,"
                " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '**' ELSE "
                                     " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
                " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken, "
@@ -516,7 +520,7 @@ def login():
     list_projects_is = pd.DataFrame(query_database(
                "SELECT "
                " p.projects_order, p.project_unit, "
-               " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"/dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
+               " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
                " p.project_status, "
                " p.project_manager, "
                " CASE WHEN to_char(p.project_start, 'YYYY-MM') = to_char(p.project_end, 'YYYY-MM') THEN "
@@ -524,13 +528,6 @@ def login():
 "                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
                "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
                "         as project_dates, "
-               " '<div class=\"progress\" style=\"height: 20px;\"><div class=\"progress-bar\" role=\"progressbar\" aria-label=\"Progress of the project\" style=\"width: ' "
-               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-               " '%%;\" aria-valuenow=\"'"
-               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-               " '\" aria-valuemin=\"0\" aria-valuemax=\"100\">'"
-               " || coalesce(round((ps.objects_digitized::numeric/ps.collex_to_digitize::numeric) * 100, 2), 0)  ||"
-               "'%%</div></div>' as project_progress,"
                " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) as objects_digitized, "
                " coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) as images_taken, "
                " coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) as images_public "
@@ -645,8 +642,7 @@ def qc_process(folder_id):
             return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = query_database("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                    {'folder_id': folder_id})[0]
-    project_settings = query_database("SELECT qc_percent FROM qc_settings "
-                                   " WHERE project_id = %(project_id)s",
+    project_settings = query_database("SELECT qc_percent FROM qc_settings WHERE project_id = %(project_id)s",
                                    {'project_id': project_id['project_id']})
     if len(project_settings) == 0:
         project_settings= {'qc_percent': 0.1}
@@ -770,9 +766,7 @@ def qc_process(folder_id):
                 folder = query_database(
                             "SELECT * FROM folders "
                             "       WHERE folder_id IN ("
-                            "               SELECT folder_id "
-                            "                   FROM files "
-                            "                   WHERE file_id = %(file_id)s)",
+                            "               SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
                             {'file_id': file_qc['file_id']})[0]
 
                 return render_template('qc_file.html',
@@ -1292,14 +1286,14 @@ def project_update(project_alias):
     project_id = project['project_id']
     if p_desc != '':
         project = query_database("UPDATE projects SET "
-                                 "   project_description = %(p_desc)s, "
+                                 "   project_description = %(p_desc)s "
                                  " WHERE project_alias = %(project_alias)s"
                                  " RETURNING project_id ",
                                  {'p_desc': p_desc,
                                   'project_alias': project_alias})
     if p_url != '':
         project = query_database("UPDATE projects SET "
-                             "   project_url = %(p_url)s, "
+                             "   project_url = %(p_url)s "
                              " WHERE project_alias = %(project_alias)s"
                              " RETURNING project_id ",
                              {'p_url': p_url,
@@ -1412,30 +1406,44 @@ def dashboard_f(project_id=None, folder_id=None):
                                    {'project_id': project_id})
     project_stats['total'] = format(int(project_total[0]['no_files']), ',d')
     project_ok = query_database("WITH "
-                                "folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s), "
-                                "files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id), "
-                                "data AS (SELECT "
-                                "       f.file_id, sum(check_results) as check_results "
-                                "       FROM file_checks f, files_q q "
-                                "       WHERE f.file_id = q.file_id "
-                                "   GROUP BY f.file_id) "
-                                " SELECT count(file_id) as no_files "
-                                " FROM data WHERE check_results = 0",
+                                " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s)," 
+                                " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checklist as (select c.file_check, f.file_id from checks c, files_q f)," 
+                                " data AS ("
+                                       "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results" 
+		                               " FROM" 
+                                       " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                       " group by c.file_id)"
+                                "SELECT count(file_id) as no_files FROM data WHERE check_results = 0",
                                    {'project_id': project_id})
     project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
-    project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
-                                 "= 1 AND "
-                                 "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))",
+    project_err = query_database("WITH "
+                                " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s)," 
+                                " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checklist as (select c.file_check, f.file_id from checks c, files_q f)," 
+                                " data AS ("
+                                       "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results" 
+		                               " FROM" 
+                                       " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                 "      WHERE check_results = 1"
+                                       " group by c.file_id)"
+                                "SELECT count(file_id) as no_files FROM data WHERE check_results != 0",
                                    {'project_id': project_id})
     project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
-    project_running = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE "
-                                   "check_results "
-                                 "= 9 AND "
-                                 "file_id in (" 
-                                 "SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders "
-                                 "WHERE project_id = %(project_id)s))",
+    project_pending = query_database("WITH "
+                                 " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                 " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                 " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                 " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                 " data AS ("
+                                 "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
+                                 " FROM"
+                                 " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
+                                 " SELECT count(distinct file_id) as no_files FROM data where check_results = 9",
                                  {'project_id': project_id})
-    project_stats['running'] = format(int(project_running[0]['no_files']), ',d')
+    project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
     project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
                                     " project_id = %(project_id)s",
                                     {'project_id': project_id})
@@ -1653,18 +1661,6 @@ def dashboard_f(project_id=None, folder_id=None):
             'no_errors': 0
         }
         post_processing_df = pd.DataFrame()
-    if int(project_ok[0]['no_files']) > 0:
-        project_stats['ok_percent'] = round((int(project_ok[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['ok_percent'] = 0
-    if int(project_err[0]['no_files']) > 0:
-        project_stats['error_percent'] = round((int(project_err[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['error_percent'] = 0
-    if int(project_running[0]['no_files']) > 0:
-        project_stats['running_percent'] = round((int(project_running[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['running_percent'] = 0
     if current_user.is_authenticated:
         user_name = current_user.name
         is_admin = user_perms('', user_type='admin')
@@ -1781,30 +1777,44 @@ def dashboard(project_id):
                                    {'project_id': project_id})
     project_stats['total'] = format(int(project_total[0]['no_files']), ',d')
     project_ok = query_database("WITH "
-                                "folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s), "
-                                "files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id), "
-                                "data AS (SELECT "
-                                "       f.file_id, sum(check_results) as check_results "
-                                "       FROM file_checks f, files_q q "
-                                "       WHERE f.file_id = q.file_id "
-                                "   GROUP BY f.file_id) "
-                                " SELECT count(file_id) as no_files "
-                                " FROM data WHERE check_results = 0",
+                                " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                " data AS ("
+                                "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
+                                " FROM"
+                                " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                " group by c.file_id)"
+                                "SELECT count(file_id) as no_files FROM data WHERE check_results = 0",
                                 {'project_id': project_id})
     project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
-    project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
-                                 "= 1 AND "
-                                 "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))",
-                                   {'project_id': project_id})
-    project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
-    project_running = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE "
-                                   "check_results "
-                                 "= 9 AND "
-                                 "file_id in (" 
-                                 "SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders "
-                                 "WHERE project_id = %(project_id)s))",
+    project_err = query_database("WITH "
+                                 " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                 " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                 " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                 " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                 " data AS ("
+                                 "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
+                                 " FROM"
+                                 " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                 "      WHERE check_results = 1"
+                                 " group by c.file_id)"
+                                 "SELECT count(file_id) as no_files FROM data WHERE check_results != 0",
                                  {'project_id': project_id})
-    project_stats['running'] = format(int(project_running[0]['no_files']), ',d')
+    project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
+    project_pending = query_database("WITH "
+                                     " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                     " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                     " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                     " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                     " data AS ("
+                                     "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
+                                     " FROM"
+                                     " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
+                                     " SELECT count(distinct file_id) as no_files FROM data where check_results = 9",
+                                     {'project_id': project_id})
+    project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
     project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
                                     " project_id = %(project_id)s",
                                     {'project_id': project_id})
@@ -1822,7 +1832,7 @@ def dashboard(project_id):
                                      " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
                                      "WHERE f.project_id = %(project_id)s ORDER BY "
                                      "f.date DESC, f.project_folder DESC",
-                                 {'project_id': project_id})
+                                     {'project_id': project_id})
     folder_name = None
     folder_qc = {
         'qc_status': "QC Pending",
@@ -1839,18 +1849,6 @@ def dashboard(project_id):
         'no_errors': 0
     }
     post_processing_df = pd.DataFrame()
-    if int(project_ok[0]['no_files']) > 0:
-        project_stats['ok_percent'] = round((int(project_ok[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['ok_percent'] = 0
-    if int(project_err[0]['no_files']) > 0:
-        project_stats['error_percent'] = round((int(project_err[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['error_percent'] = 0
-    if int(project_running[0]['no_files']) > 0:
-        project_stats['running_percent'] = round((int(project_running[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-    else:
-        project_stats['running_percent'] = 0
     if current_user.is_authenticated:
         user_name = current_user.name
         is_admin = user_perms('', user_type='admin')
@@ -1864,8 +1862,7 @@ def dashboard(project_id):
     folder_qc = None
 
     # Reports
-    reports = query_database("SELECT * FROM data_reports WHERE project_id = %(project_id)s",
-                                  {'project_id': project_id})
+    reports = query_database("SELECT * FROM data_reports WHERE project_id = %(project_id)s", {'project_id': project_id})
 
     if len(reports) > 0:
         proj_reports = True
@@ -2101,33 +2098,43 @@ def file(file_id):
             return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
                            site_env=site_env), 400
     folder_info = query_database("SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
-                         {'file_id': file_id})[0]
-    project_alias = query_database("SELECT COALESCE(project_alias, project_id::text) as project_id FROM projects "
-                                   " WHERE project_id = %(project_id)s",
-                   {'project_id': folder_info['project_id']})[0]
-    project_alias = project_alias['project_id']
+                   {'file_id': file_id})
+    if len(folder_info) == 0:
+        error_msg = "Invalid File ID."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None,
+                               site_env=site_env), 400
+    else:
+        folder_info = folder_info[0]
     file_details = query_database("WITH data AS ("
                                   "         SELECT file_id, "
                                   "             COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
                                   "             folder_id, file_name, dams_uan "
                                   "             FROM files "
-                              "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
+                                  "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
                                   " UNION "
                                   "         SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, folder_id, file_name, dams_uan "
                                   "             FROM files "
-                              "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
+                                  "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
                                   "             ORDER BY file_name"
                                   "),"
-                              "data2 AS (SELECT file_id, preview_image, folder_id, file_name, dams_uan, "
-                              "         lag(file_id,1) over (order by file_name) prev_id,"
-                              "         lag(file_id,-1) over (order by file_name) next_id "
-                              " FROM data)"
-                              " SELECT "
+                                  "data2 AS (SELECT file_id, preview_image, folder_id, file_name, dams_uan, "
+                                  "         lag(file_id,1) over (order by file_name) prev_id,"
+                                  "         lag(file_id,-1) over (order by file_name) next_id "
+                                  " FROM data)"
+                                  " SELECT "
                                   " file_id, "
                                   "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE preview_image || '?' END AS preview_image, "
                                   " folder_id, file_name, dams_uan, prev_id, next_id "
                                   "FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
-                              {'folder_id': folder_info['folder_id'], 'file_id': file_id, 'preview': settings.jpg_previews})[0]
+                                  {'folder_id': folder_info['folder_id'], 'file_id': file_id,
+                                   'preview': settings.jpg_previews})
+
+    file_details = file_details[0]
+    project_alias = query_database("SELECT COALESCE(project_alias, project_id::text) as project_id FROM projects "
+                                   " WHERE project_id = %(project_id)s",
+                   {'project_id': folder_info['project_id']})[0]
+    project_alias = project_alias['project_id']
+
     file_checks = query_database("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
                                             " ELSE check_info END AS check_info "
                                             " FROM file_checks WHERE file_id = %(file_id)s",
@@ -2505,7 +2512,8 @@ def api_get_project_details(project_alias=None):
                                      "error_info, "
                                      "to_char(date, 'YYYY-MM-DD') as capture_date, "
                                      "no_files, "
-                                     "file_errors "
+                                     "file_errors, "
+                                     " CASE WHEN delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams "
                                  "FROM folders WHERE project_id = %(project_id)s",
                               {'project_id': data[0]['project_id']})
         data[0]['folders'] = folders
@@ -2533,7 +2541,7 @@ def api_get_project_details(project_alias=None):
     return jsonify(data[0])
 
 
-@app.route('/api/update/projects/<project_alias>', methods=['POST'], strict_slashes=False)
+@app.route('/api/update/<project_alias>', methods=['POST'], strict_slashes=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
     api_key = request.form.get("api_key")
@@ -2543,28 +2551,127 @@ def api_update_project_details(project_alias=None):
     else:
         if validate_api_key(api_key):
             # Value to update
-            proj_property = request.form.get("property")
-            value = request.form.get("value")
-            if property != "" and value != "":
-                if proj_property == "checks":
-                    column = "project_checks"
-                elif proj_property == "post":
-                    column = "project_postprocessing"
-                elif proj_property == "storage":
-                    column = "project_datastorage"
+            query_type = request.form.get("type")
+            query_property = request.form.get("property")
+            query_value = request.form.get("value")
+            if query_type is not None and query_property is not None and query_value is not None:
+                if query_type == "project":
+                    if query_property == "checks":
+                        column = "project_checks"
+                    elif query_property == "post":
+                        column = "project_postprocessing"
+                    elif query_property == "storage":
+                        column = "project_datastorage"
+                    else:
+                        raise InvalidUsage('Invalid operation', status_code=401)
+                    query = sql.SQL("UPDATE projects SET {field} = %s WHERE project_alias = %s").format(
+                        field=sql.Identifier(column))
+                    res = query_database_insert(query, (query_value, project_alias))
+                    return jsonify({"result": True})
+                if query_type == "folder":
+                    folder_id = request.form.get("folder_id")
+                    if folder_id is not None:
+                        if query_property == "status0":
+                            query = sql.SQL("UPDATE folders SET status = 0, error_info = NULL WHERE folder_id = %s")
+                            res = query_database_insert(query, (folder_id, ))
+                        elif query_property == "status9":
+                            query = sql.SQL("UPDATE folders SET status = 9, error_info = %s WHERE folder_id = %s")
+                            res = query_database_insert(query, (query_value, folder_id))
+                        elif query_property == "status1":
+                            query = sql.SQL("UPDATE folders SET status = 1, error_info = %s WHERE folder_id = %s")
+                            res = query_database_insert(query, (query_value, folder_id))
+                        elif query_property == "stats":
+                            query = sql.SQL("UPDATE folders f SET no_files = d.no_files FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 1) d WHERE f.folder_id = d.folder_id")
+                            res = query_database_insert(query, (folder_id, ))
+                            query = sql.SQL("UPDATE folders f SET file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 9) d WHERE f.folder_id = d.folder_id")
+                            res = query_database_insert(query, (folder_id, ))
+                            query = sql.SQL("UPDATE folders f SET no_files = d.no_files FROM (SELECT count(*) AS no_files, folder_id FROM files WHERE folder_id = %s GROUP BY folder_id) d WHERE f.folder_id = d.folder_id")
+                            res = query_database_insert(query, (folder_id, ))
+                        elif query_property == "md50":
+                            query = sql.SQL("INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%s, %s, 0) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = 0")
+                            res = query_database_insert(query, (folder_id, query_value))
+                        elif query_property == "md51":
+                            query = sql.SQL("INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%s, %s, 1) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = 1")
+                            res = query_database_insert(query, (folder_id, query_value))
+                        elif query_property == "raw0":
+                            query = sql.SQL("INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%s, %s, 0) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = 0")
+                            res = query_database_insert(query, (folder_id, query_value))
+                        elif query_property == "raw1":
+                            query = sql.SQL("INSERT INTO folders_md5 (folder_id, md5_type, md5) VALUES (%s, %s, 1) ON CONFLICT (folder_id, md5_type) DO UPDATE SET md5 = 1")
+                            res = query_database_insert(query, (folder_id, query_value))
+                        else:
+                            raise InvalidUsage('Invalid operation', status_code=401)
+                        return jsonify({"result": True})
+                if query_type == "file":
+                    file_id = request.form.get("file_id")
+                    if query_property == "filechecks":
+                        # Add to server side:
+                        #  - valid_name
+                        #  - dupe_elsewhere
+                        #  - md5
+                        folder_id = request.form.get("folder_id")
+                        file_check = request.form.get("file_check")
+                        check_results = query_value
+                        check_info = request.form.get("check_info")
+                        query = sql.SQL("INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) VALUES (%s, %s, %s, %s, %s, NOW()) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
+                        logging.info(query)
+                        res = query_database_insert(query, (file_id, folder_id, file_check, check_results, check_info, check_results, check_info))
+                        logging.info(res)
+                    elif query_property == "filemd5":
+                        filetype = request.form.get("filetype")
+                        folder_id = request.form.get("folder_id")
+                        query = sql.SQL("INSERT INTO file_md5 (file_id, filetype, md5) VALUES (%s, %s, %s) ON CONFLICT (file_id, filetype) DO UPDATE SET md5 = %s")
+                        res = query_database_insert(query, (file_id, filetype, query_value, query_value))
+                        # Check for the same MD5 in another file
+                        query = sql.SQL(
+                            "SELECT f.file_id, f.file_name, fol.project_folder FROM files f, file_md5 m, folders fol WHERE f.folder_id = fol.folder_id AND f.file_id = m.file_id AND m.filetype='tif' and m.md5 = %s and f.file_id != %s and fol.project_id != 131")
+                        res = query_database(query, (query_value, file_id))
+                        logging.info("AAAA {}".format(res))
+                        if len(res) == 0:
+                            check_results = 0
+                            check_info = ""
+                        elif len(res) == 1:
+                            check_results = 1
+                            conflict_file = res[0]['file_name']
+                            conflict_folder = res[0]['project_folder']
+                            check_info = "File with the same MD5 hash in folder: {}".format(conflict_folder)
+                        else:
+                            check_results = 1
+                            conflict_folder = []
+                            for row in res:
+                                conflict_folder.append('/'.join([row['project_folder'], row['file_name']]))
+                            conflict_folder = ', '.join(conflict_folder)
+                            check_info = "Files with the same MD5 hash: {}".format(conflict_folder)
+                        query = sql.SQL(
+                            "INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                            "VALUES (%s, %s, 'md5', %s, %s, NOW()) ON CONFLICT "
+                            "(file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
+                        res = query_database_insert(query, (file_id, folder_id, check_results, check_info, check_results, check_info))
+                    elif query_property == "exif":
+                        filetype = request.form.get("filetype")
+                        for line in query_value.splitlines():
+                            # Non utf, ignore for now
+                            try:
+                                tag = re.split(r'\t+', line)
+                                query = sql.SQL("INSERT INTO files_exif (file_id, filetype, tagid, taggroup, tag, value) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (file_id, filetype, tag) DO UPDATE SET value = %s")
+                                logging.info(query)
+                                res = query_database_insert(query, (file_id, filetype, tag[1], tag[0], tag[3], tag[2], tag[2]))
+                                logging.info(res)
+                            except Exception as e:
+                                logging.info("exif: {} {}".format(file_id, e))
+                                continue
+                    else:
+                        raise InvalidUsage('Invalid value for property', status_code=400)
+                    return jsonify({"result": True})
                 else:
-                    raise InvalidUsage('Invalid operation', status_code=401)
-                query = sql.SQL("UPDATE projects SET {field} = %s WHERE project_alias = %s").format(
-                    field=sql.Identifier(column))
-                data = query_database_insert(query, (value, project_alias))
-                return jsonify({"result": True})
+                    raise InvalidUsage('Invalid value for type', status_code=400)
             else:
                 raise InvalidUsage('Missing args', status_code=400)
         else:
             raise InvalidUsage('Unauthorized', status_code=401)
 
 
-@app.route('/api/new/folder/<project_alias>', methods=['POST'], strict_slashes=False)
+@app.route('/api/new/<project_alias>', methods=['POST'], strict_slashes=False)
 def api_new_folder(project_alias=None):
     """Update a project properties."""
     api_key = request.form.get("api_key")
@@ -2573,24 +2680,83 @@ def api_new_folder(project_alias=None):
         raise InvalidUsage('Missing key', status_code=401)
     else:
         if validate_api_key(api_key):
+            # Get project_id
+            results = query_database("SELECT project_id from projects WHERE project_alias = %(project_alias)s",
+                                 {'project_alias': project_alias})
+            project_id = results[0]['project_id']
             # New folder info
-            folder = request.form.get("folder")
-            folder_path = request.form.get("folder_path")
-            if folder is not None and folder_path is not None:
-                query = sql.SQL(
-                    "INSERT INTO folders (project_folder, path, status, project_id) VALUES (%(project_folder)s, %(folder_path)s, 9, %(project_id)s) RETURNING folder_id"
-                    
-                    "UPDATE projects SET {field} = %s WHERE project_alias = %s").format(
-                    field=sql.Identifier(column))
-                data = query_database_insert(query, (value, project_alias))
-                return jsonify({"result": True})
+            query_type = request.form.get("type")
+            if query_type is not None:
+                if query_type == "folder":
+                    folder = request.form.get("folder")
+                    folder_path = request.form.get("folder_path")
+                    project_id = request.form.get("project_id")
+                    folder_date = request.form.get("folder_date")
+                    if folder is not None and folder_path is not None:
+                        query = sql.SQL("INSERT INTO folders (project_folder, path, status, project_id, date) VALUES (%s, %s, 0, %s, %s) RETURNING folder_id")
+                        logging.info("2673:{}".format(query))
+                        data = query_database_insert(query, (folder, folder_path, project_id, folder_date), return_res=True)
+                        logging.info("data 2675: {}".format(data))
+                        return jsonify({"result": data})
+                    else:
+                        raise InvalidUsage('Missing args', status_code=400)
+                elif query_type == "file":
+                    filename = request.form.get("filename")
+                    timestamp = request.form.get("timestamp")
+                    folder_id = request.form.get("folder_id")
+                    if filename is not None and timestamp is not None and folder_id is not None:
+                        query = sql.SQL("INSERT INTO files (folder_id, file_name, file_timestamp) VALUES (%s, %s, %s) RETURNING file_id")
+                        data = query_database_insert(query, (folder_id, filename, timestamp), return_res=True)
+                        logging.debug("new_file:{}".format(data))
+                        file_id = data[0]['file_id']
+                        # Check for unique file
+                        query = sql.SQL("SELECT f.file_id, fol.project_folder FROM files f, folders fol WHERE f.folder_id = fol.folder_id AND f.file_name = %s AND f.folder_id != %s"
+                                        " AND f.folder_id IN (SELECT folder_id from folders where project_id = %s)")
+                        res = query_database(query, (filename, folder_id, project_id))
+                        logging.info("2733: {}".format(len(res)))
+                        if len(res) == 0:
+                            check_results = 0
+                            check_info = ""
+                        elif len(res) == 1:
+                            check_results = 1
+                            conflict_folder = res[0]['project_folder']
+                            check_info = "File with the same name in folder: {}".format(conflict_folder)
+                        else:
+                            check_results = 1
+                            conflict_folder = []
+                            for row in res:
+                                conflict_folder.append(row['project_folder'])
+                            conflict_folder = ', '.join(conflict_folder)
+                            check_info = "Files with the same name in folders: {}".format(conflict_folder)
+                        query = sql.SQL(
+                            "INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                            "VALUES (%s, %s, 'unique_file', %s, %s, NOW()) ON CONFLICT "
+                            "(file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
+                        res = query_database_insert(query, (file_id, folder_id, check_results, check_info, check_results, check_info))
+                        return jsonify({"result": data})
+                    else:
+                        raise InvalidUsage('Missing args', status_code=400)
+                elif query_type == "filesize":
+                    file_id = request.form.get("file_id")
+                    filetype = request.form.get("filetype")
+                    filesize = request.form.get("filesize")
+                    if file_id is not None and filetype is not None and filesize is not None:
+                        query = sql.SQL("INSERT INTO files_size (file_id, filetype, filesize) VALUES (%s, %s, %s) ON CONFLICT (file_id, filetype) DO UPDATE SET filesize = %s")
+                        logging.info("2697:{}".format(query))
+                        data = query_database_insert(query, (file_id, filetype, filesize, filesize))
+                        logging.info("2699:{}".format(query))
+                        return jsonify({"result": data})
+                    else:
+                        raise InvalidUsage('Missing args', status_code=400)
+                else:
+                    raise InvalidUsage('Invalid value for type', status_code=400)
             else:
                 raise InvalidUsage('Missing args', status_code=400)
         else:
             raise InvalidUsage('Unauthorized', status_code=401)
 
 
-@app.route('/api/folders/<folder_id>', methods=['GET'], strict_slashes=False)
+@app.route('/api/folders/<folder_id>', methods=['GET', 'POST'], strict_slashes=False)
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
     data = query_database("SELECT "
@@ -2605,6 +2771,9 @@ def api_get_folder_details(folder_id=None):
                              "file_errors "
                              "FROM folders WHERE folder_id = %(folder_id)s",
                              {'folder_id': folder_id})
+    project_id = query_database("SELECT project_id FROM folders WHERE folder_id = %(folder_id)s",
+                          {'folder_id': folder_id})
+    project_id = project_id[0]['project_id']
     if data is not None:
         files_data = []
         files = query_database("SELECT "
@@ -2619,15 +2788,13 @@ def api_get_folder_details(folder_id=None):
                                  "FROM files WHERE folder_id = %(folder_id)s",
                               {'folder_id': folder_id})
         for file in files:
-            # file_checks = query_database("SELECT check_info, check_results, file_check, updated_at::timestamp "
-            #                        "FROM file_checks WHERE file_id = %(file_id)s",
-            #                        {'file_id': file['file_id']})
-            file_checks = query_database("SELECT check_results, file_check, updated_at::timestamp "
-                                         "FROM file_checks WHERE file_id = %(file_id)s",
-                                         {'file_id': file['file_id']})
-            # file_post = query_database("SELECT post_step, post_results, post_info, updated_at::timestamp "
-            #                            "FROM file_postprocessing WHERE file_id = %(file_id)s",
-            #                            {'file_id': file['file_id']})
+            file_checks = query_database("WITH " 
+				  " files_q as (SELECT file_id FROM files WHERE file_id = %(file_id)s ),"
+				  " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+				  " checklist as (select c.file_check, f.file_id from checks c, files_q f)"
+				  " SELECT coalesce(f.check_results, 9) as check_results, c.file_check, f.updated_at::timestamp" 
+				  " FROM checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)",
+                                         {'file_id': file['file_id'], 'project_id': project_id})
             file_post = query_database("SELECT post_step, post_results, updated_at::timestamp "
                                        "FROM file_postprocessing WHERE file_id = %(file_id)s",
                                        {'file_id': file['file_id']})
@@ -2693,7 +2860,6 @@ def api_get_file_details(file_id=None):
     return jsonify(data[0])
 
 
-
 @app.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False)
 @cache.memoize()
 def api_get_report(report_id=None):
@@ -2723,6 +2889,9 @@ def data_reports_form():
 @app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], strict_slashes=False)
 def data_reports(project_alias=None, report_id=None):
     """Report of a project"""
+
+    # Declare the login form
+    form = LoginForm(request.form)
 
     if project_alias is None:
         error_msg = "Project is not available."
@@ -2779,8 +2948,6 @@ def data_reports(project_alias=None, report_id=None):
                        )
 
 
-
-
 #####################################
 if __name__ == '__main__':
-    app.run( )
+    app.run()

@@ -1040,7 +1040,7 @@ create table data_reports (
     report_title text NOT NULL,
 	report_title_brief text,
     query text NOT NULL,
-    query_api text NOT NULL,
+    query_api text NOT NULL,
     query_updated text NOT NULL,
     updated_at timestamp with time zone DEFAULT NOW()
 );
@@ -1075,7 +1075,3 @@ CREATE TRIGGER trigger_api_keys
   EXECUTE PROCEDURE updated_at_files();
 
 
-
-
-
-8d28814a59a445d1b8c69d0547cf4f43

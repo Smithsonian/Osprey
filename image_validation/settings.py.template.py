@@ -2,8 +2,8 @@
 project_id = ""
 
 
-# List of paths where the folders are stored
-project_paths = []
+# Path where the folders are stored
+project_datastorage = ""
 
 
 # Temp folder, usually /tmp
@@ -15,6 +15,11 @@ tmp_folder = "/tmp"
 main_files_path = "tifs"
 raw_files_path = "raws"
 derivative_files_path = "jpgs"
+
+
+# API location
+api_url = ""
+api_key = ""
 
 
 # Postgres database and rw user,
@@ -35,8 +40,7 @@ def folder_date(folder_name):
 ####################################################################
 # Project checks to run
 ####################################################################
-project_file_checks = ["raw_pair", "unique_file", "jhove", "magick",
-                       "tifpages", "tif_compression", "md5_hash"]
+project_file_checks = ["raw_pair", "unique_file", "jhove", "tifpages", "tif_compression", "md5_hash"]
 # The options are:
 #
 # - raw_pair: Is there a raw file in the 'raw_files_path'
@@ -44,7 +48,6 @@ project_file_checks = ["raw_pair", "unique_file", "jhove", "magick",
 # - unique_file: Name is not repeated in the project
 # - dupe_elsewhere: Check name against the dupe_elsewhere table, from other projects and DAMS
 # - jhove: Run jhove validation
-# - magick: Run imagemagick validation
 # - tifpages: Check the number of pages in the tif, typically a thumbnail
 # - tif_compression: Check if tif is compressed using LZW
 # - derivative: Check for a derivative file in 'derivative_files_path'
@@ -54,6 +57,11 @@ project_file_checks = ["raw_pair", "unique_file", "jhove", "magick",
 # - prefix: Filename has the required prefix
 # - suffix: Filename has the required suffix
 # - stitched_jpg: There is a stitched JPG of two other files, settings below
+#
+#
+# Post-processing steps:
+#
+project_postprocessing = ["ready_for_dams", "in_dams", "public"]
 ####################################################################
 
 
@@ -79,8 +87,12 @@ filename_pattern_query = "SELECT COUNT(*) as no_records FROM (SELECT file_name F
 sleep = 180
 
 
-# Path for JHOVE in system
-jhove_path = "/usr/local/bin/jhove"
+# Path for programs in the system
+jhove = "/usr/local/bin/jhove"
+exiftool = "exiftool"
+
+
+tmp_folder = "/tmp"
 
 
 # Path of where to save the JPG previews and size

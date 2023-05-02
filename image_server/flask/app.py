@@ -198,7 +198,7 @@ def get_preview(file_id=None):
                     hsize = int((float(img.size[1]) * float(wpercent)))
                     img = img.resize((int(width), hsize), Image.ANTIALIAS)
                     filename = "/tmp/{}_{}.jpg".format(file_id, width)
-                    img.save(filename)
+                    img.save(filename, icc_profile=img.info.get('icc_profile'))
                 else:
                     filename = "static/na.jpg"
         except:

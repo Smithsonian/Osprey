@@ -11,3 +11,5 @@ secret_key = b''
 
 # dev or prod
 env = "dev"
+
+log_folder = ""

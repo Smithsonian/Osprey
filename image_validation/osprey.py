@@ -9,16 +9,14 @@
 # Import modules
 ############################################
 import logging
-import logging.handlers
-from logging.handlers import RotatingFileHandler
+# import logging.handlers
+# from logging.handlers import RotatingFileHandler
 import time
-from subprocess import run
-import random
-import sys
-import os
+# import random
+# import sys
+# import os
 
-# For Postgres
-import psycopg2
+# import requests
 
 # Import settings from settings.py file
 import settings
@@ -26,10 +24,7 @@ import settings
 # Import helper functions
 from functions import *
 
-# Import queries from queries.py file
-import queries
-
-ver = "1.2.0"
+ver = "2.0.0"
 
 ############################################
 # Logging
@@ -45,9 +40,7 @@ if not os.path.exists(logfile_folder):
 logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                    datefmt='%m-%d %H:%M:%S',
-                    handlers=[RotatingFileHandler(logfile, maxBytes=10000000,
-                                                  backupCount=100)])
+                    datefmt='%m-%d %H:%M:%S')
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
@@ -68,15 +61,12 @@ else:
 ############################################
 # Check requirements
 ############################################
-if check_requirements(settings.jhove_path) is False:
+if check_requirements(settings.jhove) is False:
     logger.error("JHOVE was not found")
     sys.exit(1)
 
-if check_requirements('identify') is False:
-    logger.error("Imagemagick was not found")
-    sys.exit(1)
 
-if check_requirements('exiftool') is False:
+if check_requirements(settings.exiftool) is False:
     logger.error("exiftool was not found")
     sys.exit(1)
 
@@ -86,51 +76,63 @@ if check_requirements('exiftool') is False:
 ############################################
 def main():
     # Check that the paths are valid dirs and are mounted
-    for p_path in settings.project_paths:
-        if not os.path.isdir(p_path):
-            logger.error("Path not found: {}".format(p_path))
-            continue
-    # Connect to the database
-    logger.debug("Connecting to database")
-    try:
-        conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                password=settings.db_password, connect_timeout=60)
-        conn.autocommit = True
-        db_cursor = conn.cursor()
-    except psycopg2.Error as e:
-        logger.error("Database error: {}".format(e))
+    if not os.path.isdir(settings.project_datastorage):
+        logger.error("Path not found: {}".format(settings.project_datastorage))
         sys.exit(1)
-    # Clear project shares
-    # db_cursor.execute(queries.remove_shares, {'project_id': settings.project_id})
-    # logger.debug(db_cursor.query.decode("utf-8"))
     # Update project
-    db_cursor.execute(queries.update_projectchecks, {'project_file_checks': ','.join(settings.project_file_checks),
-                                                     'project_id': settings.project_id})
-    logger.debug(db_cursor.query.decode("utf-8"))
+    payload = {'api_key': settings.api_key}
+    r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload)
+    if r.status_code != 200:
+        # Something went wrong
+        query_results = json.loads(r.text.encode('utf-8'))
+        logger.error("API Returned Error: {}".format(query_results))
+        sys.exit(1)
+    project_info = json.loads(r.text.encode('utf-8'))
+    # If project_checks are different here, update the database
+    project_checks = ','.join([','.join(settings.project_file_checks), 'unique_file', 'md5'])
+    if project_info['project_checks'] != project_checks:
+        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'checks', 'value': project_checks}
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            sys.exit(1)
+    # If project_postprocessing are different here, update the database
+    if project_info['project_postprocessing'] != ','.join(settings.project_postprocessing):
+        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'post', 'value': ','.join(settings.project_postprocessing)}
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            sys.exit(1)
+    # If project_datastorage is different here, update the database
+    if project_info['project_datastorage'] != settings.project_datastorage:
+        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'storage',
+                   'value': settings.project_datastorage}
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                          data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            sys.exit(1)
     # Loop each project path
-    for project_path in settings.project_paths:
-        logger.debug('project_path: {}'.format(project_path))
-        # Generate list of folders in the path
-        folders = []
-        for entry in os.scandir(project_path):
-            if entry.is_dir():
-                folders.append(entry.path)
-            else:
-                logger.error("Extraneous files in: {}".format(entry.path))
-                logger.info("Leaving program")
-                sys.exit(1)
-        # No folders found
-        if len(folders) == 0:
-            logger.info("No folders found in: {}".format(project_path))
-            continue
-        # Shuffle folders
-        random.shuffle(folders)
-        # Check each folder
-        for folder in folders:
-            # run_checks_folder(settings.project_id, folder, db_cursor, logger)
-            run_checks_folder_p(settings.project_id, folder, logfile_folder, db_cursor, logger)
-    # Disconnect from db
-    conn.close()
+    logger.debug('project_path: {}'.format(settings.project_datastorage))
+    # Generate list of folders in the path
+    folders = []
+    for entry in os.scandir(settings.project_datastorage):
+        if entry.is_dir() and entry.path != settings.project_datastorage:
+            print(entry)
+            folders.append(entry.path)
+        else:
+            logger.error("Extraneous files in: {}".format(entry.path))
+            sys.exit(1)
+    # No folders found
+    if len(folders) == 0:
+        logger.info("No folders found in: {}".format(settings.project_datastorage))
+        return
+    # Check each folder
+    for folder in folders:
+        run_checks_folder_p(project_info, folder, logfile_folder, logger)
     return
 
 
@@ -167,18 +169,7 @@ if __name__ == "__main__":
                         sys.exit(9)
                     else:
                         print(out)
-                if settings.sleep is None:
-                    try:
-                        # Clear running folders
-                        conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                                 password=settings.db_password, connect_timeout=60)
-                        conn2.autocommit = True
-                        db_cursor2 = conn2.cursor()
-                        db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE project_id = %(project_id)s",
-                                           {'project_id': settings.project_id})
-                        conn2.close()
-                    except Exception as e:
-                        logging.error("Error: {}".format(e))
+                if settings.sleep is False:
                     logger.info("Process completed!")
                     compress_log()
                     sys.exit(0)
@@ -188,36 +179,11 @@ if __name__ == "__main__":
                     time.sleep(settings.sleep)
                     continue
             except KeyboardInterrupt:
-                # print("Ctrl-c detected. Leaving program.")
                 logger.info("Ctrl-c detected. Leaving program.")
-                try:
-                    # Clear running folders
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                             password=settings.db_password, connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE project_id = %(project_id)s",
-                                       {'project_id': settings.project_id})
-                    conn2.close()
-                except Exception as e:
-                    logging.error("Error: {}".format(e))
-                # Compress logs
                 compress_log()
                 sys.exit(0)
             except Exception as e:
                 logger.error("There was an error: {}".format(e))
-                try:
-                    # Clear running folders
-                    conn2 = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user,
-                                             password=settings.db_password, connect_timeout=60)
-                    conn2.autocommit = True
-                    db_cursor2 = conn2.cursor()
-                    db_cursor2.execute("UPDATE folders SET processing = 'f' WHERE project_id = %(project_id)s",
-                                       {'project_id': settings.project_id})
-                    conn2.close()
-                except Exception as e:
-                    logging.error("Error: {}".format(e))
-                # Compress logs
                 compress_log()
                 sys.exit(1)
 
