@@ -26,6 +26,7 @@ if len(sys.argv) == 3:
     export_to = sys.argv[2]
 elif len(sys.argv) == 2:
     export_to = sys.argv[1]
+    folder_id = None
 else:
     print("Usage: ./export_jpgs.py [folder_id] [destination]")
     sys.exit(1)
