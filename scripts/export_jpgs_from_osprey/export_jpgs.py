@@ -24,9 +24,11 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 if len(sys.argv) == 3:
     folder_id = sys.argv[1]
     export_to = sys.argv[2]
+elif len(sys.argv) == 2:
+    export_to = sys.argv[1]
 else:
-    folder_id = None
-    export_to = settings.project_id
+    print("Usage: ./export_jpgs.py [folder_id] [destination]")
+    sys.exit(1)
 
 
 ############################################
