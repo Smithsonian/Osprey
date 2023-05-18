@@ -22,11 +22,12 @@ import json
 import time
 from uuid import UUID
 
-import psycopg2
-import psycopg2.extras
-import psycopg2.extensions
-from psycopg2 import sql
+# psycopg3
+# import psycopg
+# from psycopg import sql
 
+# MySQL
+import pymysql
 
 from flask_login import LoginManager
 from flask_login import login_required
@@ -49,7 +50,7 @@ import plotly.express as px
 
 import settings
 
-site_ver = "2.3.2"
+site_ver = "2.4.0"
 site_env = settings.env
 
 cur_path = os.path.abspath(os.getcwd())
@@ -130,20 +131,38 @@ def sys_error(e):
 
 
 # Database
+# try:
+#     conn = psycopg.connect(
+#         "postgresql://{}:{}@{}/{}".format(settings.user, settings.password, settings.host,
+#                                           settings.database))
+#     conn.autocommit = True
+#     cur = conn.cursor(row_factory=psycopg.rows.dict_row)
+# except psycopg.Error as e:
+#     logging.error(e)
+#     raise InvalidUsage('System error')
+
 try:
-    conn = psycopg2.connect(host=settings.host,
-                            database=settings.database,
+    conn = pymysql.connect(host=settings.host,
                             user=settings.user,
-                            password=settings.password)
-    conn.autocommit = True
-except psycopg2.Error as e:
+                            password=settings.password,
+                            database=settings.database,
+                            port=settings.port,
+                            charset='utf8mb4',
+                            autocommit=True,
+                            cursorclass=pymysql.cursors.DictCursor)
+    # prepare a cursor object using cursor() method
+    cur = conn.cursor()
+except pymysql.Error as e:
     logging.error(e)
     raise InvalidUsage('System error')
 
 
+
+
+
 def validate_api_key(api_key):
     logging.info("api_key: {}".format(api_key))
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('SET statement_timeout = 5000')
     cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     try:
@@ -154,91 +173,82 @@ def validate_api_key(api_key):
     # Run query
     try:
         cur.execute("SELECT key from api_keys WHERE key = %(api_key)s", {'api_key': api_key})
-        logging.info("cur.query: {}".format(cur.query))
+        logging.info("cur.query: {}".format(cur._query))
     except Exception as error:
-        logging.error("cur.query: {}".format(cur.query))
+        logging.error("cur.query: {}".format(cur._query))
         raise InvalidUsage('System error', status_code=500)
     logging.info(cur.rowcount)
     if cur.rowcount == 1:
-        cur.close()
+        # cur.close()
         return True
     else:
-        cur.close()
+        # cur.close()
         return False
 
 
-def query_database(query, parameters=""):
+def query_database(query, parameters=None):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
-    try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    except Exception as error:
-        logging.error("Error: {}".format(error))
-        logging.error("cur.query: {}".format(cur.query))
-        # Declare the login form
-        form = LoginForm(request.form)
-        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
-        # raise InvalidUsage('System error', status_code=500)
-    cur.execute('SET statement_timeout = 10000')
-    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     try:
-        cur.execute(query, parameters)
-        logging.info("cur.query: {}".format(cur.query))
+        if parameters is None:
+            cur.execute(query)
+        else:
+            cur.execute(query, parameters)
+        # logging.info("cur.query: {}".format(cur._query))
     except Exception as error:
         logging.error("Error: {}".format(error))
-        logging.error("cur.query: {}".format(cur.query))
-        # raise InvalidUsage('System error', status_code=500)
-        # Declare the login form
-        form = LoginForm(request.form)
-        return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
+        raise InvalidUsage('System error', status_code=500)
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
         data = None
     else:
         data = cur.fetchall()
-    cur.close()
+    # cur.close()
     return data
 
 
-def query_database_2(query, parameters=""):
+def query_database_2(query, parameters=None):
     logging.info("query: {}".format(query))
     logging.info("parameters: {}".format(parameters))
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute('SET statement_timeout = 5000')
-    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
+    # cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # cur.execute('SET statement_timeout = 5000')
+    # cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     try:
-        cur.execute(query, parameters)
-        logging.info("cur.query: {}".format(cur.query))
+        if parameters is None:
+            cur.execute(query)
+        else:
+            cur.execute(query, parameters)
+        logging.info("cur.query: {}".format(cur._query))
     except Exception as error:
-        logging.error("cur.query: {}".format(cur.query))
+        logging.error("cur.query: {}".format(cur._query))
         # raise InvalidUsage('System error', status_code=500)
         # Declare the login form
         form = LoginForm(request.form)
         return render_template('error.html', form=form, error_msg="System error", project_alias=None), 500
     logging.info(cur.rowcount)
     if cur.rowcount == -1:
-        cur.close()
+        # cur.close()
         return False
     else:
-        cur.close()
+        # cur.close()
         return True
 
 
 def query_database_insert(query, parameters, return_res=False):
     logging.info("query: {}".format(query))
     logging.info("parameters: {}".format(parameters))
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute('SET statement_timeout = 5000')
-    cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
+    # cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # cur.execute('SET statement_timeout = 5000')
+    # cur.execute("SET CLIENT_ENCODING TO 'utf-8'")
     # Run query
     data = False
     try:
         cur.execute(query, parameters)
-        logging.info("cur.query: {}".format(cur.query))
+        logging.info("cur.query: {}".format(cur._query))
     except Exception as error:
-        logging.error("cur.query: {}".format(cur.query))
+        logging.error("cur.query: {}".format(cur._query))
         logging.error("error: {}".format(error))
         # raise InvalidUsage('System error', status_code=500)
         # Declare the login form
@@ -253,7 +263,7 @@ def query_database_insert(query, parameters, return_res=False):
         else:
             if return_res:
                 data = cur.fetchall()
-    cur.close()
+    # cur.close()
     return data
 
 
@@ -263,16 +273,12 @@ def user_perms(project_id, user_type='user'):
     except:
         return False
     if user_type == 'user':
-        is_user = query_database("SELECT COUNT(*) as is_user "
-                                 "  FROM qc_projects p, qc_users u "
-                                 "  WHERE p.user_id = u.user_id "
-                                 "      AND p.project_id = %(project_id)s "
-                                 "      AND u.username = %(user_name)s",
-                         {'project_id': project_id, 'user_name': user_name})
+        query = sql.SQL("SELECT COUNT(*) as is_user FROM qc_projects p, users u WHERE p.user_id = u.user_id AND p.project_id = %(project_id)s AND u.username = %(user_name)s")
+        is_user = query_database(query, {'project_id': project_id, 'user_name': user_name})
         return is_user[0]['is_user'] == 1
     if user_type == 'admin':
-        is_admin = query_database("SELECT is_admin FROM qc_users WHERE username = %(user_name)s",
-                                 {'user_name': user_name})
+        query = sql.SQL("SELECT is_admin FROM users WHERE username = %(user_name)s")
+        is_admin = query_database(query, {'user_name': user_name})
         return is_admin[0]['is_admin'] == 1
     else:
         return False
@@ -295,8 +301,8 @@ class User(UserMixin):
         self.active = active
 
     def is_active(self):
-        user = query_database("SELECT user_active FROM qc_users WHERE username = %(username)s",
-                              {'username': name})
+        query = sql.SQL("SELECT user_active FROM users WHERE username = %(username)s")
+        user = query_database(query, {'username': name})
         return user
 
     def is_anonymous(self):
@@ -308,10 +314,8 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(username):
-    u = query_database("SELECT username, user_id, user_active, full_name "
-                       "    FROM qc_users "
-                       "    WHERE username = %(username)s",
-                        {'username': username})
+    query = sql.SQL("SELECT username, user_id, user_active, full_name FROM users WHERE username = %(username)s")
+    u = query_database(query, {'username': username})
     if u is None:
         return User(None, None, None, False)
     else:
@@ -344,10 +348,8 @@ def login():
         # assign form data to variables
         username = request.form.get('username', '', type=str)
         password = request.form.get('password', '', type=str)
-        user = query_database("SELECT user_id, username, user_active, full_name "
-                              "     FROM qc_users "
-                              "     WHERE username = %(username)s AND pass = MD5(%(password)s)",
-                              {'username': username, 'password': password})
+        query = "SELECT user_id, username, user_active, full_name FROM users WHERE username = %(username)s AND pass = MD5(%(password)s)"
+        user = query_database(query, {'username': username, 'password': password})
         logging.info(user)
         if len(user) == 1:
             logging.info(user[0]['user_active'])
@@ -363,45 +365,50 @@ def login():
         else:
             msg = "Error, user not known or password was incorrect"
             return redirect(url_for('not_user'))
-    projects = query_database("select project_title, project_id, filecheck_link, project_alias, "
-                              "     to_char(project_start, 'Mon-YYYY') as project_start, "
-                              "     to_char(project_end, 'Mon-YYYY') as project_end,"
-                              "     project_unit "
-                              " FROM projects where project_alias is not null "
-                              " ORDER BY projects_order DESC")
+    query = ("select project_title, project_id, project_alias," 
+                       " date_format(project_start, '%b-%Y') as project_start," 
+                       " date_format(project_end, '%b-%Y') as project_end," 
+                     "   project_unit " 
+                   " FROM projects where project_alias is not null" 
+                   " ORDER BY projects_order DESC")
+    projects = query_database(query)
 
     # Last update
-    last_update = query_database("SELECT TO_CHAR(MAX(updated_at), 'DD-Mon-YYYY') AS updated_at FROM projects_stats")
+    last_update = query_database("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats")
 
     # Summary table
-    df = pd.DataFrame(query_database("with d as ("
-                        "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
-                    "select "
-                          " to_char(d1.date, 'Mon YYYY') as Date, "
-                          " to_char(sum(d1.images_captured) over (order by d1.date asc rows between unbounded preceding and current row), 'FM9,999,999,999') as Images, "
-                          " to_char(sum(d2.objects_digitized) over (order by d2.date asc rows between unbounded preceding and current row), 'FM9,999,999,999') as Objects "
-                        " from d d1, d d2 "
-                     "      WHERE d1.date = d2.date "
-                        " order by d1.date DESC "
-                     ))
-
+    query = ("with d as ( " 
+                     "   select stat_date, "
+                             " sum(images_captured) as images_captured, "
+                             " sum(objects_digitized) as objects_digitized "
+                    " from projects_stats_detail where time_interval ='monthly' group by stat_date) " 
+                    " select " 
+                          " date_format(d1.stat_date, '%b %Y') as Date, " 
+                          " sum(d1.images_captured) over (order by d1.stat_date asc rows between unbounded preceding and current row) as Images, " 
+                          " sum(d2.objects_digitized) over (order by d2.stat_date asc rows between unbounded preceding and current row) as Objects " 
+                        "  from d d1, d d2 " 
+                        " WHERE d1.stat_date = d2.stat_date " 
+                         " order by d1.stat_date DESC ")
+    df = pd.DataFrame(query_database(query))
+    df = df.rename(columns={"stat_date": "date"})
     summary_datatable = pd.DataFrame(df)
+    print(summary_datatable)
     columns = summary_datatable.columns
     summary_datatable.columns = [x.title() for x in columns]
 
     # Summary chart
-    df = pd.DataFrame(query_database("with d as ("
-                        "select date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by date)"
-                    "select date, 'Images' as itype, "
-                          " sum(images_captured) over (order by date asc rows between unbounded preceding and current row)  as no_images "
-                        " from d "
-                        " union "
-                        " select date, 'Objects' as itype,"
-                          "sum(objects_digitized) over (order by date asc rows between unbounded preceding and current row) as no_images "
-                        " from d "
-                        " order by date "
-                     ))
-
+    query = ("with d as (" 
+             "            select stat_date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized  from projects_stats_detail where time_interval ='monthly' group by stat_date)" 
+             "       select stat_date, 'Images' as itype, " 
+              "            sum(images_captured) over (order by stat_date asc rows between unbounded preceding and current row)  as no_images" 
+               "          from d " 
+                "         union " 
+                 "        select stat_date, 'Objects' as itype," 
+                  "        sum(objects_digitized) over (order by stat_date asc rows between unbounded preceding and current row) as no_images" 
+                   "      from d " 
+                    "     order by stat_date")
+    df = pd.DataFrame(query_database(query))
+    df = df.rename(columns={"stat_date": "date"})
     fig = px.line(df, x="date", y="no_images", color='itype',
                   labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
                   markers=True)
@@ -416,6 +423,9 @@ def login():
 
     # Summary stats
     summary_stats = {}
+
+    print(query_database("SELECT SUM(objects_digitized) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)"))
+
     summary_stats['objects_digitized'] = "{:,}".format(query_database("SELECT SUM(objects_digitized) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
     summary_stats['images_captured'] = "{:,}".format(query_database("SELECT SUM(images_taken) as total from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total'])
     summary_stats['digitization_projects'] = "{:,}".format(query_database("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True")[0]['total'])
@@ -482,28 +492,29 @@ def login():
             " WHERE project_id IN "
             "   (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')")[0]['total'])
 
-    list_projects_md = pd.DataFrame(query_database(
-               " SELECT " 
-               " p.projects_order, p.project_unit, "
-                        " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
-               " p.project_status, "
-               " p.project_manager, "
-                               " CASE WHEN to_char(p.project_start, 'YYYY-MM') = to_char(p.project_end, 'YYYY-MM') THEN "
-                               "    to_char(p.project_start, 'DD') || '-' || to_char(p.project_end, 'DD Mon YYYY') "
-               "                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
-                               "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
+    section_query = (" SELECT " 
+                        " p.projects_order, "
+                        " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
+                        " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"dashboard/', p.project_alias, '\">', p.project_title, '</a>') END as project_title, "
+                        " p.project_status, "
+                        " p.project_manager, "
+                        " CASE WHEN date_format(p.project_start, '%%Y-%%c') = date_format(p.project_end, '%%Y-%%c') THEN "
+                        "    CONCAT(date_format(p.project_start, '%%d'), '-', date_format(p.project_end, '%%d %%b %%Y')) "
+                        "                    WHEN p.project_end IS NULL THEN date_format(p.project_start, '%%d %%b %%Y') "
+                               "    ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' to ', date_format(p.project_end, '%%d %%b %%Y')) END"
                                "         as project_dates, "
-               " CASE WHEN p.objects_estimated IS True THEN coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) || '**' ELSE "
-                                    " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) END as objects_digitized, "
-               " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) END as images_taken, "
-               " CASE WHEN p.images_estimated IS True THEN coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) || '**' ELSE coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) END as images_public "
-               " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) "
-               " WHERE p.skip_project IS NOT True AND p.project_section = 'MD' "
+                       " CASE WHEN p.objects_estimated IS True THEN CONCAT(coalesce(format(ps.objects_digitized, 0), 0), '**') ELSE "
+                                            " coalesce(format(ps.objects_digitized, 0), 0) END as objects_digitized, "
+                       " CASE WHEN p.images_estimated IS True THEN CONCAT(coalesce(format(ps.images_taken, 0), 0), '**') ELSE coalesce(format(ps.images_taken, 0), 0) END as images_taken, "
+                       " CASE WHEN p.images_estimated IS True THEN CONCAT(coalesce(format(ps.images_public, 0), 0), '**') ELSE coalesce(format(ps.images_public, 0), 0) END as images_public "
+               " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
+               " WHERE p.skip_project = 0 AND p.project_section = %(section)s "
                " GROUP BY "
-               "        p.project_id, p.project_title, p.project_unit, p.project_acronym, p.project_status, p.project_description, "
+               "        p.project_id, p.project_title, p.project_unit, p.project_status, p.project_description, "
                "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
                "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
-               " ORDER BY p.projects_order DESC"))
+               " ORDER BY p.projects_order DESC")
+    list_projects_md = pd.DataFrame(query_database(section_query, {'section': 'MD'}))
 
     list_projects_md = list_projects_md.rename(columns={
                 "project_unit": "Unit",
@@ -517,27 +528,7 @@ def login():
                 "images_public": "Public Images"
     })
     logging.info(list_projects_md)
-    list_projects_is = pd.DataFrame(query_database(
-               "SELECT "
-               " p.projects_order, p.project_unit, "
-               " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE '<a href=\"dashboard/' || p.project_alias || '\">' || p.project_title || '</a>' END as project_title, "
-               " p.project_status, "
-               " p.project_manager, "
-               " CASE WHEN to_char(p.project_start, 'YYYY-MM') = to_char(p.project_end, 'YYYY-MM') THEN "
-               "    to_char(p.project_start, 'DD') || '-' || to_char(p.project_end, 'DD Mon YYYY') "
-"                    WHEN p.project_end IS NULL THEN to_char(p.project_start, 'DD Mon YYYY') "
-               "    ELSE to_char(p.project_start, 'DD Mon YYYY') || ' to ' || to_char(p.project_end, 'DD Mon YYYY') END"
-               "         as project_dates, "
-               " coalesce(to_char(ps.objects_digitized, 'FM9,999,999,999'), 0::text) as objects_digitized, "
-               " coalesce(to_char(ps.images_taken, 'FM9,999,999,999'), 0::text) as images_taken, "
-               " coalesce(to_char(ps.images_public, 'FM9,999,999,999'), 0::text) as images_public "
-               " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) "
-               " WHERE p.skip_project IS NOT True AND p.project_section = 'IS' "
-               " GROUP BY "
-               "        p.project_id, p.project_title, p.project_unit, p.project_acronym, p.project_status, p.project_description, "
-               "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
-               "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
-               " ORDER BY p.projects_order DESC"))
+    list_projects_is = pd.DataFrame(query_database(section_query, {'section': 'IS'}))
 
     list_projects_is = list_projects_is.rename(columns={
         "project_unit": "Unit",
@@ -609,7 +600,7 @@ def qc_process(folder_id):
     form = LoginForm(request.form)
 
     username = current_user.name
-    project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p, folders f "
+    project_admin = query_database("SELECT count(*) as no_results FROM users u, qc_projects p, folders f "
                                    "    WHERE u.username = %(username)s "
                                    "        AND p.project_id = f.project_id "
                                    "        AND f.folder_id = %(folder_id)s "
@@ -623,7 +614,7 @@ def qc_process(folder_id):
     if file_id_q is not None:
         qc_info = request.values.get('qc_info')
         qc_val = request.values.get('qc_val')
-        user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+        user_id = query_database("SELECT user_id FROM users WHERE username = %(username)s",
                                         {'username': username})[0]
         if qc_val == "1" and qc_info == "":
             msg = "Error: The field QC Details can not be empty if the file failed the QC."
@@ -655,7 +646,7 @@ def qc_process(folder_id):
                                      "      qc_ip, u.username AS qc_by, "
                                      "      TO_CHAR(updated_at, 'yyyy-mm-dd') AS updated_at"
                                      " FROM qc_folders q, "
-                                     "      qc_users u WHERE q.qc_by=u.user_id "
+                                     "      users u WHERE q.qc_by=u.user_id "
                                      "      AND q.folder_id = %(folder_id)s",
                                      {'folder_id': folder_id})
     folder_qc = {}
@@ -674,7 +665,7 @@ def qc_process(folder_id):
                                    "    WHERE folder_id = %(folder_id)s",
                                    {'folder_id': folder_id})
     folder_stats2 = query_database("SELECT count(DISTINCT c.file_id) as no_errors "
-                                   "    FROM file_checks c "
+                                   "    FROM files_checks c "
                                    "    WHERE file_id IN ("
                                    "        SELECT file_id "
                                    "        FROM files "
@@ -753,7 +744,7 @@ def qc_process(folder_id):
                             "SELECT file_check, check_results, "
                             "       CASE WHEN check_info = '' THEN 'Check passed.' "
                             "           ELSE check_info END AS check_info "
-                            "   FROM file_checks "
+                            "   FROM files_checks "
                             "   WHERE file_id = %(file_id)s",
                             {'file_id': file_qc['file_id']})
                 image_url = settings.jpg_previews + str(file_qc['file_id']) + '/?'
@@ -813,7 +804,7 @@ def qc_done(folder_id):
     """Run QC on a folder"""
     username = current_user.name
     project_admin = query_database("SELECT count(*) as no_results "
-                                   "    FROM qc_users u, qc_projects p, folders f "
+                                   "    FROM users u, qc_projects p, folders f "
                                    "    WHERE u.username = %(username)s "
                                    "        AND p.project_id = f.project_id "
                                    "        AND f.folder_id = %(folder_id)s "
@@ -831,7 +822,7 @@ def qc_done(folder_id):
                                 {'folder_id': folder_id})[0]
     qc_info = request.values.get('qc_info')
     qc_status = request.values.get('qc_status')
-    user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+    user_id = query_database("SELECT user_id FROM users WHERE username = %(username)s",
                              {'username': username})[0]
     q = query_database_2("UPDATE qc_folders SET "
                              "      qc_status = %(qc_status)s, "
@@ -861,7 +852,7 @@ def qc(project_id):
     """List the folders and QC status"""
     username = current_user.name
     project_admin = query_database("SELECT count(*) as no_results "
-                                   "    FROM qc_users u, qc_projects qp, projects p "
+                                   "    FROM users u, qc_projects qp, projects p "
                                    "    WHERE u.username = %(username)s "
                                    "        AND p.project_alias = %(project_alias)s "
                                    "        AND qp.project_id = p.project_id "
@@ -909,7 +900,7 @@ def qc(project_id):
                                     "       COALESCE(total.no_files, 0) as qc_stats_no_files "
                                     " FROM folders f LEFT JOIN qc_folders q ON "
                                     "       (f.folder_id = q.folder_id)"
-                                    "       LEFT JOIN qc_users u ON "
+                                    "       LEFT JOIN users u ON "
                                     "           (q.qc_by = u.user_id)"
                                     "       LEFT JOIN errors ON "
                                     "           (f.folder_id = errors.folder_id)"
@@ -949,18 +940,18 @@ def home():
     is_admin = user_perms('', user_type='admin')
     logging.info(is_admin)
     ip_addr = request.environ['REMOTE_ADDR']
-    projects = query_database("select p.project_title, p.project_id, p.filecheck_link, p.project_alias, "
-                              "     to_char(p.project_start, 'Mon-YYYY') as project_start, "
-                              "     to_char(p.project_end, 'Mon-YYYY') as project_end,"
+    projects = query_database("select p.project_title, p.project_id, p.project_alias, "
+                              "     to_char(p.project_start, '%b-%Y') as project_start, "
+                              "     to_char(p.project_end, '%b-%Y') as project_end,"
                               "     p.qc_status, p.project_unit "
                               " FROM qc_projects qp, "
-                              "       qc_users u, "
+                              "       users u, "
                               "       projects p "
                               " WHERE qp.project_id = p.project_id "
                               "     AND qp.user_id = u.user_id "
                               "     AND u.username = %(username)s "
                               "     AND p.project_alias IS NOT NULL "
-                              " GROUP BY p.project_title, p.project_id, p.filecheck_link, p.project_alias, "
+                              " GROUP BY p.project_title, p.project_id, p.project_alias, "
                               "     p.project_start, p.project_end,"
                               "     p.qc_status, p.project_unit "
                               " ORDER BY p.projects_order DESC",
@@ -981,20 +972,20 @@ def home():
                                     "  ),"
                                     "   data AS ("
                                     "   SELECT c.file_id, sum(check_results) as check_results "
-                                    "   FROM file_checks c, a "
+                                    "   FROM files_checks c, a "
                                     "   WHERE c.file_id = a.file_id "
                                     "   GROUP BY c.file_id) "
                                     " SELECT count(file_id) as no_files "
                                     " FROM data WHERE check_results = 0",
                                     {'project_id': project['project_id']})
-        project_err = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE check_results "
+        project_err = query_database("SELECT count(distinct file_id) as no_files FROM files_checks WHERE check_results "
                                      "= 1 AND "
                                      "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))",
                                      {'project_id': project['project_id']})
         project_public = query_database("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
                                         " project_id = %(project_id)s",
                                         {'project_id': project['project_id']})
-        project_running = query_database("SELECT count(distinct file_id) as no_files FROM file_checks WHERE "
+        project_running = query_database("SELECT count(distinct file_id) as no_files FROM files_checks WHERE "
                                          "check_results "
                                          "= 9 AND "
                                          "file_id in ("
@@ -1021,7 +1012,7 @@ def home():
         project_list.append({
                 'project_title': project['project_title'],
                 'project_id': project['project_id'],
-                'filecheck_link': project['filecheck_link'],
+                'filecheck_link': None,
                 'total': format(int(project_total[0]['no_files']), ',d'),
                 'errors': format(int(project_err[0]['no_files']), ',d'),
                 'ok': format(int(project_ok[0]['no_files']), ',d'),
@@ -1177,7 +1168,7 @@ def create_new_project():
         logging.info("len_unitstaff: {}".format(len(unitstaff)))
         if len(unitstaff) > 0:
             for staff in unitstaff:
-                staff_user_id = query_database("SELECT user_id FROM qc_users WHERE username = %(username)s",
+                staff_user_id = query_database("SELECT user_id FROM users WHERE username = %(username)s",
                                      {'username': staff.strip()})
                 if len(staff_user_id) == 1:
                     user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
@@ -1185,7 +1176,7 @@ def create_new_project():
                                                 {'project_id': project_id,
                                                  'user_id': staff_user_id[0]['user_id']})
                 else:
-                    user_project = query_database("INSERT INTO qc_users (username, user_active, is_admin) VALUES "
+                    user_project = query_database("INSERT INTO users (username, user_active, is_admin) VALUES "
                                                     "    (%(username)s, 'T', 'F') RETURNING user_id",
                                                     {'username': staff.strip()})
                     user_project = query_database_2("INSERT INTO qc_projects (project_id, user_id) VALUES "
@@ -1215,7 +1206,7 @@ def edit_project(project_id):
         # Not allowed
         return redirect(url_for('home'))
     project_admin = query_database("SELECT count(*) as no_results "
-                                   "    FROM qc_users u, qc_projects qp, projects p "
+                                   "    FROM users u, qc_projects qp, projects p "
                                    "    WHERE u.username = %(username)s "
                                    "        AND p.project_alias = %(project_alias)s "
                                    "        AND qp.project_id = p.project_id "
@@ -1257,7 +1248,7 @@ def project_update(project_alias):
         # Not allowed
         return redirect(url_for('home'))
     project_admin = query_database("SELECT count(*) as no_results "
-                                   "    FROM qc_users u, qc_projects qp, projects p "
+                                   "    FROM users u, qc_projects qp, projects p "
                                    "    WHERE u.username = %(username)s "
                                    "        AND p.project_alias = %(project_alias)s "
                                    "        AND qp.project_id = p.project_id "
@@ -1318,8 +1309,8 @@ def project_update(project_alias):
 
 
 @cache.memoize(60)
-@app.route('/dashboard/<project_id>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
-def dashboard_f(project_id=None, folder_id=None):
+@app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
+def dashboard_f(project_alias=None, folder_id=None):
     """Dashboard for a project"""
     if current_user.is_authenticated:
         user_exists = True
@@ -1332,11 +1323,11 @@ def dashboard_f(project_id=None, folder_id=None):
     form = LoginForm(request.form)
 
     # Check if folder exists
-    folder_check = query_database("SELECT folder_id FROM folders WHERE folder_id = %(folder_id)s AND project_id IN (SELECT project_id FROM projects WHERE project_alias = %(project_id)s)",
-                                      {'folder_id': folder_id, 'project_id': project_id})
+    folder_check = query_database("SELECT folder_id FROM folders WHERE folder_id = %(folder_id)s AND project_id IN (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)",
+                                      {'folder_id': folder_id, 'project_alias': project_alias})
     if folder_check is None:
         error_msg = "Folder was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -1349,7 +1340,7 @@ def dashboard_f(project_id=None, folder_id=None):
             tab = int(tab)
         except:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
     logging.info("tab: {}".format(tab))
     page = request.values.get('page')
     if page is None or page == '':
@@ -1359,27 +1350,26 @@ def dashboard_f(project_id=None, folder_id=None):
             page = int(page)
         except:
             error_msg = "Invalid page number."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 400
+            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 400
     logging.info("page: {}".format(page))
     project_stats = {}
-    if project_id is None:
+    if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
 
     project_id_check = query_database("SELECT project_id FROM projects WHERE "
-                                      " project_alias = %(project_id)s",
-                                      {'project_id': project_id})
+                                      " project_alias = %(project_alias)s",
+                                      {'project_alias': project_alias})
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
     else:
-        project_alias = project_id
         project_id = project_id_check[0]['project_id']
     logging.info("project_id: {}".format(project_id))
     logging.info("project_alias: {}".format(project_alias))
     if current_user.is_authenticated:
         username = current_user.name
-        project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p "
+        project_admin = query_database("SELECT count(*) as no_results FROM users u, qc_projects p "
                                        " WHERE u.username = %(username)s "
                                        " AND p.project_id = %(project_id)s "
                                        " AND u.user_id = p.user_id",
@@ -1391,13 +1381,20 @@ def dashboard_f(project_id=None, folder_id=None):
         logging.info("project_admin: {} - {}".format(username, project_admin))
     else:
         project_admin = False
-    project_info = query_database("SELECT * FROM projects WHERE project_id = %(project_id)s",
-                         {'project_id': project_id})[0]
-    try:
-        filechecks_list = project_info['project_checks'].split(',')
-    except:
-        error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
+    project_info = query_database("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
+                         {'project_alias': project_alias})[0]
+    filechecks_list_temp = query_database("SELECT settings_value as file_check FROM projects_settings WHERE project_setting = 'project_checks'  and project_id = %(project_id)s",
+                         {'project_id': project_info['project_id']})
+    filechecks_list = []
+    for fcheck in filechecks_list_temp:
+        filechecks_list.append(fcheck['file_check'])
+    project_postprocessing_temp = query_database(
+        "SELECT settings_value as file_check FROM projects_settings WHERE project_setting = 'project_postprocessing'  and project_id = %(project_id)s",
+        {'project_id': project_info['project_id']})
+    project_postprocessing = []
+    for fcheck in project_postprocessing_temp:
+        project_postprocessing.append(fcheck['file_check'])
+
     project_total = query_database("SELECT count(*) as no_files "
                                    "    FROM files "
                                    "    WHERE folder_id IN (SELECT folder_id "
@@ -1408,12 +1405,12 @@ def dashboard_f(project_id=None, folder_id=None):
     project_ok = query_database("WITH "
                                 " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s)," 
                                 " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                 " checklist as (select c.file_check, f.file_id from checks c, files_q f)," 
                                 " data AS ("
                                        "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results" 
 		                               " FROM" 
-                                       " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                       " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
                                        " group by c.file_id)"
                                 "SELECT count(file_id) as no_files FROM data WHERE check_results = 0",
                                    {'project_id': project_id})
@@ -1421,12 +1418,12 @@ def dashboard_f(project_id=None, folder_id=None):
     project_err = query_database("WITH "
                                 " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s)," 
                                 " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                 " checklist as (select c.file_check, f.file_id from checks c, files_q f)," 
                                 " data AS ("
                                        "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results" 
 		                               " FROM" 
-                                       " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                       " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
                                  "      WHERE check_results = 1"
                                        " group by c.file_id)"
                                 "SELECT count(file_id) as no_files FROM data WHERE check_results != 0",
@@ -1435,12 +1432,12 @@ def dashboard_f(project_id=None, folder_id=None):
     project_pending = query_database("WITH "
                                  " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                  " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                 " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                 " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                  " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
                                  " data AS ("
                                  "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
                                  " FROM"
-                                 " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
+                                 " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
                                  " SELECT count(distinct file_id) as no_files FROM data where check_results = 9",
                                  {'project_id': project_id})
     project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
@@ -1479,23 +1476,22 @@ def dashboard_f(project_id=None, folder_id=None):
             return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
         else:
             folder_name = folder_name[0]
-        folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %("
-                                                      "folder_id)s",
+        folder_files_df = pd.DataFrame(query_database("SELECT file_id, file_name FROM files WHERE folder_id = %(folder_id)s",
                                                       {'folder_id': folder_id}))
         no_items = 25
-        if page is 1:
+        if page == 1:
             offset = 0
         else:
             offset = (page - 1) * no_items
         files_df = query_database(
-            "WITH data AS (SELECT file_id, COALESCE(preview_image, %(preview)s || file_id || '/?') as preview_image, "
+            "WITH data AS (SELECT file_id, COALESCE(preview_image, CONCAT(%(preview)s, file_id, '/?')) as preview_image, "
             "         folder_id, file_name FROM files "
             "WHERE folder_id = %(folder_id)s)"
             " SELECT file_id, preview_image, folder_id, file_name"
             " FROM data "
             " ORDER BY file_name "
-            "LIMIT %(no_items)s OFFSET %(offset)s",
-            {'folder_id': folder_id, 'preview': settings.jpg_previews, 'no_items': psycopg2.extensions.AsIs(no_items), 'offset': psycopg2.extensions.AsIs(offset)})
+            "LIMIT {no_items} OFFSET {offset}".format(offset=offset, no_items=no_items),
+            {'folder_id': folder_id, 'preview': settings.jpg_previews})
         files_count = query_database("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                   {'folder_id': folder_id})[0]
         files_count = files_count['no_files']
@@ -1516,20 +1512,21 @@ def dashboard_f(project_id=None, folder_id=None):
                                             "   CASE WHEN check_results = 0 THEN 'OK' "
                                             "       WHEN check_results = 9 THEN 'Pending' "
                                             "       WHEN check_results = 1 THEN 'Failed' "
-                                            "       ELSE 'Pending' END as %(fcheck)s "
-                                            " FROM files f LEFT JOIN file_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                            "       ELSE 'Pending' END as {fcheck} "
+                                            " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                             "  where  "
-                                            "   f.folder_id = %(folder_id)s",
-                                            {'fcheck': psycopg2.extensions.AsIs(fcheck), 'file_check': fcheck, 'folder_id': folder_id}))
+                                            "   f.folder_id = %(folder_id)s".format(fcheck=fcheck),
+                                            {'file_check': fcheck, 'folder_id': folder_id}))
                 logging.info("list_files.size: {}".format(list_files.shape[0]))
-                preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
-                                                         "  COALESCE(f.preview_image, %(jpg_previews)s || f.file_id || '/?') as preview_image "
-                                                         " FROM files f "
-                                                         "  where  "
-                                                         "   f.folder_id = %(folder_id)s",
-                                                         {'jpg_previews': settings.jpg_previews, 'folder_id': folder_id}))
                 if list_files.shape[0] > 0:
                     folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+            preview_files = pd.DataFrame(query_database("SELECT f.file_id, "
+                                                        "  COALESCE(f.preview_image, CONCAT(%(jpg_previews)s, f.file_id, '/?')) as preview_image "
+                                                        " FROM files f "
+                                                        "  where  "
+                                                        "   f.folder_id = %(folder_id)s",
+                                                        {'jpg_previews': settings.jpg_previews,
+                                                         'folder_id': folder_id}))
             folder_files_df = folder_files_df.sort_values(by=['file_name'])
             folder_files_df = folder_files_df.sort_values(by=filechecks_list)
             folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
@@ -1555,12 +1552,12 @@ def dashboard_f(project_id=None, folder_id=None):
                                                     "tabindex=\"-1\">Previous</a></li>"
             else:
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                    "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                    "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
                                                     + "?tab=1&page={}\">Previous</a></li>".format(page - 1)
             # Ellipsis for first pages
             if page > 5:
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                    + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                    + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
                                                     + "?tab=1&page=1\">1</a></li>"
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">...</a></li>"
@@ -1572,14 +1569,14 @@ def dashboard_f(project_id=None, folder_id=None):
                         pagination_html = pagination_html + "<li class=\"page-item\">"
                     pagination_html = pagination_html + "<a class=\"page-link\" " \
                                                         + "href=\"" \
-                                                        + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                        + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
                                                         + "?tab=1&page={}\">{}</a>".format(i, i) \
                                                         + "</li>"
             if (no_pages - page) > 4:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">...</a></li>"
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                  + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
                                   + "?tab=1&page={last}\">{last}</a></li>".format(last=(no_pages))
             if page == no_pages:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
@@ -1590,7 +1587,7 @@ def dashboard_f(project_id=None, folder_id=None):
                                                         "href=\"#\">Next</a></li>"
                 else:
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                    + "href=\"" + url_for('dashboard_f', project_id=project_alias, folder_id=folder_id) \
+                                                    + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
                                                     + "?tab=1&page={}\">".format(page + 1) \
                                                     + "Next</a></li>"
             pagination_html = pagination_html + "</ul></nav>"
@@ -1599,9 +1596,9 @@ def dashboard_f(project_id=None, folder_id=None):
                                              "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                              "      WHEN q.qc_status = 9 THEN 'QC Pending' END AS qc_status, "
                                              " qc_ip, u.username AS qc_by, "
-                                             " TO_CHAR(updated_at, 'yyyy-mm-dd') AS updated_at"
+                                             " DATE_FORMAT(q.updated_at, '%%y-%%m-%%d') AS updated_at"
                                              " FROM qc_folders q, "
-                                             " qc_users u WHERE q.qc_by=u.user_id AND "
+                                             " users u WHERE q.qc_by=u.user_id AND "
                                              " q.folder_id = %(folder_id)s",
                                       {'folder_id': folder_id})
             if folder_qc_check != None:
@@ -1614,7 +1611,7 @@ def dashboard_f(project_id=None, folder_id=None):
                                            " FROM folders f WHERE folder_id = %(folder_id)s",
                                            {'folder_id': folder_id})
             folder_stats2 = query_database("SELECT count(DISTINCT c.file_id) as no_errors "
-                                           " FROM file_checks c WHERE file_id IN (SELECT file_id from files WHERE"
+                                           " FROM files_checks c WHERE file_id IN (SELECT file_id from files WHERE"
                                            "        folder_id = %(folder_id)s) AND "
                                            "       check_results = 1",
                                            {'folder_id': folder_id})
@@ -1631,20 +1628,19 @@ def dashboard_f(project_id=None, folder_id=None):
                                            + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
                                            + post_processing_df['file_name'].astype(str) \
                                            + '</a>'
-            if project_info['project_postprocessing'] is not None:
+            if len(project_postprocessing) > 0:
                 project_postprocessing = project_info['project_postprocessing'].split(',')
                 for fcheck in project_postprocessing:
-                    post_processing_vals = pd.DataFrame(query_database("SELECT f.file_id, "
+                    post_processing_vals = pd.DataFrame(query_database(("SELECT f.file_id, "
                                                                        "  CASE WHEN fp.post_results = 0 THEN 'Completed' "
                                                                        "      WHEN fp.post_results = 9 THEN 'Pending' "
                                                                        "      WHEN fp.post_results = 1 THEN 'Failed' "
-                                                                       "        ELSE 'Pending' END as %(fcheck)s "
+                                                                       "        ELSE 'Pending' END as {fcheck} "
                                                                        " FROM files f LEFT JOIN file_postprocessing fp "
                                                                        "        ON (f.file_id = fp.file_id "
                                                                        "            AND fp.post_step = %(post_step)s) "
-                                                                       " WHERE f.folder_id = %(folder_id)s",
-                                                                       {'fcheck': psycopg2.extensions.AsIs(fcheck),
-                                                                            'folder_id': folder_id,
+                                                                       " WHERE f.folder_id = %(folder_id)s").format(fcheck=fcheck),
+                                                                       {'folder_id': folder_id,
                                                                             'post_step': fcheck}))
                     if post_processing_vals.size != 0:
                         post_processing_df = post_processing_df.merge(post_processing_vals, how='outer', on='file_id')
@@ -1719,8 +1715,8 @@ def dashboard_f(project_id=None, folder_id=None):
 
 
 @cache.memoize(60)
-@app.route('/dashboard/<project_id>/', methods=['GET','POST'], strict_slashes=False)
-def dashboard(project_id):
+@app.route('/dashboard/<project_alias>/', methods=['GET','POST'], strict_slashes=False)
+def dashboard(project_alias=None):
     """Dashboard for a project"""
     if current_user.is_authenticated:
         user_exists = True
@@ -1733,24 +1729,23 @@ def dashboard(project_id):
     form = LoginForm(request.form)
 
     project_stats = {}
-    if project_id is None:
+    if project_alias is None:
         error_msg = "Project is not available."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=None), 404
 
     project_id_check = query_database("SELECT project_id FROM projects WHERE "
-                                      " project_alias = %(project_id)s",
-                                      {'project_id': project_id})
+                                      " project_alias = %(project_alias)s",
+                                      {'project_alias': project_alias})
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias), 404
     else:
-        project_alias = project_id
         project_id = project_id_check[0]['project_id']
     logging.info("project_id: {}".format(project_id))
     logging.info("project_alias: {}".format(project_alias))
     if current_user.is_authenticated:
         username = current_user.name
-        project_admin = query_database("SELECT count(*) as no_results FROM qc_users u, qc_projects p "
+        project_admin = query_database("SELECT count(*) as no_results FROM users u, qc_projects p "
                                        " WHERE u.username = %(username)s "
                                        " AND p.project_id = %(project_id)s "
                                        " AND u.user_id = p.user_id",
@@ -1779,12 +1774,12 @@ def dashboard(project_id):
     project_ok = query_database("WITH "
                                 " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                 " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                 " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
                                 " data AS ("
                                 "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
                                 " FROM"
-                                " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
                                 " group by c.file_id)"
                                 "SELECT count(file_id) as no_files FROM data WHERE check_results = 0",
                                 {'project_id': project_id})
@@ -1792,13 +1787,13 @@ def dashboard(project_id):
     project_err = query_database("WITH "
                                  " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                  " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                 " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                 " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                  " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
                                  " data AS ("
                                  "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
                                  " FROM"
-                                 " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
-                                 "      WHERE check_results = 1"
+                                 " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                 "      WHERE check_results = 1 "
                                  " group by c.file_id)"
                                  "SELECT count(file_id) as no_files FROM data WHERE check_results != 0",
                                  {'project_id': project_id})
@@ -1806,12 +1801,12 @@ def dashboard(project_id):
     project_pending = query_database("WITH "
                                      " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                      " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-                                     " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
+                                     " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
                                      " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
                                      " data AS ("
                                      "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
                                      " FROM"
-                                     " checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
+                                     " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
                                      " SELECT count(distinct file_id) as no_files FROM data where check_results = 9",
                                      {'project_id': project_id})
     project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
@@ -2074,7 +2069,7 @@ def dashboard_empty():
 
 @cache.memoize(60)
 @app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False)
-def file(file_id):
+def file(file_id=None):
     """File details"""
     if current_user.is_authenticated:
         user_exists = True
@@ -2107,46 +2102,44 @@ def file(file_id):
         folder_info = folder_info[0]
     file_details = query_database("WITH data AS ("
                                   "         SELECT file_id, "
-                                  "             COALESCE(preview_image, %(preview)s || file_id) as preview_image, "
+                                  "             COALESCE(preview_image, CONCAT(%(preview)s, file_id)) as preview_image, "
                                   "             folder_id, file_name, dams_uan "
                                   "             FROM files "
-                                  "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
+                                  "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
                                   " UNION "
-                                  "         SELECT file_id, COALESCE(preview_image, %(preview)s || file_id) as preview_image, folder_id, file_name, dams_uan "
+                                  "         SELECT file_id, COALESCE(preview_image, CONCAT(%(preview)s, file_id)) as preview_image, folder_id, file_name, dams_uan "
                                   "             FROM files "
-                                  "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders WHERE project_id != ANY('{{100,131}}'))"
+                                  "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
                                   "             ORDER BY file_name"
                                   "),"
                                   "data2 AS (SELECT file_id, preview_image, folder_id, file_name, dams_uan, "
                                   "         lag(file_id,1) over (order by file_name) prev_id,"
-                                  "         lag(file_id,-1) over (order by file_name) next_id "
+                                  "         lead(file_id,1) over (order by file_name) next_id "
                                   " FROM data)"
                                   " SELECT "
                                   " file_id, "
-                                  "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE preview_image || '?' END AS preview_image, "
+                                  "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE CONCAT(preview_image, '?') END AS preview_image, "
                                   " folder_id, file_name, dams_uan, prev_id, next_id "
                                   "FROM data2 WHERE file_id = %(file_id)s LIMIT 1",
                                   {'folder_id': folder_info['folder_id'], 'file_id': file_id,
                                    'preview': settings.jpg_previews})
 
     file_details = file_details[0]
-    project_alias = query_database("SELECT COALESCE(project_alias, project_id::text) as project_id FROM projects "
+    project_alias = query_database("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
                                    " WHERE project_id = %(project_id)s",
                    {'project_id': folder_info['project_id']})[0]
     project_alias = project_alias['project_id']
 
     file_checks = query_database("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
                                             " ELSE check_info END AS check_info "
-                                            " FROM file_checks WHERE file_id = %(file_id)s",
+                                            " FROM files_checks WHERE file_id = %(file_id)s",
                          {'file_id': file_id})
     image_url = settings.jpg_previews + str(file_id)
     file_metadata = pd.DataFrame(query_database("SELECT tag, taggroup, tagid, value "
-                                            " FROM files_exif WHERE file_id = %(file_id)s AND filetype ilike 'TIF' "
+                                            " FROM files_exif WHERE file_id = %(file_id)s AND lower(filetype) = 'tif' "
                                             " ORDER BY taggroup, tag ",
                          {'file_id': file_id}))
-    file_links = query_database("SELECT link_name, link_url "
-                                            " FROM files_links WHERE file_id = %(file_id)s ",
-                         {'file_id': file_id})
+    file_links = query_database("SELECT link_name, link_url FROM files_links WHERE file_id = %(file_id)s ", {'file_id': file_id})
     if current_user.is_authenticated:
         user_name = current_user.name
         is_admin = user_perms('', user_type='admin')
@@ -2198,7 +2191,7 @@ def file_json(file_id):
                                             "       WHEN check_results = 9 THEN 'Pending' "
                                             "       WHEN check_results = 1 THEN '<div style=\"background: "
                                  "#dc3545; color:white;padding:8px;\">Failed</div>' END as check_result, check_info"
-                                            " FROM file_checks WHERE file_id = %(file_id)s",
+                                            " FROM files_checks WHERE file_id = %(file_id)s",
                          {'file_id': file_id})
     return jsonify({"data": file_checks})
 
@@ -2238,40 +2231,38 @@ def search_files(project_alias):
         logging.info("metadata: {}".format(metadata))
         logging.info("offset: {}".format(offset))
         if metadata is None or metadata == '0':
-            results = query_database("SELECT "
-                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, %(jpg_previews)s || file_id) as preview_image, fd.project_folder "
+            results = query_database(("SELECT "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, CONCAT(%(jpg_previews)s, file_id)) as preview_image, fd.project_folder "
                                      " FROM files f, folders fd, projects p "
                                      " WHERE f.folder_id = fd.folder_id AND "
-                                     "  f.file_name ILIKE %(q)s AND "
+                                     "  lower(f.file_name) LIKE lower(%(q)s) AND "
                                      "  fd.project_id = p.project_id AND "
                                      "  p.project_alias = %(project_alias)s "
                                      " ORDER BY f.file_name"
                                      " LIMIT 50 "
-                                     " OFFSET %(offset)s ",
+                                     " OFFSET {offset} ").format(offset=offset),
                                 {'project_alias': project_alias,
                                     'jpg_previews': settings.jpg_previews,
-                                    'q': '%%' + q + '%%',
-                                    'offset': psycopg2.extensions.AsIs(offset)})
+                                    'q': '%%' + q + '%%'})
         else:
-            results = query_database("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
+            results = query_database(("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
                                      "              FROM files_exif "
                                      "              WHERE value ILIKE %(q)s)"
                                      "SELECT "
-                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, %(jpg_previews)s || file_id) as preview_image, fd.project_folder "
+                                     "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, CONCAT(%(jpg_previews)s, file_id)) as preview_image, fd.project_folder "
                                      " FROM files f, m, folders fd, projects p "
                                      " WHERE f.folder_id = fd.folder_id AND "
-                                     "  f.file_name ILIKE %(q)s AND "
+                                     "  lower(f.file_name) LIKE lower(%(q)s) AND "
                                      "  f.file_id = m.file_id AND "
                                      "  fd.project_id = p.project_id AND "
                                      "  p.project_alias = %(project_alias)s "
                                      "  GROUP BY f.file_id, f.folder_id, f.file_name, f.preview_image, fd.project_folder "
                                      " ORDER BY f.file_name"
                                      " LIMIT 50 "
-                                     " OFFSET %(offset)s ",
+                                     " OFFSET {offset} ").format(offset=offset),
                                      {'project_alias': project_alias,
                                        'jpg_previews': settings.jpg_previews,
-                                       'q': '%%' + q + '%%',
-                                       'offset': psycopg2.extensions.AsIs(offset)})
+                                       'q': '%%' + q + '%%'})
     return render_template('search_files.html',
                            results=results,
                            project_info=project_info,
@@ -2308,7 +2299,7 @@ def search_folders(project_alias):
     else:
         logging.info("q: {}".format(q))
         logging.info("offset: {}".format(offset))
-        results = query_database("WITH pfolders AS (SELECT folder_id from folders WHERE project_id in (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)),"
+        results = query_database(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id in (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)),"
                                         " errors AS "
                                         "         (SELECT folder_id, count(file_id) as no_files "
                                         "             FROM qc_files "
@@ -2328,7 +2319,7 @@ def search_folders(project_alias):
                                         "       f.no_files, f.file_errors "
                                         " FROM folders f LEFT JOIN qc_folders q ON "
                                         "       (f.folder_id = q.folder_id)"
-                                        "       LEFT JOIN qc_users u ON "
+                                        "       LEFT JOIN users u ON "
                                         "           (q.qc_by = u.user_id)"
                                         "       LEFT JOIN errors ON "
                                         "           (f.folder_id = errors.folder_id)"
@@ -2339,12 +2330,11 @@ def search_folders(project_alias):
                                         "   projects p "
                                         " WHERE f.project_id = p.project_id "
                                         "   AND p.project_alias = %(project_alias)s "
-                                        "   AND f.project_folder ILIKE %(q)s "
+                                        "   AND lower(f.project_folder) LIKE lower(%(q)s) "
                                         "  ORDER BY f.project_folder ASC"
-                                        "  LIMIT 50 OFFSET %(offset)s",
+                                        "  LIMIT 50 OFFSET {offset}").format(offset=offset),
                                         {'project_alias': project_alias,
-                                            'q': '%%' + q + '%%',
-                                            'offset': psycopg2.extensions.AsIs(offset)})
+                                            'q': '%%' + q + '%%'})
     results_df = pd.DataFrame({'folder': [], 'no_files': []})
     for row in results:
         results_df.loc[len(results_df.index)] = ['<a href="/dashboard/' + project_alias \
@@ -2397,6 +2387,10 @@ def api_route_list():
         # Skip 'static' routes
         if str(rule).startswith('/api'):
             func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
+        elif str(rule).startswith('/api/new'):
+            continue
+        elif str(rule).startswith('/api/update'):
+            continue
         else:
             continue
     data['routes'] = func_list
@@ -2410,30 +2404,60 @@ def api_get_projects():
     """Get the list of projects."""
     # TEST
     # For post use request.form.get("variable")
-    val = request.form.get("val")
-    logging.info("VAL: {}".format(val))
-    if val != "a":
-        raise InvalidUsage('This view is gone', status_code=401)
-    data = query_database("SELECT "
-                          "project_id, "
-                          "project_title, "
-                          "project_alias, "
-                          "project_unit, "
-                          "project_checks, "
-                          "project_postprocessing, "
-                          "project_status, "
-                          "project_description, "
-                          "project_type, "
-                          "project_method, "
-                          "project_manager, "
-                          "project_url, "
-                          "project_area, "
-                          "project_start, "
-                          "CASE WHEN project_end IS NULL THEN NULL ELSE project_end END as project_end, "
-                          "project_datastorage, "
-                          "project_notice, "
-                          "updated_at::timestamp "
-                          "FROM projects")
+    section = request.form.get("section")
+    # logging.info("VAL: {}".format(val))
+    if section not in ['MD', 'IS']:
+        query = (" SELECT "
+                         " p.project_id, "
+                         " p.projects_order, "
+                         " p.project_unit, "
+                         " u.unit_fullname, "
+                         " p.project_alias, "
+                         " p.project_title, "
+                         " p.project_status, "
+                         " p.project_manager, "
+                         " date_format(p.project_start, '%Y-%b-%d') AS project_start, "
+                         " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%Y-%b-%d') END AS project_end, "
+                         " p.objects_estimated,  "
+                         " ps.objects_digitized, "
+                         " p.images_estimated, "
+                         " ps.images_taken, "
+                         " ps.images_public "
+                         " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id), si_units u "
+                         " WHERE p.project_unit = u.unit_id AND p.skip_project = 0 "
+                         " GROUP BY "
+                         "        p.project_id, p.project_title, p.project_unit, u.unit_fullname, p.project_status, p.project_description, "
+                         "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
+                         "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
+                         " ORDER BY p.projects_order DESC")
+        projects_data = query_database(query)
+    else:
+        query = (" SELECT "
+                 " p.project_id, "
+                 " p.projects_order, "
+                 " p.project_unit, "
+                 " u.unit_fullname, "
+                 " p.project_alias, "
+                 " p.project_title, "
+                 " p.project_status, "
+                 " p.project_manager, "
+                 " date_format(p.project_start, '%%Y-%%b-%%d') AS project_start, "
+                 " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%%Y-%%b-%%d') END AS project_end, "
+                 " p.objects_estimated,  "
+                 " ps.objects_digitized, "
+                 " p.images_estimated, "
+                 " ps.images_taken, "
+                 " ps.images_public "
+                 " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id), si_units u "
+                 " WHERE p.project_unit = u.unit_id AND p.skip_project = 0 AND p.project_section = %(section)s "
+                 " GROUP BY "
+                 "        p.project_id, p.project_title, p.project_unit, p.project_status, u.unit_fullname, p.project_description, "
+                 "        p.project_method, p.project_manager, p.project_url, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
+                 "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
+                 " ORDER BY p.projects_order DESC")
+        projects_data = query_database(query, {'section': section})
+    last_update = query_database("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats")
+    data = ({"projects": projects_data, "last_update": last_update[0]['updated_at']})
     return jsonify(data)
 
 
@@ -2457,8 +2481,8 @@ def api_get_project_details(project_alias=None):
                               "project_manager, "
                               "project_url, "
                               "project_area, "
-                              "to_char(project_start, 'YYYY-MM-DD') AS project_start, "
-                              "CASE WHEN project_end IS NULL THEN NULL ELSE to_char(project_end, 'YYYY-MM-DD') END as project_end, "
+                              "date_format(project_start, '%y-%m-%d') AS project_start, "
+                              "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%y-%m-%d') END as project_end, "
                               "project_notice, "
                               "updated_at::timestamp "
                               "FROM projects WHERE project_alias = %(project_alias)s",
@@ -2479,8 +2503,8 @@ def api_get_project_details(project_alias=None):
                                   "project_url, "
                                   "project_area, "
                                   "project_datastorage, "                              
-                                  "to_char(project_start, 'YYYY-MM-DD') AS project_start, "
-                                  "CASE WHEN project_end IS NULL THEN NULL ELSE to_char(project_end, 'YYYY-MM-DD') END as project_end, "
+                                  "date_format(project_start, '%y-%m-%d') AS project_start, "
+                                  "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%y-%m-%d') END as project_end, "
                                   "project_notice, "
                                   "updated_at::timestamp "
                               "FROM projects WHERE project_alias = %(project_alias)s",
@@ -2496,7 +2520,7 @@ def api_get_project_details(project_alias=None):
                                      "status, "
                                      "notes, "
                                      "error_info, "
-                                     "to_char(date, 'YYYY-MM-DD') as capture_date, "
+                                     "date_format(date, '%y-%m-%d') as capture_date, "
                                      "no_files, "
                                      "file_errors "
                                  "FROM folders WHERE project_id = %(project_id)s",
@@ -2510,7 +2534,7 @@ def api_get_project_details(project_alias=None):
                                      "status, "
                                      "notes, "
                                      "error_info, "
-                                     "to_char(date, 'YYYY-MM-DD') as capture_date, "
+                                     "date_format(date, '%y-%m-%d') as capture_date, "
                                      "no_files, "
                                      "file_errors, "
                                      " CASE WHEN delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams "
@@ -2581,9 +2605,9 @@ def api_update_project_details(project_alias=None):
                             query = sql.SQL("UPDATE folders SET status = 1, error_info = %s WHERE folder_id = %s")
                             res = query_database_insert(query, (query_value, folder_id))
                         elif query_property == "stats":
-                            query = sql.SQL("UPDATE folders f SET no_files = d.no_files FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 1) d WHERE f.folder_id = d.folder_id")
+                            query = sql.SQL("UPDATE folders f SET no_files = d.no_files FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM files_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 1) d WHERE f.folder_id = d.folder_id")
                             res = query_database_insert(query, (folder_id, ))
-                            query = sql.SQL("UPDATE folders f SET file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM file_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 9) d WHERE f.folder_id = d.folder_id")
+                            query = sql.SQL("UPDATE folders f SET file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END FROM (SELECT COUNT(DISTINCT f.file_id) AS no_files FROM files_checks c, files f WHERE f.folder_id = %s AND f.file_id = c.file_id AND c.check_results = 9) d WHERE f.folder_id = d.folder_id")
                             res = query_database_insert(query, (folder_id, ))
                             query = sql.SQL("UPDATE folders f SET no_files = d.no_files FROM (SELECT count(*) AS no_files, folder_id FROM files WHERE folder_id = %s GROUP BY folder_id) d WHERE f.folder_id = d.folder_id")
                             res = query_database_insert(query, (folder_id, ))
@@ -2613,7 +2637,7 @@ def api_update_project_details(project_alias=None):
                         file_check = request.form.get("file_check")
                         check_results = query_value
                         check_info = request.form.get("check_info")
-                        query = sql.SQL("INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) VALUES (%s, %s, %s, %s, %s, NOW()) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
+                        query = sql.SQL("INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) VALUES (%s, %s, %s, %s, %s, NOW()) ON CONFLICT (file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
                         logging.info(query)
                         res = query_database_insert(query, (file_id, folder_id, file_check, check_results, check_info, check_results, check_info))
                         logging.info(res)
@@ -2643,7 +2667,7 @@ def api_update_project_details(project_alias=None):
                             conflict_folder = ', '.join(conflict_folder)
                             check_info = "Files with the same MD5 hash: {}".format(conflict_folder)
                         query = sql.SQL(
-                            "INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                            "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
                             "VALUES (%s, %s, 'md5', %s, %s, NOW()) ON CONFLICT "
                             "(file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
                         res = query_database_insert(query, (file_id, folder_id, check_results, check_info, check_results, check_info))
@@ -2729,7 +2753,7 @@ def api_new_folder(project_alias=None):
                             conflict_folder = ', '.join(conflict_folder)
                             check_info = "Files with the same name in folders: {}".format(conflict_folder)
                         query = sql.SQL(
-                            "INSERT INTO file_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                            "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
                             "VALUES (%s, %s, 'unique_file', %s, %s, NOW()) ON CONFLICT "
                             "(file_id, file_check) DO UPDATE SET check_results = %s, check_info = %s, updated_at = NOW()")
                         res = query_database_insert(query, (file_id, folder_id, check_results, check_info, check_results, check_info))
@@ -2793,7 +2817,7 @@ def api_get_folder_details(folder_id=None):
 				  " checks as (select unnest(string_to_array(project_checks, ',')) as file_check from projects where project_id = %(project_id)s),"
 				  " checklist as (select c.file_check, f.file_id from checks c, files_q f)"
 				  " SELECT coalesce(f.check_results, 9) as check_results, c.file_check, f.updated_at::timestamp" 
-				  " FROM checklist c left join file_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)",
+				  " FROM checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)",
                                          {'file_id': file['file_id'], 'project_id': project_id})
             file_post = query_database("SELECT post_step, post_results, updated_at::timestamp "
                                        "FROM file_postprocessing WHERE file_id = %(file_id)s",
@@ -2838,7 +2862,7 @@ def api_get_file_details(file_id=None):
                            {'file_id': file_id})
     if data is not None:
         file_checks = query_database("SELECT check_info, check_results, file_check, updated_at::timestamp "
-                               "FROM file_checks WHERE file_id = %(file_id)s",
+                               "FROM files_checks WHERE file_id = %(file_id)s",
                                {'file_id': file_id})
         data[0]['file_checks'] = file_checks
         file_exif = query_database("SELECT tag, value, filetype, tagid, taggroup, updated_at::timestamp "

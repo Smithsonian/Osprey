@@ -16,7 +16,7 @@
 
         <div class="col">
              <p>
-                <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_id=project_alias, folder_id=folder_info.folder_id) }}" role="button">
+                <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}" role="button">
                     <i class="fa-solid fa-list"></i> Back to folder {{ folder_info.project_folder }}
                 </a>
             </p>
@@ -49,7 +49,7 @@
                         <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
                     {% endfor %}
 
-                    <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+{#                    <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>#}
 
                 <br>File ID: {{ file_details.file_id }}
                 </small>
@@ -70,13 +70,13 @@
                                 <strong>{{ check.file_check }}</strong><br>
                                 <small>
                                     {% if check.file_check == 'tif_compression' %}
-                                        TIF file is compressed.
+                                        TIF file is compressed using the lossless compression LZW.
                                     {% elif check.file_check == 'tifpages' %}
                                         Check that there are no more than 1 page in the TIF, usually a thumbnail.
                                     {% elif check.file_check == 'magick' %}
                                         File is valid according to ImageMagick.
                                     {% elif check.file_check == 'jhove' %}
-                                        File is valid according to JHOVE.
+                                        File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>.
                                     {% elif check.file_check == 'unique_file' %}
                                         Filename is unique in the project.
                                     {% elif check.file_check == 'raw_pair' %}
@@ -89,6 +89,8 @@
                                         Derivative file is present.
                                     {% elif check.file_check == 'prefix' %}
                                         Filename has the correct prefix.
+                                    {% else %}
+                                        Checks for {{ check.file_check }}.
                                     {% endif %}
                                 </small>
                             </td>
