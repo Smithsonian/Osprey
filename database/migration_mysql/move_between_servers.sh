@@ -29,14 +29,9 @@ mysqldump osprey projects_stats_detail |  mysql --defaults-file=~/mysql_dev.cnf
 mysqldump osprey projects_settings |  mysql --defaults-file=~/mysql_dev.cnf
 
 mysqldump osprey data_reports |  mysql --defaults-file=~/mysql_dev.cnf
-mysqldump osprey si_units |  mysql --defaults-file=~/mysql_dev.cnf
-
-
-
 
 mysqldump osprey si_units |  mysql --defaults-file=~/mysql_dev.cnf
 
 mysqldump osprey jpc_aspace_resources |  mysql --defaults-file=~/mysql_dev.cnf
 mysqldump osprey jpc_aspace_data |  mysql --defaults-file=~/mysql_dev.cnf
-
 
