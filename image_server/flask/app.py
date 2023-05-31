@@ -18,13 +18,17 @@ import os
 
 from PIL import Image
 
+
+# MySQL
+import pymysql
+
 import simplejson as json
-import psycopg2
-import psycopg2.extras
+# import psycopg2
+# import psycopg2.extras
 
 import settings
 
-site_ver = "1.0"
+site_ver = "1.1"
 
 # Logging
 logging.basicConfig(filename='app.log',
@@ -47,16 +51,16 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 # Cache config
-# config = {
-#     "DEBUG": True,  # some Flask specific configs
-#     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
-#     "CACHE_DIR": "{}/cache".format(os.getcwd()),
-#     "CACHE_DEFAULT_TIMEOUT": 300
-# }
+config = {
+    "DEBUG": True,  # some Flask specific configs
+    "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
+    "CACHE_DIR": "{}/cache".format(os.getcwd()),
+    "CACHE_DEFAULT_TIMEOUT": 300
+}
 app = Flask(__name__)
 # tell Flask to use the above defined config
-# app.config.from_mapping(config)
-# cache = Cache(app)
+app.config.from_mapping(config)
+cache = Cache(app)
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -108,19 +112,20 @@ def preprocess(token):
     return token.lower().lstrip().rstrip()
 
 
-# Database
-try:
-    conn = psycopg2.connect(host=settings.host,
-                            database=settings.database,
-                            user=settings.user,
-                            password=settings.password)
-except psycopg2.Error as e:
-    logging.error(e)
-    raise InvalidUsage('System error', status_code=500)
-
-
-# @cache.memoize()
 def query_database(query_template, parameters="", logging=None):
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               password=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               autocommit=True,
+                               cursorclass=pymysql.cursors.DictCursor)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logging.error(e)
+        raise InvalidUsage('System error')
     try:
         with open(query_template) as f:
             query = f.read()
@@ -129,15 +134,13 @@ def query_database(query_template, parameters="", logging=None):
         return None
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     # Run query
     try:
         cur.execute(query, parameters)
-        logging.info("cur.query: {}".format(cur.query))
-    except psycopg2.ProgrammingError as e:
+    except Exception as e:
         logging.error("cur.query: {} | p.error: {}".format(cur.query, e))
         return None
-    except psycopg2.Error as e:
+    except Exception as e:
         logging.error("cur.query: {} | error: {}".format(cur.query, e))
         return None
     logging.info(cur.rowcount)
@@ -145,6 +148,8 @@ def query_database(query_template, parameters="", logging=None):
         data = None
     else:
         data = cur.fetchall()
+    cur.close()
+    conn.close()
     return data
 
 
@@ -161,7 +166,7 @@ def home_system():
 #################################
 # MassDigi-specific routes
 #################################
-# @cache.memoize()
+@cache.memoize()
 @app.route('/previewimage/<int:file_id>/', methods=['GET'], strict_slashes=False)
 def get_preview(file_id=None):
     """Return image previews from Mass Digi Projects."""
@@ -213,6 +218,7 @@ def get_preview(file_id=None):
         return send_file("static/na.jpg", mimetype='image/jpeg')
 
 
+@cache.memoize()
 @app.route('/herbarium_barcode/<int:file_name>/', methods=['GET'], strict_slashes=False)
 def get_herbarium(file_name=None):
     """Return image previews from the NMNH Herbarium."""
