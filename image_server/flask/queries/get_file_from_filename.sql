@@ -1,1 +1,1 @@
-SELECT file_id, folder_id, preview_image FROM files WHERE file_name::int = %(file_name)s::int AND folder_id IN (SELECT folder_id FROM folders WHERE project_id = ANY('{100,131}')) LIMIT 1
+SELECT file_id, folder_id, preview_image FROM files WHERE CAST(file_name AS int) = CAST(%(file_name)s AS int) AND folder_id IN (SELECT folder_id FROM folders WHERE project_id = ANY('{100,131}')) LIMIT 1

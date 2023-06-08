@@ -9,6 +9,7 @@ from flask import render_template
 from flask import request
 from flask import jsonify
 from flask import send_file
+from flask import redirect
 # caching
 # from flask_caching import Cache
 
@@ -20,7 +21,8 @@ from PIL import Image
 
 
 # MySQL
-import pymysql
+import mysql.connector
+
 
 import simplejson as json
 # import psycopg2
@@ -31,21 +33,14 @@ import settings
 site_ver = "1.1"
 
 # Logging
-logging.basicConfig(filename='app.log',
-                    level=logging.DEBUG,
-                    filemode='a',
-                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                    datefmt='%y-%m-%d %H:%M:%S'
-                    )
-# define a Handler which writes INFO messages or higher to the sys.stderr
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-# set a format which is simpler for console use
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# tell the handler to use this format
-console.setFormatter(formatter)
-# add the handler to the root logger
-logging.getLogger('').addHandler(console)
+logfile = 'app.log'
+logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
+                    format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
+                    datefmt='%y-%b-%d %H:%M:%S')
+logger = logging.getLogger("web_osprey")
+
+logging.info("site_ver = {}".format(site_ver))
+logging.info("site_env = {}".format(site_env))
 # Set locale for number format
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
@@ -112,42 +107,76 @@ def preprocess(token):
     return token.lower().lstrip().rstrip()
 
 
-def query_database(query_template, parameters="", logging=None):
-    try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               password=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               autocommit=True,
-                               cursorclass=pymysql.cursors.DictCursor)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logging.error(e)
-        raise InvalidUsage('System error')
-    try:
-        with open(query_template) as f:
-            query = f.read()
-    except IOError as e:
-        logging.error(e)
-        return None
+# def query_database(query_template, parameters="", logging=None):
+#     try:
+#         conn = pymysql.connect(host=settings.host,
+#                                user=settings.user,
+#                                password=settings.password,
+#                                database=settings.database,
+#                                port=settings.port,
+#                                charset='utf8mb4',
+#                                autocommit=True,
+#                                cursorclass=pymysql.cursors.DictCursor)
+#         cur = conn.cursor()
+#     except pymysql.Error as e:
+#         logging.error(e)
+#         raise InvalidUsage('System error')
+#     try:
+#         with open(query_template) as f:
+#             query = f.read()
+#     except IOError as e:
+#         logging.error(e)
+#         return None
+#     logging.info("parameters: {}".format(parameters))
+#     logging.info("query: {}".format(query))
+#     # Run query
+#     try:
+#         cur.execute(query, parameters)
+#     except Exception as e:
+#         logging.error("cur.query: {} | p.error: {}".format(cur.query, e))
+#         return None
+#     except Exception as e:
+#         logging.error("cur.query: {} | error: {}".format(cur.query, e))
+#         return None
+#     logging.info(cur.rowcount)
+#     if cur.rowcount == -1:
+#         data = None
+#     else:
+#         data = cur.fetchall()
+#     cur.close()
+#     conn.close()
+#     return data
+
+def query_database(query, parameters=None, api=False):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
+    # Connect to db
+    try:
+        conn = mysql.connector.connect(host=settings.host,
+                                       user=settings.user,
+                                       passwd=settings.password,
+                                       database=settings.database,
+                                       port=settings.port,
+                                       charset='utf8mb4',
+                                       autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as e:
+        logging.error("Error in connection: {}".format(e))
+        raise InvalidUsage('System error')
     # Run query
     try:
-        cur.execute(query, parameters)
-    except Exception as e:
-        logging.error("cur.query: {} | p.error: {}".format(cur.query, e))
-        return None
-    except Exception as e:
-        logging.error("cur.query: {} | error: {}".format(cur.query, e))
-        return None
-    logging.info(cur.rowcount)
-    if cur.rowcount == -1:
-        data = None
-    else:
-        data = cur.fetchall()
+        if parameters is None:
+            results = cur.execute(query)
+        else:
+            results = cur.execute(query, parameters)
+    except mysql.connector.Error as error:
+        logging.error("Error: {}".format(error))
+        if api:
+            return jsonify(None)
+        else:
+            raise InvalidUsage('System error', status_code=500)
+    data = cur.fetchall()
+    logging.info("No of results: ".format(cur.rowcount))
     cur.close()
     conn.close()
     return data
@@ -177,9 +206,9 @@ def get_preview(file_id=None):
         file_id = int(file_id)
     except:
         raise InvalidUsage('invalid file_id value', status_code=400)
-    data = query_database('queries/get_folder_id.sql', {'file_id': file_id}, logging=logging)
+    data = query_database('queries/get_folder_id.sql', {'file_id': file_id})
     logging.info("data: {}".format(data))
-    if data == None:
+    if data is None:
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     elif len(data) == 0:
@@ -187,16 +216,16 @@ def get_preview(file_id=None):
         return send_file(filename, mimetype='image/jpeg')
     else:
         try:
-            folder_id = data[0]
+            folder_id = data[0]['folder_id']
             max = request.args.get('max')
             if max is not None:
                 width = max
             else:
                 width = request.args.get('size')
             if width is None:
-                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id, file_id)
             else:
-                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id['folder_id'], file_id)
+                filename = "static/mdpp_previews/folder{}/{}.jpg".format(folder_id, file_id)
                 if os.path.isfile(filename):
                     img = Image.open(filename)
                     wpercent = (int(width) / float(img.size[0]))
@@ -225,9 +254,9 @@ def get_herbarium(file_name=None):
     if file_name is None:
         raise InvalidUsage('file_name missing', status_code=400)
     #
-    data = query_database('queries/get_file_from_filename.sql', {'file_name': file_name}, logging=logging)
+    data = query_database('queries/get_file_from_filename.sql', {'file_name': file_name})
     logging.info("data: {}".format(data))
-    if data == None:
+    if data is None:
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     elif len(data) == 0:
@@ -239,7 +268,7 @@ def get_herbarium(file_name=None):
         folder_id = data['folder_id']
         preview_image = data['preview_image']
         logging.info("data: {}".format(data))
-        if preview_image != None:
+        if preview_image is not None:
             redirect(preview_image, code=302)
         else:
             max = request.args.get('max')
