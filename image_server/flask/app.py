@@ -11,7 +11,7 @@ from flask import jsonify
 from flask import send_file
 from flask import redirect
 # caching
-# from flask_caching import Cache
+from flask_caching import Cache
 
 import logging
 import locale
@@ -206,7 +206,7 @@ def get_preview(file_id=None):
         file_id = int(file_id)
     except:
         raise InvalidUsage('invalid file_id value', status_code=400)
-    data = query_database('queries/get_folder_id.sql', {'file_id': file_id})
+    data = query_database("SELECT folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
     logging.info("data: {}".format(data))
     if data is None:
         filename = "static/na.jpg"
@@ -254,7 +254,10 @@ def get_herbarium(file_name=None):
     if file_name is None:
         raise InvalidUsage('file_name missing', status_code=400)
     #
-    data = query_database('queries/get_file_from_filename.sql', {'file_name': file_name})
+    query = ("SELECT file_id, folder_id, preview_image FROM files "
+             "WHERE file_name = %(file_name)s AND folder_id IN "
+             "(SELECT folder_id FROM folders WHERE project_id in(100,131)) LIMIT 1")
+    data = query_database(query, {'file_name': file_name})
     logging.info("data: {}".format(data))
     if data is None:
         filename = "static/na.jpg"
