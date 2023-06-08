@@ -19,14 +19,10 @@ import os
 
 from PIL import Image
 
-
 # MySQL
 import mysql.connector
 
-
 import simplejson as json
-# import psycopg2
-# import psycopg2.extras
 
 import settings
 
@@ -40,7 +36,7 @@ logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
 logger = logging.getLogger("web_osprey")
 
 logging.info("site_ver = {}".format(site_ver))
-logging.info("site_env = {}".format(site_env))
+
 # Set locale for number format
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
