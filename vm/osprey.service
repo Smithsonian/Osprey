@@ -1,9 +1,0 @@
-[Unit]
-Description=Osprey automation and filechecks.
-
-[Service]
-Type=simple
-ExecStart=/bin/bash /usr/bin/osprey/osprey_auto.sh
-
-[Install]
-WantedBy=multi-user.target
