@@ -20,7 +20,7 @@ import os
 from PIL import Image
 
 # MySQL
-import mysql.connector
+import pymysql
 
 import simplejson as json
 
@@ -143,36 +143,37 @@ def preprocess(token):
 #     conn.close()
 #     return data
 
-def query_database(query, parameters=None, api=False):
+def query_database(query, parameters=None):
     logging.info("parameters: {}".format(parameters))
     logging.info("query: {}".format(query))
     # Connect to db
     try:
-        conn = mysql.connector.connect(host=settings.host,
-                                       user=settings.user,
-                                       passwd=settings.password,
-                                       database=settings.database,
-                                       port=settings.port,
-                                       charset='utf8mb4',
-                                       autocommit=True)
-        cur = conn.cursor(dictionary=True)
-    except mysql.connector.Error as e:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               password=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               autocommit=True,
+                               cursorclass=pymysql.cursors.DictCursor)
+        cur = conn.cursor()
+    except pymysql.Error as e:
         logging.error("Error in connection: {}".format(e))
         raise InvalidUsage('System error')
     # Run query
     try:
         if parameters is None:
-            results = cur.execute(query)
+            cur.execute(query)
         else:
-            results = cur.execute(query, parameters)
-    except mysql.connector.Error as error:
-        logging.error("Error: {}".format(error))
-        if api:
-            return jsonify(None)
-        else:
-            raise InvalidUsage('System error', status_code=500)
-    data = cur.fetchall()
-    logging.info("No of results: ".format(cur.rowcount))
+            cur.execute(query, parameters)
+    except Exception as e:
+        logging.error("cur.query: {} | p.error: {}".format(cur.query, e))
+        return None
+    logging.info(cur.rowcount)
+    if cur.rowcount == -1:
+        data = None
+    else:
+        data = cur.fetchall()
     cur.close()
     conn.close()
     return data

@@ -5,7 +5,7 @@ digitization projects by the Collections Digitization program of the
 Digitization Program Office, OCIO, Smithsonian.
 
 The system checks that the files pass a number of tests and displays
-the results in a Shiny dashboard. This allows the vendor, the
+the results in a web dashboard. This allows the vendor, the
 project manager, and the unit to monitor the progress and detect
 problems early.
 
@@ -13,8 +13,8 @@ problems early.
 
 The system has two main components:
 
- * [image_validation](image_validation) - Python3 tool that runs a series of checks on folders. Results are written to a Postgres database.
- * [dashboard](dashboard) - Dashboard and QC system that reads the Postgres database and displays the results, written in Python/Flask.
+ * [image_validation](image_validation) - Python tool that runs a series of checks on folders. Results are sent to the dashboard via an HTTP API to be saved to the database.
+ * [dashboard](dashboard) - Dashboard and QC system that reads the MySQL database and displays the results, written in Python/Flask.
 
 The database schema is in [database](database).
 
