@@ -4,8 +4,7 @@ host = ""
 database = ""
 user = ""
 password = ""
-
-jpg_previews = ""
+port = 3306
 
 secret_key = b''
 
@@ -13,3 +12,5 @@ secret_key = b''
 env = "dev"
 
 log_folder = ""
+
+kiosks = []

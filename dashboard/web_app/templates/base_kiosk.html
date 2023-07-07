@@ -123,39 +123,16 @@
         <div class="row">
             <div class="col">
 
-            {% if username %}
-
-                <div style="text-align: right; color: #FFFFFF;">
-                    <small>
-                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a>
-                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all projects">All Projects</a>
-                        <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
-                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
-                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system">Logout</a>
-                    </small>
-                </div>
-
-            {% else %}
-
-                <div style="text-align: right; color: #FFFFFF;">
-                    <small>
-                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all Projects">All Projects</a>
-                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system">Login</a> {% endif %}
-                        <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
-                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
-                    </small>
-                </div>
-
-            {% endif %}
+            <div style="text-align: right; color: #FFFFFF;">
+                &nbsp;
+                <small class="text-white">{{ user_address }}</small>
+            </div>
 
             </div>
             </div>
         </div>
     </nav>
 
-{#    <div class="alert alert-warning m-100" role="alert">#}
-{#        <small>Note: This system is in development. The contents might change and be updated without notice. A production system will be deployed soon.</small>#}
-{#    </div>#}
 
     <a name="maincontent"></a>
 
@@ -164,71 +141,23 @@
 
 </div>
 
-<!-- Login Modal -->
-<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h1 class="modal-title" id="loginModalLabel">Log In to the System</h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-
-        <form method="post" action="" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
-
-        <h1>Login:</h1>
-
-        {{ form.hidden_tag() }}
-
-        <p class="fw-bold">
-            {% if msg %}
-                {{ msg | safe }}
-            {% endif %}
-        </p>
-
-        <br />
-
-        <div class="form-floating mb-3">
-            {{ form.username(class="form-control", aria_label='Username', autocomplete="off") }}
-            <label for="username">Username</label>
-        </div>
-        <div class="form-floating mb-3">
-            {{ form.password(class="form-control", aria_label='Password', type="password", autocomplete="off") }}
-            <label for="password">Password</label>
-        </div>
-        <br />
-
-        <p><strong>Do not</strong> use your SI login. This feature will be added in a future version.</p>
-
-        <button class="w-100 btn btn-lg btn-primary" type="submit" aria-label='Submit Form'>Sign In</button>
-
-        </form>
-
-
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <footer class="page-footer font-small bg-secondary pt-2" style="background: #3F4249!important;">
   <!-- Footer Elements -->
   <div class="container-fluid">
       <div class="row">
         <div class="col">
-            <a href="https://dpo.si.edu"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
+            <img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office">
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" class="text-white">Office of the Chief Information Officer</a></p>
-            <p><a href="{{ url_for('about') }}" class="text-white">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" class="text-white">Terms of Use</a></p>
+            <p class="text-white">Office of the Chief Information Officer</p>
+            <p class="text-white">About & Contact</p>
+            <p class="text-white">Terms of Use</p>
         </div>
         <div class="col">
-            <p><a href="http://si.edu/" class="text-white">Smithsonian Home</a></p>
-            <p><a href="http://www.si.edu/Accessibility" class="text-white">Accessibility</a></p>
-            <p><a href="http://www.si.edu/Privacy" class="text-white">Privacy</a></p>
+            <p class="text-white">Smithsonian Home</p>
+            <p class="text-white">Accessibility</p>
+            <p class="text-white">Privacy</p>
         </div>
 
     </div>

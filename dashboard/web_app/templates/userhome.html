@@ -36,12 +36,12 @@
 
                 <a id="{{ project.project_alias }}"></a>
                   <h2>{{ project.project_title }}
-                        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
+                        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
                         {% if project.qc_status == 1 %}
-                            <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Run QC</a>
+                            <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Run QC</a>
                         {% endif %}
                         {% if is_admin %}
-                            <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_id=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a>
+                            <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a>
                         {% endif %}
                   </h2>
 

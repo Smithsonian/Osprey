@@ -9,7 +9,7 @@
     <h3>{{ project.project_title }}</h3>
 
     <p>
-        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_id=project.project_alias) }}" role="button">
+        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" role="button">
             <i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
     </p>
 
@@ -29,7 +29,7 @@
                 {% for folder in folder_qc_info %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('dashboard', project_id=project.project_alias) }}?folder_id={{ folder.folder_id }}" title="See Folder Details"><i class="fa-solid fa-list"></i> {{ folder.project_folder }}</a>
+                        <a href="{{ url_for('dashboard_f', project_alias=project.project_alias, folder_id=folder.folder_id) }}" title="See Folder Details"><i class="fa-solid fa-list"></i> {{ folder.project_folder }}</a>
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>

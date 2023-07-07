@@ -1,4 +1,9 @@
-{% extends "base.html" %}
+
+{% if kiosk %}
+    {% extends "base_kiosk.html" %}
+{% else %}
+    {% extends "base.html" %}
+{% endif %}
 
 {% block title %}Project Dashboard{% endblock %}
 
@@ -38,20 +43,31 @@
             <h4>{{ file_details.file_name }} Image Preview:</h4>
 
                 <p><small>
-                    <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
-                    <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
 
-                    <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+                    {% if kiosk  %}
 
-                    <!-- File Links -->
+                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
 
-                    {% for link in file_links %}
-                        <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
-                    {% endfor %}
+                    {% else %}
 
-{#                    <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>#}
+                        <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
+                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
 
-                <br>File ID: {{ file_details.file_id }}
+                        <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+
+                        <!-- File Links -->
+
+                        {% for link in file_links %}
+                            <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
+                        {% endfor %}
+
+{#                        <br><a href="https://collections.si.edu/search/results.htm?q=%22{{ file_details.file_name }}%22" target="_blank" rel="noopener noreferrer" title="Opens in new window">Collections Search <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>#}
+
+                        <br>
+
+                    {% endif %}
+
+                File ID: {{ file_details.file_id }}
                 </small>
                 </p>
 

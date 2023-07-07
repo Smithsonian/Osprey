@@ -1,4 +1,9 @@
-{% extends "base.html" %}
+
+{% if kiosk %}
+    {% extends "base_kiosk.html" %}
+{% else %}
+    {% extends "base.html" %}
+{% endif %}
 
 {% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
 

@@ -1,4 +1,9 @@
-{% extends "base.html" %}
+
+{% if kiosk %}
+    {% extends "base_kiosk.html" %}
+{% else %}
+    {% extends "base.html" %}
+{% endif %}
 
 {% block title %}{{ project_info.project_title }} {{ folder_name.project_folder }} - Project Dashboard{% endblock %}
 
@@ -113,34 +118,46 @@
                                 <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
                             {% endif %}
 
-                            {% if folder.no_files > 0 %}
-                                <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
-                            {% endif %}
+                            {# Folder Badges #}
+                            {% if folder_badge is not none %}
+                                <br>
+                                {% for folder_badge in project_folders_badges %}
+                                    {% if folder_badge.folder_id == folder.folder_id %}
+                                        <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>
+                                    {% endif %}
+                                {% endfor %}
 
-                            {% if folder.file_errors == 1 %}
-                                <span class="badge bg-danger">Files with errors</span>
-                            {% endif %}
+                            {% else %}
 
-                            {% if project_info.qc_status == 1 %}
-                                {% if folder.qc_status == "QC Pending" %}
-                                    <span class="badge bg-secondary">QC Pending</span>
-                                {% elif folder.qc_status == "QC Passed" %}
-                                    <span class="badge bg-success">QC Passed</span>
-                                {% elif folder.qc_status == "QC Failed" %}
-                                    <span class="badge bg-danger">QC Failed</span>
+                                {% if folder.no_files > 0 %}
+                                    <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
                                 {% endif %}
-                            {% endif %}
 
-                            {% if folder.delivered_to_dams == 1 %}
-                                <span class="badge bg-success">Delivered to DAMS</span>
-                            {% elif folder.delivered_to_dams == 0 %}
-                                <span class="badge bg-secondary">Ready for DAMS </span>
-                            {% endif %}
+                                {% if folder.file_errors == 1 %}
+                                    <span class="badge bg-danger">Files with errors</span>
+                                {% endif %}
 
-                            {% if folder.status != 0 %}
-                                <span class="badge bg-danger">{{ folder.error_info }}</span>
-                            {% endif %}
+                                {% if project_info.qc_status == 1 %}
+                                    {% if folder.qc_status == "QC Pending" %}
+                                        <span class="badge bg-secondary">QC Pending</span>
+                                    {% elif folder.qc_status == "QC Passed" %}
+                                        <span class="badge bg-success">QC Passed</span>
+                                    {% elif folder.qc_status == "QC Failed" %}
+                                        <span class="badge bg-danger">QC Failed</span>
+                                    {% endif %}
+                                {% endif %}
 
+                                {% if folder.delivered_to_dams == 1 %}
+                                    <span class="badge bg-success">Delivered to DAMS</span>
+                                {% elif folder.delivered_to_dams == 0 %}
+                                    <span class="badge bg-secondary">Ready for DAMS </span>
+                                {% endif %}
+
+                                {% if folder.status != 0 %}
+                                    <span class="badge bg-danger">{{ folder.error_info }}</span>
+                                {% endif %}
+
+                            {% endif %}
                             </h6>
 
                         </td>
@@ -273,7 +290,7 @@
     </div>
 </div>
     <br>
-    {% if project_info.project_notice != '' %}
+    {% if project_info.project_notice != None %}
         <div class="alert alert-info m-100" role="alert">
             <small>{{ project_info.project_notice | safe }}</small>
         </div>
