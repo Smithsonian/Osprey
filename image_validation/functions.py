@@ -3,15 +3,15 @@ from datetime import datetime
 import os
 import stat
 import subprocess
-# import re
 import xmltodict
 import sys
+import json
+import requests
 
 from random import randint
 
 import glob
 from PIL import Image
-# import defusedxml
 from subprocess import PIPE
 from pathlib import Path
 import shutil
@@ -21,14 +21,11 @@ import itertools
 # For MD5
 import hashlib
 
-import json
-
 # Parallel
 from multiprocessing import Pool
 
 # Get settings and queries
 import settings
-import requests
 
 # Remove DecompressionBombWarning due to large files
 # by using a large threshold
@@ -114,32 +111,33 @@ def jhove_validate(file_path, logger):
             # Issue open at Github, seems will be fixed in future release
             # https://github.com/openpreserve/jhove/issues/364
             if doc['jhove']['repInfo']['messages']['message']['#text'][:31] == "WhiteBalance value out of range":
-                jhove_val = 0
+                check_results = 0
         file_status = doc['jhove']['repInfo']['messages']['message']['#text']
-        check_info = "{}; {}".format(jhove_results, file_status)
+        check_info = "{}; {}".format(file_status, jhove_results)
     return check_results, check_info
 
 
-# def magick_validate(file_id, filename, logger, paranoid=False):
-#     """
-#     Validate the file with Imagemagick
-#     """
-#     if paranoid:
-#         p = subprocess.Popen(['{}/identify'.format(settings.imagemagick_binaries), '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
-#                              stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
-#     else:
-#         p = subprocess.Popen(['{}/identify'.format(settings.imagemagick_binaries), '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
-#     (out, err) = p.communicate()
-#     if p.returncode == 0:
-#         magick_identify = 0
-#     else:
-#         magick_identify = 1
-#         logger.debug("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
-#         logger.debug("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
-#     magick_identify_info = out + err
-#     check_results = magick_identify
-#     check_info = magick_identify_info.decode('latin-1')
-#     return check_results, check_info
+def magick_validate(file_id, filename, logger, paranoid=False):
+    """
+    Validate the file with Imagemagick
+    """
+    if paranoid:
+        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
+    else:
+        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
+    (out, err) = p.communicate()
+    if p.returncode == 0:
+        magick_identify = 0
+    else:
+        magick_identify = 1
+        logger.debug("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
+        logger.debug("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
+    magick_identify_info = out + err
+    check_results = magick_identify
+    check_info = magick_identify_info.decode('latin-1')
+    return check_results, check_info
 
 
 def tif_compression(file_path):
@@ -171,18 +169,18 @@ def tifpages(file_path):
     return check_results, check_info
 
 
-def file_exif(filename):
+def get_file_exif(filename):
     """
     Extract the EXIF info from the RAW file
     """
-    p = subprocess.Popen([settings.exiftool, '-t', '-a', '-U', '-u', '-D', '-G1', '-s', filename], stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+    p = subprocess.Popen([settings.exiftool, '-j', '-L', '-a', '-U', '-u', '-D', '-G1', filename],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = p.communicate()
     exif_info = out
     return exif_info
 
 
-def filemd5(filepath, logger):
+def get_filemd5(filepath, logger):
     """
     Get MD5 hash of a file
     """
@@ -209,7 +207,7 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type):
     if len(derivative_file) == 1:
         derivative_file = derivative_file[0]
         file_pair = 0
-        file_pair_info = "Raw file {} found for {} ({})".format(derivative_file, filename, file_id)
+        file_pair_info = "Raw file {} found for {} ({})".format(Path(derivative_file).name, filename, file_id)
     elif len(derivative_file) == 0:
         derivative_file = None
         # Raw file is missing
@@ -311,7 +309,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
         os.makedirs(preview_file_path)
     # Delete old image, if exists
     if os.path.isfile(preview_image):
-        # logger.info("JPG file exists ({}; {})".format(filename, file_id))
         return True
     img = Image.open(file_path)
     if settings.previews_size == "full":
@@ -328,6 +325,7 @@ def jpgpreview(file_id, folder_id, file_path, logger):
         return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
+        sys.exit(1)
         return False
 
 
@@ -347,42 +345,49 @@ def update_folder_stats(folder_id, folder_path, logger):
     logger.info("update_folder_stats: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
         sys.exit(1)
     if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
-        # md5_exists = 0
-        md5_exists = "md50"
+        md5_exists = 0
     else:
-        # md5_exists = 1
-        md5_exists = "md51"
+        md5_exists = 1
     payload = {'type': 'folder',
                'folder_id': folder_id,
                'api_key': settings.api_key,
-               'property': md5_exists,
+               'property': 'md5_exists',
                'value': 'tif'
                }
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
+    logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
         sys.exit(1)
     if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-        # md5_raw_exists = 0
-        md5_raw_exists = "raw0"
+        md5_raw_exists = 0
     else:
-        # md5_raw_exists = 1
-        md5_raw_exists = "raw1"
+        md5_raw_exists = 1
     payload = {'type': 'folder',
                'folder_id': folder_id,
                'api_key': settings.api_key,
-               'property': md5_raw_exists,
+               'property': 'md5_exists',
                'value': 'raw'
                }
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
+    logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
         sys.exit(1)
     return True
 
@@ -430,31 +435,7 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
                 delivered_to_dams = folder_info['delivered_to_dams']
                 logger.info("Folder exists: {}".format(folder_id))
                 break
-            # else:
-            #     folder_date = settings.folder_date(folder_name)
-            #     # CREATE FOLDER
-            #     payload = {
-            #             'type': 'folder',
-            #             'api_key': settings.api_key,
-            #             'folder': folder_name,
-            #             'folder_path': folder_path,
-            #             'folder_date': folder_date,
-            #             'project_id': project_info['project_id']
-            #     }
-            #     r = requests.post('{}/api/new/{}'.format(settings.api_url, settings.project_alias),
-            #                       data=payload)
-            #     query_results = json.loads(r.text.encode('utf-8'))
-            #     logger.info("Creating folder record: {} - {} - {}".format(folder_path, payload, query_results))
-            #     # logger.info("query_results: {}".format(query_results))
-            #     if query_results["result"] is False:
-            #         logger.error("API Returned Error: {}".format(query_results))
-            #         logger.info("Leaving program")
-            #         sys.exit(1)
-            #     else:
-            #         folder_id = query_results["result"][0]['folder_id']
-            #         delivered_to_dams = 9
-            #     break
-    if folder_id == None:
+    if folder_id is None:
         # CREATE FOLDER
         folder_date = settings.folder_date(folder_name)
         payload = {
@@ -469,10 +450,11 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
                           data=payload)
         query_results = json.loads(r.text.encode('utf-8'))
         logger.info("Creating folder record: {} - {} - {}".format(folder_path, payload, query_results))
-        # logger.info("query_results: {}".format(query_results))
         if query_results["result"] is False:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.info("Leaving program")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
             sys.exit(1)
         else:
             folder_id = query_results["result"][0]['folder_id']
@@ -480,7 +462,7 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     # if folder_id is None:
     if 'folder_id' not in locals():
         logger.error("Could not get folder_id for {}".format(folder_name))
-        return None
+        sys.exit(1)
     # Check if folder is ready or in DAMS
     if delivered_to_dams == 0 or delivered_to_dams == 1:
         # Folder ready for or delivered to DAMS, skip
@@ -494,11 +476,13 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     logger.info(query_results)
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
-        logger.info("Leaving program")
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
         sys.exit(1)
     if os.path.isdir("{}/{}".format(folder_path, settings.main_files_path)) is False:
-        logger.info("Missing MAIN folder in {}".format(folder_path))
         folder_status_msg = "Missing MAIN folder in {}".format(folder_path)
+        logger.info(folder_status_msg)
         payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status9',
                    'value': folder_status_msg}
         r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
@@ -506,7 +490,9 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.info("Leaving program")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
             sys.exit(1)
         return folder_id
     else:
@@ -524,7 +510,9 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
             query_results = json.loads(r.text.encode('utf-8'))
             if query_results["result"] is not True:
                 logger.error("API Returned Error: {}".format(query_results))
-                logger.info("Leaving program")
+                logger.error("Request: {}".format(str(r.request)))
+                logger.error("Headers: {}".format(r.headers))
+                logger.error("Payload: {}".format(payload))
                 sys.exit(1)
         os.chdir(folder_full_path)
         # Get all files in the folder
@@ -540,55 +528,69 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         # Parallel
         ###############
         no_tasks = len(files)
-        print_str = "Started parallel run of {notasks} tasks on {workers} workers"
-        print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
-            settings.no_workers))
-        logger.info(print_str)
-        # Process files in parallel
-        inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(logfile_folder))
-        with Pool(settings.no_workers) as pool:
-            pool.starmap(process_image_p, inputs)
-            pool.close()
-            pool.join()
+        if settings.no_workers == 1:
+            print_str = "Started run of {notasks} tasks"
+            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)))
+            logger.info(print_str)
+            # Process files in parallel
+            for file in files:
+                process_image_p(file, folder_path, folder_id, project_id, logfile_folder)
+        else:
+            print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+                settings.no_workers))
+            logger.info(print_str)
+            # Process files in parallel
+            inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(project_id), itertools.repeat(logfile_folder))
+            with Pool(settings.no_workers) as pool:
+                pool.starmap(process_image_p, inputs)
+                pool.close()
+                pool.join()
     # Update folder stats
     update_folder_stats(folder_id, folder_path, logger)
-    # Set as done processing
     return folder_id
 
 
-def process_image_p(filename, folder_path, folder_id, logfile_folder):
+def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder):
     """
     Run checks for image files
     """
     import settings
     import random
-    import time
     import logging
-    import logging.handlers
-    logfile = '{}/osprey_{}.log'.format(logfile_folder, randint(1, 1000))
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                        datefmt='%m-%d %H:%M:%S')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logger = logging.getLogger("osprey")
-    logging.getLogger('osprey').addHandler(console)
-    logger.setLevel(logging.DEBUG)
+    import time
+    random_int = random.randint(1, 1000)
+    # Logging
+    current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    logfile = '{}/{}_{}.log'.format(logfile_folder, current_time, random_int)
+    logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
+                        format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
+                        datefmt='%y-%b-%d %H:%M:%S')
+    logger = logging.getLogger("osprey_{}".format(random_int))
     #
     main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
     logger.info("filename: {}".format(main_file_path))
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
     filename_suffix = Path(filename).suffix[1:]
-    payload = {'api_key': settings.api_key}
-    r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload)
+    payload_api = {'api_key': settings.api_key}
+    r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload_api)
     if r.status_code != 200:
         # Something went wrong
-        logger.error("API Returned Error: {}".format(r.text))
-        sys.exit(1)
+        logger.error("API ({}) Returned Error: {}".format('{}/api/folders/{}'.format(settings.api_url, folder_id), r.text))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        return False
     folder_info = json.loads(r.text.encode('utf-8'))
+    r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload_api)
+    if r.status_code != 200:
+        # Something went wrong
+        query_results = r.text.encode('utf-8')
+        logger.error("API Returned Error: {}".format(query_results))
+        sys.exit(1)
+    project_info = json.loads(r.text.encode('utf-8'))
+    project_checks = project_info['project_checks']
     # Check if file exists, insert if not
     file_id = None
     for file in folder_info['files']:
@@ -611,13 +613,20 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         r = requests.post('{}/api/new/{}'.format(settings.api_url, settings.project_alias), data=payload)
         if r.status_code != 200:
             # Something went wrong
-            logger.error("API Returned Error (1197): {}".format(r.text))
-            sys.exit(1)
-        file_id = json.loads(r.text.encode('utf-8'))
-        file_id = file_id['result'][0]['file_id']
-        logger.info("new file id: {}".format(file_id))
-        # Get filesize from TIF:
+            logger.error("API Returned Error: {}".format(r.text))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
+        else:
+            logger.info("API Returned: {}".format(r.text))
+        file_info = json.loads(r.text.encode('utf-8'))['result']
+        logging.debug("new_file:{}".format(file_info))
+        file_id = file_info[0]['file_id']
+        file_uid = file_info[0]['uid']
+        # # Get filesize from TIF:
         file_size = os.path.getsize(main_file_path)
+        filetype = filename_suffix.lower()
         payload = {
             'api_key': settings.api_key,
             'type': "filesize",
@@ -628,18 +637,23 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         r = requests.post('{}/api/new/{}'.format(settings.api_url, settings.project_alias), data=payload)
         if r.status_code != 200:
             # Something went wrong
-            logger.error("API Returned Error (1218): {}".format(r.text))
-            sys.exit(1)
+            logger.error("API Returned Error: {}".format(r.text))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
         # Refresh folder info
-        payload = {'api_key': settings.api_key}
-        r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload)
+        r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload_api)
         if r.status_code != 200:
             # Something went wrong
             query_results = json.loads(r.text.encode('utf-8'))
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
         folder_info = json.loads(r.text.encode('utf-8'))
-        # logger.info("folder_info:{}".format(folder_info))
+        logger.info("folder_info:{}".format(folder_info))
         for file in folder_info['files']:
             if file['file_name'] == filename_stem:
                 file_id = file['file_id']
@@ -648,7 +662,7 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
     logging.debug("file_info: {}".format(file_info))
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
-    file_md5 = filemd5(main_file_path, logger)
+    file_md5 = get_filemd5(main_file_path, logger)
     payload = {'type': 'file',
                'property': 'filemd5',
                'file_id': file_id,
@@ -662,9 +676,13 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
     if query_results["result"] is not True:
         query_results = json.loads(r.text.encode('utf-8'))
         logger.error("API Returned Error: {}".format(query_results))
-        sys.exit(1)
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        return False
     # Get exif from TIF
-    data = file_exif(main_file_path)
+    data = get_file_exif(main_file_path)
+    data_json = json.loads(data)
     payload = {'type': 'file',
                'property': 'exif',
                'file_id': file_id,
@@ -675,27 +693,37 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
+    logger.info("query_results:{}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
-        sys.exit(1)
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        return False
     # logger.info("file_info: {}".format(file_info))
     # If the file has been checked and passed all, nothing to do and return
     file_checks = 0
-    try:
-        if len(file_info['file_checks']) == 0:
-            file_checks = 1
-        else:
-            for fcheck in file_info['file_checks']:
-                file_checks = file_checks + int(fcheck['check_results'])
-    except:
-        logging.info(file_info)
+    r = requests.post('{}/api/files/{}'.format(settings.api_url, file_id), data=payload_api)
+    file_info = json.loads(r.text.encode('utf-8'))
+    if len(file_info['file_checks']) == 0:
+        file_checks = 1
+    else:
+        for fcheck in file_info['file_checks']:
+            file_checks = file_checks + int(fcheck['check_results'])
     if file_checks == 0:
         # file_updated_at(file_id, db_cursor)
         logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
         return True
     logger.info("Running checks on file {} ({}; folder_id: {})".format(filename_stem, file_id, folder_id))
     # Run each check
-    if 'raw_pair' in settings.project_file_checks:
+    #####################################
+    # Add to server side:
+    #  - valid_name
+    #  - dupe_elsewhere
+    #  - md5
+    #####################################
+    #if 'raw_pair' in settings.project_file_checks:
+    if 'raw_pair' in project_checks:
         file_check = 'raw_pair'
         # FilePair check and get MD5 hash
         check_results, check_info, derivative_file = file_pair_check(file_id,
@@ -716,8 +744,12 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-        file_md5 = filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, derivative_file), logger)
+            logger.error("769")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
+        file_md5 = get_filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, derivative_file), logger)
         payload = {'type': 'file',
                    'property': 'filemd5',
                    'file_id': file_id,
@@ -730,8 +762,13 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-    if 'jhove' in settings.project_file_checks:
+            logger.error("787")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
+    # if 'jhove' in settings.project_file_checks:
+    if 'jhove' in project_checks:
         file_check = 'jhove'
         check_results, check_info = jhove_validate(main_file_path, logger)
         payload = {'type': 'file',
@@ -748,36 +785,32 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
+            logger.error("809")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
     # if 'magick' in settings.project_file_checks:
-    #     file_check = 'magick'
-    #     check_results, check_info = magick_validate(file_id, main_file_path, logger)
-    #     payload = {'type': 'file',
-    #                'property': 'filechecks',
-    #                'folder_id': folder_id,
-    #                'file_id': file_id,
-    #                'api_key': settings.api_key,
-    #                'file_check': file_check,
-    #                'value': check_results,
-    #                'check_info': check_info
-    #                }
-    #     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-    #                       data=payload)
-    #     query_results = json.loads(r.text.encode('utf-8'))
-    #     if query_results["result"] is not True:
-    #         logger.error("API Returned Error: {}".format(query_results))
-    #         sys.exit(1)
-    # if 'stitched_jpg' in settings.project_file_checks:
-    #     db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': 'stitched_jpg'})
-    #     logger.debug(db_cursor.query.decode("utf-8"))
-    #     result = db_cursor.fetchone()[0]
-    #     if result != 0:
-    #         # JPG check
-    #         stitched_name = filename_stem.replace(settings.jpgstitch_original_1, settings.jpgstitch_new)
-    #         stitched_name = stitched_name.replace(settings.jpgstitch_original_2, settings.jpgstitch_new)
-    #         check_stitched_jpg(file_id, "{}/{}/{}.jpg".format(folder_path, settings.jpg_files_path, stitched_name),
-    #                            db_cursor, logger)
-    if 'tifpages' in settings.project_file_checks:
+    if 'magick' in project_checks:
+        file_check = 'magick'
+        check_results, check_info = magick_validate(file_id, main_file_path, logger)
+        payload = {'type': 'file',
+                   'property': 'filechecks',
+                   'folder_id': folder_id,
+                   'file_id': file_id,
+                   'api_key': settings.api_key,
+                   'file_check': file_check,
+                   'value': check_results,
+                   'check_info': check_info
+                   }
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                          data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            sys.exit(1)
+    # if 'tifpages' in settings.project_file_checks:
+    if 'tifpages' in project_checks:
         file_check = 'tifpages'
         check_results, check_info = tifpages(main_file_path)
         payload = {'type': 'file',
@@ -794,8 +827,13 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-    if 'tif_compression' in settings.project_file_checks:
+            logger.error("859")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
+    # if 'tif_compression' in settings.project_file_checks:
+    if 'tif_compression' in project_checks:
         file_check = 'tif_compression'
         check_results, check_info = tif_compression(main_file_path)
         payload = {'type': 'file',
@@ -812,6 +850,9 @@ def process_image_p(filename, folder_path, folder_id, logfile_folder):
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
+            logger.error("881")
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
     return True
-

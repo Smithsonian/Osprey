@@ -1,7 +1,4 @@
 xmltodict
-exifread
-bitmath
 pandas
 Pillow
 requests
-defusedxml

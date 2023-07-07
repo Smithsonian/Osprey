@@ -3,20 +3,14 @@
 # Osprey script
 # https://github.com/Smithsonian/Osprey
 #
-# Validate images from a vendor
+# Validate images in Digitization Projects
 #
 ############################################
 # Import modules
 ############################################
 import logging
-# import logging.handlers
-# from logging.handlers import RotatingFileHandler
 import time
-# import random
-# import sys
-# import os
-
-# import requests
+import requests
 
 # Import settings from settings.py file
 import settings
@@ -24,7 +18,14 @@ import settings
 # Import helper functions
 from functions import *
 
-ver = "2.0.0"
+ver = "2.5.0"
+
+# Pass an argument in the CLI 'debug'
+if len(sys.argv) > 1:
+    run_debug = sys.argv[1]
+else:
+    run_debug = False
+
 
 ############################################
 # Logging
@@ -33,29 +34,39 @@ log_folder = "logs"
 
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
+# current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+# logfile_folder = '{script_path}/{log_folder}/{curtime}'.format(script_path=os.getcwd(), log_folder=log_folder, curtime=current_time)
+# if not os.path.exists(logfile_folder):
+#     os.makedirs(logfile_folder)
+# logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
+# logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
+#                     format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
+#                     datefmt='%y-%b-%d %H:%M:%S')
+# logger = logging.getLogger("osprey")
+# stdout = logging.StreamHandler(stream=sys.stdout)
+# console = logging.StreamHandler()
+# if run_debug == 'debug':
+#     console.setLevel(logging.DEBUG)
+# else:
+#     console.setLevel(logging.INFO)
+# formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s')
+# console.setFormatter(formatter)
+# logging.getLogger('osprey').addHandler(console)
+#
+# logger.info("osprey version {}".format(ver))
+
+# Logging
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logfile_folder = '{script_path}/{log_folder}/{curtime}'.format(script_path=os.getcwd(), log_folder=log_folder, curtime=current_time)
-if not os.path.exists(logfile_folder):
-    os.makedirs(logfile_folder)
-logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                    datefmt='%m-%d %H:%M:%S')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-console.setFormatter(formatter)
+logfile = '{}/{}.log'.format(log_folder, current_time)
+logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
+                    format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
+                    datefmt='%y-%b-%d %H:%M:%S')
 logger = logging.getLogger("osprey")
-logging.getLogger('osprey').addHandler(console)
-logger.setLevel(logging.DEBUG)
-logger.info("osprey version {}".format(ver))
 
+logging.info("osprey version {}".format(ver))
 
-# Pass an argument in the CLI 'debug'
-if len(sys.argv) > 1:
-    run_debug = sys.argv[1]
-else:
-    run_debug = False
+# Set locale for number format
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 ############################################
@@ -79,44 +90,24 @@ def main():
     if not os.path.isdir(settings.project_datastorage):
         logger.error("Path not found: {}".format(settings.project_datastorage))
         sys.exit(1)
-    # Update project
+    r = requests.get('{}/api/'.format(settings.api_url))
+    if r.status_code != 200:
+        # Something went wrong
+        query_results = r.text.encode('utf-8')
+        logger.error("API Returned Error: {}".format(query_results))
+        sys.exit(1)
+    system_info = json.loads(r.text.encode('utf-8'))
+    if system_info['sys_ver'] != ver:
+        logger.error("API version ({}) does not match this script ({})".format(system_info['sys_ver'], ver))
+        sys.exit(1)
     payload = {'api_key': settings.api_key}
     r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload)
     if r.status_code != 200:
         # Something went wrong
-        query_results = json.loads(r.text.encode('utf-8'))
+        query_results = r.text.encode('utf-8')
         logger.error("API Returned Error: {}".format(query_results))
         sys.exit(1)
     project_info = json.loads(r.text.encode('utf-8'))
-    # If project_checks are different here, update the database
-    project_checks = ','.join([','.join(settings.project_file_checks), 'unique_file', 'md5'])
-    if project_info['project_checks'] != project_checks:
-        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'checks', 'value': project_checks}
-        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
-        query_results = json.loads(r.text.encode('utf-8'))
-        if query_results["result"] is not True:
-            logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-    # If project_postprocessing are different here, update the database
-    if project_info['project_postprocessing'] != ','.join(settings.project_postprocessing):
-        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'post', 'value': ','.join(settings.project_postprocessing)}
-        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
-        query_results = json.loads(r.text.encode('utf-8'))
-        if query_results["result"] is not True:
-            logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-    # If project_datastorage is different here, update the database
-    if project_info['project_datastorage'] != settings.project_datastorage:
-        payload = {'type': 'project', 'api_key': settings.api_key, 'property': 'storage',
-                   'value': settings.project_datastorage}
-        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                          data=payload)
-        query_results = json.loads(r.text.encode('utf-8'))
-        if query_results["result"] is not True:
-            logger.error("API Returned Error: {}".format(query_results))
-            sys.exit(1)
-    # Loop each project path
-    logger.debug('project_path: {}'.format(settings.project_datastorage))
     # Generate list of folders in the path
     folders = []
     for entry in os.scandir(settings.project_datastorage):
@@ -129,11 +120,12 @@ def main():
     # No folders found
     if len(folders) == 0:
         logger.info("No folders found in: {}".format(settings.project_datastorage))
-        return
+        return True
     # Check each folder
+    logger.info("project_info: {}".format(project_info))
     for folder in folders:
-        run_checks_folder_p(project_info, folder, logfile_folder, logger)
-    return
+        run_checks_folder_p(project_info, folder, log_folder, logger)
+    return True
 
 
 ############################################
