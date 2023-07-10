@@ -2769,14 +2769,14 @@ def api_update_project_details(project_alias=None):
                                     " VALUES (%(folder_id)s, 'error_files', 'bg-danger', 'Files with errors', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
                                     "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                                 res = query_database_insert(query, {'folder_id': folder_id, 'no_files': no_folder_files}, cur=cur)
-                        elif query_property == "md50":
-                            query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                                     " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
-                            res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
-                        elif query_property == "md51":
-                            query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                                     " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
-                            res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
+                        # elif query_property == "md50":
+                        #     query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
+                        #              " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
+                        #     res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
+                        # elif query_property == "md51":
+                        #     query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
+                        #              " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
+                        #     res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
                         elif query_property == "raw0":
                             query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                      " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
@@ -2785,10 +2785,26 @@ def api_update_project_details(project_alias=None):
                             query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                      " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
                             res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
-                        elif query_property == "md5_exists":
+                        elif query_property == "tif_md5_exists":
                             query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                                               " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
+                                               " VALUES (%(folder_id)s, 'tif', %(value)s) ON DUPLICATE KEY UPDATE md5 = %(value)s")
                             res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
+                            query = (
+                                    "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                    " VALUES (%(folder_id)s, 'md5_files', 'bg-danger', 'MD5 files missing', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = 'MD5 files missing',"
+                                    "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                            if query_value == 1:
+                                res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                        elif query_property == "raw_md5_exists":
+                            query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
+                                               " VALUES (%(folder_id)s, 'raw', %(value)s) ON DUPLICATE KEY UPDATE md5 = %(value)s")
+                            res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
+                            query = (
+                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                " VALUES (%(folder_id)s, 'md5_files', 'bg-danger', 'MD5 files missing', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = 'MD5 files missing',"
+                                "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                            if query_value == 1:
+                                res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                         elif query_property == "qc":
                             query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                             folder_qc = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
