@@ -8,50 +8,38 @@
 import sys
 import shutil
 import locale
-
-# For Postgres
-import psycopg2
+import json
+import requests
 
 # Import settings from settings.py file
 import settings
 
-ver = "0.2.0"
+ver = "0.3.0"
 
 # Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 
 if len(sys.argv) == 3:
-    folder_id = sys.argv[1]
-    export_to = sys.argv[2]
-elif len(sys.argv) == 2:
+    folder_id = sys.argv[2]
     export_to = sys.argv[1]
-    folder_id = None
 else:
-    print("Usage: ./export_jpgs.py [folder_id] [destination]")
+    print("Usage: ./export_jpgs.py [destination] [folder_id]")
     sys.exit(1)
 
 
 ############################################
 def main():
-    # Connect to the database
-    conn = psycopg2.connect(host=settings.db_host, database=settings.db_db, user=settings.db_user, connect_timeout=60)
-    conn.autocommit = True
-    db_cursor = conn.cursor()
-    if folder_id is None:
-        # Get project's files
-        db_cursor.execute("SELECT file_id, file_name, folder_id FROM files WHERE folder_id in (SELECT folder_id FROM folders WHERE project_id = %(project_id)s)", {'project_id': settings.project_id})
-    else:
-        # Get project's files
-        db_cursor.execute(
-            "SELECT file_id, file_name, folder_id FROM files WHERE folder_id = %(folder_id)s",
-            {'folder_id': folder_id})
-    files = db_cursor.fetchall()
-    for file in files:
-        print('file: {}'.format(file[1]))
-        shutil.copy("{}/folder{}/{}.jpg".format(settings.jpgs_folder, file[2], file[0]), "{}/{}.jpg".format(export_to, file[1]))
-    # Disconnect from db
-    conn.close()
+    r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id))
+    if r.status_code != 200:
+        # Something went wrong
+        query_results = r.text.encode('utf-8')
+        print("API Returned Error: {}".format(query_results))
+        sys.exit(1)
+    folder_info = json.loads(r.text.encode('utf-8'))
+    for file in folder_info['files']:
+        print('file: {}'.format(file['file_name']))
+        shutil.copy("{}/folder{}/{}.jpg".format(settings.jpgs_folder, folder_id, file['file_id']), "{}/{}.jpg".format(export_to, file['file_name']))
     return
 
 

@@ -1,11 +1,7 @@
 ##################################
-#Postgres database user
+# API
 ##################################
-db_host = ""
-db_db = ""
-db_user = ""
+api_url = ""
 ##################################
 
-project_id = 101
-limit = 2000
 jpgs_folder = ""
