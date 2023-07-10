@@ -349,46 +349,48 @@ def update_folder_stats(folder_id, folder_path, logger):
         logger.error("Headers: {}".format(r.headers))
         logger.error("Payload: {}".format(payload))
         sys.exit(1)
-    if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
-        md5_exists = 0
-    else:
-        md5_exists = 1
-    payload = {'type': 'folder',
-               'folder_id': folder_id,
-               'api_key': settings.api_key,
-               'property': 'md5_exists',
-               'value': 'tif'
-               }
-    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                      data=payload)
-    query_results = json.loads(r.text.encode('utf-8'))
-    logger.info("query_results: {}".format(query_results))
-    if query_results["result"] is not True:
-        logger.error("API Returned Error: {}".format(query_results))
-        logger.error("Request: {}".format(str(r.request)))
-        logger.error("Headers: {}".format(r.headers))
-        logger.error("Payload: {}".format(payload))
-        sys.exit(1)
-    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-        md5_raw_exists = 0
-    else:
-        md5_raw_exists = 1
-    payload = {'type': 'folder',
-               'folder_id': folder_id,
-               'api_key': settings.api_key,
-               'property': 'md5_exists',
-               'value': 'raw'
-               }
-    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                      data=payload)
-    query_results = json.loads(r.text.encode('utf-8'))
-    logger.info("query_results: {}".format(query_results))
-    if query_results["result"] is not True:
-        logger.error("API Returned Error: {}".format(query_results))
-        logger.error("Request: {}".format(str(r.request)))
-        logger.error("Headers: {}".format(r.headers))
-        logger.error("Payload: {}".format(payload))
-        sys.exit(1)
+    # # Check if MD5 exists in tif folder
+    # if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
+    #     md5_exists = 0
+    # else:
+    #     md5_exists = 1
+    # payload = {'type': 'folder',
+    #            'folder_id': folder_id,
+    #            'api_key': settings.api_key,
+    #            'property': 'tif_md5_exists',
+    #            'value': md5_exists
+    #            }
+    # r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+    #                   data=payload)
+    # query_results = json.loads(r.text.encode('utf-8'))
+    # logger.info("query_results: {}".format(query_results))
+    # if query_results["result"] is not True:
+    #     logger.error("API Returned Error: {}".format(query_results))
+    #     logger.error("Request: {}".format(str(r.request)))
+    #     logger.error("Headers: {}".format(r.headers))
+    #     logger.error("Payload: {}".format(payload))
+    #     sys.exit(1)
+    # # Check if MD5 exists in raw folder
+    # if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+    #     md5_raw_exists = 0
+    # else:
+    #     md5_raw_exists = 1
+    # payload = {'type': 'folder',
+    #            'folder_id': folder_id,
+    #            'api_key': settings.api_key,
+    #            'property': 'raw_md5_exists',
+    #            'value': md5_raw_exists
+    #            }
+    # r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+    #                   data=payload)
+    # query_results = json.loads(r.text.encode('utf-8'))
+    # logger.info("query_results: {}".format(query_results))
+    # if query_results["result"] is not True:
+    #     logger.error("API Returned Error: {}".format(query_results))
+    #     logger.error("Request: {}".format(str(r.request)))
+    #     logger.error("Headers: {}".format(r.headers))
+    #     logger.error("Payload: {}".format(payload))
+    #     sys.exit(1)
     return True
 
 
@@ -467,6 +469,54 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     if delivered_to_dams == 0 or delivered_to_dams == 1:
         # Folder ready for or delivered to DAMS, skip
         logger.info("Folder ready for or delivered to for DAMS, skipping {}".format(folder_path))
+        return folder_id
+    # Check if MD5 exists in tif folder
+    if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
+        md5_exists = 0
+    else:
+        md5_exists = 1
+    payload = {'type': 'folder',
+               'folder_id': folder_id,
+               'api_key': settings.api_key,
+               'property': 'tif_md5_exists',
+               'value': md5_exists
+               }
+    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                      data=payload)
+    query_results = json.loads(r.text.encode('utf-8'))
+    logger.info("query_results: {}".format(query_results))
+    if query_results["result"] is not True:
+        logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        sys.exit(1)
+    # Check if MD5 exists in raw folder
+    if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
+        md5_raw_exists = 0
+    else:
+        md5_raw_exists = 1
+    payload = {'type': 'folder',
+               'folder_id': folder_id,
+               'api_key': settings.api_key,
+               'property': 'raw_md5_exists',
+               'value': md5_raw_exists
+               }
+    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                      data=payload)
+    query_results = json.loads(r.text.encode('utf-8'))
+    logger.info("query_results: {}".format(query_results))
+    if query_results["result"] is not True:
+        logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        sys.exit(1)
+    if md5_exists == 1 or md5_raw_exists == 1:
+        # Folder is missing md5 files
+        logger.info("Folder {} is missing md5 files".format(folder_path))
+        # Update folder stats
+        update_folder_stats(folder_id, folder_path, logger)
         return folder_id
     payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status0',
                'value': ''}
