@@ -46,12 +46,13 @@
 
                     {% if kiosk  %}
 
-                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
+{#                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">#}
+                        <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
 
                     {% else %}
 
                         <a href="{{ file_details.preview_image }}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
-                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
+                        <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
 
                         <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
 

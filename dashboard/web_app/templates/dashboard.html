@@ -239,10 +239,15 @@
 
 
                 {% for file in files_df %}
+{#                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"#}
+{#                            data-bs-info="{{ file.preview_image }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"#}
+{#                            data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">#}
                     <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
-                            data-bs-info="{{ file.preview_image }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"
+                            data-bs-info="{{ url_for('get_preview', file_id=file.file_id, max=1200) }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"
                             data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">
-                      <img src="{{ file.preview_image }}&max=160" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
+
+                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
+
                         <small>{{ file.file_name }}</small>
                   </button>
 
@@ -550,7 +555,8 @@
               //
               // Update the modal's content.
               var modalBody1 = previewmodal1.querySelector('.modal-body img')
-              modalBody1.src = checkinfo + '&max=1200';
+              // modalBody1.src = checkinfo + '&max=1200';
+              modalBody1.src = checkinfo;
               var modalBody2 = previewmodal1.querySelector('.modal-body a')
               modalBody2.href = filelink;
               previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
