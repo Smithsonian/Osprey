@@ -3301,7 +3301,7 @@ def data_reports(project_alias=None, report_id=None):
 
 @cache.memoize()
 @app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], strict_slashes=False)
-def get_preview(file_id=None):
+def get_preview(file_id=None, max=None):
     """Return image previews"""
     if file_id is None:
         raise InvalidUsage('file_id missing', status_code=400)
@@ -3342,17 +3342,21 @@ def get_preview(file_id=None):
             if max is not None:
                 width = max
             else:
-                width = request.args.get('size')
+                width = None
             filename = "image_previews/folder{}/{}.jpg".format(folder_id, file_id)
             if width is not None:
                 if os.path.isfile(filename):
-                    logging.info(filename)
-                    img = Image.open(filename)
-                    wpercent = (int(width) / float(img.size[0]))
-                    hsize = int((float(img.size[1]) * float(wpercent)))
-                    img = img.resize((int(width), hsize), Image.LANCZOS)
-                    filename = "/tmp/{}_{}.jpg".format(file_id, width)
-                    img.save(filename, icc_profile=img.info.get('icc_profile'))
+                    img_resized = "image_previews/folder{}/{}/{}.jpg".format(folder_id, width, file_id)
+                    if os.path.isfile(img_resized):
+                        filename = img_resized
+                    else:
+                        logging.info(filename)
+                        img = Image.open(filename)
+                        wpercent = (int(width) / float(img.size[0]))
+                        hsize = int((float(img.size[1]) * float(wpercent)))
+                        img = img.resize((int(width), hsize), Image.LANCZOS)
+                        filename = "/tmp/{}_{}.jpg".format(file_id, width)
+                        img.save(filename, icc_profile=img.info.get('icc_profile'))
                 else:
                     logging.info(filename)
                     filename = "static/na.jpg"
