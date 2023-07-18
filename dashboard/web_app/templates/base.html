@@ -224,11 +224,16 @@
             <p><a href="https://www.si.edu/ocio" class="text-white">Office of the Chief Information Officer</a></p>
             <p><a href="{{ url_for('about') }}" class="text-white">About & Contact</a></p>
             <p><a href="https://www.si.edu/termsofuse" class="text-white">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white">Vulnerability Disclosure Policy</a></p>
         </div>
         <div class="col">
-            <p><a href="http://si.edu/" class="text-white">Smithsonian Home</a></p>
-            <p><a href="http://www.si.edu/Accessibility" class="text-white">Accessibility</a></p>
-            <p><a href="http://www.si.edu/Privacy" class="text-white">Privacy</a></p>
+            {% if site_net == "external" %}
+                <p><a href="https://si.edu/" class="text-white">Smithsonian Home</a></p>
+            {% else %}
+                <p><a href="https://prism.si.edu/" class="text-white">PRISM</a></p>
+            {% endif %}
+            <p><a href="https://www.si.edu/Accessibility" class="text-white">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="text-white">Privacy</a></p>
         </div>
 
     </div>

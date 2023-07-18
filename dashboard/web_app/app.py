@@ -46,8 +46,13 @@ import plotly.express as px
 
 import settings
 
+# Profile app
+# from werkzeug.middleware.profiler import ProfilerMiddleware
+
+
 site_ver = "2.5.0"
 site_env = settings.env
+site_net = settings.site_net
 
 cur_path = os.path.abspath(os.getcwd())
 
@@ -61,6 +66,7 @@ logger = logging.getLogger("web_osprey")
 
 logging.info("site_ver = {}".format(site_ver))
 logging.info("site_env = {}".format(site_env))
+logging.info("site_net = {}".format(site_net))
 
 
 # Set locale for number format
@@ -78,6 +84,8 @@ app = Flask(__name__)
 app.secret_key = settings.secret_key
 app.config.from_mapping(config)
 cache = Cache(app)
+# app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="profile", restrictions=('app.py',))
+
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -202,6 +210,7 @@ def query_database_insert_multi(query, parameters, return_res=False, cur=None):
     return data
 
 
+@cache.memoize()
 def project_alias_exists(project_alias=None, cur=None):
     if project_alias is None:
         return False
@@ -244,6 +253,7 @@ def check_file_id(file_id=None, cur=None):
             return file_id, file_uid[0]['uid']
 
 
+@cache.memoize()
 def user_perms(project_id, user_type='user'):
     try:
         user_name = current_user.name
@@ -349,6 +359,7 @@ def load_user(username):
         return User(None, None, None, False)
 
 
+@cache.memoize()
 def kiosk_mode(request, kiosks):
     # User IP, for kiosk mode
     request_address = request.remote_addr
@@ -416,13 +427,6 @@ def login():
         else:
             # msg = "Error, user not known or password was incorrect"
             return redirect(url_for('not_user'))
-    query = ("select project_title, project_id, project_alias,"
-             " date_format(project_start, '%b-%Y') as project_start,"
-             " date_format(project_end, '%b-%Y') as project_end,"
-             "   project_unit "
-             " FROM projects where project_alias is not null"
-             " ORDER BY projects_order DESC")
-    projects = run_query(query, cur=cur)
 
     # Last update
     last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats",
@@ -597,7 +601,6 @@ def login():
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
     return render_template('home.html',
-                           projects=projects,
                            form=form,
                            msg=msg,
                            user_exists=user_exists,
@@ -620,12 +623,14 @@ def login():
                                                                         classes=["display", "compact", "table-striped",
                                                                                  "w-100"])],
                            site_env=site_env,
+                           site_net=site_net,
                            last_update=last_update[0]['updated_at'],
                            kiosk=kiosk,
                            user_address=user_address
                            )
 
 
+@cache.memoize()
 @app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
 def dashboard_f(project_alias=None, folder_id=None):
     """Dashboard for a project"""
@@ -1038,11 +1043,13 @@ def dashboard_f(project_alias=None, folder_id=None):
                            proj_reports=proj_reports,
                            reports=reports,
                            site_env=site_env,
+                           site_net=site_net,
                            kiosk=kiosk,
                            user_address=user_address
                            )
 
 
+@cache.memoize()
 @app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], strict_slashes=False)
 def dashboard(project_alias=None):
     """Dashboard for a project"""
@@ -1247,6 +1254,7 @@ def dashboard(project_alias=None):
                            proj_reports=proj_reports,
                            reports=reports,
                            site_env=site_env,
+                           site_net=site_net,
                            kiosk=kiosk,
                            user_address=user_address
                            )
@@ -1376,7 +1384,8 @@ def qc(project_alias=None):
                            folder_qc_info=folder_qc_info,
                            project=project,
                            form=form,
-                           site_env=site_env)
+                           site_env=site_env,
+                           site_net=site_net)
 
 
 @app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], strict_slashes=False)
@@ -1580,7 +1589,8 @@ def qc_process(folder_id):
                                                                      classes=["display", "compact", "table-striped"])],
                                        msg=msg,
                                        form=form,
-                                       site_env=site_env
+                                       site_env=site_env,
+                                       site_net=site_net
                                        )
             else:
                 error_files = run_query(("SELECT f.file_name, q.* FROM qc_files q, files f "
@@ -1597,7 +1607,8 @@ def qc_process(folder_id):
                                        username=username,
                                        error_files=error_files,
                                        form=form,
-                                       site_env=site_env)
+                                       site_env=site_env,
+                                       site_net=site_net)
     else:
         error_msg = "Folder is not available for QC."
         return render_template('error.html', form=form, error_msg=error_msg,
@@ -1791,7 +1802,7 @@ def home():
 
     return render_template('userhome.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr, form=form,
-                           site_env=site_env)
+                           site_env=site_env, site_net=site_net)
 
 
 @app.route('/new_project/', methods=['GET'], strict_slashes=False)
@@ -1936,11 +1947,11 @@ def create_new_project():
                                          "    (%(project_id)s, %(user_id)s)"),
                                         {'project_id': project_id,
                                          'user_id': '101'})
-    if current_user.id != '106':
-        user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                         "    (%(project_id)s, %(user_id)s)"),
-                                        {'project_id': project_id,
-                                         'user_id': '106'})
+    # if current_user.id != '106':
+    #     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
+    #                                      "    (%(project_id)s, %(user_id)s)"),
+    #                                     {'project_id': project_id,
+    #                                      'user_id': '106'})
     if p_unitstaff != '':
         unitstaff = p_unitstaff.split(',')
         logging.info("unitstaff: {}".format(p_unitstaff))
@@ -2036,7 +2047,8 @@ def edit_project(project_alias=None):
                            is_admin=is_admin,
                            project=project,
                            form=form,
-                           site_env=site_env)
+                           site_env=site_env,
+                           site_net=site_net)
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
@@ -2241,6 +2253,7 @@ def file(file_id=None):
                            file_links=file_links,
                            form=form,
                            site_env=site_env,
+                           site_net=site_net,
                            kiosk=kiosk,
                            user_address=user_address
                            )
@@ -2251,6 +2264,7 @@ def file_empty():
     return redirect(url_for('login'))
 
 
+@cache.memoize()
 @app.route('/dashboard/<project_alias>/search_files', methods=['GET'], strict_slashes=False)
 def search_files(project_alias):
     """Search files"""
@@ -2345,10 +2359,12 @@ def search_files(project_alias):
                            q=q,
                            form=form,
                            site_env=site_env,
+                           site_net=site_net,
                            kiosk=kiosk,
                            user_address=user_address)
 
 
+@cache.memoize()
 @app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], strict_slashes=False)
 def search_folders(project_alias):
     """Search files"""
@@ -2389,7 +2405,7 @@ def search_folders(project_alias):
         cur.close()
         conn.close()
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env), 400
+                                site_net=site_net, site_env=site_env), 400
     else:
         logging.info("q: {}".format(q))
         logging.info("offset: {}".format(offset))
@@ -2455,6 +2471,7 @@ def search_folders(project_alias):
                            q=q,
                            form=form,
                            site_env=site_env,
+                           site_net=site_net,
                            kiosk=kiosk,
                            user_address=user_address)
 
@@ -2476,6 +2493,7 @@ def not_user():
 ###################################
 # Osprey API
 ###################################
+@cache.memoize()
 @app.route('/api/', methods=['GET', 'POST'], strict_slashes=False)
 def api_route_list():
     """Print available routes in JSON"""
@@ -2742,8 +2760,8 @@ def api_update_project_details(project_alias=None):
                                      " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
                             res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                             # Clear badges
-                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'", {'folder_id': folder_id}, return_val=False)
-                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",{'folder_id': folder_id}, return_val=False)
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'", {'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",{'folder_id': folder_id}, cur=cur)
                             # Badge of no_files
                             no_files = run_query("SELECT COUNT(*) AS no_files FROM files WHERE folder_id = %(folder_id)s", {'folder_id': folder_id}, cur=cur)
                             if no_files[0]['no_files'] > 0:
@@ -3199,6 +3217,7 @@ def api_get_report(report_id=None):
         return jsonify(data)
 
 
+@cache.memoize()
 @app.route('/reports/', methods=['GET'], strict_slashes=False)
 def data_reports_form():
     """Report of a project"""
@@ -3207,6 +3226,7 @@ def data_reports_form():
     return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
 
 
+@cache.memoize()
 @app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], strict_slashes=False)
 def data_reports(project_alias=None, report_id=None):
     """Report of a project"""
@@ -3242,7 +3262,7 @@ def data_reports(project_alias=None, report_id=None):
     if len(project_id) == 0:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id,
-                               site_env=site_env), 404
+                               site_env=site_env, site_net=site_net), 404
 
     project_id = project_id[0]['project_id']
     project_report = run_query(("SELECT * FROM data_reports WHERE "
@@ -3253,7 +3273,7 @@ def data_reports(project_alias=None, report_id=None):
         cur.close()
         conn.close()
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env), 404
+                               site_env=site_env, site_net=site_net), 404
 
     report_data = pd.DataFrame(run_query(project_report[0]['query'], cur=cur))
     report_data_updated = run_query(project_report[0]['query_updated'], cur=cur)[0]['updated_at']
@@ -3274,7 +3294,8 @@ def data_reports(project_alias=None, report_id=None):
                                                        classes=["display", "compact", "table-striped"])],
                            report_data_updated=report_data_updated,
                            form=form,
-                           site_env=site_env
+                           site_env=site_env,
+                           site_net=site_net
                            )
 
 
@@ -3426,4 +3447,3 @@ def get_barcodeimage(barcode=None):
 #####################################
 if __name__ == '__main__':
     app.run(debug=True)
-

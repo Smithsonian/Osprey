@@ -11,6 +11,9 @@ secret_key = b''
 # dev or prod
 env = "dev"
 
+# Site is internal or external
+site_net = "internal"
+
 log_folder = ""
 
 kiosks = []
