@@ -6,6 +6,10 @@ project_id = ""
 project_datastorage = ""
 
 
+# Are md5 files required to check the files in a folder?
+md5_required = False
+
+
 # Temp folder, usually /tmp
 # No trailing slash
 tmp_folder = "/tmp"
@@ -99,8 +103,7 @@ tmp_folder = "/tmp"
 jpg_previews = ""
 # How much space to leave free, in decimal (0.1 is 10%)
 jpg_previews_free = 0.1
-# Set previews_size = 'full' to keep the same size as the main image
-previews_size = "full"
+
 
 
 # stitched_jpg

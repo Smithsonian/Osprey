@@ -304,29 +304,74 @@ def jpgpreview(file_id, folder_id, file_path, logger):
         sys.exit(1)
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
+    preview_image_160 = "{}/160/{}.jpg".format(preview_file_path, file_id)
+    preview_image_600 = "{}/600/{}.jpg".format(preview_file_path, file_id)
+    preview_image_1200 = "{}/1200/{}.jpg".format(preview_file_path, file_id)
     # Create subfolder if it doesn't exists
-    if not os.path.exists(preview_file_path):
-        os.makedirs(preview_file_path)
-    # Delete old image, if exists
-    if os.path.isfile(preview_image):
+    os.makedirs(preview_file_path, exist_ok=True)
+    # Other sizes
+    for width in [160, 600, 1200]:
+        resized_preview_file_path = "{}/{}".format(preview_file_path, width)
+        os.makedirs(resized_preview_file_path, exist_ok=True)
+    # Check if preview exist
+    if os.path.isfile(preview_image) and os.path.isfile(preview_image_1200) and \
+        os.path.isfile(preview_image_160) and os.path.isfile(preview_image_600):
         return True
     img = Image.open(file_path)
-    if settings.previews_size == "full":
-        img.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    else:
-        width_o, height_o = img.size
-        width = settings.previews_size
-        height = round(height_o * (width / width_o))
-        newsize = (width, height)
-        im1 = img.resize(newsize)
-        im1.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
+    # if settings.previews_size == "full":
+    # Save full size by default
+    img.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
+    # else:
+    #     width_o, height_o = img.size
+    #     width = settings.previews_size
+    #     height = round(height_o * (width / width_o))
+    #     newsize = (width, height)
+    #     im1 = img.resize(newsize)
+    #     im1.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
     if os.path.isfile(preview_image):
         os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
         return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
         sys.exit(1)
-        return False
+    # 160
+    width = 160
+    img = Image.open(file_path)
+    width_o, height_o = img.size
+    height = round(height_o * (width / width_o))
+    newsize = (width, height)
+    im1 = img.resize(newsize)
+    im1.save(preview_image_160, 'jpeg', icc_profile=img.info.get('icc_profile'))
+    if os.path.isfile(preview_image_160):
+        os.chmod(preview_image_160, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+        return True
+    else:
+        logger.error("File:{}|msg:{}".format(file_path, out))
+        sys.exit(1)
+    # 600
+    width = 600
+    height = round(height_o * (width / width_o))
+    newsize = (width, height)
+    im1 = img.resize(newsize)
+    im1.save(preview_image_600, 'jpeg', icc_profile=img.info.get('icc_profile'))
+    if os.path.isfile(preview_image_600):
+        os.chmod(preview_image_600, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+        return True
+    else:
+        logger.error("File:{}|msg:{}".format(file_path, out))
+        sys.exit(1)
+    # 1200
+    width = 1200
+    height = round(height_o * (width / width_o))
+    newsize = (width, height)
+    im1 = img.resize(newsize)
+    im1.save(preview_image_1200, 'jpeg', icc_profile=img.info.get('icc_profile'))
+    if os.path.isfile(preview_image_1200):
+        os.chmod(preview_image_1200, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+        return True
+    else:
+        logger.error("File:{}|msg:{}".format(file_path, out))
+        sys.exit(1)
 
 
 def update_folder_stats(folder_id, folder_path, logger):
@@ -512,12 +557,13 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         logger.error("Headers: {}".format(r.headers))
         logger.error("Payload: {}".format(payload))
         sys.exit(1)
-    if md5_exists == 1 or md5_raw_exists == 1:
-        # Folder is missing md5 files
-        logger.info("Folder {} is missing md5 files".format(folder_path))
-        # Update folder stats
-        update_folder_stats(folder_id, folder_path, logger)
-        return folder_id
+    if settings.md5_required:
+        if md5_exists == 1 or md5_raw_exists == 1:
+            # Folder is missing md5 files
+            logger.info("Folder {} is missing md5 files".format(folder_path))
+            # Update folder stats
+            update_folder_stats(folder_id, folder_path, logger)
+            return folder_id
     payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status0',
                'value': ''}
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
