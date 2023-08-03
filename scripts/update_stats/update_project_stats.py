@@ -75,7 +75,15 @@ for folder in folders:
     res = cur.fetchall()
     # Clear badges
     res = cur.execute(
-        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s",
+        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'no_files'",
+        {'folder_id': folder_id})
+    res = cur.fetchall()
+    res = cur.execute(
+        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'error_files'",
+        {'folder_id': folder_id})
+    res = cur.fetchall()
+    res = cur.execute(
+        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'qc_status'",
         {'folder_id': folder_id})
     res = cur.fetchall()
     # Badge of no_files
