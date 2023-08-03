@@ -1,52 +1,36 @@
 #!/usr/bin/env python3
 #
-# Osprey script 
+# Script to sync files 
 #
-# Validate products from a vendor, usually images
+# Usually gets files from a vendor when the folders have MD5 files,
+#   indicating that the folder is delivered.
 #
 ############################################
 # Import modules
 ############################################
 import os, sys, subprocess, locale, logging, glob, time
 from time import localtime, strftime
-#For Postgres
-import psycopg2
 
-ver = "0.1.0"
+ver = "0.2.0"
 
-##Set locale
+# Set locale
 locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
-
-##Import settings from settings.py file
+# Import settings from settings.py file
 import settings
-
 
 
 ############################################
 # Logging
 ############################################
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-current_time = strftime("%Y%m%d%H%M%S", localtime())
-logfile_name = '{}.log'.format(current_time)
-logfile = 'logs/{logfile_name}'.format(logfile_name = logfile_name)
-# from http://stackoverflow.com/a/9321890
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                    datefmt='%m-%d %H:%M:%S',
-                    filename=logfile,
-                    filemode='a')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-console.setFormatter(formatter)
-#logging.getLogger('').addHandler(console)
-logger1 = logging.getLogger("sync")
-logging.getLogger('sync').addHandler(console)
-logger1.info("sync version {}".format(ver))
+current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+logfile = '{}/sync_{}.log'.format(settings.log_folder, current_time)
+logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
+                    format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
+                    datefmt='%y-%b-%d %H:%M:%S')
+logger = logging.getLogger("sync")
 
-
+logging.info("script_ver = {}".format(ver))
 
 
 ############################################
@@ -57,19 +41,60 @@ def compress_log():
     """
     Compress log files
     """
-    os.chdir('logs')
+    cur_dir = os.getcwd()
+    os.chdir(settings.log_folder)
     for file in glob.glob('*.log'):
         subprocess.run(["zip", "{}.zip".format(file), file])
         os.remove(file)
-    os.chdir('../')
+    os.chdir(cur_dir)
     return True
 
 
 
-def sync_folders(project_id, folder_path, folder_name, destination_path, db_cursor, loggerfile):
+def sync_folders(source_path, destination_path, logger):
     """
     Syncs folders between locations using rsync
     """
+    folders = []
+    for entry in os.scandir(settings.source_path):
+        if entry.is_dir() and entry.path != settings.source_path:
+            print(entry)
+            folders.append(entry.path)
+        else:
+            logger.error("Extraneous files in: {}".format(entry.path))
+            sys.exit(1)
+    # No folders found
+    if len(folders) == 0:
+        logger.info("No folders found in: {}".format(settings.project_datastorage))
+        return True
+    # Check each folder
+    for folder in folders:
+        subfolders = []
+        for subentry in os.scandir(folder):
+            if subentry.is_dir() and subentry.path != folder:
+                print(subentry)
+                subfolders.append(subentry.path)
+            else:
+                logger.error("Extraneous files in: {}".format(subentry.path))
+                sys.exit(1)
+        if settings.req_md5:
+            for subf in subfolders:
+                if len(glob.glob(subf + "/*.md5")) != 1:
+                    # Subfolder missing md5, skip
+                    break
+            p = subprocess.Popen(['rsync', '-avht', '--delete', folder, settings.destination_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (out,err) = p.communicate()
+            if p.returncode != 0:
+                loggerfile.error("Error running rsync for {} ({}; {})".format(folder, out, err))
+                return False
+            else:
+                return True
+        md5_exists = 0
+    else:
+        run_checks_folder_p(project_info, folder, log_folder, logger)
+
+
+        
     db_cursor.execute("SELECT folder_id, delivered_to_dams FROM folders WHERE project_folder = %(project_folder)s and project_id = %(project_id)s", {'project_folder': folder_name, 'project_id': project_id})
     loggerfile.debug(db_cursor.query.decode("utf-8"))
     folder_info = db_cursor.fetchone()

@@ -1,22 +1,14 @@
-#ID of the project
-project_id = ""
+# List of paths where the folders to check are
+source_path = ""
 
-#List of paths where the folders to check are
-project_paths = []
-
-#Destination of the sync, trailing slash
+# Destination of the sync, trailing slash
 destination_path = ""
 
+# Require MD5 file in both subfolders to sync?
+req_md5 = True
 
-##################################
-#Postgres database and rw user
-##################################
-db_host = ""
-db_db = ""
-db_user = ""
-##################################
-
-
-
-#How long to sleep between loops
+# How long to sleep between loops
 sleep = 180
+
+# Where to save logs
+log_folder = "logs"

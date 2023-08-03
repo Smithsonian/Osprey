@@ -73,6 +73,12 @@ logging.info("site_net = {}".format(site_net))
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
+# Remove DecompressionBombWarning due to large files
+# by using a large threshold
+# https://github.com/zimeon/iiif/issues/11
+Image.MAX_IMAGE_PIXELS = 1000000000
+
+
 # Cache config
 config = {
     "DEBUG": True,  # some Flask specific configs
@@ -1325,22 +1331,82 @@ def qc(project_alias=None):
     if project_admin is None:
         # Not allowed
         return redirect(url_for('home'))
-    project_settings = run_query(("SELECT coalesce(s.qc_percent, 0.1) as qc_percent FROM projects p "
-                                       "     LEFT JOIN qc_settings s ON (s.project_id = p.project_id) "
-                                       " WHERE p.project_alias = %(project_alias)s "),
-                                      {'project_alias': project_alias}, cur=cur)
+    # project_settings = run_query(("SELECT coalesce(s.qc_percent, 0.1) as qc_percent FROM projects p "
+    #                                    "     LEFT JOIN qc_settings s ON (s.project_id = p.project_id) "
+    #                                    " WHERE p.project_alias = %(project_alias)s "),
+    #                                   {'project_alias': project_alias}, cur=cur)
+    project_settings = run_query(("SELECT * FROM qc_settings "
+                                 " WHERE project_id = %(project_id)s"),
+                                {'project_id': project_id}, cur=cur)
 
     if len(project_settings) == 0:
-        project_settings = {'qc_percent': 0.1}
-    else:
-        project_settings = project_settings[0]
+        query = ("INSERT INTO qc_settings (project_id, qc_level, qc_percent, "
+                 " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
+                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
+                 "  VALUES ("
+                 "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
+                 "  CURRENT_TIME)")
+        q = query_database_insert(query, {'project_id': project_id}, cur=cur)
+        project_settings = run_query(("SELECT * FROM qc_settings "
+                                      " WHERE project_id = %(project_id)s"),
+                                     {'project_id': project_id}, cur=cur)
+
+    project_settings = project_settings[0]
+
+    folder_qc_done = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                " errors AS "
+                                "         (SELECT folder_id, count(file_id) as no_files "
+                                "             FROM qc_files "
+                                "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                "                 AND file_qc > 0 AND file_qc != 9 "
+                                "               GROUP BY folder_id),"
+                                "passed AS "
+                                "         (SELECT folder_id, count(file_id) as no_files "
+                                "             FROM qc_files "
+                                "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                "                 AND file_qc = 0 "
+                                "               GROUP BY folder_id),"
+                                "total AS (SELECT folder_id, count(file_id) as no_files FROM qc_files "
+                                "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                "                GROUP BY folder_id), "
+                                " files_total AS (SELECT folder_id, count(file_id) as no_files FROM files "
+                                "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                "                GROUP BY folder_id) "
+                                " SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
+                                "       ft.no_files, f.file_errors, f.status, f.error_info, "
+                                "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                                "      WHEN q.qc_status = 1 THEN 'QC Failed' "
+                                "      ELSE 'QC Pending' END AS qc_status, "
+                                "      q.qc_ip, u.username AS qc_by, "
+                                "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at, "
+                                "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
+                                "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
+                                "       COALESCE(total.no_files, 0) as qc_stats_no_files "
+                                " FROM folders f LEFT JOIN qc_folders q ON "
+                                "       (f.folder_id = q.folder_id)"
+                                "       LEFT JOIN users u ON "
+                                "           (q.qc_by = u.user_id)"
+                                "       LEFT JOIN errors ON "
+                                "           (f.folder_id = errors.folder_id)"
+                                "       LEFT JOIN passed ON "
+                                "           (f.folder_id = passed.folder_id)"
+                                "       LEFT JOIN total ON "
+                                "           (f.folder_id = total.folder_id)"
+                                "       LEFT JOIN files_total ft ON "
+                                "           (f.folder_id = ft.folder_id), "
+                                "   projects p "
+                                " WHERE f.project_id = p.project_id "
+                                "   AND p.project_id = %(project_id)s "
+                                "   AND q.qc_status != 9 "
+                                "  ORDER BY f.date DESC, f.project_folder DESC"),
+                               {'project_id': project_id}, cur=cur)
 
     folder_qc_info = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                      " errors AS "
                                      "         (SELECT folder_id, count(file_id) as no_files "
                                      "             FROM qc_files "
                                      "             WHERE folder_id IN (SELECT folder_id from pfolders) "
-                                     "                 AND file_qc = 1 "
+                                     "                 AND file_qc > 0 AND file_qc != 9 "
                                      "               GROUP BY folder_id),"
                                      "passed AS "
                                      "         (SELECT folder_id, count(file_id) as no_files "
@@ -1350,9 +1416,12 @@ def qc(project_alias=None):
                                      "               GROUP BY folder_id),"
                                      "total AS (SELECT folder_id, count(file_id) as no_files FROM qc_files "
                                      "             WHERE folder_id IN (SELECT folder_id from pfolders)"
-                                     "                GROUP BY folder_id) "
-                                     " SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
-                                     "       f.no_files, f.file_errors, "
+                                     "                GROUP BY folder_id), "
+                                     " files_total AS (SELECT folder_id, count(file_id) as no_files FROM files "
+                                     "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                     "                GROUP BY folder_id), "
+                                     " qc as (SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
+                                     "       ft.no_files, f.file_errors, f.status, f.date, f.error_info, "
                                      "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                      "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                      "      ELSE 'QC Pending' END AS qc_status, "
@@ -1370,11 +1439,14 @@ def qc(project_alias=None):
                                      "       LEFT JOIN passed ON "
                                      "           (f.folder_id = passed.folder_id)"
                                      "       LEFT JOIN total ON "
-                                     "           (f.folder_id = total.folder_id),"
+                                     "           (f.folder_id = total.folder_id)"
+                                     "       LEFT JOIN files_total ft ON "
+                                     "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
                                      " WHERE f.project_id = p.project_id "
-                                     "   AND p.project_id = %(project_id)s "
-                                     "  ORDER BY q.qc_status DESC, f.project_folder DESC"),
+                                     "   AND p.project_id = %(project_id)s) "
+                                     " SELECT * FROM qc WHERE qc_status = 'QC Pending'"
+                                     "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
                                     {'project_id': project_id}, cur=cur)
     cur.close()
     conn.close()
@@ -1382,6 +1454,8 @@ def qc(project_alias=None):
                            username=username,
                            project_settings=project_settings,
                            folder_qc_info=folder_qc_info,
+                           folder_qc_done=folder_qc_done,
+                           folder_qc_done_len=len(folder_qc_done),
                            project=project,
                            form=form,
                            site_env=site_env,
@@ -1434,8 +1508,8 @@ def qc_process(folder_id):
         qc_val = request.values.get('qc_val')
         user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
                                  {'username': username}, cur=cur)[0]
-        if qc_val == "1" and qc_info == "":
-            msg = "Error: The field QC Details can not be empty if the file failed the QC."
+        if qc_val != "0" and qc_info == "":
+            msg = "Error: The field QC Details can not be empty if the file has an issue.<br>Please try again."
         else:
             q = query_database_insert(("UPDATE qc_files SET "
                                 "      file_qc = %(qc_val)s, "
@@ -1446,18 +1520,15 @@ def qc_process(folder_id):
                                 'qc_info': qc_info,
                                 'qc_val': qc_val,
                                 'qc_by': user_id['user_id']
-                                })
+                                }, cur=cur)
             logging.info("file_id: {}".format(file_id_q))
             return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = run_query("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id}, cur=cur)[0]
-    project_settings = run_query("SELECT qc_percent, round(qc_percent * 100, 2) as qc_percent_display "
-                                 " FROM qc_settings WHERE project_id = %(project_id)s",
-                                      {'project_id': project_id['project_id']}, cur=cur)
-    if len(project_settings) == 0:
-        project_settings = {'qc_percent': 0.1}
-    else:
-        project_settings = project_settings[0]
+
+    project_settings = run_query("SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
+                                      {'project_id': project_id['project_id']}, cur=cur)[0]
+
     folder_qc_check = run_query(("SELECT "
                                       "  CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                       "          WHEN q.qc_status = 1 THEN 'QC Failed' "
@@ -1505,22 +1576,28 @@ def qc_process(folder_id):
                                {'folder_id': folder_id}, cur=cur)
         if in_qc[0]['no_files'] == 0:
             q = query_database_insert("DELETE FROM qc_folders WHERE folder_id = %(folder_id)s",
-                                 {'folder_id': folder_id})
+                                 {'folder_id': folder_id}, cur=cur)
             q = query_database_insert("INSERT INTO qc_folders (folder_id, qc_status) VALUES (%(folder_id)s, 9)",
-                                 {'folder_id': folder_id})
-            no_files_for_qc = math.ceil(folder_stats['no_files'] * project_settings['qc_percent'])
+                                 {'folder_id': folder_id}, cur=cur)
+            no_files_for_qc = math.ceil(folder_stats['no_files'] * (float(project_settings['qc_percent']) / 100))
+            if no_files_for_qc < 10:
+                if folder_stats['no_files'] > 10:
+                    no_files_for_qc = 10
+                else:
+                    no_files_for_qc = folder_stats['no_files']
             q = query_database_insert(("INSERT INTO qc_files (folder_id, file_id) ("
                                   " SELECT folder_id, file_id "
                                   "  FROM files WHERE folder_id = %(folder_id)s "
                                   "  ORDER BY RAND() LIMIT {})").format(no_files_for_qc),
-                                 {'folder_id': folder_id})
+                                 {'folder_id': folder_id}, cur=cur)
+            logging.info("1587: {}".format(no_files_for_qc))
             return redirect(url_for('qc_process', folder_id=folder_id))
         else:
             qc_stats_q = run_query(("WITH errors AS "
                                          "         (SELECT count(file_id) as no_files "
                                          "             FROM qc_files "
                                          "             WHERE folder_id = %(folder_id)s "
-                                         "                 AND file_qc = 1),"
+                                         "                 AND file_qc > 0 AND file_qc != 9),"
                                          "passed AS "
                                          "         (SELECT count(file_id) as no_files "
                                          "             FROM qc_files "
@@ -1593,10 +1670,38 @@ def qc_process(folder_id):
                                        site_net=site_net
                                        )
             else:
-                error_files = run_query(("SELECT f.file_name, q.* FROM qc_files q, files f "
+                error_files = run_query(("SELECT f.file_name, "
+                                         " CASE WHEN q.file_qc = 1 THEN 'Critical Issue' "
+                                         " WHEN q.file_qc = 2 THEN 'Major Issue' "
+                                         " WHEN q.file_qc = 3 THEN 'Minor Issue' END as file_qc, "
+                                         " q.qc_info FROM qc_files q, files f "
                                               "  WHERE q.folder_id = %(folder_id)s "
-                                              "  AND q.file_qc=1 AND q.file_id = f.file_id"),
+                                              "  AND q.file_qc > 0 AND q.file_id = f.file_id"),
                                              {'folder_id': folder_id}, cur=cur)
+                print(error_files)
+                qc_folder_result = True
+                crit_files = 0
+                major_files = 0
+                minor_files = 0
+                for file in error_files:
+                    if file['file_qc'] == 'Critical Issue':
+                        crit_files += 1
+                    elif file['file_qc'] == 'Major Issue':
+                        major_files += 1
+                    elif file['file_qc'] == 'Minor Issue':
+                        minor_files += 1
+                qc_threshold_critical_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
+                qc_threshold_major_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
+                qc_threshold_minor_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
+                if crit_files > 0:
+                    if qc_threshold_critical_comparison <= crit_files:
+                        qc_folder_result = False
+                if major_files > 0:
+                    if qc_threshold_major_comparison <= major_files:
+                        qc_folder_result = False
+                if minor_files > 0:
+                    if qc_threshold_minor_comparison <= minor_files:
+                        qc_folder_result = False
                 cur.close()
                 conn.close()
                 return render_template('qc_done.html',
@@ -1606,6 +1711,7 @@ def qc_process(folder_id):
                                        project_settings=project_settings,
                                        username=username,
                                        error_files=error_files,
+                                       qc_folder_result=qc_folder_result,
                                        form=form,
                                        site_env=site_env,
                                        site_net=site_net)
@@ -1660,16 +1766,58 @@ def qc_done(folder_id):
     qc_status = request.values.get('qc_status')
     user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
                              {'username': username}, cur=cur)[0]
+
+    project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
+                                    {'project_id': project_id}, cur=cur)[0]
+    logging.info("1763: {}".format(qc_status))
     q = query_database_insert(("UPDATE qc_folders SET "
                           "      qc_status = %(qc_status)s, "
                           "      qc_by = %(qc_by)s, "
-                          "      qc_info = %(qc_info)s "
+                          "      qc_info = %(qc_info)s, "
+                          "      qc_level = %(qc_level)s "
                           " WHERE folder_id = %(folder_id)s"),
                          {'folder_id': folder_id,
                           'qc_status': qc_status,
                           'qc_info': qc_info,
-                          'qc_by': user_id['user_id']
-                          })
+                          'qc_by': user_id['user_id'],
+                          'qc_level': project_qc_settings['qc_level']
+                          }, cur=cur)
+    # Create folder badge
+    clear_badges = run_query(
+        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'qc_status'",
+        {'folder_id': folder_id}, cur=cur)
+    if qc_status == "0":
+        badgecss = "bg-success"
+        qc_info = "QC Passed"
+    elif qc_status == "1":
+        badgecss = "bg-danger"
+        qc_info = "QC Failed"
+    query = (
+        "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+        " VALUES (%(folder_id)s, 'qc_status', %(badgecss)s, %(msg)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(msg)s,"
+        " badge_css = %(badgecss)s, updated_at = CURRENT_TIMESTAMP")
+    res = query_database_insert(query, {'folder_id': folder_id, 'badgecss': badgecss, 'msg': qc_info}, cur=cur)
+    # Change inspection level, if needed
+    project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
+                             {'project_id': project_id}, cur=cur)[0]
+    project_qc_hist = run_query(("SELECT q.* FROM qc_folders q, folders f "
+                                 " WHERE f.project_id = %(project_id)s AND q.folder_id = f.folder_id "
+                                 "    AND q.qc_status != 9 "
+                                 " ORDER BY updated_at DESC LIMIT 5"),
+                                    {'project_id': project_id}, cur=cur)
+    if len(project_qc_hist) <= 5:
+        level = 'Tightened'
+    else:
+        ok_folders = 0
+        for folder in project_qc_hist:
+            if folder['qc_status'] != "0":
+                ok_folders += 1
+            if ok_folders <= 3:
+                level = 'Tightened'
+            elif ok_folders == 5:
+                level = 'Normal'
+            else:
+                level = 'Normal'
     cur.close()
     conn.close()
     return redirect(url_for('qc', project_alias=project_alias))
@@ -1929,7 +2077,7 @@ def create_new_project():
                               'p_prod': p_prod,
                               'p_storage': p_storage,
                               'p_start': p_start
-                              })
+                              }, cur=cur)
     project = run_query("SELECT project_id FROM projects WHERE project_title = %(p_title)s AND project_unit = %(p_unit)s",
                              {'p_title': p_title, 'p_unit': p_unit}, cur=cur)
     project_id = project[0]['project_id']
@@ -1937,16 +2085,16 @@ def create_new_project():
                               "  (project_id, collex_total, collex_to_digitize) VALUES  "
                               "   ( %(project_id)s, %(collex_total)s, %(collex_total)s)"),
                              {'project_id': project_id,
-                              'collex_total': p_noobjects})
+                              'collex_total': p_noobjects}, cur=cur)
     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                      "    (%(project_id)s, %(user_id)s)"),
                                     {'project_id': project_id,
-                                     'user_id': current_user.id})
+                                     'user_id': current_user.id}, cur=cur)
     if current_user.id != '101':
         user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                          "    (%(project_id)s, %(user_id)s)"),
                                         {'project_id': project_id,
-                                         'user_id': '101'})
+                                         'user_id': '101'}, cur=cur)
     # if current_user.id != '106':
     #     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
     #                                      "    (%(project_id)s, %(user_id)s)"),
@@ -1964,17 +2112,17 @@ def create_new_project():
                     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                                      "    (%(project_id)s, %(user_id)s)"),
                                                     {'project_id': project_id,
-                                                     'user_id': staff_user_id[0]['user_id']})
+                                                     'user_id': staff_user_id[0]['user_id']}, cur=cur)
                 else:
                     user_project = query_database_insert(("INSERT INTO users (username, user_active, is_admin) VALUES "
                                                    "    (%(username)s, 'T', 'F')"),
-                                                  {'username': staff.strip()})
+                                                  {'username': staff.strip()}, cur=cur)
                     get_user_project = run_query(("SELECT user_id FROM users WHERE username = %(username)s"),
                                                          {'username': staff.strip()}, cur=cur)
                     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                                      "    (%(project_id)s, %(user_id)s)"),
                                                     {'project_id': project_id,
-                                                     'user_id': get_user_project[0]['user_id']})
+                                                     'user_id': get_user_project[0]['user_id']}, cur=cur)
 
     cur.close()
     conn.close()
@@ -2104,25 +2252,25 @@ def project_update(project_alias):
                              {'p_title': p_title,
                               'p_status': p_status,
                               'p_start': p_start,
-                              'project_alias': project_alias})
+                              'project_alias': project_alias}, cur=cur)
     if p_desc != '':
         project = query_database_insert(("UPDATE projects SET "
                                   "   project_description = %(p_desc)s "
                                   " WHERE project_alias = %(project_alias)s"),
                                  {'p_desc': p_desc,
-                                  'project_alias': project_alias})
+                                  'project_alias': project_alias}, cur=cur)
     if p_url != '':
         project = query_database_insert(("UPDATE projects SET "
                                   "   project_url = %(p_url)s "
                                   " WHERE project_alias = %(project_alias)s"),
                                  {'p_url': p_url,
-                                  'project_alias': project_alias})
+                                  'project_alias': project_alias}, cur=cur)
     if p_end != 'None':
         project = query_database_insert(("UPDATE projects SET "
                                   "   project_end = CAST(%(p_end)s AS date) "
                                   " WHERE project_alias = %(project_alias)s "),
                                  {'p_end': p_end,
-                                  'project_alias': project_alias})
+                                  'project_alias': project_alias}, cur=cur)
 
     if p_noobjects != '0':
         project = query_database_insert(("UPDATE projects_stats SET "
@@ -2130,7 +2278,7 @@ def project_update(project_alias):
                                   "   collex_ready = %(p_noobjects)s "
                                   " WHERE project_id = %(project_id)s "),
                                  {'project_id': project_id,
-                                  'p_noobjects': p_noobjects})
+                                  'p_noobjects': p_noobjects}, cur=cur)
     cur.close()
     conn.close()
     return redirect(url_for('home'))
@@ -2737,6 +2885,8 @@ def api_update_project_details(project_alias=None):
                         if query_property == "status0":
                             query = ("UPDATE folders SET status = 0, error_info = NULL WHERE folder_id = %(folder_id)s")
                             res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
+                                {'folder_id': folder_id}, cur=cur)
                         elif query_property == "status9":
                             query = (
                                 "UPDATE folders SET status = 9, error_info = %(value)s WHERE folder_id = %(folder_id)s")
@@ -2745,20 +2895,27 @@ def api_update_project_details(project_alias=None):
                             query = (
                                 "UPDATE folders SET status = 1, error_info = %(value)s WHERE folder_id = %(folder_id)s")
                             res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
+                                {'folder_id': folder_id}, cur=cur)
+                            query = (
+                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                " VALUES (%(folder_id)s, 'folder_error', 'bg-danger', %(msg)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(msg)s,"
+                                " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                            res = query_database_insert(query, {'folder_id': folder_id, 'msg': query_value}, cur=cur)
                         elif query_property == "stats":
-                            query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-                                " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-                                " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
-                            query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, f.folder_id FROM files_checks c, files f"
-                                        " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9)"
-                                        " UPDATE folders f, data d SET f.file_errors = d.no_files "
-                                        "WHERE f.folder_id = d.folder_id")
-                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
-                            query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-                                     " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-                                     " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                            # query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+                            #     " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
+                            #     " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                            # query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, f.folder_id FROM files_checks c, files f"
+                            #             " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9)"
+                            #             " UPDATE folders f, data d SET f.file_errors = d.no_files "
+                            #             "WHERE f.folder_id = d.folder_id")
+                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                            # query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+                            #          " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
+                            #          " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                             # Clear badges
                             clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'", {'folder_id': folder_id}, cur=cur)
                             clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",{'folder_id': folder_id}, cur=cur)
@@ -2771,15 +2928,22 @@ def api_update_project_details(project_alias=None):
                                     no_folder_files = "{} files".format(no_files[0]['no_files'])
                                 query = ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                          " VALUES (%(folder_id)s, 'no_files', 'bg-primary', %(no_files)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
-                                         " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                                         " badge_css = 'bg-primary', updated_at = CURRENT_TIMESTAMP")
                                 res = query_database_insert(query, {'folder_id': folder_id, 'no_files': no_folder_files}, cur=cur)
                             # Badge of error files
                             # no_files = query_database("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
-                            query = ("with data as ("
-                                        " SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files " 
-                                        " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results != 0 ) " 
-                                        " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            err_files = run_query(query, {'folder_id': folder_id}, cur=cur)
+                            query = ("UPDATE folders f SET f.file_errors = 0 folder_id = %(folder_id)s")
+                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                            # query = ("with data as ("
+                            #             " SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+                            #             " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results != 0 ) "
+                            #             " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+                            # err_files = run_query(query, {'folder_id': folder_id}, cur=cur)
+                            query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, %(folder_id)s as folder_id FROM files_checks c, files f"
+                                        " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 1)"
+                                        " UPDATE folders f, data d SET f.file_errors = d.no_files "
+                                        "WHERE f.folder_id = d.folder_id")
+                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                             no_files = run_query("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s", {'folder_id': folder_id}, cur=cur)
                             if no_files[0]['file_errors'] == 1:
                                 query = (

@@ -316,6 +316,7 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     # Check if preview exist
     if os.path.isfile(preview_image) and os.path.isfile(preview_image_1200) and \
         os.path.isfile(preview_image_160) and os.path.isfile(preview_image_600):
+        logger.info("Preview images of {} exist".format(file_id))
         return True
     img = Image.open(file_path)
     # if settings.previews_size == "full":
@@ -330,7 +331,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     #     im1.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
     if os.path.isfile(preview_image):
         os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-        return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
         sys.exit(1)
@@ -344,7 +344,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     im1.save(preview_image_160, 'jpeg', icc_profile=img.info.get('icc_profile'))
     if os.path.isfile(preview_image_160):
         os.chmod(preview_image_160, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-        return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
         sys.exit(1)
@@ -356,7 +355,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     im1.save(preview_image_600, 'jpeg', icc_profile=img.info.get('icc_profile'))
     if os.path.isfile(preview_image_600):
         os.chmod(preview_image_600, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-        return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
         sys.exit(1)
@@ -368,10 +366,10 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     im1.save(preview_image_1200, 'jpeg', icc_profile=img.info.get('icc_profile'))
     if os.path.isfile(preview_image_1200):
         os.chmod(preview_image_1200, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-        return True
     else:
         logger.error("File:{}|msg:{}".format(file_path, out))
         sys.exit(1)
+    return
 
 
 def update_folder_stats(folder_id, folder_path, logger):
@@ -595,14 +593,27 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         logger.info("MAIN folder found in {}".format(folder_path))
         folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
         folder_full_path_files = glob.glob("{}/*".format(folder_full_path))
+        folder_full_path_files = [file for file in folder_full_path_files if Path(file).suffix != '.md5']
         folder_raw_path = "{}/{}".format(folder_path, settings.raw_files_path)
         folder_raw_path_files = glob.glob("{}/*".format(folder_raw_path))
+        folder_raw_path_files = [file for file in folder_raw_path_files if Path(file).suffix != '.md5']
         if len(folder_full_path_files) != len(folder_raw_path_files):
-            folder_status_msg = "No. of files do not match (main: {}, raw: {})".format(len(folder_full_path_files), len(folder_raw_path_files))
+            folder_status_msg = "No. of files do not match (main: {}, raws: {})".format(len(folder_full_path_files), len(folder_raw_path_files))
             payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status1',
                        'value': folder_status_msg}
             r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                               data=payload)
+            query_results = json.loads(r.text.encode('utf-8'))
+            if query_results["result"] is not True:
+                logger.error("API Returned Error: {}".format(query_results))
+                logger.error("Request: {}".format(str(r.request)))
+                logger.error("Headers: {}".format(r.headers))
+                logger.error("Payload: {}".format(payload))
+                sys.exit(1)
+        else:
+            payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status0',
+                       'value': ""}
+            r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
             query_results = json.loads(r.text.encode('utf-8'))
             if query_results["result"] is not True:
                 logger.error("API Returned Error: {}".format(query_results))

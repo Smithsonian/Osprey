@@ -47,7 +47,9 @@
                     {% if kiosk  %}
 
 {#                        <img src="{{ file_details.preview_image }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">#}
-                        <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
+                        <a href="{{ file_details.preview_image }}" rel="noopener noreferrer">
+                            <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
+                        </a>
 
                     {% else %}
 

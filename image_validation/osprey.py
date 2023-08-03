@@ -9,6 +9,7 @@
 # Import modules
 ############################################
 import logging
+import os
 import time
 import requests
 
@@ -34,26 +35,6 @@ log_folder = "logs"
 
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
-# current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-# logfile_folder = '{script_path}/{log_folder}/{curtime}'.format(script_path=os.getcwd(), log_folder=log_folder, curtime=current_time)
-# if not os.path.exists(logfile_folder):
-#     os.makedirs(logfile_folder)
-# logfile = '{logfile_folder}/osprey.log'.format(logfile_folder=logfile_folder)
-# logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
-#                     format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
-#                     datefmt='%y-%b-%d %H:%M:%S')
-# logger = logging.getLogger("osprey")
-# stdout = logging.StreamHandler(stream=sys.stdout)
-# console = logging.StreamHandler()
-# if run_debug == 'debug':
-#     console.setLevel(logging.DEBUG)
-# else:
-#     console.setLevel(logging.INFO)
-# formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s')
-# console.setFormatter(formatter)
-# logging.getLogger('osprey').addHandler(console)
-#
-# logger.info("osprey version {}".format(ver))
 
 # Logging
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -133,8 +114,10 @@ def main():
 ############################################
 if __name__ == "__main__":
     if run_debug == 'debug':
+        print("Running debug version...")
         main()
     else:
+        orig_dir = os.getcwd()
         while True:
             try:
                 # Check if there is a pre script to run
@@ -150,6 +133,8 @@ if __name__ == "__main__":
                         print(out)
                 # Run main function
                 mainval = main()
+                # Return to main dir
+                os.chdir(orig_dir)
                 # Check if there is a post script to run
                 if settings.post_script is not None:
                     p = subprocess.Popen([settings.post_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -8,7 +8,7 @@
 
     <div class="row">
 
-        <div class="col">
+        <div class="col-8">
 
             <p><a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project_alias) }}" role="button">
                         <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
@@ -29,25 +29,28 @@
             <h4>File: {{ file_details.file_name }}</h4>
 
         </div>
-        <div class="col">
+        <div class="col-4">
+
+                <h4>Visual QC Results:</h4>
 
                 <form action="{{ url_for('qc_process', folder_id=folder.folder_id) }}" method="POST">
 
-                  <div class="mb-3">
-                      <p class="text-danger">{{ msg }}</p>
-                      <label for="qc_info" class="form-label">QC details or issues:</label>
-                      <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
-                  </div>
-                  <div class="mb-3">
-                        <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
-                            <label class="btn btn-outline-success" for="success-outlined">QC Passed</label>
-                        <input type="radio" class="btn-check" name="qc_val" value="1" id="danger-outlined" autocomplete="off">
-                            <label class="btn btn-outline-danger" for="danger-outlined">QC Failed</label>
-{#                        <input type="radio" class="btn-check" name="options" id="danger-outlined2" autocomplete="off">#}
-{#                            <label class="btn btn-outline-danger" for="danger-outlined2">Major Issue</label>#}
-{#                        <input type="radio" class="btn-check" name="options" id="danger-outlined2" autocomplete="off">#}
-{#                            <label class="btn btn-outline-danger" for="danger-outlined2">Minor Issue</label>#}
-                  </div>
+                <div class="mb-3">
+                    <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
+                        <label class="btn btn-outline-success" for="success-outlined">Image OK</label><br><br>
+                    <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
+                        <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label> <small>- Incorrect file name</small><br><br>
+                    <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
+                        <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label> <small>- Incorrect orientation or rotation, overly cropped image</small><br><br>
+                    <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
+                  <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> <small>- Uncropped or skewed</small><br><br>
+                </div>
+                <div class="mb-3">
+
+                  <p class="text-danger">{{ msg | safe }}</p>
+                  <label for="qc_info" class="form-label">QC details or issues:</label>
+                  <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
+              </div>
                     <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
                   <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
