@@ -48,7 +48,15 @@ def main():
     i = 1
     for attrib, value in project_info.items():
         # print("{}: {}".format(attrib, value))
-        if attrib == "folders" or attrib == "project_stats" or attrib == "reports":
+        if attrib == "folders" or attrib == "reports":
+            continue
+        elif attrib == "project_stats":
+            sheet["A{}".format(i)] = "images_taken"
+            sheet["B{}".format(i)] = value['images_taken']
+            i += 1
+            sheet["A{}".format(i)] = "objects_digitized"
+            sheet["B{}".format(i)] = value['objects_digitized']
+            i += 1
             continue
         if value == "":
             continue
