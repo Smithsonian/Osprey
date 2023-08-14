@@ -966,7 +966,7 @@ def dashboard_f(project_alias=None, folder_id=None):
                 for fcheck in project_postprocessing:
                     logging.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                              "   CASE WHEN post_step = 0 THEN 'OK' "
+                                                              "   CASE WHEN post_step = 0 THEN 'Completed' "
                                                               "       WHEN post_step = 9 THEN 'Pending' "
                                                               "       WHEN post_step = 1 THEN 'Failed' "
                                                               "       ELSE 'Pending' END as {fcheck} "
@@ -977,6 +977,7 @@ def dashboard_f(project_alias=None, folder_id=None):
                     logging.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         post_processing_df = post_processing_df.merge(list_files, how='outer', on='file_id')
+                post_processing_df = post_processing_df.drop(['file_id'], axis=1)
             else:
                 post_processing_df = pd.DataFrame()
     else:
@@ -2734,6 +2735,13 @@ def api_get_projects():
         projects_data = run_query(query, {'section': section}, cur=cur)
     last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats", cur=cur)
     data = ({"projects": projects_data, "last_update": last_update[0]['updated_at']})
+    # For admin
+    api_key = request.form.get("api_key")
+    logging.info("api_key: {}".format(api_key))
+    if api_key is not None:
+        if validate_api_key(api_key, cur=cur):
+            query = (" SELECT * FROM qc_settings WHERE project_id = %(project_id)s")
+            projects_data = run_query(query, {'section': section}, cur=cur)
     cur.close()
     conn.close()
     return jsonify(data)
@@ -3243,21 +3251,61 @@ def api_get_folder_details(folder_id=None):
         logging.error(e)
         raise InvalidUsage('System error')
 
-    data = run_query(("SELECT folder_id, project_id, project_folder as folder, status, "
-                           "   notes, error_info, date_format(date, '%%Y-%%m-%%d') as capture_date, "
-                           "   no_files, file_errors "
-                           "FROM folders WHERE folder_id = %(folder_id)s"),
-                          {'folder_id': folder_id}, api=True, cur=cur)
+    data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, f.status, "
+                           "   f.notes, f.date, coalesce(f.no_files, 0) as no_files, f.file_errors, f.error_info, "
+                            " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
+                              "              WHEN f.delivered_to_dams = 1 THEN 'Ready' "
+                              "              WHEN f.delivered_to_dams = 9 THEN 'Pending' END as delivered_to_dams, "
+                           " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                              "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                              "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                              "          'QC Pending') as qc_status "
+                        " FROM folders f "
+                     " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
+                      " WHERE f.folder_id = %(folder_id)s"), {'folder_id': folder_id}, api=True, cur=cur)
     project_id = data[0]['project_id']
     if len(data) == 1:
-        files_data = []
-        files = run_query(
-            ("SELECT file_id, folder_id, file_name, DATE_FORMAT(file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-             " dams_uan, preview_image, DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-             " DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at "
-             " FROM files WHERE folder_id = %(folder_id)s"),
-            {'folder_id': folder_id}, api=True, cur=cur)
-        data[0]['files'] = files
+        api_key = request.form.get("api_key")
+        logging.info("api_key: {}".format(api_key))
+        if api_key is None:
+            query = ("SELECT file_id, folder_id, file_name, DATE_FORMAT(file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
+                 " dams_uan, preview_image, DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
+                 " DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at "
+                 " FROM files WHERE folder_id = %(folder_id)s")
+            files = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+            data[0]['files'] = files
+        else:
+            if validate_api_key(api_key, cur=cur):
+                filechecks_list_temp = run_query(
+                    ("SELECT settings_value as file_check FROM projects_settings "
+                     " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
+                    {'project_id': project_id}, cur=cur)
+                filechecks_list = []
+                for fcheck in filechecks_list_temp:
+                    filechecks_list.append(fcheck['file_check'])
+
+                query = (
+                    "SELECT file_id, folder_id, file_name, DATE_FORMAT(file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
+                    " dams_uan, preview_image, DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
+                    " DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at "
+                    " FROM files WHERE folder_id = %(folder_id)s")
+                files_list = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+                folder_files_df = pd.DataFrame(files_list)
+                for fcheck in filechecks_list:
+                    logging.info("fcheck: {}".format(fcheck))
+                    list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                         "   CASE WHEN check_results = 0 THEN 'OK' "
+                                                         "       WHEN check_results = 9 THEN 'Pending' "
+                                                         "       WHEN check_results = 1 THEN 'Failed' "
+                                                         "       ELSE 'Pending' END as {fcheck} "
+                                                         " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                                         "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
+                                                        {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
+                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    if list_files.shape[0] > 0:
+                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+                files = folder_files_df
+                data[0]['files'] = files.to_dict('records')
         cur.close()
         conn.close()
         return jsonify(data[0])
