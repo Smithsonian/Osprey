@@ -12,7 +12,7 @@ from random import randint
 
 import glob
 from PIL import Image
-from subprocess import PIPE
+# from subprocess import PIPE
 from pathlib import Path
 import shutil
 import locale
@@ -22,6 +22,7 @@ import itertools
 import hashlib
 
 # Parallel
+import multiprocessing
 from multiprocessing import Pool
 
 # Get settings and queries
@@ -122,22 +123,113 @@ def magick_validate(file_id, filename, logger, paranoid=False):
     Validate the file with Imagemagick
     """
     if paranoid:
-        p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
+        if settings.magick is None:
+            p = subprocess.Popen(['identify', '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
+        else:
+            p = subprocess.Popen([settings.magick, '-verbose', '-regard-warnings', filename], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     else:
-        p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE,
+        if settings.magick is None:
+            p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
+        else:
+            p = subprocess.Popen([settings.magick, '-verbose', filename], stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
     (out, err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
+        # logger.info("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
     else:
         magick_identify = 1
-        logger.debug("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
-        logger.debug("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
+        logger.error("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
+        logger.error("magick_err: {} {}".format(file_id, err.decode('UTF-8')))
     magick_identify_info = out + err
     check_results = magick_identify
     check_info = magick_identify_info.decode('latin-1')
     return check_results, check_info
+
+
+def pil_validate(file_id, filename, logger):
+    """
+    Validate the file with PIL
+    """
+    # Based on https://opensource.com/article/17/2/python-tricks-artists
+    check_results = 0
+    check_info = "File {} ({}) is a valid image".format(filename, file_id)
+    try:
+        im = Image.open(filename)
+        im.verify()
+    except (IOError, SyntaxError) as e:
+        check_results = 1
+        check_info = "File is not a valid image"
+        logger.error("pil_validate error: {} ({})".format(filename, file_id))
+    return check_results, check_info
+
+
+def check_sequence(filename, folder_info, sequence, sequence_split):
+    filename_stem = Path(filename).stem
+    for file in folder_info['files']:
+        if file['file_name'] == filename_stem:
+            file_id = file['file_id']
+            file_info = file
+            break
+    if file_id is None:
+        # Something is wrong
+        sys.exit(8)
+    file_suffix = filename_stem.split(sequence_split)
+    file_wo_suffix = file_suffix[0:len(file_suffix) - 1]
+    file_wo_suffix = '_'.join(file_wo_suffix)
+    file_suffix = file_suffix[len(file_suffix) - 1]
+    # Found last in sequence
+    if file_suffix == sequence[len(sequence) - 1]:
+        # End of sequence
+        check_results = 0
+        check_info = "File is the first one in the sequence"
+        return (file_id, check_results, check_info)
+    for i in range(len(sequence)):
+        if file_suffix == sequence[i]:
+            next_in_seq = sequence[i + 1]
+            next_filename_stem = "{}{}{}".format(file_wo_suffix, sequence_split, next_in_seq)
+            for file in folder_info['files']:
+                if file['file_name'] == next_filename_stem:
+                    check_results = 0
+                    check_info = "Next file in sequence ({}) found".format(next_filename_stem)
+                    return (file_id, check_results, check_info)
+    check_results = 1
+    check_info = "File next in sequence ({}) was not found".format(next_filename_stem)
+    return (file_id, check_results, check_info)
+
+
+def sequence_validate(filename, folder_info, logger):
+    """
+    Validate that a suffix sequence is not missing items
+    """
+    sequence = settings.sequence
+    sequence_split = settings.sequence_split
+    file_id, check_results, check_info = check_sequence(filename, folder_info, sequence, sequence_split)
+    file_check = 'sequence'
+    logger.info("SEQ: results - {} - {}".format(check_results, check_info))
+    payload = {'type': 'file',
+               'property': 'filechecks',
+               'folder_id': folder_info['folder_id'],
+               'file_id': file_id,
+               'api_key': settings.api_key,
+               'file_check': file_check,
+               'value': check_results,
+               'check_info': check_info
+               }
+    logger.info("SEQ: payload - {}".format(payload))
+    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
+    logger.info("SEQ: request code {}".format(r.status_code))
+    query_results = json.loads(r.text.encode('utf-8'))
+    if query_results["result"] is not True:
+        logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        return False
+    return True
 
 
 def tif_compression(file_path):
@@ -193,7 +285,6 @@ def get_filemd5(filepath, logger):
         file_md5 = md5_hash.hexdigest()
     else:
         file_md5 = ""
-    logger.debug("file_md5: {} {}".format(filepath, file_md5))
     return file_md5
 
 
@@ -296,12 +387,13 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     if settings.jpg_previews == "":
         logger.error("JPG preview folder is not set in settings file")
         sys.exit(1)
-    disk_check = shutil.disk_usage(settings.jpg_previews)
-    if (disk_check.free / disk_check.total) < settings.jpg_previews_free:
-        logger.error("JPG storage location is running out of space ({}%) - {}".format(
-                                                   round(disk_check.free / disk_check.total, 4) * 100,
-                                                    settings.jpg_previews))
-        sys.exit(1)
+    if settings.jpg_previews_free != None:
+        disk_check = shutil.disk_usage(settings.jpg_previews)
+        if (disk_check.free / disk_check.total) < settings.jpg_previews_free:
+            logger.error("JPG storage location is running out of space ({}%) - {}".format(
+                                                       round(disk_check.free / disk_check.total, 4) * 100,
+                                                        settings.jpg_previews))
+            sys.exit(1)
     preview_file_path = "{}/folder{}".format(settings.jpg_previews, str(folder_id))
     preview_image = "{}/{}.jpg".format(preview_file_path, file_id)
     preview_image_160 = "{}/160/{}.jpg".format(preview_file_path, file_id)
@@ -329,10 +421,13 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     #     newsize = (width, height)
     #     im1 = img.resize(newsize)
     #     im1.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    if os.path.isfile(preview_image):
-        os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    else:
-        logger.error("File:{}|msg:{}".format(file_path, out))
+    # if os.path.isfile(preview_image):
+    #     os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+    # else:
+    #     logger.error("File:{}|msg:{}".format(file_path, out))
+    #     sys.exit(1)
+    if os.path.isfile(preview_image) is False:
+        logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
     # 160
     width = 160
@@ -342,10 +437,13 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_160, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    if os.path.isfile(preview_image_160):
-        os.chmod(preview_image_160, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    else:
-        logger.error("File:{}|msg:{}".format(file_path, out))
+    # if os.path.isfile(preview_image_160):
+    #     os.chmod(preview_image_160, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+    # else:
+    #     logger.error("File:{}|msg:{}".format(file_path, out))
+    #     sys.exit(1)
+    if os.path.isfile(preview_image_160) is False:
+        logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
     # 600
     width = 600
@@ -353,10 +451,13 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_600, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    if os.path.isfile(preview_image_600):
-        os.chmod(preview_image_600, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    else:
-        logger.error("File:{}|msg:{}".format(file_path, out))
+    # if os.path.isfile(preview_image_600):
+    #     os.chmod(preview_image_600, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+    # else:
+    #     logger.error("File:{}|msg:{}".format(file_path, out))
+    #     sys.exit(1)
+    if os.path.isfile(preview_image_600) is False:
+        logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
     # 1200
     width = 1200
@@ -364,10 +465,13 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_1200, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    if os.path.isfile(preview_image_1200):
-        os.chmod(preview_image_1200, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    else:
-        logger.error("File:{}|msg:{}".format(file_path, out))
+    # if os.path.isfile(preview_image_1200):
+    #     os.chmod(preview_image_1200, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+    # else:
+    #     logger.error("File:{}|msg:{}".format(file_path, out))
+    #     sys.exit(1)
+    if os.path.isfile(preview_image_1200) is False:
+        logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
     return
 
@@ -437,35 +541,20 @@ def update_folder_stats(folder_id, folder_path, logger):
     return True
 
 
-# def file_checks_summary(file_id, db_cursor, logger):
-#     file_checks = 0
-#     for filecheck in settings.project_file_checks:
-#         db_cursor.execute(queries.select_check_file, {'file_id': file_id, 'filecheck': filecheck})
-#         logger.debug(db_cursor.query.decode("utf-8"))
-#         result = db_cursor.fetchone()
-#         if result is None:
-#             db_cursor.execute(queries.file_check,
-#                               {'file_id': file_id,
-#                                'folder_id': folder_id,
-#                                'file_check': filecheck,
-#                                'check_results': 9,
-#                                'check_info': ''})
-#             logger.debug(db_cursor.query.decode("utf-8"))
-#             result = 1
-#         else:
-#             result = result[0]
-#             if result == 9:
-#                 result = 1
-#         file_checks = file_checks + result
-#     # Nothing to do, return
-#     return file_checks
-
-
 def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     """
     Process a folder in parallel
     """
     project_id = project_info['project_alias']
+    payload_api = {'api_key': settings.api_key}
+    r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload_api)
+    if r.status_code != 200:
+        # Something went wrong
+        query_results = r.text.encode('utf-8')
+        logger.error("API Returned Error: {}".format(query_results))
+        sys.exit(1)
+    project_info = json.loads(r.text.encode('utf-8'))
+    project_checks = project_info['project_checks']
     logger.info("Processing folder: {}".format(folder_path))
     folder_name = os.path.basename(folder_path)
     # Check if the folder exists in the database
@@ -513,6 +602,22 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         # Folder ready for or delivered to DAMS, skip
         logger.info("Folder ready for or delivered to for DAMS, skipping {}".format(folder_path))
         return folder_id
+    # Check if QC has been run
+    r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload_api)
+    if r.status_code != 200:
+        # Something went wrong
+        logger.error(
+            "API ({}) Returned Error: {}".format('{}/api/folders/{}'.format(settings.api_url, folder_id), r.text))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload_api))
+        sys.exit(9)
+    folder_info = json.loads(r.text.encode('utf-8'))
+    # logger.info("CHECK {} {}".format(folder_id, folder_info))
+    if folder_info['qc_status'] != "QC Pending":
+        # QC done, so skip
+        logger.info("Folder QC has been completed, skipping {}".format(folder_path))
+        return folder_id
     # Check if MD5 exists in tif folder
     if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
         md5_exists = 0
@@ -527,7 +632,7 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    logger.info("query_results: {}".format(query_results))
+    # logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
@@ -548,7 +653,7 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    logger.info("query_results: {}".format(query_results))
+    # logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
@@ -567,7 +672,6 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    logger.info(query_results)
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
@@ -621,9 +725,8 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
                 logger.error("Headers: {}".format(r.headers))
                 logger.error("Payload: {}".format(payload))
                 sys.exit(1)
-        os.chdir(folder_full_path)
         # Get all files in the folder
-        files = glob.glob("*.*")
+        files = glob.glob("{}/*.*".format(folder_full_path))
         # Remove md5 files from list
         files = [file for file in files if Path(file).suffix != '.md5']
         if len(files) > 0:
@@ -653,6 +756,37 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
                 pool.starmap(process_image_p, inputs)
                 pool.close()
                 pool.join()
+    # Run end-of-folder checks
+    if 'sequence' in project_checks:
+        no_tasks = len(files)
+        r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload_api)
+        if r.status_code != 200:
+            # Something went wrong
+            logger.error(
+                "API ({}) Returned Error: {}".format('{}/api/folders/{}'.format(settings.api_url, folder_id), r.text))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload_api))
+            sys.exit(9)
+        folder_info = json.loads(r.text.encode('utf-8'))
+        if settings.no_workers == 1:
+            print_str = "Started run of {notasks} tasks for 'sequence'"
+            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)))
+            logger.info(print_str)
+            # Process files in parallel
+            for file in files:
+                sequence_validate(file, folder_info, logger)
+        else:
+            print_str = "Started parallel run of {notasks} tasks on {workers} workers for 'sequence'"
+            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
+                settings.no_workers))
+            logger.info(print_str)
+            # Process files in parallel
+            inputs = zip(files, itertools.repeat(folder_info), itertools.repeat(logger))
+            with Pool(settings.no_workers) as pool:
+                pool.starmap(sequence_validate, inputs)
+                pool.close()
+                pool.join()
     # Update folder stats
     update_folder_stats(folder_id, folder_path, logger)
     return folder_id
@@ -666,6 +800,8 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
     import random
     import logging
     import time
+    import subprocess
+    import requests
     random_int = random.randint(1, 1000)
     # Logging
     current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -674,20 +810,22 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
                         format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
                         datefmt='%y-%b-%d %H:%M:%S')
     logger = logging.getLogger("osprey_{}".format(random_int))
-    #
-    main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
+    # main_file_path = "{}/{}/{}".format(folder_path, settings.main_files_path, filename)
+    main_file_path = filename
     logger.info("filename: {}".format(main_file_path))
     folder_id = int(folder_id)
     filename_stem = Path(filename).stem
     filename_suffix = Path(filename).suffix[1:]
+    file_name = Path(filename).name
     payload_api = {'api_key': settings.api_key}
+    # s = requests.Session()
     r = requests.post('{}/api/folders/{}'.format(settings.api_url, folder_id), data=payload_api)
     if r.status_code != 200:
         # Something went wrong
         logger.error("API ({}) Returned Error: {}".format('{}/api/folders/{}'.format(settings.api_url, folder_id), r.text))
         logger.error("Request: {}".format(str(r.request)))
         logger.error("Headers: {}".format(r.headers))
-        logger.error("Payload: {}".format(payload))
+        logger.error("Payload: {}".format(payload_api))
         return False
     folder_info = json.loads(r.text.encode('utf-8'))
     r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload_api)
@@ -698,6 +836,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         sys.exit(1)
     project_info = json.loads(r.text.encode('utf-8'))
     project_checks = project_info['project_checks']
+    logger.info("project_checks: {}".format(project_checks))
     # Check if file exists, insert if not
     file_id = None
     for file in folder_info['files']:
@@ -760,7 +899,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             logger.error("Payload: {}".format(payload))
             return False
         folder_info = json.loads(r.text.encode('utf-8'))
-        logger.info("folder_info:{}".format(folder_info))
+        # logger.info("folder_info:{}".format(folder_info))
         for file in folder_info['files']:
             if file['file_name'] == filename_stem:
                 file_id = file['file_id']
@@ -770,6 +909,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
     file_md5 = get_filemd5(main_file_path, logger)
+    logger.info("file_md5: {} - {}".format(main_file_path, file_md5))
     payload = {'type': 'file',
                'property': 'filemd5',
                'file_id': file_id,
@@ -800,27 +940,12 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    logger.info("query_results:{}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
         logger.error("Headers: {}".format(r.headers))
         logger.error("Payload: {}".format(payload))
         return False
-    # logger.info("file_info: {}".format(file_info))
-    # If the file has been checked and passed all, nothing to do and return
-    file_checks = 0
-    r = requests.post('{}/api/files/{}'.format(settings.api_url, file_id), data=payload_api)
-    file_info = json.loads(r.text.encode('utf-8'))
-    if len(file_info['file_checks']) == 0:
-        file_checks = 1
-    else:
-        for fcheck in file_info['file_checks']:
-            file_checks = file_checks + int(fcheck['check_results'])
-    if file_checks == 0:
-        # file_updated_at(file_id, db_cursor)
-        logger.info("File {} ({}; folder_id: {}) tagged as OK".format(filename_stem, file_id, folder_id))
-        return True
     logger.info("Running checks on file {} ({}; folder_id: {})".format(filename_stem, file_id, folder_id))
     # Run each check
     #####################################
@@ -829,12 +954,11 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
     #  - dupe_elsewhere
     #  - md5
     #####################################
-    #if 'raw_pair' in settings.project_file_checks:
     if 'raw_pair' in project_checks:
         file_check = 'raw_pair'
         # FilePair check and get MD5 hash
         check_results, check_info, derivative_file = file_pair_check(file_id,
-                                     filename,
+                                     file_name,
                                      "{}/{}".format(folder_path, settings.raw_files_path),
                                      'raw_pair')
         payload = {'type': 'file',
@@ -851,12 +975,13 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.error("769")
             logger.error("Request: {}".format(str(r.request)))
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
             return False
-        file_md5 = get_filemd5("{}/{}/{}".format(folder_path, settings.raw_files_path, derivative_file), logger)
+        # raw_file = "{}/{}/{}".format(folder_path, settings.raw_files_path, derivative_file)
+        file_md5 = get_filemd5(derivative_file, logger)
+        logger.info("file_raw_md5: {} - {}".format(derivative_file, file_md5))
         payload = {'type': 'file',
                    'property': 'filemd5',
                    'file_id': file_id,
@@ -869,15 +994,14 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.error("787")
             logger.error("Request: {}".format(str(r.request)))
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
             return False
-    # if 'jhove' in settings.project_file_checks:
     if 'jhove' in project_checks:
         file_check = 'jhove'
         check_results, check_info = jhove_validate(main_file_path, logger)
+        logger.info("jhove_validate: {} {}".format(check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -892,15 +1016,40 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.error("809")
             logger.error("Request: {}".format(str(r.request)))
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
             return False
-    # if 'magick' in settings.project_file_checks:
+    if 'tifpages' in project_checks:
+        file_check = 'tifpages'
+        check_results, check_info = tifpages(main_file_path)
+        logger.info("tifpages: {} {}".format(check_results, check_info))
+        payload = {'type': 'file',
+                   'property': 'filechecks',
+                   'folder_id': folder_id,
+                   'file_id': file_id,
+                   'api_key': settings.api_key,
+                   'file_check': file_check,
+                   'value': check_results,
+                   'check_info': check_info
+                   }
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                          data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
     if 'magick' in project_checks:
         file_check = 'magick'
         check_results, check_info = magick_validate(file_id, main_file_path, logger)
+        # logger.info("magick_validate: {} {}".format(check_results, check_info))
+        logger.info("magick_validate: {}".format(check_results))
+        if check_results != 0:
+            logger.error("magick error: {}".format(check_info))
+            sys.exit(1)
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -916,33 +1065,10 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
             sys.exit(1)
-    # if 'tifpages' in settings.project_file_checks:
-    if 'tifpages' in project_checks:
-        file_check = 'tifpages'
-        check_results, check_info = tifpages(main_file_path)
-        payload = {'type': 'file',
-                   'property': 'filechecks',
-                   'folder_id': folder_id,
-                   'file_id': file_id,
-                   'api_key': settings.api_key,
-                   'file_check': file_check,
-                   'value': check_results,
-                   'check_info': check_info
-                   }
-        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                          data=payload)
-        query_results = json.loads(r.text.encode('utf-8'))
-        if query_results["result"] is not True:
-            logger.error("API Returned Error: {}".format(query_results))
-            logger.error("859")
-            logger.error("Request: {}".format(str(r.request)))
-            logger.error("Headers: {}".format(r.headers))
-            logger.error("Payload: {}".format(payload))
-            return False
-    # if 'tif_compression' in settings.project_file_checks:
     if 'tif_compression' in project_checks:
         file_check = 'tif_compression'
         check_results, check_info = tif_compression(main_file_path)
+        logger.info("tif_compression: {} {}".format(check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -957,7 +1083,6 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         query_results = json.loads(r.text.encode('utf-8'))
         if query_results["result"] is not True:
             logger.error("API Returned Error: {}".format(query_results))
-            logger.error("881")
             logger.error("Request: {}".format(str(r.request)))
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
