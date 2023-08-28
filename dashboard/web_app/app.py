@@ -50,7 +50,7 @@ import settings
 # from werkzeug.middleware.profiler import ProfilerMiddleware
 
 
-site_ver = "2.5.0"
+site_ver = "2.5.1"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -742,7 +742,7 @@ def dashboard_f(project_alias=None, folder_id=None):
     logging.info("filechecks_list:{}".format(filechecks_list_temp))
     project_postprocessing_temp = run_query(
         ("SELECT settings_value as file_check FROM projects_settings "
-         " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s"),
+         " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
         {'project_id': project_info['project_id']}, cur=cur)
     project_postprocessing = []
     if project_postprocessing_temp is not None:
@@ -1009,6 +1009,28 @@ def dashboard_f(project_alias=None, folder_id=None):
     else:
         proj_reports = False
 
+    # QC folder status
+    qc_check = run_query("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s AND qc_status = 1",
+                        {'folder_id': folder_id}, cur=cur)
+    if len(qc_check) > 0:
+        qc_check = True
+        qc_details = pd.DataFrame(run_query(("SELECT f.file_id, f.file_name, q.qc_info, "
+                                             "      CASE "
+                                             "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
+                                             "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
+                                             "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
+                                             "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s and q.file_qc != 0 AND q.file_id = f.file_id "
+                                             "ORDER BY q.file_qc DESC"),
+                            {'folder_id': folder_id}, cur=cur))
+        qc_details['file_name'] = '<a href="/file/' \
+                                          + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
+                                          + qc_details['file_name'].astype(str) \
+                                          + '</a>'
+        qc_details = qc_details.drop(['file_id'], axis=1)
+    else:
+        qc_check = False
+        qc_details = pd.DataFrame()
+
     cur.close()
     conn.close()
 
@@ -1052,7 +1074,14 @@ def dashboard_f(project_alias=None, folder_id=None):
                            site_env=site_env,
                            site_net=site_net,
                            kiosk=kiosk,
-                           user_address=user_address
+                           user_address=user_address,
+                           qc_check=qc_check,
+                           qc_details=[qc_details.to_html(table_id='qc_details_table',
+                                                                       index=False,
+                                                                       border=0,
+                                                                       escape=False,
+                                                                       classes=["display", "compact", "table-striped",
+                                                                                "w-100"])]
                            )
 
 
@@ -2830,7 +2859,7 @@ def api_get_project_details(project_alias=None):
                                         {'project_id': data[0]['project_id']}, cur=cur)
         data[0]['project_checks'] = ','.join(str(v['project_check']) for v in project_checks)
         project_postprocessing = run_query(("SELECT settings_value as project_postprocessing FROM projects_settings "
-                                         " WHERE project_id = %(project_id)s AND project_setting = 'project_postprocessing'"),
+                                         " WHERE project_id = %(project_id)s AND project_setting = 'project_postprocessing' ORDER BY table_id"),
                                         {'project_id': data[0]['project_id']}, cur=cur)
         data[0]['project_postprocessing'] = ','.join(str(v['project_postprocessing']) for v in project_postprocessing)
         data[0]['folders'] = folders

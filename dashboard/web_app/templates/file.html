@@ -108,6 +108,8 @@
                                         Derivative file is present.
                                     {% elif check.file_check == 'prefix' %}
                                         Filename has the correct prefix.
+                                    {% elif check.file_check == 'sequence' %}
+                                        File sequence has failed.
                                     {% else %}
                                         Checks for {{ check.file_check }}.
                                     {% endif %}

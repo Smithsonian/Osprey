@@ -35,6 +35,7 @@
           </div>
         </div>
     </div>
+    {% if project_stats.public != "0" %}
     <div class="col">
         <div class="card">
           <h2><span class="badge bg-primary d-flex">{{ project_stats.public }} Public Files</span></h2>
@@ -43,6 +44,8 @@
           </div>
         </div>
     </div>
+    {% endif %}
+    {% if project_stats.pending != "0" %}
     <div class="col">
         <div class="card">
           <h2><span class="badge bg-primary d-flex">{{ project_stats.pending }} Pending</span></h2>
@@ -51,6 +54,7 @@
           </div>
         </div>
     </div>
+    {% endif %}
     <div class="col">
         <div class="card">
           <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>
@@ -168,7 +172,7 @@
         </div>
     </div>
 
-    <div class="col" style="font-size: 0.9em;">
+    <div class="col-9" style="font-size: 0.9em;">
 
          <!-- Search Files -->
         <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
@@ -179,7 +183,7 @@
             <div class="col-3">
                 <input type="text" class="form-control form-control-sm" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
             </div>
-            <div class="col">
+            <div class="col-1">
                 <button type="submit" class="btn btn-primary btn-sm">Search Files</button></form>
             </div>
         </div>
@@ -218,7 +222,23 @@
                 {% endif %}
 
                 <br>
+                    {% if qc_check %}
 
+                        <div class="alert alert-secondary" role="alert">
+                            <div class="row">
+                                <div class="col-3">
+                                    <h4>QC Issues Found:</h4>
+                                </div>
+                                <div class="col-9">
+                                    {% for table in qc_details %}
+                                        {{ table|safe }}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    <br><hr>
+                    {% endif %}
+                <br>
                 {% for table in tables %}
                        {{ table|safe }}
                 {% endfor %}
@@ -309,6 +329,28 @@
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
+
+            $('#qc_details_table').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
+                "order": [],
+                "columnDefs": [
+                    {
+                        'targets': 0,
+                        'createdCell':  function (td, cellData, rowData, row, col) {
+                            $(td).attr('scope', 'row');
+                        }
+                    }],
+                lengthMenu: [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ]
+            });
+
 
             $('#files_table').append('<caption style="caption-side: top"><h5>Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
 
