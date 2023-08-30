@@ -6,11 +6,9 @@
 #
 
 import sys
-import requests
-import json
 
 # MySQL
-import mysql.connector
+import pymysql
 
 # Import settings from settings.py file
 import settings
@@ -29,16 +27,16 @@ else:
 ############################################
 # Connect
 try:
-    conn = mysql.connector.connect(host=settings.host,
+    conn = pymysql.connect(host=settings.host,
                                    user=settings.user,
                                    passwd=settings.password,
                                    database=settings.database,
                                    port=settings.port,
                                    charset='utf8mb4',
-                                   connection_timeout=120,
+                                   cursorclass=pymysql.cursors.DictCursor,
                                    autocommit=True)
-    cur = conn.cursor(dictionary=True)
-except mysql.connector.Error as e:
+    cur = conn.cursor()
+except pymysql.Error as e:
     print("Error in connection: {}".format(e))
     sys.exit(1)
 
@@ -54,115 +52,114 @@ query = ("SELECT * FROM folders WHERE project_id = %(project_id)s")
 results = cur.execute(query, {'project_id': proj['project_id']})
 folders = cur.fetchall()
 
-for folder in folders:
-    folder_id = folder['folder_id']
-    query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-             " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-             " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-    res = cur.execute(query, {'folder_id': folder_id})
-    res = cur.fetchall()
-    query = (
-        "WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, f.folder_id FROM files_checks c, files f"
-        " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9)"
-        " UPDATE folders f, data d SET f.file_errors = d.no_files "
-        "WHERE f.folder_id = d.folder_id")
-    res = cur.execute(query, {'folder_id': folder_id})
-    res = cur.fetchall()
-    query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-             " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-             " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-    res = cur.execute(query, {'folder_id': folder_id})
-    res = cur.fetchall()
-    # Clear badges
-    res = cur.execute(
-        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'no_files'",
-        {'folder_id': folder_id})
-    res = cur.fetchall()
-    res = cur.execute(
-        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'error_files'",
-        {'folder_id': folder_id})
-    res = cur.fetchall()
-    res = cur.execute(
-        "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s WHERE badge_type = 'qc_status'",
-        {'folder_id': folder_id})
-    res = cur.fetchall()
-    # Badge of no_files
-    res = cur.execute("SELECT COUNT(*) AS no_files FROM files WHERE folder_id = %(folder_id)s",
-                              {'folder_id': folder_id})
-    no_files = cur.fetchall()
-    if no_files[0]['no_files'] > 0:
-        if no_files[0]['no_files'] == 1:
-            no_folder_files = "1 file"
-        else:
-            no_folder_files = "{} files".format(no_files[0]['no_files'])
-    query = ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-             " VALUES (%(folder_id)s, 'no_files', 'bg-primary', %(no_files)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
-             " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-    res = cur.execute(query, {'folder_id': folder_id, 'no_files': no_folder_files})
-    res = cur.fetchall()
-    # Badge of error files
-    query = ("with data as ("
-             " SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-             " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results != 0 ) "
-             " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-    err_files = cur.execute(query, {'folder_id': folder_id})
-    res = cur.fetchall()
-    no_files = cur.execute("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s",
-                              {'folder_id': folder_id})
-    no_files = cur.fetchall()
-    if no_files[0]['file_errors'] == 1:
-        query = (
-            "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-            " VALUES (%(folder_id)s, 'error_files', 'bg-danger', 'Files with errors', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
-            "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-    res = cur.execute(query, {'folder_id': folder_id, 'no_files': no_folder_files})
-    res = cur.fetchall()
-    #QC
-    query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
-    folder_qc = cur.execute(query, {'folder_id': folder_id})
-    folder_qc = cur.fetchall()
-    if len(folder_qc) == 0:
-        qc_status = "QC Pending"
-        badge_css = "bg-secondary"
-    else:
-        folder_qc_status = folder_qc[0]['qc_status']
-        if folder_qc_status == 0:
-            qc_status = "QC Passed"
-            badge_css = "bg-success"
-        elif folder_qc_status == 1:
-            qc_status = "QC Failed"
-            badge_css = "bg-danger"
-        elif folder_qc_status == 9:
-            qc_status = "QC Pending"
-            badge_css = "bg-secondary"
-    query = ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-             " VALUES (%(folder_id)s, 'qc_status', %(badge_css)s, %(qc_status)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(qc_status)s,"
-             "       badge_css = %(badge_css)s, updated_at = CURRENT_TIMESTAMP")
-    res = cur.execute(query, {'qc_status': qc_status, 'badge_css': badge_css, 'folder_id': folder_id})
-    res=cur.fetchall()
+# for folder in folders:
+#     folder_id = folder['folder_id']
+#     query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+#              " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
+#              " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+#     res = cur.execute(query, {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     query = (
+#         "WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, f.folder_id FROM files_checks c, files f"
+#         " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9)"
+#         " UPDATE folders f, data d SET f.file_errors = d.no_files "
+#         "WHERE f.folder_id = d.folder_id")
+#     res = cur.execute(query, {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+#              " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
+#              " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+#     res = cur.execute(query, {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     # Clear badges
+#     res = cur.execute(
+#         "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'no_files'",
+#         {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     res = cur.execute(
+#         "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'error_files'",
+#         {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     res = cur.execute(
+#         "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'qc_status'",
+#         {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     # Badge of no_files
+#     res = cur.execute("SELECT COUNT(*) AS no_files FROM files WHERE folder_id = %(folder_id)s",
+#                                   {'folder_id': folder_id})
+#     no_files = cur.fetchall()
+#     if no_files[0]['no_files'] > 0:
+#         if no_files[0]['no_files'] == 1:
+#             no_folder_files = "1 file"
+#         else:
+#             no_folder_files = "{} files".format(no_files[0]['no_files'])
+#     query = ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+#              " VALUES (%(folder_id)s, 'no_files', 'bg-primary', %(no_files)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
+#              " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+#     res = cur.execute(query, {'folder_id': folder_id, 'no_files': no_folder_files})
+#     res = cur.fetchall()
+#     # Badge of error files
+#     query = ("with data as ("
+#              " SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
+#              " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results != 0 ) "
+#              " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
+#     err_files = cur.execute(query, {'folder_id': folder_id})
+#     res = cur.fetchall()
+#     no_files = cur.execute("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s",
+#                               {'folder_id': folder_id})
+#     no_files = cur.fetchall()
+#     if no_files[0]['file_errors'] == 1:
+#         query = (
+#             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+#             " VALUES (%(folder_id)s, 'error_files', 'bg-danger', 'Files with errors', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
+#             "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+#     res = cur.execute(query, {'folder_id': folder_id, 'no_files': no_folder_files})
+#     res = cur.fetchall()
+#     #QC
+#     query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
+#     folder_qc = cur.execute(query, {'folder_id': folder_id})
+#     folder_qc = cur.fetchall()
+#     if len(folder_qc) == 0:
+#         qc_status = "QC Pending"
+#         badge_css = "bg-secondary"
+#     else:
+#         folder_qc_status = folder_qc[0]['qc_status']
+#         if folder_qc_status == 0:
+#             qc_status = "QC Passed"
+#             badge_css = "bg-success"
+#         elif folder_qc_status == 1:
+#             qc_status = "QC Failed"
+#             badge_css = "bg-danger"
+#         elif folder_qc_status == 9:
+#             qc_status = "QC Pending"
+#             badge_css = "bg-secondary"
+#     query = ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+#              " VALUES (%(folder_id)s, 'qc_status', %(badge_css)s, %(qc_status)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(qc_status)s,"
+#              "       badge_css = %(badge_css)s, updated_at = CURRENT_TIMESTAMP")
+#     res = cur.execute(query, {'qc_status': qc_status, 'badge_css': badge_css, 'folder_id': folder_id})
+#     res=cur.fetchall()
 
 
 
 # Update DAMS UAN
 try:
-    query = ("UPDATE files f SET dams_uan = e.dams_uan "
-                    "FROM ( "
-                    "SELECT file_id, dams_uan "
-                    "FROM ( "
-                        " SELECT "
-                            " max(f.file_id) as file_id, max(d.dams_uan) as dams_uan "
-                        "FROM "
-                            " dams_cdis_file_status_view_dpo d, files f, folders fol, projects p "
-                        "WHERE "
-                            "d.file_name = f.file_name || '.tif' AND "
-                            "f.folder_id = fol.folder_id AND "
-                            "fol.project_id = %(project_id)s AND "
-                            "p.process_summary = d.project_cd AND "
-                            "d.to_dams_ingest_dt > p.project_start "
-                        " GROUP BY f.file_name ) d "
-                    " ) e"
-                    " WHERE f.file_id = e.file_id")
-    cur.execute(query, {'project_id': project_id})
+    query = ("SELECT * FROM projects_settings WHERE project_id = %(project_id)s AND project_setting = 'dams'")
+    res = cur.execute(query, {'project_id': project_id})
+    dams_process = cur.fetchall()
+
+    dams_code = dams_process[0]['settings_value']
+
+
+    query = ("with fol as (select folder_id from folders where project_id = %(project_id)s), "
+	            " fil as (select f.* from files f, fol where f.folder_id = fol.folder_id) "
+                        "  SELECT f.file_id, d.dams_uan " 
+                        " FROM dams_cdis_file_status_view_dpo d, fil f, projects p " 
+                        " WHERE  "
+                        	" p.project_id = %(project_id)s and " 
+                            " d.file_name = concat(f.file_name, '.tif') AND " 
+                            " d.project_cd = %(dams_code)s AND "
+                            " d.to_dams_ingest_dt > p.project_start ")
+    cur.execute(query, {'project_id': proj['project_id'], 'dams_code': dams_code})
 except Exception as error:
     print("Error: {}".format(error))
     sys.exit(1)
