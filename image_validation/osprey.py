@@ -38,7 +38,7 @@ if not os.path.exists(log_folder):
 
 # Logging
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logfile = '{}/{}.log'.format(log_folder, current_time)
+logfile = '{}/{}_{}.log'.format(log_folder, settings.project_alias, current_time)
 logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
                     format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
                     datefmt='%y-%b-%d %H:%M:%S')
