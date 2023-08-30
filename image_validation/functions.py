@@ -139,7 +139,6 @@ def magick_validate(file_id, filename, logger, paranoid=False):
     (out, err) = p.communicate()
     if p.returncode == 0:
         magick_identify = 0
-        # logger.info("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
     else:
         magick_identify = 1
         logger.error("magick_out: {} {}".format(file_id, out.decode('UTF-8')))
@@ -167,8 +166,10 @@ def pil_validate(file_id, filename, logger):
     return check_results, check_info
 
 
-def check_sequence(filename, folder_info, sequence, sequence_split):
+def check_sequence(filename, folder_info, sequence, sequence_split, logger):
     filename_stem = Path(filename).stem
+    logger.info("sequence: {} {}".format(filename, folder_info['folder']))
+    logger.info("sequence2: {}".format(folder_info['files']))
     for file in folder_info['files']:
         if file['file_name'] == filename_stem:
             file_id = file['file_id']
@@ -207,7 +208,7 @@ def sequence_validate(filename, folder_info, logger):
     """
     sequence = settings.sequence
     sequence_split = settings.sequence_split
-    file_id, check_results, check_info = check_sequence(filename, folder_info, sequence, sequence_split)
+    file_id, check_results, check_info = check_sequence(filename, folder_info, sequence, sequence_split, logger)
     file_check = 'sequence'
     logger.info("SEQ: results - {} - {}".format(check_results, check_info))
     payload = {'type': 'file',
@@ -219,9 +220,7 @@ def sequence_validate(filename, folder_info, logger):
                'value': check_results,
                'check_info': check_info
                }
-    logger.info("SEQ: payload - {}".format(payload))
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
-    logger.info("SEQ: request code {}".format(r.status_code))
     query_results = json.loads(r.text.encode('utf-8'))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
@@ -351,35 +350,6 @@ def file_pair_check(file_id, filename, derivative_path, derivative_type):
 #     return True
 
 
-# def check_stitched_jpg(file_id, filename, db_cursor, logger):
-#     """
-#     Run checks for jpg files that were stitched from 2 images
-#     """
-#     p = subprocess.Popen(['identify', '-verbose', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={"MAGICK_THREAD_LIMIT": "1"})
-#     (out, err) = p.communicate()
-#     if p.returncode == 0:
-#         magick_identify = 0
-#         magick_identify_info = out
-#         magick_return = True
-#     else:
-#         magick_identify = 1
-#         magick_identify_info = err
-#         magick_return = False
-#         logger.debug("stitched_out: {} {}".format(file_id, out.decode('UTF-8')))
-#         logger.debug("stitched_err: {} {}".format(file_id, err.decode('UTF-8')))
-#     db_cursor.execute(queries.file_check,
-#                       {'file_id': file_id,
-#                        'folder_id': folder_id,
-#                        'file_check': 'stitched_jpg',
-#                        'check_results': magick_identify,
-#                        'check_info': magick_identify_info.decode("utf-8").replace("'", "''")})
-#     if magick_return:
-#         # Store MD5
-#         file_md5 = filemd5(filename, logger)
-#         db_cursor.execute(queries.save_md5, {'file_id': file_id, 'filetype': 'jpg', 'md5': file_md5})
-#     return True
-
-
 def jpgpreview(file_id, folder_id, file_path, logger):
     """
     Create preview image
@@ -414,18 +384,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     # if settings.previews_size == "full":
     # Save full size by default
     img.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    # else:
-    #     width_o, height_o = img.size
-    #     width = settings.previews_size
-    #     height = round(height_o * (width / width_o))
-    #     newsize = (width, height)
-    #     im1 = img.resize(newsize)
-    #     im1.save(preview_image, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    # if os.path.isfile(preview_image):
-    #     os.chmod(preview_image, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    # else:
-    #     logger.error("File:{}|msg:{}".format(file_path, out))
-    #     sys.exit(1)
     if os.path.isfile(preview_image) is False:
         logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
@@ -437,11 +395,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_160, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    # if os.path.isfile(preview_image_160):
-    #     os.chmod(preview_image_160, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    # else:
-    #     logger.error("File:{}|msg:{}".format(file_path, out))
-    #     sys.exit(1)
     if os.path.isfile(preview_image_160) is False:
         logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
@@ -451,11 +404,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_600, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    # if os.path.isfile(preview_image_600):
-    #     os.chmod(preview_image_600, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    # else:
-    #     logger.error("File:{}|msg:{}".format(file_path, out))
-    #     sys.exit(1)
     if os.path.isfile(preview_image_600) is False:
         logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
@@ -465,11 +413,6 @@ def jpgpreview(file_id, folder_id, file_path, logger):
     newsize = (width, height)
     im1 = img.resize(newsize)
     im1.save(preview_image_1200, 'jpeg', icc_profile=img.info.get('icc_profile'))
-    # if os.path.isfile(preview_image_1200):
-    #     os.chmod(preview_image_1200, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-    # else:
-    #     logger.error("File:{}|msg:{}".format(file_path, out))
-    #     sys.exit(1)
     if os.path.isfile(preview_image_1200) is False:
         logger.error("File:{}|msg:{}".format(file_path))
         sys.exit(1)
@@ -496,48 +439,6 @@ def update_folder_stats(folder_id, folder_path, logger):
         logger.error("Headers: {}".format(r.headers))
         logger.error("Payload: {}".format(payload))
         sys.exit(1)
-    # # Check if MD5 exists in tif folder
-    # if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
-    #     md5_exists = 0
-    # else:
-    #     md5_exists = 1
-    # payload = {'type': 'folder',
-    #            'folder_id': folder_id,
-    #            'api_key': settings.api_key,
-    #            'property': 'tif_md5_exists',
-    #            'value': md5_exists
-    #            }
-    # r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-    #                   data=payload)
-    # query_results = json.loads(r.text.encode('utf-8'))
-    # logger.info("query_results: {}".format(query_results))
-    # if query_results["result"] is not True:
-    #     logger.error("API Returned Error: {}".format(query_results))
-    #     logger.error("Request: {}".format(str(r.request)))
-    #     logger.error("Headers: {}".format(r.headers))
-    #     logger.error("Payload: {}".format(payload))
-    #     sys.exit(1)
-    # # Check if MD5 exists in raw folder
-    # if len(glob.glob(folder_path + "/" + settings.raw_files_path + "/*.md5")) == 1:
-    #     md5_raw_exists = 0
-    # else:
-    #     md5_raw_exists = 1
-    # payload = {'type': 'folder',
-    #            'folder_id': folder_id,
-    #            'api_key': settings.api_key,
-    #            'property': 'raw_md5_exists',
-    #            'value': md5_raw_exists
-    #            }
-    # r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-    #                   data=payload)
-    # query_results = json.loads(r.text.encode('utf-8'))
-    # logger.info("query_results: {}".format(query_results))
-    # if query_results["result"] is not True:
-    #     logger.error("API Returned Error: {}".format(query_results))
-    #     logger.error("Request: {}".format(str(r.request)))
-    #     logger.error("Headers: {}".format(r.headers))
-    #     logger.error("Payload: {}".format(payload))
-    #     sys.exit(1)
     return True
 
 
@@ -597,6 +498,22 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     if 'folder_id' not in locals():
         logger.error("Could not get folder_id for {}".format(folder_name))
         sys.exit(1)
+    # Tag folder as under verification
+    payload = {'type': 'folder',
+               'folder_id': folder_id,
+               'api_key': settings.api_key,
+               'property': 'checking_folder',
+               'value': 1
+               }
+    r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                      data=payload)
+    query_results = json.loads(r.text.encode('utf-8'))
+    if query_results["result"] is not True:
+        logger.error("API Returned Error: {}".format(query_results))
+        logger.error("Request: {}".format(str(r.request)))
+        logger.error("Headers: {}".format(r.headers))
+        logger.error("Payload: {}".format(payload))
+        sys.exit(1)
     # Check if folder is ready or in DAMS
     if delivered_to_dams == 0 or delivered_to_dams == 1:
         # Folder ready for or delivered to DAMS, skip
@@ -613,7 +530,6 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         logger.error("Payload: {}".format(payload_api))
         sys.exit(9)
     folder_info = json.loads(r.text.encode('utf-8'))
-    # logger.info("CHECK {} {}".format(folder_id, folder_info))
     if folder_info['qc_status'] != "QC Pending":
         # QC done, so skip
         logger.info("Folder QC has been completed, skipping {}".format(folder_path))
@@ -632,7 +548,6 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    # logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
@@ -653,7 +568,6 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
     r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
                       data=payload)
     query_results = json.loads(r.text.encode('utf-8'))
-    # logger.info("query_results: {}".format(query_results))
     if query_results["result"] is not True:
         logger.error("API Returned Error: {}".format(query_results))
         logger.error("Request: {}".format(str(r.request)))
@@ -739,16 +653,16 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         ###############
         no_tasks = len(files)
         if settings.no_workers == 1:
-            print_str = "Started run of {notasks} tasks"
-            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)))
+            print_str = "Started run of {notasks} tasks for {folder_path}"
+            print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), folder_path=folder_path)
             logger.info(print_str)
             # Process files in parallel
             for file in files:
                 process_image_p(file, folder_path, folder_id, project_id, logfile_folder)
         else:
-            print_str = "Started parallel run of {notasks} tasks on {workers} workers"
+            print_str = "Started parallel run of {notasks} tasks on {workers} workers for {folder_path}"
             print_str = print_str.format(notasks=str(locale.format_string("%d", no_tasks, grouping=True)), workers=str(
-                settings.no_workers))
+                settings.no_workers), folder_path=folder_path)
             logger.info(print_str)
             # Process files in parallel
             inputs = zip(files, itertools.repeat(folder_path), itertools.repeat(folder_id), itertools.repeat(project_id), itertools.repeat(logfile_folder))
@@ -870,8 +784,10 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         logging.debug("new_file:{}".format(file_info))
         file_id = file_info[0]['file_id']
         file_uid = file_info[0]['uid']
-        # # Get filesize from TIF:
+        # Get filesize from TIF:
+        logging.debug("file_size_pre: {}".format(main_file_path))
         file_size = os.path.getsize(main_file_path)
+        logging.debug("file_size: {} {}".format(main_file_path, file_size))
         filetype = filename_suffix.lower()
         payload = {
             'api_key': settings.api_key,
@@ -905,9 +821,11 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
                 file_id = file['file_id']
                 file_info = file
                 break
-    logging.debug("file_info: {}".format(file_info))
+    logging.debug("file_info: {} - {}".format(file_id, file_info))
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
+    logger.info("jpg_prev: {} {}".format(main_file_path, jpg_prev))
+    logger.info("file_md5_pre: {}".format(main_file_path))
     file_md5 = get_filemd5(main_file_path, logger)
     logger.info("file_md5: {} - {}".format(main_file_path, file_md5))
     payload = {'type': 'file',
@@ -928,7 +846,9 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         logger.error("Payload: {}".format(payload))
         return False
     # Get exif from TIF
+    logger.info("file_exif_pre: {}".format(main_file_path))
     data = get_file_exif(main_file_path)
+    logger.info("file_exif: {}".format(main_file_path))
     data_json = json.loads(data)
     payload = {'type': 'file',
                'property': 'exif',
@@ -948,19 +868,15 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         return False
     logger.info("Running checks on file {} ({}; folder_id: {})".format(filename_stem, file_id, folder_id))
     # Run each check
-    #####################################
-    # Add to server side:
-    #  - valid_name
-    #  - dupe_elsewhere
-    #  - md5
-    #####################################
     if 'raw_pair' in project_checks:
         file_check = 'raw_pair'
         # FilePair check and get MD5 hash
-        check_results, check_info, derivative_file = file_pair_check(file_id,
+        logger.info("raw_pair_pre: {} {}".format(file_id, file_name))
+        check_results, check_info, raw_file = file_pair_check(file_id,
                                      file_name,
                                      "{}/{}".format(folder_path, settings.raw_files_path),
                                      'raw_pair')
+        logger.info("raw_pair: {} {} {} {}".format(file_id, file_name, check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -979,9 +895,9 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
             return False
-        # raw_file = "{}/{}/{}".format(folder_path, settings.raw_files_path, derivative_file)
-        file_md5 = get_filemd5(derivative_file, logger)
-        logger.info("file_raw_md5: {} - {}".format(derivative_file, file_md5))
+        logger.info("file_raw_md5_pre: {}".format(raw_file))
+        file_md5 = get_filemd5(raw_file, logger)
+        logger.info("file_raw_md5: {} - {}".format(raw_file, file_md5))
         payload = {'type': 'file',
                    'property': 'filemd5',
                    'file_id': file_id,
@@ -1000,6 +916,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             return False
     if 'jhove' in project_checks:
         file_check = 'jhove'
+        logger.info("jhove_validate_pre: {}".format(main_file_path))
         check_results, check_info = jhove_validate(main_file_path, logger)
         logger.info("jhove_validate: {} {}".format(check_results, check_info))
         payload = {'type': 'file',
@@ -1022,6 +939,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             return False
     if 'tifpages' in project_checks:
         file_check = 'tifpages'
+        logger.info("tifpages_pre: {}".format(main_file_path))
         check_results, check_info = tifpages(main_file_path)
         logger.info("tifpages: {} {}".format(check_results, check_info))
         payload = {'type': 'file',
@@ -1044,9 +962,9 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             return False
     if 'magick' in project_checks:
         file_check = 'magick'
+        logger.info("magick_validate_pre: {} {}".format(file_id, main_file_path))
         check_results, check_info = magick_validate(file_id, main_file_path, logger)
-        # logger.info("magick_validate: {} {}".format(check_results, check_info))
-        logger.info("magick_validate: {}".format(check_results))
+        logger.info("magick_validate: {} {}".format(check_results, check_info))
         if check_results != 0:
             logger.error("magick error: {}".format(check_info))
             sys.exit(1)
@@ -1067,6 +985,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             sys.exit(1)
     if 'tif_compression' in project_checks:
         file_check = 'tif_compression'
+        logger.info("tif_compression_pre: {}".format(main_file_path))
         check_results, check_info = tif_compression(main_file_path)
         logger.info("tif_compression: {} {}".format(check_results, check_info))
         payload = {'type': 'file',

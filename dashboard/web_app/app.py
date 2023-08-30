@@ -50,7 +50,7 @@ import settings
 # from werkzeug.middleware.profiler import ProfilerMiddleware
 
 
-site_ver = "2.5.1"
+site_ver = "2.5.2"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -2939,23 +2939,23 @@ def api_update_project_details(project_alias=None):
                                 " VALUES (%(folder_id)s, 'folder_error', 'bg-danger', %(msg)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(msg)s,"
                                 " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                             res = query_database_insert(query, {'folder_id': folder_id, 'msg': query_value}, cur=cur)
+                        elif query_property == "checking_folder":
+                            # Clear badges
+                            clear_badges = run_query(
+                                "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'",
+                                {'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query(
+                                "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",
+                                {'folder_id': folder_id}, cur=cur)
+                            query = (
+                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                " VALUES (%(folder_id)s, 'verification', 'bg-secondary', 'Folder Under Verification...', CURRENT_TIMESTAMP)")
+                            res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                         elif query_property == "stats":
-                            # query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-                            #     " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-                            #     " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
-                            # query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, f.folder_id FROM files_checks c, files f"
-                            #             " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9)"
-                            #             " UPDATE folders f, data d SET f.file_errors = d.no_files "
-                            #             "WHERE f.folder_id = d.folder_id")
-                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
-                            # query = ("with data as (SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-                            #          " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 9) "
-                            #          " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            # res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
                             # Clear badges
                             clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'", {'folder_id': folder_id}, cur=cur)
                             clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",{'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'verification'", {'folder_id': folder_id}, cur=cur)
                             # Badge of no_files
                             no_files = run_query("SELECT COUNT(*) AS no_files FROM files WHERE folder_id = %(folder_id)s", {'folder_id': folder_id}, cur=cur)
                             if no_files[0]['no_files'] > 0:
@@ -2971,11 +2971,6 @@ def api_update_project_details(project_alias=None):
                             # no_files = query_database("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
                             query = ("UPDATE folders f SET f.file_errors = 0 folder_id = %(folder_id)s")
                             res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
-                            # query = ("with data as ("
-                            #             " SELECT f.folder_id, COUNT(DISTINCT f.file_id) AS no_files "
-                            #             " FROM files_checks c, files f  WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results != 0 ) "
-                            #             " UPDATE folders f, data d SET f.file_errors = CASE WHEN d.no_files > 0 THEN 1 ELSE 0 END WHERE f.folder_id = d.folder_id")
-                            # err_files = run_query(query, {'folder_id': folder_id}, cur=cur)
                             query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, %(folder_id)s as folder_id FROM files_checks c, files f"
                                         " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 1)"
                                         " UPDATE folders f, data d SET f.file_errors = d.no_files "
@@ -2988,14 +2983,6 @@ def api_update_project_details(project_alias=None):
                                     " VALUES (%(folder_id)s, 'error_files', 'bg-danger', 'Files with errors', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
                                     "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                                 res = query_database_insert(query, {'folder_id': folder_id, 'no_files': no_folder_files}, cur=cur)
-                        # elif query_property == "md50":
-                        #     query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                        #              " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
-                        #     res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
-                        # elif query_property == "md51":
-                        #     query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                        #              " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
-                        #     res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id}, cur=cur)
                         elif query_property == "raw0":
                             query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                      " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")

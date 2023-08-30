@@ -19,7 +19,7 @@ import settings
 # Import helper functions
 from functions import *
 
-ver = "2.5.1"
+ver = "2.5.2"
 
 # Pass an argument in the CLI 'debug'
 if len(sys.argv) > 1:
@@ -62,6 +62,10 @@ if check_requirements(settings.exiftool) is False:
     logger.error("exiftool was not found")
     sys.exit(1)
 
+
+if check_requirements(settings.magick) is False:
+    logger.error("imagemagick was not found")
+    sys.exit(1)
 
 ############################################
 # Main
