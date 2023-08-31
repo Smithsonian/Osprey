@@ -824,10 +824,10 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
     logging.debug("file_info: {} - {}".format(file_id, file_info))
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)
-    logger.info("jpg_prev: {} {}".format(main_file_path, jpg_prev))
-    logger.info("file_md5_pre: {}".format(main_file_path))
+    logger.info("jpg_prev: {} {} {}".format(file_id, main_file_path, jpg_prev))
+    logger.info("file_md5_pre: {} {}".format(file_id, main_file_path))
     file_md5 = get_filemd5(main_file_path, logger)
-    logger.info("file_md5: {} - {}".format(main_file_path, file_md5))
+    logger.info("file_md5: {} {} - {}".format(file_id, main_file_path, file_md5))
     payload = {'type': 'file',
                'property': 'filemd5',
                'file_id': file_id,
@@ -895,30 +895,31 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             logger.error("Headers: {}".format(r.headers))
             logger.error("Payload: {}".format(payload))
             return False
-        logger.info("file_raw_md5_pre: {}".format(raw_file))
-        file_md5 = get_filemd5(raw_file, logger)
-        logger.info("file_raw_md5: {} - {}".format(raw_file, file_md5))
-        payload = {'type': 'file',
-                   'property': 'filemd5',
-                   'file_id': file_id,
-                   'api_key': settings.api_key,
-                   'filetype': 'raw',
-                   'value': file_md5
-                   }
-        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                          data=payload)
-        query_results = json.loads(r.text.encode('utf-8'))
-        if query_results["result"] is not True:
-            logger.error("API Returned Error: {}".format(query_results))
-            logger.error("Request: {}".format(str(r.request)))
-            logger.error("Headers: {}".format(r.headers))
-            logger.error("Payload: {}".format(payload))
-            return False
+        if check_results == 0:
+            logger.info("file_raw_md5_pre: {} {}".format(file_id, raw_file))
+            file_md5 = get_filemd5(raw_file, logger)
+            logger.info("file_raw_md5: {} {} - {}".format(file_id, raw_file, file_md5))
+            payload = {'type': 'file',
+                       'property': 'filemd5',
+                       'file_id': file_id,
+                       'api_key': settings.api_key,
+                       'filetype': 'raw',
+                       'value': file_md5
+                       }
+            r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                              data=payload)
+            query_results = json.loads(r.text.encode('utf-8'))
+            if query_results["result"] is not True:
+                logger.error("API Returned Error: {}".format(query_results))
+                logger.error("Request: {}".format(str(r.request)))
+                logger.error("Headers: {}".format(r.headers))
+                logger.error("Payload: {}".format(payload))
+                return False
     if 'jhove' in project_checks:
         file_check = 'jhove'
-        logger.info("jhove_validate_pre: {}".format(main_file_path))
+        logger.info("jhove_validate_pre: {} {}".format(file_id, main_file_path))
         check_results, check_info = jhove_validate(main_file_path, logger)
-        logger.info("jhove_validate: {} {}".format(check_results, check_info))
+        logger.info("jhove_validate: {} {} {}".format(file_id, check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -939,9 +940,9 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             return False
     if 'tifpages' in project_checks:
         file_check = 'tifpages'
-        logger.info("tifpages_pre: {}".format(main_file_path))
+        logger.info("tifpages_pre: {} {}".format(file_id, main_file_path))
         check_results, check_info = tifpages(main_file_path)
-        logger.info("tifpages: {} {}".format(check_results, check_info))
+        logger.info("tifpages: {} {} {}".format(file_id, check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
@@ -964,7 +965,7 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
         file_check = 'magick'
         logger.info("magick_validate_pre: {} {}".format(file_id, main_file_path))
         check_results, check_info = magick_validate(file_id, main_file_path, logger)
-        logger.info("magick_validate: {} {}".format(check_results, check_info))
+        logger.info("magick_validate: {} {} {}".format(file_id, check_results, check_info))
         if check_results != 0:
             logger.error("magick error: {}".format(check_info))
             sys.exit(1)
@@ -985,9 +986,9 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
             sys.exit(1)
     if 'tif_compression' in project_checks:
         file_check = 'tif_compression'
-        logger.info("tif_compression_pre: {}".format(main_file_path))
+        logger.info("tif_compression_pre: {} {}".format(file_id, main_file_path))
         check_results, check_info = tif_compression(main_file_path)
-        logger.info("tif_compression: {} {}".format(check_results, check_info))
+        logger.info("tif_compression: {} {} {}".format(file_id, check_results, check_info))
         payload = {'type': 'file',
                    'property': 'filechecks',
                    'folder_id': folder_id,
