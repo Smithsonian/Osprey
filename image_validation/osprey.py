@@ -19,7 +19,7 @@ import settings
 # Import helper functions
 from functions import *
 
-ver = "2.5.3"
+ver = "2.6.0"
 
 # Pass an argument in the CLI 'debug'
 if len(sys.argv) > 1:
@@ -85,8 +85,8 @@ def main():
     if system_info['sys_ver'] != ver:
         logger.error("API version ({}) does not match this script ({})".format(system_info['sys_ver'], ver))
         sys.exit(1)
-    payload = {'api_key': settings.api_key}
-    r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=payload)
+    default_payload = {'api_key': settings.api_key}
+    r = requests.post('{}/api/projects/{}'.format(settings.api_url, settings.project_alias), data=default_payload)
     if r.status_code != 200:
         # Something went wrong
         query_results = r.text.encode('utf-8')
