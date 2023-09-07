@@ -19,175 +19,303 @@
 
 
 <div class="row">
-    <div class="col">
+    <div class="col-6">
         <div class="card">
-          <h2><span class="badge bg-primary d-flex">{{ project_stats.total }} Total Files</span></h2>
-          <div class="card-body">
-            <p class="card-text">Total number of files in project</p>
+          <h2><span class="badge bg-dark d-flex">Project Details</span></h2>
+          <div class="card-body" style="padding: 4px;">
+{#            <p class="card-text">#}
+                {% if project_info.project_description != None %}<strong>{{ project_info.project_description }}</strong>{% endif %}
+                <div class="row">
+                      <div class="col-8">
+
+                          <!-- links and media -->
+                            <div class="list-group">
+                            {% for link in projects_links %}
+                                  <small><a href="{{ link.url }}" title="{{ link.link_title }} (external link)" target="_blank" class="list-group-item list-group-item-action list-group-item-primary">
+                                    {% if link.link_type == "yt" %}
+                                        <i class="fa-solid fa-video" title="YouTube Video"></i>
+                                    {% elif link.link_type == "video" %}
+                                        <i class="fa-solid fa-video" title="Video"></i>
+                                    {% elif link.link_type == "fb" %}
+                                        <i class="fa-brands fa-facebook" title="Facebook Post"></i>
+                                    {% elif link.link_type == "ig" %}
+                                        <i class="fa-brands fa-instagram" title="Instagram Post"></i>
+                                    {% elif link.link_type == "news" %}
+                                        <i class="fa-solid fa-newspaper" title="News Item"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-link" title="Link"></i>
+                                    {% endif %}
+                                    {{ link.link_title }}
+                                        <i class="small fa-solid fa-arrow-up-right-from-square"></i>
+                                        <span class="screen-reader-only">(link is external)</span>
+                                    </a>
+                                </small>
+                            {% endfor %}
+                          </div>
+                        </div>
+                      <div class="col-2">
+                          <small>
+                              <div title="Project Manager"><i class="fa-solid fa-user-gear"></i> {{ project_manager_link | safe }}<br></div>
+                              <div title="Unit"><i class="fa-solid fa-building-columns"></i> {{ project_info.project_unit }}<br></div>
+                              <div title="Project Type"><i class="fa-solid fa-diagram-project"></i> {{ project_info.project_type }}<br></div>
+                              <div title="Project Area"><i class="fa-solid fa-book-open"></i> {{ project_info.project_area }}<br></div>
+                          </small>
+                      </div>
+                      <div class="col-2">
+                          <small>
+                              <div title="Project Status"><i class="fa-solid fa-list-check"></i> {{ project_info.project_status }}<br></div>
+                              <div title="Dates of the Project"><i class="fa-solid fa-calendar-days"></i> {{ project_info.pdates }}</div>
+                              <div title="Disk Space Used"><i class="fa-solid fa-hard-drive"></i> {{ project_disk }}</div>
+                          </small>
+                      </div>
+                </div>
+
           </div>
+{#            </p>#}
         </div>
     </div>
     <div class="col">
-        <div class="card">
-          <h2><span class="badge bg-success d-flex">{{ project_stats.ok }} Files OK</span></h2>
-          <div class="card-body">
-            <p class="card-text">Files that passed all the checks</p>
-          </div>
+
+        <div class="row">
+            <div class="col">
+                    <h1 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Total</span></h1>
+                    <h1 title="Total number of objects/specimens digitized"><span class="badge bg-info w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} Obj/Specimens</span></h1>
+            </div>
+            <div class="col">
+                    <h1 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h1>
+                    <h1 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h1>
+            </div>
         </div>
-    </div>
-    {% if project_stats.public != "0" %}
-    <div class="col">
-        <div class="card">
-          <h2><span class="badge bg-primary d-flex">{{ project_stats.public }} Public Files</span></h2>
-          <div class="card-body">
-            <p class="card-text">Files published to the public</p>
-          </div>
+
+        <div class="row">
+                <div class="col-10">
+                    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
+                    <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary btn-md">Search</button>
+                    </form>
+                </div>
+
         </div>
+
+{#        <div class="card">#}
+{#          <h1><span class="badge bg-primary d-flex">{{ project_stats.total }} Files</span></h1>#}
+{#          <div class="card-body">#}
+{#              <p class="card-text"><small>Total number of files in project</small></p>#}
+{#          </div>#}
+{#        </div>#}
     </div>
-    {% endif %}
-    {% if project_stats.pending != "0" %}
-    <div class="col">
-        <div class="card">
-          <h2><span class="badge bg-primary d-flex">{{ project_stats.pending }} Pending</span></h2>
-          <div class="card-body">
-            <p class="card-text">Files that are currently being checked</p>
-          </div>
-        </div>
+{#    <div class="col">#}
+{#        <div class="card">#}
+{#          <h1><span class="badge bg-success d-flex">{{ project_stats.ok }} OK</span></h1>#}
+{#          <div class="card-body">#}
+{#              <p class="card-text"><small>Files that passed all the checks</small></p>#}
+{#          </div>#}
+{#        </div>#}
+{#    </div>#}
+{#    <div class="col">#}
+{#        <h1><span class="badge bg-danger w-100">{{ project_stats.errors }} Errors</span></h1>#}
+{#        <div class="card">#}
+{#          <h1><span class="badge bg-danger d-flex">{{ project_stats.errors }} Errors</span></h1>#}
+{#          <div class="card-body">#}
+{#              <p class="card-text"><small>Files that failed one or more checks</small></p>#}
+{#          </div>#}
+{#        </div>#}
+{#    </div>#}
+
+{#    <div class="col">#}
+{#        <h1><span class="badge bg-info w-100">{{ project_stats.public }} Public</span></h1>#}
+{#    </div>#}
+{#        <div class="card">#}
+{#          <h2><span class="badge bg-success d-flex">{{ project_stats.ok }} Files OK</span></h2>#}
+{#          <div class="card-body">#}
+{#            <p class="card-text">Files that passed all the checks</p>#}
+{#          </div>#}
+{#        </div>#}
+{#        <br>#}
+{#        <div class="card">#}
+{#          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>#}
+{#          <div class="card-body">#}
+{#            <p class="card-text">Files that failed one or more checks</p>#}
+{#          </div>#}
+{#        </div>#}
     </div>
-    {% endif %}
-    <div class="col">
-        <div class="card">
-          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>
-          <div class="card-body">
-            <p class="card-text">Files that failed one or more checks</p>
-          </div>
-        </div>
-    </div>
-</div>
+{#    <div class="col">#}
+{#        <div class="card">#}
+{#          <h2><span class="badge bg-primary d-flex">{{ project_stats.total }} Total Files</span></h2>#}
+{#          <div class="card-body">#}
+{#            <p class="card-text">Total number of files in project</p>#}
+{#          </div>#}
+{#        </div>#}
+{#        <br>#}
+{#        <div class="card">#}
+{#          <h2><span class="badge bg-primary d-flex">{{ project_stats.public }} Public Files</span></h2>#}
+{#          <div class="card-body">#}
+{#            <p class="card-text">Files published to the public</p>#}
+{#          </div>#}
+{#        </div>#}
+{#    </div>#}
+
 
 <hr>
 
 <div class="row">
-    <div class="col-3" style="font-size: 0.9em;">
 
+    <div class="col-auto" style="font-size: 0.9em;">
 
         {% if proj_reports %}
 
-        <!-- Project Reports -->
-        <form action="{{ url_for('data_reports_form') }}" method="GET">
-        <div class="row">
-            <div class="col-8">
-                <input type="hidden" name="project_alias" value="{{ project_alias }}">
-                <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
-                    {% for report in reports %}
-                            <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
-                    {% endfor %}
-                </select>
+            <!-- Project Reports -->
+            <form action="{{ url_for('data_reports_form') }}" method="GET">
+            <div class="row">
+                <div class="col-8">
+                    <input type="hidden" name="project_alias" value="{{ project_alias }}">
+                    <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
+                        {% for report in reports %}
+                                <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary btn-sm">Open Report</button></form>
+                </div>
             </div>
-            <div class="col">
-                <button type="submit" class="btn btn-primary btn-sm">Open Report</button></form>
-            </div>
-        </div>
 
-        <hr>
+            <hr>
 
         {% endif %}
 
-        <!-- Search Folders -->
-        <form action="{{ url_for('search_folders', project_alias=project_alias) }}" method="GET">
-        <div class="row">
-            <div class="col-8">
-                <input type="text" class="form-control form-control-sm" id="search_fol" name="q" aria-label="Search Folders" placeholder="Search Folders in the Project">
-            </div>
-            <div class="col">
-                <button type="submit" class="btn btn-primary btn-sm">Search Folders</button></form>
-            </div>
-        </div>
+    <p>Folders in the project:</p>
+        <div class="list-group shadow d-block overflow-y-auto" style="height: 900px;">
 
-        <hr>
+            {% for folder in project_folders %}
 
-        {#List of folders#}
-        <div style="overflow-y: auto; height: 1200px;">
-            <table class="table table-striped caption-top border">
-                <caption><h5>List of Folders</h5></caption>
-                <tbody>
-                    {% for folder in project_folders %}
-                    <tr>
-                        <td>
-                            <h6>
+                {% if folder.badge_text == "Folder under verification..." %}
+                    <a href="#" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
+                {% else %}
+                    {% if folder.project_folder == folder_name.project_folder %}
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary"><strong>{{ folder.project_folder }}</strong>
+                    {% else %}
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}">{{ folder.project_folder }}
+                    {% endif %}
+                {% endif %}
 
-                            {% if folder.project_folder == folder_name.project_folder %}
-                                <strong><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a></strong>
-                            {% else %}
-                                <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>
-                            {% endif %}
+                {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                &nbsp;&nbsp;<span class="badge bg-primary" title="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                {% endif %}
 
-                            {# Folder Badges #}
-                            {% if folder_badge is not none %}
-                                <br>
-                                {% for folder_badge in project_folders_badges %}
-                                    {% if folder_badge.folder_id == folder.folder_id %}
-                                        <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>
-                                    {% endif %}
-                                {% endfor %}
-
-                            {% else %}
-
-                                {% if folder.no_files > 0 %}
-                                    <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>
+                {% if folder_badge is not none %}
+                    <br>
+                        {% for folder_badge in project_folders_badges %}
+                                {% if folder_badge.folder_id == folder.folder_id %}
+                                    <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>
                                 {% endif %}
+                        {% endfor %}
 
-                                {% if folder.file_errors == 1 %}
-                                    <span class="badge bg-danger">Files with errors</span>
-                                {% endif %}
+{#                        {% if project_info.qc_status == 1 %}#}
+{#                            {% if folder.qc_status == "QC Pending" %}#}
+{#                                <span class="badge bg-secondary">QC Pending</span>#}
+{#                            {% elif folder.qc_status == "QC Passed" %}#}
+{#                                <span class="badge bg-success">QC Passed</span>#}
+{#                            {% elif folder.qc_status == "QC Failed" %}#}
+{#                                <span class="badge bg-danger">QC Failed</span>#}
+{#                            {% endif %}#}
+{#                        {% endif %}#}
 
-                                {% if project_info.qc_status == 1 %}
-                                    {% if folder.qc_status == "QC Pending" %}
-                                        <span class="badge bg-secondary">QC Pending</span>
-                                    {% elif folder.qc_status == "QC Passed" %}
-                                        <span class="badge bg-success">QC Passed</span>
-                                    {% elif folder.qc_status == "QC Failed" %}
-                                        <span class="badge bg-danger">QC Failed</span>
-                                    {% endif %}
-                                {% endif %}
+{#                        {% if folder.delivered_to_dams == 1 %}#}
+{#                            <span class="badge bg-success">Delivered to DAMS</span>#}
+{#                        {% elif folder.delivered_to_dams == 0 %}#}
+{#                            <span class="badge bg-secondary">Ready for DAMS </span>#}
+{#                        {% endif %}#}
 
-                                {% if folder.delivered_to_dams == 1 %}
-                                    <span class="badge bg-success">Delivered to DAMS</span>
-                                {% elif folder.delivered_to_dams == 0 %}
-                                    <span class="badge bg-secondary">Ready for DAMS </span>
-                                {% endif %}
+                        {% if folder.status != 0 %}
+                            <span class="badge bg-danger">{{ folder.error_info }}</span>
+                        {% endif %}
 
-                                {% if folder.status != 0 %}
-                                    <span class="badge bg-danger">{{ folder.error_info }}</span>
-                                {% endif %}
+                    {% endif %}
 
-                            {% endif %}
-                            </h6>
+                </a>
 
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% endfor %}
+
     </div>
 
-    <div class="col-9" style="font-size: 0.9em;">
+
+
+{##}
+{##}
+{#        <div style="overflow-y: auto; height: 1200px;">#}
+{#            <table class="table table-striped caption-top border">#}
+{#                <caption><h5>List of Folders</h5></caption>#}
+{#                <tbody>#}
+{#                    {% for folder in project_folders %}#}
+{#                    <tr>#}
+{#                        <td>#}
+{#                            <h6>#}
+{##}
+{#                            {% if folder.project_folder == folder_name.project_folder %}#}
+{#                                <strong><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a></strong>#}
+{#                            {% else %}#}
+{#                                <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>#}
+{#                            {% endif %}#}
+{##}
+                            {# Folder Badges #}
+{#                            {% if folder_badge is not none %}#}
+{#                                <br>#}
+{#                                {% for folder_badge in project_folders_badges %}#}
+{#                                    {% if folder_badge.folder_id == folder.folder_id %}#}
+{#                                        <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>#}
+{#                                    {% endif %}#}
+{#                                {% endfor %}#}
+{##}
+{#                            {% else %}#}
+{##}
+{#                                {% if folder.no_files > 0 %}#}
+{#                                    <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>#}
+{#                                {% endif %}#}
+{##}
+{#                                {% if folder.file_errors == 1 %}#}
+{#                                    <span class="badge bg-danger">Files with errors</span>#}
+{#                                {% endif %}#}
+{##}
+{#                                {% if project_info.qc_status == 1 %}#}
+{#                                    {% if folder.qc_status == "QC Pending" %}#}
+{#                                        <span class="badge bg-secondary">QC Pending</span>#}
+{#                                    {% elif folder.qc_status == "QC Passed" %}#}
+{#                                        <span class="badge bg-success">QC Passed</span>#}
+{#                                    {% elif folder.qc_status == "QC Failed" %}#}
+{#                                        <span class="badge bg-danger">QC Failed</span>#}
+{#                                    {% endif %}#}
+{#                                {% endif %}#}
+{##}
+{#                                {% if folder.delivered_to_dams == 1 %}#}
+{#                                    <span class="badge bg-success">Delivered to DAMS</span>#}
+{#                                {% elif folder.delivered_to_dams == 0 %}#}
+{#                                    <span class="badge bg-secondary">Ready for DAMS </span>#}
+{#                                {% endif %}#}
+{##}
+{#                                {% if folder.status != 0 %}#}
+{#                                    <span class="badge bg-danger">{{ folder.error_info }}</span>#}
+{#                                {% endif %}#}
+{##}
+{#                            {% endif %}#}
+{#                            </h6>#}
+{##}
+{#                        </td>#}
+{#                    </tr>#}
+{#                    {% endfor %}#}
+{#                </tbody>#}
+{#            </table>#}
+{#        </div>#}
+{#    </div>#}
+
+{#    <div class="col-9" style="font-size: 0.9em;">#}
 
          <!-- Search Files -->
-        <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
-        <div class="row">
-            <div class="col-8">
-                &nbsp;
-            </div>
-            <div class="col-3">
-                <input type="text" class="form-control form-control-sm" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
-            </div>
-            <div class="col-1">
-                <button type="submit" class="btn btn-primary btn-sm">Search Files</button></form>
-            </div>
-        </div>
-
+{#        4#}
+</div>
+<div class="col overflow-x-auto" style="font-size: 0.9em;">
 
     {% if folder_name != None %}
 
@@ -312,7 +440,7 @@
 
     {% endif %}
 
-    </div>
+    </div></div></div>
 </div>
     <br>
     {% if project_info.project_notice != None %}

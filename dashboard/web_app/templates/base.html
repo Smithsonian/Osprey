@@ -25,7 +25,6 @@
     <!-- Font Awesome -->
     <link href="{{ url_for('static', filename='css/fontawesome.all.min.css') }}" rel="stylesheet" />
 
-
     <style>
         html {
           position: relative;
@@ -111,7 +110,7 @@
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
-            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>{% if site_env == "dev" %}<p class="text-warning bg-dark">&nbsp;&nbsp; DEV VERSION &nbsp;&nbsp;</p>{% endif %}
+            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>{% if site_env == "dev" %}<p class="text-black bg-warning" title="This is a development server">&nbsp;&nbsp; DEV VERSION &nbsp;&nbsp;</p>{% endif %}
                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
               </button>
@@ -128,7 +127,7 @@
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
                         <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a>
-                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all projects">All Projects</a>
+                        <!-- <a href="{{ url_for('login') }}" class="navitems" aria-label="See all projects">All Projects</a> -->
                         <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
                         <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system">Logout</a>
@@ -139,7 +138,7 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <a href="{{ url_for('login') }}" class="navitems" aria-label="See all Projects">All Projects</a>
+                        <!-- <a href="{{ url_for('login') }}" class="navitems" aria-label="See all Projects">All Projects</a> -->
                         {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system">Login</a> {% endif %}
                         <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
@@ -266,8 +265,10 @@
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
     ></script>
 
+
     {% block javascripts %}
     {% endblock %}
+
 
 </body>
 </html>
