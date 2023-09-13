@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Project Dashboard{% endblock %}
+
+{% block page_title %}Add Links{% endblock %}
+
+{% block content %}
+
+<p class="text-danger">{{ msg }}</p>
+
+    <h4>Links related to the project: </h4>
+
+    <div class="row">
+    <div class="col">
+        {% for link in projects_links %}
+          <p><a href="{{ link.url }}" title="{{ link.link_title }} (external link)" target="_blank">
+            {% if link.link_type == "yt" %}
+                <i class="fa-solid fa-video" title="YouTube Video"></i>
+            {% elif link.link_type == "video" %}
+                <i class="fa-solid fa-video" title="Video"></i>
+            {% elif link.link_type == "fb" %}
+                <i class="fa-brands fa-facebook" title="Facebook Post"></i>
+            {% elif link.link_type == "ig" %}
+                <i class="fa-brands fa-instagram" title="Instagram Post"></i>
+            {% elif link.link_type == "news" %}
+                <i class="fa-solid fa-newspaper" title="News Item"></i>
+            {% else %}
+                <i class="fa-solid fa-link" title="Link"></i>
+            {% endif %}
+            {{ link.link_title }}
+                <i class="small fa-solid fa-arrow-up-right-from-square"></i>
+                <span class="screen-reader-only">(link is external)</span>
+            </a>
+        </p>
+    {% endfor %}
+    </div>
+    <div class="col">
+        <h4>Add New Links:</h4>
+        <form action="{{ url_for('add_links', project_alias=project.project_alias) }}" method="POST">
+
+        <div class="mb-3">
+            <label for="link_type" class="form-label">Link Type:</label>
+            <select class="form-select" id="link_type" name="link_type"  aria-label="Link Type">
+                <option value="yt" selected>YouTube Video</option>
+                <option value="video">Video (not on YouTube)</option>
+                <option value="fb">Facebook Post</option>
+                <option value="ig">Instagram Post</option>
+                <option value="news">News Item</option>
+                <option value="link">Other</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="link_title" class="form-label">Link Title:</label>
+            <input type="text" class="form-control" id="link_title" name="link_title" aria-label="Link Title">
+        </div>
+        <div class="mb-3">
+            <label for="link_url" class="form-label">Link Address:</label>
+            <input type="text" class="form-control" id="link_url" name="link_url" aria-label="Link Address">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+    </div>
+
+
+
+{% endblock %}
+
+{% block javascripts %}
+
+{% endblock %}
