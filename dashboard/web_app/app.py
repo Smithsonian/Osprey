@@ -1104,6 +1104,7 @@ def dashboard_f(project_alias=None, folder_id=None):
                            project_alias=project_alias,
                            project_stats=project_stats,
                            project_folders=project_folders,
+                           project_folders_count=len(project_folders),
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
@@ -1373,6 +1374,7 @@ def dashboard(project_alias=None):
                            project_alias=project_alias,
                            project_stats=project_stats,
                            project_folders=project_folders,
+                           project_folders_count=len(project_folders),
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
@@ -2267,7 +2269,32 @@ def create_new_project():
                                                      "    (%(project_id)s, %(user_id)s)"),
                                                     {'project_id': project_id,
                                                      'user_id': get_user_project[0]['user_id']}, cur=cur)
-
+    fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES "
+                                          "    (%(project_id)s, 'project_checks', %(value)s)")
+    # file_check = request.values.get('unique_file')
+    # if file_check == "1":
+    #     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'}, cur=cur)
+    # file_check = request.values.get('tifpages')
+    # if file_check == "1":
+    #     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'}, cur=cur)
+    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'}, cur=cur)
+    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'}, cur=cur)
+    file_check = request.values.get('raw_pair')
+    if file_check == "1":
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'raw_pair'}, cur=cur)
+    file_check = request.values.get('tif_compression')
+    if file_check == "1":
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tif_compression'}, cur=cur)
+    file_check = request.values.get('magick')
+    if file_check == "1":
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'magick'}, cur=cur)
+    file_check = request.values.get('jhove')
+    if file_check == "1":
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'jhove'}, cur=cur)
+    file_check = request.values.get('sequence')
+    if file_check == "1":
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'sequence'}, cur=cur)
+    #
     cur.close()
     conn.close()
     return redirect(url_for('home', _anchor=p_alias))
@@ -2341,6 +2368,137 @@ def edit_project(project_alias=None):
                            form=form,
                            site_env=site_env,
                            site_net=site_net)
+
+
+@app.route('/proj_links/<project_alias>/', methods=['GET'], strict_slashes=False)
+@login_required
+def proj_links(project_alias=None):
+    """Add / edit links associated with a project"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logging.error(e)
+        raise InvalidUsage('System error')
+
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin is False:
+        # Not allowed
+        return redirect(url_for('home'))
+    project_admin = run_query(("SELECT count(*) as no_results "
+                                    "    FROM users u, qc_projects qp, projects p "
+                                    "    WHERE u.username = %(username)s "
+                                    "        AND p.project_alias = %(project_alias)s "
+                                    "        AND qp.project_id = p.project_id "
+                                    "        AND u.user_id = qp.user_id"),
+                                   {'username': username, 'project_alias': project_alias}, cur=cur)
+    if len(project_admin) == 0:
+        # Not allowed
+        return redirect(url_for('home'))
+    project = run_query(("SELECT p.project_id, p.project_alias, "
+                              " p.project_title, "
+                              " p.project_alias, "
+                              " p.project_start, "
+                              " p.project_end, "
+                              " p.project_unit, "
+                              " p.project_section, "
+                              " p.project_status, "
+                              " NULL as project_url, "
+                              " COALESCE(p.project_description, '') as project_description, "
+                              " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
+                              " FROM projects p LEFT JOIN projects_stats s "
+                              "     ON (p.project_id = s.project_id) "
+                              " WHERE p.project_alias = %(project_alias)s"),
+                             {'project_alias': project_alias}, cur=cur)[0]
+
+    projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
+                               {'project_id': project['project_id']}, cur=cur)
+
+    cur.close()
+    conn.close()
+    return render_template('proj_links.html',
+                           username=username,
+                           is_admin=is_admin,
+                           project=project,
+                           form=form,
+                           projects_links=projects_links,
+                           site_env=site_env,
+                           site_net=site_net)
+
+
+@app.route('/add_links/', methods=['POST'], strict_slashes=False)
+@login_required
+def add_links(project_alias=None):
+    """Create a new project"""
+
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logging.error(e)
+        raise InvalidUsage('System error')
+
+    username = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin is False:
+        # Not allowed
+        return redirect(url_for('home'))
+    project_alias = request.values.get('project_alias')
+
+    project = run_query(("SELECT project_id "
+                         " FROM projects  "
+                         " WHERE project_alias = %(project_alias)s"),
+                        {'project_alias': project_alias}, cur=cur)[0]
+
+    link_title = request.values.get('link_title')
+    link_type = request.values.get('link_type')
+    link_url = request.values.get('link_url')
+    new_link = query_database_insert(("INSERT INTO projects_links "
+                              "   (project_id, "
+                              "    link_type, "
+                              "    link_title,"
+                              "    url) "
+                              "  ("
+                              "        SELECT "
+                              "            %(project_id)s,"
+                              "            %(link_type)s, "
+                              "            %(link_title)s, "
+                              "            %(url)s)"),
+                             {'project_id': project['project_id'],
+                              'link_type': link_type,
+                              'link_title': link_title,
+                              'url': link_url
+                              }, cur=cur)
+    cur.close()
+    conn.close()
+    return redirect(url_for('proj_links', project_alias=project_alias))
 
 
 @app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
