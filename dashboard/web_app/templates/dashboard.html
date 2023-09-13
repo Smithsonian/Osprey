@@ -186,7 +186,8 @@
 
         {% endif %}
 
-    <p>Folders in the project:</p>
+    <p>{% if project_folders_count == 1 %}{{ project_folders_count }} Folder {% else %}{{ project_folders_count }} Folders {% endif %}
+                     in the Project:</p>
         <div class="list-group shadow d-block overflow-y-auto" style="height: 900px;">
 
             {% for folder in project_folders %}
@@ -229,9 +230,9 @@
 {#                            <span class="badge bg-secondary">Ready for DAMS </span>#}
 {#                        {% endif %}#}
 
-                        {% if folder.status != 0 %}
-                            <span class="badge bg-danger">{{ folder.error_info }}</span>
-                        {% endif %}
+{#                        {% if folder.status != 0 %}#}
+{#                            <span class="badge bg-danger">{{ folder.error_info }}</span>#}
+{#                        {% endif %}#}
 
                     {% endif %}
 

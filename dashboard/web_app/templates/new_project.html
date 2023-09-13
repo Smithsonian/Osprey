@@ -37,6 +37,53 @@
                 <input type="text" class="form-control" id="p_coordurl" name="p_coordurl" aria-label="Confluence or other coordination site for the project">
             </div>
 
+            <div class="mb-3">
+                <h4>File checks:</h4>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="unique_file" name="unique_file" checked disabled>
+                            <label class="form-check-label" for="unique_file">
+                                unique_file - Filename is unique in the project
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="tifpages" name="tifpages" checked disabled>
+                            <label class="form-check-label" for="tifpages">
+                                tifpages - Check that there are no more than 1 page in the TIF, usually a thumbnail
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="raw_pair" name="raw_pair" checked>
+                            <label class="form-check-label" for="raw_pair">
+                                raw_pair - Raw file was found for the image
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="tif_compression" name="tif_compression" checked>
+                            <label class="form-check-label" for="tif_compression">
+                                tif_compression - TIF file is compressed using the lossless compression LZW
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="magick" name="magick" checked>
+                            <label class="form-check-label" for="magick">
+                                magick - File is valid according to ImageMagick
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="jhove" name="jhove" checked>
+                            <label class="form-check-label" for="jhove">
+                                jhove - File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="sequence" name="sequence">
+                            <label class="form-check-label" for="sequence">
+                                sequence - File sequence is correct
+                            </label>
+                        </div>
+
+            </div>
     </div>
     <div class="col">
         <div class="mb-3">
@@ -124,6 +171,7 @@
     </div>
 </div>
 
+    <br><br>
     <button type="submit" class="btn btn-primary">Submit</button>
     </form>
     <br><br>
