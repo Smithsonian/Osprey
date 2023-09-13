@@ -599,6 +599,25 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         logger.error("Headers: {}".format(r.headers))
         logger.error("Payload: {}".format(payload))
         sys.exit(1)
+    # Check for deleted files
+    for file in folder_info['files']:
+        if len(glob.glob("{}/{}/{}.*".format(folder_path, settings.main_files_path, file['file_name']))) != 1:
+            # File not found, delete from db
+            payload = {'type': 'file',
+                       'file_id': file['file_id'],
+                       'api_key': settings.api_key,
+                       'property': 'delete',
+                       'value': True
+                       }
+            r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                              data=payload)
+            query_results = json.loads(r.text.encode('utf-8'))
+            if query_results["result"] is not True:
+                logger.error("API Returned Error: {}".format(query_results))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            sys.exit(1)
     # Check if MD5 exists in tif folder
     if len(glob.glob(folder_path + "/" + settings.main_files_path + "/*.md5")) == 1:
         md5_exists = 0
@@ -930,6 +949,26 @@ def process_image_p(filename, folder_path, folder_id, project_id, logfile_folder
                 file_id = file['file_id']
                 file_info = file
                 break
+    else:
+        # File exists, check if there is a dupe
+        payload = {'type': 'file',
+                   'property': 'unique',
+                   'folder_id': folder_id,
+                   'file_id': file_id,
+                   'api_key': settings.api_key,
+                   'file_check': 'unique_file',
+                   'value': True,
+                   'check_info': True
+                   }
+        r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                          data=payload)
+        query_results = json.loads(r.text.encode('utf-8'))
+        if query_results["result"] is not True:
+            logger.error("API Returned Error: {}".format(query_results))
+            logger.error("Request: {}".format(str(r.request)))
+            logger.error("Headers: {}".format(r.headers))
+            logger.error("Payload: {}".format(payload))
+            return False
     logging.debug("file_info: {} - {}".format(file_id, file_info))
     # Generate jpg preview, if needed
     jpg_prev = jpgpreview(file_id, folder_id, main_file_path, logger)

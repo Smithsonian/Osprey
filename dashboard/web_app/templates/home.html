@@ -99,21 +99,80 @@
 
     <hr>
         {% if team == "summary" %}
-{#        <div class="row">#}
-{#            <div class="col">#}
-{#                <div style="height: 450px">#}
-{#                      <canvas id="myChart" aria-label="Digitization Statistics" role="img"></canvas>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
 
-        <div class="row">
-            <div class="col">
-                <div><p>This graph shows the progress that the Collection Digitization Program of the Digitization Program Office has had in digitizing the Smithsonian collections. Starting in 2013, we have accumulated more than 5.4 million specimens or objects digitized.<br>
-                Last update: {{ last_update }}</p></div>
-                <div id="chart_summary" class="chart w-100" style="max-width: 98%;" aria-label="Chart of objects and images digitized."></div>
+            <div class="row">
+                <div class="col">
+                    <div class="card">
+
+                        <div class="row g-0">
+                            <div class="col-md-4">
+                                <img src="{{ url_for('static', filename='items/Brown_James18.jpg') }}" class="img-fluid rounded-start" alt="Singer James Brown is captured off stage around Memphis">
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card-body">
+                                    <h5 class="card-title">Digitization of the JPC Archive has Started</h5>
+
+                                    <p><small>We have started the pilot project of the digitization of the JPC Archive. This pilot will digitize about 8,000 items from the archive and will help us tests the
+                                        workflows and systems integration. </small></p>
+                                    <a href="/dashboard/jpc_pilot/" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Project Dashboard</a>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card">
+
+
+                        <div class="row g-0">
+                            <div class="col-md-4">
+                                <img src="{{ url_for('static', filename='items/unionoida.jpg') }}" class="img-fluid rounded-start" alt="Digitized specimen of freshwater mussel shells and scalebar">
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card-body">
+                                    <h5 class="card-title">A Photoshoot with 25,000 Mussels</h5>
+
+                                    <p><small>We are digitizing about 25,000 lots, with up to three individuals per lot,
+                                        adding over 120,000 images of freshwater mussels - otherwise known as the Mollusca family Unionidae.</small></p>
+                                    <a href="/dashboard/nmnh_unionoida/" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
+
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card">
+
+                        <div class="row g-0">
+                            <div class="col-md-4">
+                                <img src="{{ url_for('static', filename='items/botany_accession_sample.jpg') }}" class="img-fluid rounded-start" alt="Digitized mounted specimen from the National Herbarium Collection">
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card-body">
+                                    <h5 class="card-title">Digitization of the National Herbarium Continues</h5>
+
+                                    <p><small>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</small></p>
+                                    <a href="/dashboard/botany_accessions/" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
+
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
             </div>
-        </div>
+
+
+
+
 
     {% elif team == "md" %}
             {% for table in tables_md %}
@@ -129,8 +188,10 @@
 
     <br>
 
-    <p>Select one of the buttons at the top right to see the specific projects of each team.</p>
-    <p>Thanks to the DAMS team for providing some of the data used in these reports.</p>
+    <!--
+        <p>Select one of the buttons at the top right to see the specific projects of each team.</p>
+        <p>Thanks to the DAMS team for providing some of the data used in these reports.</p>
+    -->
     <br><br>
 
 {% endblock %}

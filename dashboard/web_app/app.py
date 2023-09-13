@@ -697,7 +697,8 @@ def dashboard_f(project_alias=None, folder_id=None):
          " WHERE folder_id = %(folder_id)s AND project_id = %(project_id)s"),
         {'folder_id': folder_id, 'project_id': project_id}, cur=cur)
     if len(folder_check) == 0:
-        error_msg = "Folder was not found."
+        error_msg = ("Folder was not found. It may have been deleted. "
+                     "Please click the link below to go to the main page of the dashboard.")
         return render_template('error.html', form=form, error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env), 404
 
@@ -3200,7 +3201,38 @@ def api_update_project_details(project_alias=None):
                         return jsonify({"result": True})
                 if query_type == "file":
                     file_id = request.form.get("file_id")
-                    if query_property == "filechecks":
+                    folder_id = request.form.get("folder_id")
+                    if query_property == "unique":
+                        # Check if file is unique
+                        query = ("SELECT f.file_id, fol.project_folder FROM files f, folders fol "
+                                 " WHERE f.folder_id = fol.folder_id AND f.file_id = %(file_id)s AND f.folder_id != %(folder_id)s"
+                                 " AND f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s)")
+                        res = run_query(query,
+                                        {'file_id': file_id, 'folder_id': folder_id, 'project_id': project_id},
+                                        cur=cur)
+                        if len(res) == 0:
+                            check_results = 0
+                            check_info = ""
+                        elif len(res) == 1:
+                            check_results = 1
+                            conflict_folder = res[0]['project_folder']
+                            check_info = "File with the same name in folder: {}".format(conflict_folder)
+                        else:
+                            check_results = 1
+                            conflict_folder = []
+                            for row in res:
+                                conflict_folder.append(row['project_folder'])
+                            conflict_folder = ', '.join(conflict_folder)
+                            check_info = "Files with the same name in folders: {}".format(conflict_folder)
+                        query = (
+                            "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                            "VALUES (%(file_id)s, %(folder_id)s, 'unique_file', %(check_results)s, %(check_info)s, CURRENT_TIME)"
+                            " ON DUPLICATE KEY UPDATE"
+                            " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
+                        res = query_database_insert(query,
+                                                    {'file_id': file_id, 'folder_id': folder_id,
+                                                     'check_results': check_results, 'check_info': check_info}, cur=cur)
+                    elif query_property == "filechecks":
                         # Add to server side:
                         #  - valid_name
                         #  - dupe_elsewhere
@@ -3277,6 +3309,9 @@ def api_update_project_details(project_alias=None):
                                 res = query_database_insert(query, row_data, cur=cur)
                         # res = query_database_insert_multi(query, exif_data, cur=cur)
                         # logging.info("exif_data for {}:{}".format(file_id, exif_data))
+                    elif query_property == "delete":
+                        query = ("DELETE FROM files WHERE file_id = %(file_id)s")
+                        res = query_database_insert(query, {'file_id': file_id}, cur=cur)
                     else:
                         raise InvalidUsage('Invalid value for property', status_code=400)
                     cur.close()
