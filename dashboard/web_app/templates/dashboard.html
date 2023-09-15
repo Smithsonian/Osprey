@@ -24,10 +24,11 @@
           <h2><span class="badge bg-dark d-flex">Project Details</span></h2>
           <div class="card-body" style="padding: 4px;">
 {#            <p class="card-text">#}
-                {% if project_info.project_description != None %}<strong>{{ project_info.project_description }}</strong>{% endif %}
+                {% if project_info.project_description != None and project_info.project_description != "" %}<strong>{{ project_info.project_description }}</strong><br><br>{% endif %}
                 <div class="row">
-                      <div class="col-8">
-
+                    <!-- If there are no links, move items -->
+                    {% if projects_links|length > 0 %}
+                      <div class="col-6">
                           <!-- links and media -->
                             <div class="list-group">
                             {% for link in projects_links %}
@@ -53,21 +54,29 @@
                             {% endfor %}
                           </div>
                         </div>
-                      <div class="col-2">
+                    {% endif %}
+                      <div class="col-3">
                           <small>
                               <div title="Project Manager"><i class="fa-solid fa-user-gear"></i> {{ project_manager_link | safe }}<br></div>
+                              <div title="Team">
+                                  <i class="fa-solid fa-people-group"></i>
+                                  {% if project_info.project_section == "MD" %}Mass Digitization{% elif project_info.project_section == "IS" %}Imaging Services{% endif %}<br>
+                              </div>
                               <div title="Unit"><i class="fa-solid fa-building-columns"></i> {{ project_info.project_unit }}<br></div>
-                              <div title="Project Type"><i class="fa-solid fa-diagram-project"></i> {{ project_info.project_type }}<br></div>
-                              <div title="Project Area"><i class="fa-solid fa-book-open"></i> {{ project_info.project_area }}<br></div>
+                              <div title="Project Type"><i class="fa-solid fa-diagram-project"></i> {{ project_info.project_type }}</div>
                           </small>
                       </div>
-                      <div class="col-2">
+                      <div class="col-3">
                           <small>
+                              <div title="Project Area"><i class="fa-solid fa-book-open"></i> {{ project_info.project_area }}<br></div>
                               <div title="Project Status"><i class="fa-solid fa-list-check"></i> {{ project_info.project_status }}<br></div>
-                              <div title="Dates of the Project"><i class="fa-solid fa-calendar-days"></i> {{ project_info.pdates }}</div>
+                              <div title="Dates of the Project"><i class="fa-solid fa-calendar-days"></i> {{ project_info.pdates }}<br></div>
                               <div title="Disk Space Used"><i class="fa-solid fa-hard-drive"></i> {{ project_disk }}</div>
                           </small>
                       </div>
+                    {% if projects_links|length > 0 %}
+                        <div class="col-6">&nbsp;</div>
+                    {% endif %}
                 </div>
 
           </div>
@@ -186,9 +195,9 @@
 
         {% endif %}
 
-    <p>{% if project_folders_count == 1 %}{{ project_folders_count }} Folder {% else %}{{ project_folders_count }} Folders {% endif %}
-                     in the Project:</p>
-        <div class="list-group shadow d-block overflow-y-auto" style="height: 900px;">
+    <h5>{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
+                     in the Project:</h5>
+        <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
 

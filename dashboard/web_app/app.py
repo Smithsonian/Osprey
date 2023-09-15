@@ -1104,7 +1104,6 @@ def dashboard_f(project_alias=None, folder_id=None):
                            project_alias=project_alias,
                            project_stats=project_stats,
                            project_folders=project_folders,
-                           project_folders_count=len(project_folders),
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
@@ -1374,7 +1373,6 @@ def dashboard(project_alias=None):
                            project_alias=project_alias,
                            project_stats=project_stats,
                            project_folders=project_folders,
-                           project_folders_count=len(project_folders),
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
@@ -1521,7 +1519,7 @@ def qc(project_alias=None):
                                 "             WHERE folder_id IN (SELECT folder_id from pfolders)"
                                 "                GROUP BY folder_id) "
                                 " SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
-                                "       ft.no_files, f.file_errors, f.status, f.error_info, "
+                                "       ft.no_files, f.file_errors, f.status, f.error_info, q.qc_level, "
                                 "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                 "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                 "      ELSE 'QC Pending' END AS qc_status, "
@@ -1917,7 +1915,6 @@ def qc_done(folder_id):
 
     project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
                                     {'project_id': project_id}, cur=cur)[0]
-    logging.info("1763: {}".format(qc_status))
     q = query_database_insert(("UPDATE qc_folders SET "
                           "      qc_status = %(qc_status)s, "
                           "      qc_by = %(qc_by)s, "
@@ -1966,6 +1963,8 @@ def qc_done(folder_id):
                 level = 'Normal'
             else:
                 level = 'Normal'
+    res = query_database_insert("UPDATE qc_settings SET qc_level = %(qc_level)s WHERE project_id = %(project_id)s",
+                                {'project_id': project_id, 'qc_level': level}, cur=cur)
     cur.close()
     conn.close()
     return redirect(url_for('qc', project_alias=project_alias))
@@ -3220,6 +3219,12 @@ def api_update_project_details(project_alias=None):
                             clear_badges = run_query(
                                 "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'error_files'",
                                 {'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query(
+                                "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_raw_md5'",
+                                {'folder_id': folder_id}, cur=cur)
+                            clear_badges = run_query(
+                                "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'",
+                                {'folder_id': folder_id}, cur=cur)
                             query = (
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'verification', 'bg-secondary', 'Folder under verification...', CURRENT_TIMESTAMP)")
@@ -3259,7 +3264,7 @@ def api_update_project_details(project_alias=None):
                             # Update project
                             ## Update count
                             query = ("with data as "
-                                     "  (select fol.project_id, count(DISTINCT f.file_name) as no_files "
+                                     "  (select fol.project_id, count(f.file_name) as no_files "
                                      "          from files f, folders fol "
                                      "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
                                      "UPDATE projects_stats p, data SET p.images_taken = data.no_files where p.project_id = data.project_id")
@@ -3296,7 +3301,7 @@ def api_update_project_details(project_alias=None):
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'folder_md5', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value}, cur=cur)
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "TIF {}".format(query_value)}, cur=cur)
                         elif query_property == "tif_md5_matches_ok":
                             clear_badges = run_query(
                                 "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'",
@@ -3311,7 +3316,7 @@ def api_update_project_details(project_alias=None):
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'folder_raw_md5', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value}, cur=cur)
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "RAW {}".format(query_value)}, cur=cur)
                         elif query_property == "raw_md5_matches_ok":
                             clear_badges = run_query(
                                 "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_raw_md5'",
