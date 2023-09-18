@@ -107,65 +107,9 @@
                 </div>
 
         </div>
-
-{#        <div class="card">#}
-{#          <h1><span class="badge bg-primary d-flex">{{ project_stats.total }} Files</span></h1>#}
-{#          <div class="card-body">#}
-{#              <p class="card-text"><small>Total number of files in project</small></p>#}
-{#          </div>#}
-{#        </div>#}
     </div>
-{#    <div class="col">#}
-{#        <div class="card">#}
-{#          <h1><span class="badge bg-success d-flex">{{ project_stats.ok }} OK</span></h1>#}
-{#          <div class="card-body">#}
-{#              <p class="card-text"><small>Files that passed all the checks</small></p>#}
-{#          </div>#}
-{#        </div>#}
-{#    </div>#}
-{#    <div class="col">#}
-{#        <h1><span class="badge bg-danger w-100">{{ project_stats.errors }} Errors</span></h1>#}
-{#        <div class="card">#}
-{#          <h1><span class="badge bg-danger d-flex">{{ project_stats.errors }} Errors</span></h1>#}
-{#          <div class="card-body">#}
-{#              <p class="card-text"><small>Files that failed one or more checks</small></p>#}
-{#          </div>#}
-{#        </div>#}
-{#    </div>#}
 
-{#    <div class="col">#}
-{#        <h1><span class="badge bg-info w-100">{{ project_stats.public }} Public</span></h1>#}
-{#    </div>#}
-{#        <div class="card">#}
-{#          <h2><span class="badge bg-success d-flex">{{ project_stats.ok }} Files OK</span></h2>#}
-{#          <div class="card-body">#}
-{#            <p class="card-text">Files that passed all the checks</p>#}
-{#          </div>#}
-{#        </div>#}
-{#        <br>#}
-{#        <div class="card">#}
-{#          <h2><span class="badge bg-danger d-flex">{{ project_stats.errors }} Files with Errors</span></h2>#}
-{#          <div class="card-body">#}
-{#            <p class="card-text">Files that failed one or more checks</p>#}
-{#          </div>#}
-{#        </div>#}
     </div>
-{#    <div class="col">#}
-{#        <div class="card">#}
-{#          <h2><span class="badge bg-primary d-flex">{{ project_stats.total }} Total Files</span></h2>#}
-{#          <div class="card-body">#}
-{#            <p class="card-text">Total number of files in project</p>#}
-{#          </div>#}
-{#        </div>#}
-{#        <br>#}
-{#        <div class="card">#}
-{#          <h2><span class="badge bg-primary d-flex">{{ project_stats.public }} Public Files</span></h2>#}
-{#          <div class="card-body">#}
-{#            <p class="card-text">Files published to the public</p>#}
-{#          </div>#}
-{#        </div>#}
-{#    </div>#}
-
 
 <hr>
 
@@ -195,8 +139,8 @@
 
         {% endif %}
 
-    <h5>{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
-                     in the Project:</h5>
+    <h4>{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
+                     in the Project:</h4>
         <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
@@ -212,115 +156,27 @@
                 {% endif %}
 
                 {% if folder.no_files != "0 files" and folder.no_files != "0" %}
-                &nbsp;&nbsp;<span class="badge bg-primary" title="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                &nbsp;&nbsp;<span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
                 {% endif %}
 
                 {% if folder_badge is not none %}
-                    <br>
+
                         {% for folder_badge in project_folders_badges %}
                                 {% if folder_badge.folder_id == folder.folder_id %}
-                                    <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>
+                                    <br>
+                                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
                                 {% endif %}
                         {% endfor %}
-
-{#                        {% if project_info.qc_status == 1 %}#}
-{#                            {% if folder.qc_status == "QC Pending" %}#}
-{#                                <span class="badge bg-secondary">QC Pending</span>#}
-{#                            {% elif folder.qc_status == "QC Passed" %}#}
-{#                                <span class="badge bg-success">QC Passed</span>#}
-{#                            {% elif folder.qc_status == "QC Failed" %}#}
-{#                                <span class="badge bg-danger">QC Failed</span>#}
-{#                            {% endif %}#}
-{#                        {% endif %}#}
-
-{#                        {% if folder.delivered_to_dams == 1 %}#}
-{#                            <span class="badge bg-success">Delivered to DAMS</span>#}
-{#                        {% elif folder.delivered_to_dams == 0 %}#}
-{#                            <span class="badge bg-secondary">Ready for DAMS </span>#}
-{#                        {% endif %}#}
-
-{#                        {% if folder.status != 0 %}#}
-{#                            <span class="badge bg-danger">{{ folder.error_info }}</span>#}
-{#                        {% endif %}#}
 
                     {% endif %}
 
                 </a>
 
         {% endfor %}
-
+        </p>
     </div>
 
 
-
-{##}
-{##}
-{#        <div style="overflow-y: auto; height: 1200px;">#}
-{#            <table class="table table-striped caption-top border">#}
-{#                <caption><h5>List of Folders</h5></caption>#}
-{#                <tbody>#}
-{#                    {% for folder in project_folders %}#}
-{#                    <tr>#}
-{#                        <td>#}
-{#                            <h6>#}
-{##}
-{#                            {% if folder.project_folder == folder_name.project_folder %}#}
-{#                                <strong><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a></strong>#}
-{#                            {% else %}#}
-{#                                <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}">{{ folder.project_folder }}</a>#}
-{#                            {% endif %}#}
-{##}
-                            {# Folder Badges #}
-{#                            {% if folder_badge is not none %}#}
-{#                                <br>#}
-{#                                {% for folder_badge in project_folders_badges %}#}
-{#                                    {% if folder_badge.folder_id == folder.folder_id %}#}
-{#                                        <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>#}
-{#                                    {% endif %}#}
-{#                                {% endfor %}#}
-{##}
-{#                            {% else %}#}
-{##}
-{#                                {% if folder.no_files > 0 %}#}
-{#                                    <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span><br>#}
-{#                                {% endif %}#}
-{##}
-{#                                {% if folder.file_errors == 1 %}#}
-{#                                    <span class="badge bg-danger">Files with errors</span>#}
-{#                                {% endif %}#}
-{##}
-{#                                {% if project_info.qc_status == 1 %}#}
-{#                                    {% if folder.qc_status == "QC Pending" %}#}
-{#                                        <span class="badge bg-secondary">QC Pending</span>#}
-{#                                    {% elif folder.qc_status == "QC Passed" %}#}
-{#                                        <span class="badge bg-success">QC Passed</span>#}
-{#                                    {% elif folder.qc_status == "QC Failed" %}#}
-{#                                        <span class="badge bg-danger">QC Failed</span>#}
-{#                                    {% endif %}#}
-{#                                {% endif %}#}
-{##}
-{#                                {% if folder.delivered_to_dams == 1 %}#}
-{#                                    <span class="badge bg-success">Delivered to DAMS</span>#}
-{#                                {% elif folder.delivered_to_dams == 0 %}#}
-{#                                    <span class="badge bg-secondary">Ready for DAMS </span>#}
-{#                                {% endif %}#}
-{##}
-{#                                {% if folder.status != 0 %}#}
-{#                                    <span class="badge bg-danger">{{ folder.error_info }}</span>#}
-{#                                {% endif %}#}
-{##}
-{#                            {% endif %}#}
-{#                            </h6>#}
-{##}
-{#                        </td>#}
-{#                    </tr>#}
-{#                    {% endfor %}#}
-{#                </tbody>#}
-{#            </table>#}
-{#        </div>#}
-{#    </div>#}
-
-{#    <div class="col-9" style="font-size: 0.9em;">#}
 
          <!-- Search Files -->
 {#        4#}
@@ -397,9 +253,6 @@
 
 
                 {% for file in files_df %}
-{#                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"#}
-{#                            data-bs-info="{{ file.preview_image }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"#}
-{#                            data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">#}
                     <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
                             data-bs-info="{{ url_for('get_preview', file_id=file.file_id, max=1200) }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"
                             data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">
@@ -420,7 +273,11 @@
             <br>
 
                 {% for table in post_processing %}
+                    {% if post_processing_rows == 0 %}
+                        <p>No data available.</p>
+                    {% else %}
                        {{ table|safe }}
+                    {% endif %}
                 {% endfor %}
           </div>
 
@@ -435,7 +292,8 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
-                          <p><a href="#" id="filelink">Link</a></p>
+                          <p><div class="float-end"><em>Image is resized to a max of 1200x1200. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link</a></p>
+
                            <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>
                       <div class="modal-footer">

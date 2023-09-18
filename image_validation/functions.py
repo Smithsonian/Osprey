@@ -740,22 +740,34 @@ def run_checks_folder_p(project_info, folder_path, logfile_folder, logger):
         folder_full_path = "{}/{}".format(folder_path, settings.main_files_path)
         folder_full_path_files = glob.glob("{}/*".format(folder_full_path))
         folder_full_path_files = [file for file in folder_full_path_files if Path(file).suffix != '.md5']
-        folder_raw_path = "{}/{}".format(folder_path, settings.raw_files_path)
-        folder_raw_path_files = glob.glob("{}/*".format(folder_raw_path))
-        folder_raw_path_files = [file for file in folder_raw_path_files if Path(file).suffix != '.md5']
-        if len(folder_full_path_files) != len(folder_raw_path_files):
-            folder_status_msg = "No. of files do not match (main: {}, raws: {})".format(len(folder_full_path_files), len(folder_raw_path_files))
-            payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status1',
-                       'value': folder_status_msg}
-            r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
-                              data=payload)
-            query_results = json.loads(r.text.encode('utf-8'))
-            if query_results["result"] is not True:
-                logger.error("API Returned Error: {}".format(query_results))
-                logger.error("Request: {}".format(str(r.request)))
-                logger.error("Headers: {}".format(r.headers))
-                logger.error("Payload: {}".format(payload))
-                sys.exit(1)
+        if 'raw_pair' in project_checks:
+            folder_raw_path = "{}/{}".format(folder_path, settings.raw_files_path)
+            folder_raw_path_files = glob.glob("{}/*".format(folder_raw_path))
+            folder_raw_path_files = [file for file in folder_raw_path_files if Path(file).suffix != '.md5']
+            if len(folder_full_path_files) != len(folder_raw_path_files):
+                folder_status_msg = "No. of files do not match (main: {}, raws: {})".format(len(folder_full_path_files), len(folder_raw_path_files))
+                payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status1',
+                           'value': folder_status_msg}
+                r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias),
+                                  data=payload)
+                query_results = json.loads(r.text.encode('utf-8'))
+                if query_results["result"] is not True:
+                    logger.error("API Returned Error: {}".format(query_results))
+                    logger.error("Request: {}".format(str(r.request)))
+                    logger.error("Headers: {}".format(r.headers))
+                    logger.error("Payload: {}".format(payload))
+                    sys.exit(1)
+            else:
+                payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status0',
+                           'value': ""}
+                r = requests.post('{}/api/update/{}'.format(settings.api_url, settings.project_alias), data=payload)
+                query_results = json.loads(r.text.encode('utf-8'))
+                if query_results["result"] is not True:
+                    logger.error("API Returned Error: {}".format(query_results))
+                    logger.error("Request: {}".format(str(r.request)))
+                    logger.error("Headers: {}".format(r.headers))
+                    logger.error("Payload: {}".format(payload))
+                    sys.exit(1)
         else:
             payload = {'type': 'folder', 'folder_id': folder_id, 'api_key': settings.api_key, 'property': 'status0',
                        'value': ""}

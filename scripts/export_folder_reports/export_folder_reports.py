@@ -82,7 +82,7 @@ def main():
         folder_info = json.loads(r.text.encode('utf-8'))
         file_df = pd.DataFrame(folder_info['files'])
         # cols = ['file_id', 'file_name', 'file_timestamp', 'preview_image', 'updated_at']
-        cols = ['file_id', 'file_name', 'file_timestamp', 'updated_at']
+        cols = ['file_id', 'file_name', 'file_timestamp', 'updated_at', 'tif_md5']
         for pcheck in project_checks:
             cols.append(pcheck)
         filename = "{}/{}.xlsx".format(folders_storage, folder_info['folder'])

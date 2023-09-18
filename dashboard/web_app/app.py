@@ -1127,6 +1127,7 @@ def dashboard_f(project_alias=None, folder_id=None):
                                                                        escape=False,
                                                                        classes=["display", "compact", "table-striped",
                                                                                 "w-100"])],
+                           post_processing_rows=post_processing_df.shape[0],
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
                            form=form,
@@ -3643,10 +3644,10 @@ def api_get_folder_details(folder_id=None):
         api_key = request.form.get("api_key")
         logging.info("api_key: {}".format(api_key))
         if api_key is None:
-            query = ("SELECT file_id, folder_id, file_name, DATE_FORMAT(file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-                 " dams_uan, preview_image, DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-                 " DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at "
-                 " FROM files WHERE folder_id = %(folder_id)s")
+            query = ("SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
+                 " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
+                 " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
+                 " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
             files = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
             data[0]['files'] = files
         else:
@@ -3660,10 +3661,10 @@ def api_get_folder_details(folder_id=None):
                     filechecks_list.append(fcheck['file_check'])
 
                 query = (
-                    "SELECT file_id, folder_id, file_name, DATE_FORMAT(file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-                    " dams_uan, preview_image, DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-                    " DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at "
-                    " FROM files WHERE folder_id = %(folder_id)s")
+                    "SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
+                    " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
+                    " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
+                    " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
                 files_list = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
                 folder_files_df = pd.DataFrame(files_list)
                 for fcheck in filechecks_list:
