@@ -23,7 +23,7 @@
             />
 
     <!-- Font Awesome -->
-    <link href="{{ url_for('static', filename='css/fontawesome.all.min.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet" />
 
     <style>
         html {
@@ -87,9 +87,9 @@
     {% endblock %}
 
     <!-- Font Awesome -->
-    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/brands.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/solid.min.css') }}" rel="stylesheet">
+{#    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">#}
+{#    <link href="{{ url_for('static', filename='css/brands.min.css') }}" rel="stylesheet">#}
+{#    <link href="{{ url_for('static', filename='css/solid.min.css') }}" rel="stylesheet">#}
 
     <!-- favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
@@ -110,7 +110,8 @@
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
-            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>{% if site_env == "dev" %}<p class="text-black bg-warning" title="This is a development server">&nbsp;&nbsp; DEV VERSION &nbsp;&nbsp;</p>{% endif %}
+            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
+{#            {% if site_env == "dev" %}<p class="text-black bg-warning" title="This is a development server">&nbsp;&nbsp; DEV VERSION &nbsp;&nbsp;</p>{% endif %}#}
                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
               </button>
@@ -252,17 +253,14 @@
             src="{{ url_for('static', filename='js/bootstrap.min.js') }}"
     ></script>
 
-    <!-- Bootstrap -->
-    <script
-            type="text/javascript"
-            src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"
-    ></script>
-
-
     <!-- Datatables -->
     <script
             type="text/javascript"
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
+    ></script>
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/pdfmake.min.js') }}"
     ></script>
 
 

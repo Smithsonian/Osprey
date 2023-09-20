@@ -439,25 +439,10 @@ def login(team=None):
     last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats",
                             cur=cur)
 
-    # Summary table
-    # query = ("with d as ( "
-    #          "   select stat_date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized "
-    #          " from projects_stats_detail where time_interval ='monthly' group by stat_date) "
-    #          " select date_format(d1.stat_date, '%b %Y') as Date, "
-    #          "   sum(d1.images_captured) over (order by d1.stat_date asc rows between unbounded preceding and current row) as Images, "
-    #          "   sum(d2.objects_digitized) over (order by d2.stat_date asc rows between unbounded preceding and current row) as Objects "
-    #          " FROM d d1, d d2 "
-    #          " WHERE d1.stat_date = d2.stat_date "
-    #          " order by d1.stat_date DESC ")
-    # df = pd.DataFrame(run_query(query, cur=cur))
-    # df = df.rename(columns={"stat_date": "date"})
-    # summary_datatable = pd.DataFrame(df)
-    # columns = summary_datatable.columns
-    # summary_datatable.columns = [x.title() for x in columns]
-
     if team is None:
         team = "summary"
         team_heading = "Summary Statistics for Collections Digitization"
+        html_title = "Collections Digitization Dashboard"
 
         # Summary chart
         query = ("with d as ("
@@ -506,6 +491,8 @@ def login(team=None):
     elif team == "md":
         graphJSON_summary = None
         team_heading = "Statistics of the Mass Digitization Team"
+        html_title = "Statistics of the Mass Digitization Team, Collections Digitization"
+
         # MD stats
         summary_stats = {
             'objects_digitized': "{:,}".format(run_query(
@@ -535,6 +522,7 @@ def login(team=None):
     elif team == "is":
         graphJSON_summary = None
         team_heading = "Statistics of the Imaging Services Team"
+        html_title = "Statistics of the Imaging Services Team, Collections Digitization"
         # IS stats
         summary_stats = {
             'objects_digitized': "{:,}".format(run_query(
@@ -565,6 +553,7 @@ def login(team=None):
     elif team == "inf":
         graphJSON_summary = None
         team_heading = "Statistics of the Informatics Team"
+        html_title = "Statistics of the Informatics Team, Collections Digitization"
         summary_stats = None
 
     section_query = (" SELECT "
@@ -643,7 +632,8 @@ def login(team=None):
                            last_update=last_update[0]['updated_at'],
                            kiosk=kiosk,
                            user_address=user_address,
-                           team_heading=team_heading
+                           team_heading=team_heading,
+                           html_title=html_title
                            )
 
 
