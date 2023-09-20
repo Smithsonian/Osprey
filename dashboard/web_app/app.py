@@ -638,8 +638,10 @@ def login(team=None):
 
 
 @cache.memoize()
+@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/<page>/', methods=['POST', 'GET'], strict_slashes=False)
+@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/', methods=['POST', 'GET'], strict_slashes=False)
 @app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
-def dashboard_f(project_alias=None, folder_id=None):
+def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     """Dashboard for a project"""
     if current_user.is_authenticated:
         user_exists = True
@@ -647,6 +649,26 @@ def dashboard_f(project_alias=None, folder_id=None):
     else:
         user_exists = False
         username = None
+
+    # Tab
+    if tab is None or tab == '':
+        tab = "filechecks"
+    else:
+        if tab not in ['filechecks', 'lightbox', 'postprod']:
+            error_msg = "Invalid tab ID."
+            return render_template('error.html', form=form, error_msg=error_msg,
+                                   project_alias=project_alias, site_env=site_env), 400
+
+    # Page
+    if page is None or page == '':
+        page = 1
+    else:
+        try:
+            page = int(page)
+        except:
+            error_msg = "Invalid page number."
+            return render_template('error.html', form=form, error_msg=error_msg,
+                                   project_alias=project_alias, site_env=site_env), 400
 
     # Connect to db
     try:
@@ -692,26 +714,7 @@ def dashboard_f(project_alias=None, folder_id=None):
         return render_template('error.html', form=form, error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env), 404
 
-    tab = request.values.get('tab')
-    if tab is None or tab == '':
-        tab = 0
-    else:
-        try:
-            tab = int(tab)
-        except:
-            error_msg = "Invalid tab ID."
-            return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
-    page = request.values.get('page')
-    if page is None or page == '':
-        page = 1
-    else:
-        try:
-            page = int(page)
-        except:
-            error_msg = "Invalid page number."
-            return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
+
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
@@ -753,28 +756,29 @@ def dashboard_f(project_alias=None, folder_id=None):
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']}, cur=cur)
 
-    filechecks_list_temp = run_query(
-        ("SELECT settings_value as file_check FROM projects_settings "
-         " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
-        {'project_id': project_info['project_id']}, cur=cur)
-    filechecks_list = []
-    for fcheck in filechecks_list_temp:
-        filechecks_list.append(fcheck['file_check'])
-    logging.info("filechecks_list:{}".format(filechecks_list_temp))
-    project_postprocessing_temp = run_query(
-        ("SELECT settings_value as file_check FROM projects_settings "
-         " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
-        {'project_id': project_info['project_id']}, cur=cur)
-    project_postprocessing = []
-    if project_postprocessing_temp is not None:
-        for fcheck in project_postprocessing_temp:
-            project_postprocessing.append(fcheck['file_check'])
+    if tab == "filechecks":
+        filechecks_list_temp = run_query(
+            ("SELECT settings_value as file_check FROM projects_settings "
+             " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
+            {'project_id': project_info['project_id']}, cur=cur)
+        filechecks_list = []
+        for fcheck in filechecks_list_temp:
+            filechecks_list.append(fcheck['file_check'])
+        logging.info("filechecks_list:{}".format(filechecks_list_temp))
+        project_postprocessing = []
+
+    if tab == "postprod":
+        project_postprocessing_temp = run_query(
+            ("SELECT settings_value as file_check FROM projects_settings "
+             " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
+            {'project_id': project_info['project_id']}, cur=cur)
+        project_postprocessing = []
+        if project_postprocessing_temp is not None:
+            for fcheck in project_postprocessing_temp:
+                project_postprocessing.append(fcheck['file_check'])
+        filechecks_list = []
+
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
-    # project_total = run_query(("SELECT count(*) as no_files "
-    #                     "    FROM files WHERE folder_id IN "
-    #                     "       (SELECT folder_id FROM folders WHERE project_id = %(project_id)s"
-    #                     "   )"),
-    #                     {'project_id': project_id}, cur=cur)
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_ok = run_query(("WITH "
                                  " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
@@ -805,22 +809,6 @@ def dashboard_f(project_alias=None, folder_id=None):
                                  {'project_id': project_id}, cur=cur)
 
     project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
-    # project_pending = run_query(("WITH "
-    #                                   " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
-    #                                   " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-    #                                   " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
-    #                                   " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
-    #                                   " data AS ("
-    #                                   "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
-    #                                   " FROM"
-    #                                   " checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
-    #                                   " SELECT count(distinct file_id) as no_files FROM data where check_results = 9"),
-    #                                  {'project_id': project_id}, cur=cur)
-    # project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
-    # project_public = run_query(("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
-    #                                  " project_id = %(project_id)s"),
-    #                                 {'project_id': project_id}, cur=cur)
-    # project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
 
     project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, concat(0, ' files')) as no_files, "
                                       "f.file_errors, f.status, f.error_info, "
@@ -852,6 +840,18 @@ def dashboard_f(project_alias=None, folder_id=None):
         'updated_at': "",
         'qc_ip': ""
     }
+    files_df = ""
+    folder_files_df = pd.DataFrame()
+    post_processing_df = pd.DataFrame()
+    files_count = ""
+    pagination_html = ""
+    folder_stats = {
+        'no_files': 0,
+        'no_errors': 0
+    }
+    qc_check = ""
+    qc_details = pd.DataFrame()
+
     if folder_id is not None and folder_id != '':
         folder_name = run_query(("SELECT project_folder FROM folders "
                                  "WHERE folder_id = %(folder_id)s and project_id = %(project_id)s"),
@@ -863,71 +863,91 @@ def dashboard_f(project_alias=None, folder_id=None):
                                    site_env=site_env), 404
         else:
             folder_name = folder_name[0]
+
         folder_files_df = pd.DataFrame(
             run_query("SELECT file_id, file_name FROM files WHERE folder_id = %(folder_id)s",
-                           {'folder_id': folder_id}, cur=cur))
+                      {'folder_id': folder_id}, cur=cur))
         no_items = 25
         if page == 1:
             offset = 0
         else:
             offset = (page - 1) * no_items
         files_df = run_query((
-                          "WITH data AS (SELECT file_id, COALESCE(preview_image, CONCAT('/preview_image/', file_id, '/?')) as preview_image, "
-                          "         folder_id, file_name FROM files "
-                          "WHERE folder_id = %(folder_id)s)"
-                          " SELECT file_id, preview_image, folder_id, file_name"
-                          " FROM data "
-                          " ORDER BY file_name "
-                          "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
-                          {'folder_id': folder_id}, cur=cur)
+                                 "WITH data AS (SELECT file_id, COALESCE(preview_image, CONCAT('/preview_image/', file_id, '/?')) as preview_image, "
+                                 "         folder_id, file_name FROM files "
+                                 "WHERE folder_id = %(folder_id)s)"
+                                 " SELECT file_id, preview_image, folder_id, file_name"
+                                 " FROM data "
+                                 " ORDER BY file_name "
+                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
+                             {'folder_id': folder_id}, cur=cur)
         files_count = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
-                                     {'folder_id': folder_id}, cur=cur)[0]
+                                {'folder_id': folder_id}, cur=cur)[0]
         files_count = files_count['no_files']
-        if files_count == 0:
-            folder_files_df = pd.DataFrame()
-            pagination_html = ""
-            files_df = ""
-            files_count = ""
-            folder_stats = {
-                'no_files': 0,
-                'no_errors': 0
-            }
-            post_processing_df = pd.DataFrame()
-        else:
-            for fcheck in filechecks_list:
-                logging.info("fcheck: {}".format(fcheck))
-                list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                          "   CASE WHEN check_results = 0 THEN 'OK' "
-                                                          "       WHEN check_results = 9 THEN 'Pending' "
-                                                          "       WHEN check_results = 1 THEN 'Failed' "
-                                                          "       ELSE 'Pending' END as {fcheck} "
-                                                          " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
-                                                          "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
-                                                         {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                logging.info("list_files.size: {}".format(list_files.shape[0]))
-                if list_files.shape[0] > 0:
-                    folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
-            preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                         "  COALESCE(f.preview_image, CONCAT('/preview_image/', f.file_id, '/?')) as preview_image "
-                                                         " FROM files f where f.folder_id = %(folder_id)s"),
-                                                        {'folder_id': folder_id}, cur=cur))
-            folder_files_df = folder_files_df.sort_values(by=['file_name'])
-            folder_files_df = folder_files_df.sort_values(by=filechecks_list)
-            folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
-            folder_files_df['file_name'] = '<a href="/file/' \
-                                           + folder_files_df['file_id'].astype(str) + '/" title="File Details">' \
-                                           + folder_files_df['file_name'].astype(str) \
-                                           + '</a> ' \
-                                           + '<button type="button" class="btn btn-light btn-sm" ' \
-                                           + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                                           + 'data-bs-info="' + folder_files_df['preview_image'] \
-                                           + '" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) \
-                                           + '" data-bs-text = "Details of the file ' + folder_files_df[
-                                               'file_name'].astype(str) \
-                                           + '" title="Image Preview">' \
-                                           + '<i class="fa-regular fa-image"></i></button>'
-            folder_files_df = folder_files_df.drop(['file_id'], axis=1)
-            folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
+
+        if tab == "filechecks":
+            page_no = "File Checks"
+            if files_count == 0:
+                folder_files_df = pd.DataFrame()
+                pagination_html = ""
+                files_df = ""
+                files_count = ""
+                folder_stats = {
+                    'no_files': 0,
+                    'no_errors': 0
+                }
+
+            else:
+                for fcheck in filechecks_list:
+                    logging.info("fcheck: {}".format(fcheck))
+                    list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                              "   CASE WHEN check_results = 0 THEN 'OK' "
+                                                              "       WHEN check_results = 9 THEN 'Pending' "
+                                                              "       WHEN check_results = 1 THEN 'Failed' "
+                                                              "       ELSE 'Pending' END as {fcheck} "
+                                                              " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                                              "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
+                                                             {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
+                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    if list_files.shape[0] > 0:
+                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+                preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                             "  COALESCE(f.preview_image, CONCAT('/preview_image/', f.file_id, '/?')) as preview_image "
+                                                             " FROM files f where f.folder_id = %(folder_id)s"),
+                                                            {'folder_id': folder_id}, cur=cur))
+                folder_files_df = folder_files_df.sort_values(by=['file_name'])
+                folder_files_df = folder_files_df.sort_values(by=filechecks_list)
+                folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
+                folder_files_df['file_name'] = '<a href="/file/' \
+                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
+                                               + folder_files_df['file_name'].astype(str) \
+                                               + '</a> ' \
+                                               + '<button type="button" class="btn btn-light btn-sm" ' \
+                                               + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
+                                               + 'data-bs-info="' + folder_files_df['preview_image'] \
+                                               + '" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) \
+                                               + '" data-bs-text = "Details of the file ' + folder_files_df[
+                                                   'file_name'].astype(str) \
+                                               + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
+                                               + '<i class="fa-regular fa-image"></i></button>'
+                folder_files_df = folder_files_df.drop(['file_id'], axis=1)
+                folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
+
+
+                folder_stats1 = run_query(("SELECT coalesce(f.no_files, 0) as no_files "
+                                                " FROM folders f WHERE folder_id = %(folder_id)s"),
+                                               {'folder_id': folder_id}, cur=cur)
+                folder_stats2 = run_query(("SELECT count(DISTINCT c.file_id) as no_errors "
+                                                " FROM files_checks c WHERE file_id IN (SELECT file_id from files WHERE"
+                                                "   folder_id = %(folder_id)s) AND check_results = 1"),
+                                               {'folder_id': folder_id}, cur=cur)
+                folder_stats = {
+                    'no_files': folder_stats1[0]['no_files'],
+                    'no_errors': folder_stats2[0]['no_errors']
+                }
+                post_processing_df = pd.DataFrame()
+        elif tab == "lightbox":
+            page_no = "Lightbox Page {}".format(page)
             # Pagination
             pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
             no_pages = math.ceil(files_count / no_items)
@@ -938,13 +958,15 @@ def dashboard_f(project_alias=None, folder_id=None):
             else:
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
                                                     "href=\"" + url_for('dashboard_f', project_alias=project_alias,
-                                                                        folder_id=folder_id) \
-                                  + "?tab=1&page={}\">Previous</a></li>".format(page - 1)
+                                                                        folder_id=folder_id, tab="lightbox",
+                                                                        page="{}".format(page - 1)) \
+                                  + "\">Previous</a></li>"
             # Ellipsis for first pages
             if page > 5:
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
-                                  + "?tab=1&page=1\">1</a></li>"
+                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
+                                                        tab="lightbox", page="1") \
+                                  + "\">1</a></li>"
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">...</a></li>"
             for i in range(1, no_pages + 1):
@@ -955,15 +977,17 @@ def dashboard_f(project_alias=None, folder_id=None):
                         pagination_html = pagination_html + "<li class=\"page-item\">"
                     pagination_html = pagination_html + "<a class=\"page-link\" " \
                                       + "href=\"" \
-                                      + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
-                                      + "?tab=1&page={}\">{}</a>".format(i, i) \
+                                      + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
+                                                tab="lightbox", page="{}".format(i)) \
+                                      + "\">{}</a>".format(i) \
                                       + "</li>"
             if (no_pages - page) > 4:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">...</a></li>"
                 pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) \
-                                  + "?tab=1&page={last}\">{last}</a></li>".format(last=no_pages)
+                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
+                                                        tab="lightbox", page="{last}".format(last=no_pages)) \
+                                  + "\">{last}</a></li>".format(last=no_pages)
             if page == no_pages:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
                                                     "href=\"#\">Next</a></li>"
@@ -974,21 +998,14 @@ def dashboard_f(project_alias=None, folder_id=None):
                 else:
                     pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
                                       + "href=\"" + url_for('dashboard_f', project_alias=project_alias,
-                                                            folder_id=folder_id) \
-                                      + "?tab=1&page={}\">".format(page + 1) \
+                                                            folder_id=folder_id, tab="lightbox",
+                                                            page="{}".format(page + 1)) \
+                                      + "\">" \
                                       + "Next</a></li>"
             pagination_html = pagination_html + "</ul></nav>"
-            folder_stats1 = run_query(("SELECT coalesce(f.no_files, 0) as no_files "
-                                            " FROM folders f WHERE folder_id = %(folder_id)s"),
-                                           {'folder_id': folder_id}, cur=cur)
-            folder_stats2 = run_query(("SELECT count(DISTINCT c.file_id) as no_errors "
-                                            " FROM files_checks c WHERE file_id IN (SELECT file_id from files WHERE"
-                                            "   folder_id = %(folder_id)s) AND check_results = 1"),
-                                           {'folder_id': folder_id}, cur=cur)
-            folder_stats = {
-                'no_files': folder_stats1[0]['no_files'],
-                'no_errors': folder_stats2[0]['no_errors']
-            }
+        elif tab == "postprod":
+            page_no = "Post-Processing Steps"
+            folder_files_df = pd.DataFrame()
             post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
                                                   " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
                                                  {'folder_id': folder_id}, cur=cur))
@@ -1044,27 +1061,28 @@ def dashboard_f(project_alias=None, folder_id=None):
     else:
         proj_reports = False
 
-    # QC folder status
-    qc_check = run_query("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s AND qc_status = 1",
-                        {'folder_id': folder_id}, cur=cur)
-    if len(qc_check) > 0:
-        qc_check = True
-        qc_details = pd.DataFrame(run_query(("SELECT f.file_id, f.file_name, q.qc_info, "
-                                             "      CASE "
-                                             "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
-                                             "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
-                                             "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
-                                             "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s and q.file_qc != 0 AND q.file_id = f.file_id "
-                                             "ORDER BY q.file_qc DESC"),
-                            {'folder_id': folder_id}, cur=cur))
-        qc_details['file_name'] = '<a href="/file/' \
-                                          + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
-                                          + qc_details['file_name'].astype(str) \
-                                          + '</a>'
-        qc_details = qc_details.drop(['file_id'], axis=1)
-    else:
-        qc_check = False
-        qc_details = pd.DataFrame()
+    if tab == "filechecks":
+        # QC folder status
+        qc_check = run_query("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s AND qc_status = 1",
+                            {'folder_id': folder_id}, cur=cur)
+        if len(qc_check) > 0:
+            qc_check = True
+            qc_details = pd.DataFrame(run_query(("SELECT f.file_id, f.file_name, q.qc_info, "
+                                                 "      CASE "
+                                                 "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
+                                                 "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
+                                                 "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
+                                                 "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s and q.file_qc != 0 AND q.file_id = f.file_id "
+                                                 "ORDER BY q.file_qc DESC"),
+                                {'folder_id': folder_id}, cur=cur))
+            qc_details['file_name'] = '<a href="/file/' \
+                                              + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
+                                              + qc_details['file_name'].astype(str) \
+                                              + '</a>'
+            qc_details = qc_details.drop(['file_id'], axis=1)
+        else:
+            qc_check = False
+            qc_details = pd.DataFrame()
 
     # Disk space
     project_disks = run_query(("SELECT FORMAT_BYTES(sum(filesize)) as filesize, UPPER(filetype) as filetype "
@@ -1089,6 +1107,7 @@ def dashboard_f(project_alias=None, folder_id=None):
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
     return render_template('dashboard.html',
+                           page_no=page_no,
                            project_id=project_id,
                            project_info=project_info,
                            project_alias=project_alias,
@@ -1098,25 +1117,25 @@ def dashboard_f(project_alias=None, folder_id=None):
                            folder_id=folder_id,
                            folder_name=folder_name,
                            tables=[folder_files_df.to_html(table_id='files_table',
-                                                           index=False,
-                                                           border=0,
-                                                           escape=False,
-                                                           classes=["display", "compact", "table-striped", "w-100"])],
+                                                       index=False,
+                                                       border=0,
+                                                       escape=False,
+                                                       classes=["display", "compact", "table-striped", "w-100"])],
                            titles=[''],
                            username=user_name,
                            project_admin=project_admin,
                            is_admin=is_admin,
                            tab=tab,
+                           page=page,
                            files_count=files_count,
                            pagination_html=pagination_html,
-                           pagination_html2=pagination_html,
                            folder_stats=folder_stats,
                            post_processing=[post_processing_df.to_html(table_id='post_processing_table',
-                                                                       index=False,
-                                                                       border=0,
-                                                                       escape=False,
-                                                                       classes=["display", "compact", "table-striped",
-                                                                                "w-100"])],
+                                                       index=False,
+                                                       border=0,
+                                                       escape=False,
+                                                       classes=["display", "compact", "table-striped", "w-100"])],
+                           postproc_data=(project_info['project_postprocessing'] != ""),
                            post_processing_rows=post_processing_df.shape[0],
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
@@ -1129,11 +1148,10 @@ def dashboard_f(project_alias=None, folder_id=None):
                            user_address=user_address,
                            qc_check=qc_check,
                            qc_details=[qc_details.to_html(table_id='qc_details_table',
-                                                                       index=False,
-                                                                       border=0,
-                                                                       escape=False,
-                                                                       classes=["display", "compact", "table-striped",
-                                                                                "w-100"])],
+                                                       index=False,
+                                                       border=0,
+                                                       escape=False,
+                                                       classes=["display", "compact", "table-striped", "w-100"])],
                            project_disk=project_disk,
                            projects_links=projects_links,
                            project_manager_link=project_manager_link
@@ -1225,11 +1243,7 @@ def dashboard(project_alias=None):
     project_statistics = run_query(("SELECT COALESCE(images_taken, 0) as images_taken, COALESCE(objects_digitized, 0) as objects_digitized"
                                     "  FROM projects_stats WHERE project_id = %(project_id)s"),
                                    {'project_id': project_id}, cur=cur)[0]
-    # project_total = run_query(("SELECT count(*) as no_files "
-    #                                 "    FROM files "
-    #                                 "    WHERE folder_id IN (SELECT folder_id "
-    #                                 "                        FROM folders WHERE project_id = %(project_id)s)"),
-    #                                {'project_id': project_id}, cur=cur)
+
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_ok = run_query(("WITH "
                                  " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
@@ -1256,21 +1270,6 @@ def dashboard(project_alias=None):
                                   "SELECT count(file_id) as no_files FROM data WHERE check_results != 0"),
                                  {'project_id': project_id}, cur=cur)
     project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
-    # project_pending = run_query(("WITH "
-    #                                   " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
-    #                                   " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
-    #                                   " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
-    #                                   " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
-    #                                   " data AS ("
-    #                                   "SELECT c.file_id, coalesce(f.check_results, 9) as check_results"
-    #                                   " FROM checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check))"
-    #                                   " SELECT count(distinct file_id) as no_files FROM data where check_results = 9"),
-    #                                  {'project_id': project_id}, cur=cur)
-    # project_stats['pending'] = format(int(project_pending[0]['no_files']), ',d')
-    # project_public = run_query(("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
-    #                                  " project_id = %(project_id)s"),
-    #                                 {'project_id': project_id}, cur=cur)
-    # project_stats['public'] = format(int(project_public[0]['no_files']), ',d')
 
     project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, 0) as no_files, "
                                       "f.file_errors, f.status, f.error_info, COALESCE(mt.md5, 9) as md5_tif, COALESCE(mr.md5, 9) as md5_raw, "
@@ -1288,10 +1287,6 @@ def dashboard(project_alias=None):
                                       "f.date DESC, f.project_folder DESC"),
                                      {'project_id': project_id}, cur=cur)
 
-    # Get objects
-    # proj_obj = run_query(("SELECT COALESCE(objects_digitized, 0) as no_objects FROM projects_stats WHERE "
-    #            " project_id = %(project_id)s"),
-    #           {'project_id': project_id}, cur=cur)
     project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
 
     folder_name = None
@@ -1359,6 +1354,7 @@ def dashboard(project_alias=None):
     conn.close()
 
     return render_template('dashboard.html',
+                           page_no="",
                            project_id=project_id,
                            project_info=project_info,
                            project_alias=project_alias,
@@ -1377,10 +1373,10 @@ def dashboard(project_alias=None):
                            username=user_name,
                            project_admin=project_admin,
                            is_admin=is_admin,
-                           tab=tab,
+                           tab=None,
+                           page=1,
                            files_count=files_count,
                            pagination_html=pagination_html,
-                           pagination_html2=pagination_html,
                            folder_stats=folder_stats,
                            post_processing=[post_processing_df.to_html(table_id='post_processing_table',
                                                                        index=False,
@@ -1388,6 +1384,7 @@ def dashboard(project_alias=None):
                                                                        escape=False,
                                                                        classes=["display", "compact",
                                                                                 "table-striped"])],
+                           postproc_data=(project_info['project_postprocessing'] != ""),
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
                            form=form,

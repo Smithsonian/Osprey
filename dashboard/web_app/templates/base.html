@@ -77,19 +77,10 @@
             text-decoration: none;
             padding-left: 1rem;
         }
-        {#font-family: "minion-pro",Helvetica,Arial,sans-serif;#}
-        {#font-size: 1.1rem;#}
-        {#font-weight: 500;#}
-        {#letter-spacing: 1px;#}
     </style>
 
     {% block head_blocks %}
     {% endblock %}
-
-    <!-- Font Awesome -->
-{#    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">#}
-{#    <link href="{{ url_for('static', filename='css/brands.min.css') }}" rel="stylesheet">#}
-{#    <link href="{{ url_for('static', filename='css/solid.min.css') }}" rel="stylesheet">#}
 
     <!-- favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
@@ -111,7 +102,6 @@
       <!-- Navbar content -->
         <div class="container-fluid">
             <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
-{#            {% if site_env == "dev" %}<p class="text-black bg-warning" title="This is a development server">&nbsp;&nbsp; DEV VERSION &nbsp;&nbsp;</p>{% endif %}#}
                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
               </button>
@@ -152,7 +142,6 @@
             </div>
         </div>
     </nav>
-
 
     <a name="maincontent"></a>
 

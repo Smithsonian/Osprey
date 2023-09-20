@@ -1,15 +1,12 @@
-
-{% if kiosk %}
-    {% extends "base_kiosk.html" %}
-{% else %}
-    {% extends "base.html" %}
-{% endif %}
+{% extends "base.html" %}
 
 {% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
 
 {% block page_title %}{{ project_info.project_title }}{% endblock %}
 
-{% block homelink %}{{ url_for('dashboard', project_alias=project_alias) }}{% endblock %}
+{% block homelink %}
+    {% if kiosk %}""{% else %}{{ url_for('dashboard', project_alias=project_alias) }}{% endif %}
+{% endblock %}
 
 {% block content %}
 

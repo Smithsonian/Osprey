@@ -1,9 +1,4 @@
-
-{% if kiosk %}
-    {% extends "base_kiosk.html" %}
-{% else %}
-    {% extends "base.html" %}
-{% endif %}
+{% extends "base.html" %}
 
 {% block title %}Details of {{ file_details.file_name }} - DPO Collections Digitization Dashboard{% endblock %}
 
@@ -40,7 +35,7 @@
 
     <div class="row">
         <div class="col-4">
-            <h4>{{ file_details.file_name }} Image Preview:</h4>
+            <h4>Image Preview:</h4>
 
                 <p><small>
 
@@ -173,11 +168,24 @@
             $('#file_metadata').append('<caption style="caption-side: top;"><h4>Embedded metadata in the file: {{ file_details.file_name }}</h4></caption>');
 
             $('#file_metadata').DataTable({
-                "order": [],
-                lengthMenu: [
-                    [25, 50, 100, -1],
-                    [25, 50, 100, 'All'],
-                ],
+                dom: 'Bfrtip',
+                        buttons: [
+                            'csvHtml5',
+                            'excelHtml5',
+                            'pdfHtml5'
+                        ],
+                    "order": [],
+                    "columnDefs": [
+                        {
+                            'targets': 0,
+                            'createdCell':  function (td, cellData, rowData, row, col) {
+                                $(td).attr('scope', 'row');
+                            }
+                        }],
+                    lengthMenu: [
+                        [25, 50, 100, -1],
+                        [25, 50, 100, 'All'],
+                    ],
             });
 
             var exampleModal = document.getElementById('checkmodal')

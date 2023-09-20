@@ -1,11 +1,6 @@
+{% extends "base.html" %}
 
-{% if kiosk %}
-    {% extends "base_kiosk.html" %}
-{% else %}
-    {% extends "base.html" %}
-{% endif %}
-
-{% block title %}{{ project_info.project_title }} {{ folder_name.project_folder }} - Project Dashboard{% endblock %}
+{% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
 
 {% block page_title %}
 
@@ -13,7 +8,9 @@
 
 {% endblock %}
 
-{% block homelink %}{{ url_for('dashboard', project_alias=project_alias) }}{% endblock %}
+{% block homelink %}
+    {% if kiosk %}""{% else %}{{ url_for('dashboard', project_alias=project_alias) }}{% endif %}
+{% endblock %}
 
 {% block content %}
 
@@ -23,7 +20,7 @@
         <div class="card">
           <h2><span class="badge bg-dark d-flex">Project Details</span></h2>
           <div class="card-body" style="padding: 4px;">
-{#            <p class="card-text">#}
+
                 {% if project_info.project_description != None and project_info.project_description != "" %}<strong>{{ project_info.project_description }}</strong><br><br>{% endif %}
                 <div class="row">
                     <!-- If there are no links, move items -->
@@ -80,15 +77,14 @@
                 </div>
 
           </div>
-{#            </p>#}
         </div>
     </div>
     <div class="col">
 
         <div class="row">
             <div class="col">
-                    <h1 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Total</span></h1>
-                    <h1 title="Total number of objects/specimens digitized"><span class="badge bg-info w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h1>
+                    <h1 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h1>
+                    <h1 title="Total number of objects/specimens digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h1>
             </div>
             <div class="col">
                     <h1 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h1>
@@ -100,10 +96,13 @@
                 <div class="col-10">
                     <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
                     <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+                    </form>
                 </div>
                 <div class="col">
-                    <button type="submit" class="btn btn-primary btn-md">Search</button>
-                    </form>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-md">Search</button>
+                        </form>
+                    </div>
                 </div>
 
         </div>
@@ -176,25 +175,23 @@
         </p>
     </div>
 
-
-
-         <!-- Search Files -->
-{#        4#}
-</div>
+    </div>
 <div class="col overflow-x-auto" style="font-size: 0.9em;">
 
     {% if folder_name != None %}
 
-        <nav>
-          <div class="nav nav-tabs" id="nav-tab" role="tablist">
-            <button class="nav-link {% if tab == 0 %}active{% endif %}" id="nav-list-tab" data-bs-toggle="tab" data-bs-target="#nav-list" type="button" role="tab" aria-controls="nav-list" {% if tab == 0 %}aria-current="true"{% endif %}>File Checks</button>
-            <button class="nav-link {% if tab == 1 %}active{% endif %}" id="nav-lightbox-tab" data-bs-toggle="tab" data-bs-target="#nav-lightbox" type="button" role="tab" aria-controls="nav-lightbox" {% if tab == 1 %}aria-current="true"{% endif %}>Lightbox</button>
-            <button class="nav-link {% if tab == 2 %}active{% endif %}" id="nav-postprod-tab" data-bs-toggle="tab" data-bs-target="#nav-postprod" type="button" role="tab" aria-controls="nav-postprod" {% if tab == 2 %}aria-current="true"{% endif %}>Post-Production</button>
+        <!-- Choose team -->
 
-          </div>
-        </nav>
-        <div class="tab-content" id="nav-tabContent">
-          <div class="tab-pane fade {% if tab == 0 %}show active{% endif %}" id="nav-list" role="tabpanel" aria-labelledby="nav-list-tab">
+                <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
+                    <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to view the file check results of the folder" aria-label="Link to view the file check results of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
+                    <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews of the folder" aria-label="Link to view image previews of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                    {% if postproc_data %}
+                        <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-processing steps of the folder" aria-label="Link to view the post-processing steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
+                    {% endif %}
+                </div>
+
+
+        {% if tab == "filechecks" %}
 
                 {% if folder_links | length > 0 %}
 
@@ -237,51 +234,6 @@
                        {{ table|safe }}
                 {% endfor %}
 
-          </div>
-          <div class="tab-pane fade {% if tab == 1 %}show active{% endif %}" id="nav-lightbox" role="tabpanel" aria-labelledby="nav-lightbox-tab">
-              <br>
-                <p><strong>Image Previews for the Folder: {{ folder_name.project_folder }}</strong></p>
-
-                  <div class="row">
-                      <div class="col">
-                          <p><small><em>Sorted by file_name</em></small></p>
-                      </div>
-                      <div class="col">
-                          {{ pagination_html2 | safe }}
-                      </div>
-                  </div>
-
-
-                {% for file in files_df %}
-                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#previewmodal1"
-                            data-bs-info="{{ url_for('get_preview', file_id=file.file_id, max=1200) }}" data-bs-link="{{ url_for('file', file_id=file.file_id) }}"
-                            data-bs-text="Details of the file {{ file.file_name }}" title="Image Preview">
-
-                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
-
-                        <small>{{ file.file_name }}</small>
-                  </button>
-
-                {% endfor %}
-
-            <br>{{ pagination_html | safe }}
-
-        </div>
-
-
-          <div class="tab-pane fade {% if postprod %}show active{% endif %}" id="nav-postprod" role="tabpanel" aria-labelledby="nav-postprod-tab">
-            <br>
-
-                {% for table in post_processing %}
-                    {% if post_processing_rows == 0 %}
-                        <p>No data available.</p>
-                    {% else %}
-                       {{ table|safe }}
-                    {% endif %}
-                {% endfor %}
-          </div>
-
-        </div>
 
               <!-- File preview modal -->
               <div class="modal fade" id="previewmodal1" tabindex="-1" aria-labelledby="previewmodal1Label" aria-hidden="true">
@@ -303,8 +255,57 @@
                   </div>
                 </div>
 
+
+          {% elif tab == "lightbox" %}
+
+              <br><br>
+                <h5>Image Previews for the Folder {{ folder_name.project_folder }}</h5>
+
+                  <div class="row">
+                      <div class="col">
+                          <p><small><em>Sorted by file_name</em></small></p>
+                      </div>
+                      <div class="col">
+                          {{ pagination_html | safe }}
+                      </div>
+                  </div>
+
+
+                {% for file in files_df %}
+                    <a type="button" class="btn btn-light btn-sm"
+                            href="{{ url_for('file', file_id=file.file_id) }}"
+                            title="Details of the file {{ file.file_name }}">
+
+                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
+
+                        <small>{{ file.file_name }}</small>
+                  </a>
+
+                {% endfor %}
+
+            <br>{{ pagination_html | safe }}
+
+
+
+        {% elif tab == "postprod" %}
+
+            <br><br>
+
+                {% for table in post_processing %}
+                    {% if post_processing_rows == 0 %}
+                        <br><p>No data available.</p>
+                    {% else %}
+                       {{ table|safe }}
+                    {% endif %}
+                {% endfor %}
+
+        {% else %}
+            &nbsp;
+        {% endif %}
+
+
     {% else %}
-        <p><em>Select a folder on the left</em></p>
+        <p>Select a folder on the left</p>
 
     {% endif %}
 
@@ -323,11 +324,32 @@
 {% block javascripts %}
 
 
+{% if folder_id != None %}
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
 
-    {% if folder_id != None %}
+        {% if tab == "filechecks" %}
+
+            var previewmodal1 = document.getElementById('previewmodal1');
+            previewmodal1.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              var filelink = button.getAttribute('data-bs-link')
+              var filetext = button.getAttribute('data-bs-text')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody1 = previewmodal1.querySelector('.modal-body img')
+              // modalBody1.src = checkinfo + '&max=1200';
+              modalBody1.src = checkinfo;
+              var modalBody2 = previewmodal1.querySelector('.modal-body a')
+              modalBody2.href = filelink;
+              previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
+            });
 
                 $('#qc_details_table').DataTable({
                     dom: 'Bfrtip',
@@ -350,17 +372,8 @@
                     ]
                 });
 
-
                 $('#files_table').append('<caption style="caption-side: top"><h5>Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
 
-                // columDefs from https://stackoverflow.com/a/41626727
-                //    serverSide: true,
-                //    processing: true,
-                //    ajax: {
-                //        url: '/ajax/foldertable/{{ folder_id }}/',
-                //        type: 'GET'
-                //    },
-                // "order": [[0, 'asc']],
                 $('#files_table').DataTable({
                     dom: 'Bfrtip',
                         buttons: [
@@ -474,14 +487,19 @@
                     },
                 });
 
-                $('#post_processing_table').append('<caption style="caption-side: top">Post production steps on the files in the Folder: {{ folder_name.project_folder }}</caption>');
+
+        {% elif tab == "postprod" %}
+
+                $('#post_processing_table').append('<caption style="caption-side: top"><h5>Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
 
                 $('#post_processing_table').DataTable({
+                    dom: 'Bfrtip',
+                        buttons: [
+                            'csvHtml5',
+                            'excelHtml5',
+                            'pdfHtml5'
+                        ],
                     "order": [],
-                    lengthMenu: [
-                        [25, 50, 100, -1],
-                        [25, 50, 100, 'All'],
-                    ],
                     "columnDefs": [
                         {
                             'targets': 0,
@@ -489,6 +507,10 @@
                                 $(td).attr('scope', 'row');
                             }
                         }],
+                    lengthMenu: [
+                        [25, 50, 100, -1],
+                        [25, 50, 100, 'All'],
+                    ],
                     'rowCallback': function(row, data, index){
                         if(data[1] == 'Completed'){
                             $(row).find('td:eq(1)').css('background', '#198754');
@@ -583,27 +605,10 @@
                     },
                 });
 
-                var previewmodal1 = document.getElementById('previewmodal1');
-                previewmodal1.addEventListener('show.bs.modal', function (event) {
-                  // Button that triggered the modal
-                  var button = event.relatedTarget
-                  // Extract info from data-bs-* attributes
-                  var checkinfo = button.getAttribute('data-bs-info')
-                  var filelink = button.getAttribute('data-bs-link')
-                  var filetext = button.getAttribute('data-bs-text')
-                  // If necessary, you could initiate an AJAX request here
-                  // and then do the updating in a callback.
-                  //
-                  // Update the modal's content.
-                  var modalBody1 = previewmodal1.querySelector('.modal-body img')
-                  // modalBody1.src = checkinfo + '&max=1200';
-                  modalBody1.src = checkinfo;
-                  var modalBody2 = previewmodal1.querySelector('.modal-body a')
-                  modalBody2.href = filelink;
-                  previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
-                });
+        {% endif %}
 
-    {% endif %}
+
+
 
             // Refresh dashboard after 10 minutes of inactivity
             // https://stackoverflow.com/a/55144842
@@ -621,23 +626,26 @@
                 reloadPage();
             });
 
+
         });
 
     </script>
 
+    {% endif %}
 
-    <script type="text/javascript">
-
-            var triggerTabList = [].slice.call(document.querySelectorAll('#nav-tab a'))
-                triggerTabList.forEach(function (triggerEl) {
-                  var tabTrigger = new bootstrap.Tab(triggerEl)
-
-                  triggerEl.addEventListener('click', function (event) {
-                    event.preventDefault()
-                    tabTrigger.show()
-                  })
-                })
-
-    </script>
+{##}
+{#    <script type="text/javascript">#}
+{##}
+{#        var triggerTabList = [].slice.call(document.querySelectorAll('#nav-tab a'))#}
+{#            triggerTabList.forEach(function (triggerEl) {#}
+{#              var tabTrigger = new bootstrap.Tab(triggerEl)#}
+{##}
+{#              triggerEl.addEventListener('click', function (event) {#}
+{#                event.preventDefault()#}
+{#                tabTrigger.show()#}
+{#              })#}
+{#            })#}
+{##}
+{#    </script>#}
 
 {% endblock %}
