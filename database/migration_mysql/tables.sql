@@ -53,6 +53,7 @@ DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS dams_cdis_file_status_view_dpo CASCADE;
 DROP TABLE IF EXISTS dams_vfcu_file_view_dpo CASCADE;
 DROP TABLE IF EXISTS projects_stats_detail CASCADE;
+DROP TABLE IF EXISTS home_highlights CASCADE;
 
 
 
@@ -115,6 +116,7 @@ CREATE TABLE projects (
     project_datastorage VARCHAR(254),
     project_img_2_object VARCHAR(8),
 	project_object_query VARCHAR(254),
+	obj_type VARCHAR(16) DEFAULT 'Objects',
 	dams_project_cd VARCHAR(254),
     stats_estimated boolean DEFAULT 1,
     images_estimated boolean DEFAULT 0,
@@ -785,3 +787,6 @@ CREATE INDEX jpc_massdigi_tabid_idx ON jpc_massdigi_ids (table_id) USING btree;
 CREATE INDEX jpc_massdigi_idrel_val_idx ON jpc_massdigi_ids (id_relationship) USING btree;
 CREATE INDEX jpc_massdigi_id1_val_idx ON jpc_massdigi_ids (id1_value) USING btree;
 CREATE INDEX jpc_massdigi_id2_val_idx ON jpc_massdigi_ids (id2_value) USING btree;
+
+
+
