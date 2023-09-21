@@ -15,8 +15,8 @@ from flask import send_file
 from flask_caching import Cache
 
 import logging
-import locale
 import os
+import locale
 import math
 import pandas as pd
 import json
@@ -439,7 +439,7 @@ def login(team=None):
 
     if team is None:
         team = "summary"
-        team_heading = "Summary Statistics for Collections Digitization"
+        team_heading = "Summary of Collections Digitization Projects"
         html_title = "Collections Digitization Dashboard"
 
         # Summary chart
@@ -488,8 +488,8 @@ def login(team=None):
         }
     elif team == "md":
         graphJSON_summary = None
-        team_heading = "Statistics of the Mass Digitization Team"
-        html_title = "Statistics of the Mass Digitization Team, Collections Digitization"
+        team_heading = "Summary of Mass Digitization Team Projects"
+        html_title = "Summary of the Mass Digitization Team Projects, Collections Digitization"
 
         # MD stats
         summary_stats = {
@@ -519,8 +519,8 @@ def login(team=None):
 
     elif team == "is":
         graphJSON_summary = None
-        team_heading = "Statistics of the Imaging Services Team"
-        html_title = "Statistics of the Imaging Services Team, Collections Digitization"
+        team_heading = "Summary of Imaging Services Team Projects"
+        html_title = "Summary of the Imaging Services Team Projects, Collections Digitization"
         # IS stats
         summary_stats = {
             'objects_digitized': "{:,}".format(run_query(
@@ -550,8 +550,8 @@ def login(team=None):
 
     elif team == "inf":
         graphJSON_summary = None
-        team_heading = "Statistics of the Informatics Team"
-        html_title = "Statistics of the Informatics Team, Collections Digitization"
+        team_heading = "Summary of the Informatics Team Projects"
+        html_title = "Summary of the Informatics Team Projects, Collections Digitization"
         summary_stats = None
 
     section_query = (" SELECT "
