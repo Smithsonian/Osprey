@@ -93,16 +93,11 @@
         </div>
 
         <div class="row">
-                <div class="col-10">
+            <div class="col">&nbsp;</div>
+                <div class="col">
                     <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
                     <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
                     </form>
-                </div>
-                <div class="col">
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-md">Search</button>
-                        </form>
-                    </div>
                 </div>
 
         </div>
@@ -143,7 +138,6 @@
         <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
-
                 {% if folder.badge_text == "Folder under verification..." %}
                     <a href="#" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
                 {% else %}

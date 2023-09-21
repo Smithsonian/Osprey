@@ -102,12 +102,7 @@
       <!-- Navbar content -->
         <div class="container-fluid">
             <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
-               <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-              </button>
-                <div class="collapse navbar-collapse" id="navbarText">
 
-                </div>
 
 
         <div class="row">
@@ -207,19 +202,19 @@
             <a href="https://dpo.si.edu"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" class="text-white">Office of the Chief Information Officer</a></p>
-            <p><a href="{{ url_for('about') }}" class="text-white">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" class="text-white">Terms of Use</a></p>
-            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white">Vulnerability Disclosure Policy</a></p>
+            <p><a href="https://www.si.edu/ocio" class="text-white" style="background: #3F4249!important;">Office of the Chief Information Officer</a></p>
+            <p><a href="{{ url_for('about') }}" class="text-white" style="background: #3F4249!important;">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="text-white" style="background: #3F4249!important;">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white" style="background: #3F4249!important;">Vulnerability Disclosure Policy</a></p>
         </div>
         <div class="col">
             {% if site_net == "external" %}
-                <p><a href="https://si.edu/" class="text-white">Smithsonian Home</a></p>
+                <p><a href="https://si.edu/" class="text-white" style="background: #3F4249!important;">Smithsonian Home</a></p>
             {% else %}
-                <p><a href="https://prism.si.edu/" class="text-white">PRISM</a></p>
+                <p><a href="https://prism.si.edu/" class="text-white" style="background: #3F4249!important;">PRISM</a></p>
             {% endif %}
-            <p><a href="https://www.si.edu/Accessibility" class="text-white">Accessibility</a></p>
-            <p><a href="https://www.si.edu/privacy" class="text-white">Privacy</a></p>
+            <p><a href="https://www.si.edu/Accessibility" class="text-white" style="background: #3F4249!important;">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="text-white" style="background: #3F4249!important;">Privacy</a></p>
         </div>
 
     </div>
@@ -228,7 +223,6 @@
 
 </footer>
 <!-- Footer -->
-
 
     <!-- JQuery -->
     <script

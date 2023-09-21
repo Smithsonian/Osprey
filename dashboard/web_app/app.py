@@ -90,8 +90,6 @@ app = Flask(__name__)
 app.secret_key = settings.secret_key
 app.config.from_mapping(config)
 cache = Cache(app)
-# app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="profile", restrictions=('app.py',))
-
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -379,8 +377,8 @@ def kiosk_mode(request, kiosks):
 # System routes
 ###################################
 @cache.memoize()
-@app.route('/team/<team>', methods=['GET', 'POST'], strict_slashes=False)
-@app.route('/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/team/<team>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+@app.route('/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def login(team=None):
     """Main homepage for the system"""
     if current_user.is_authenticated:
@@ -559,7 +557,7 @@ def login(team=None):
     section_query = (" SELECT "
                      " p.projects_order, "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"/dashboard/', p.project_alias, '\">', p.project_title, '</a>') END as project_title, "
+                     " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
                      " p.project_status, "
                      " p.project_manager, "
                      " CASE WHEN date_format(p.project_start, '%%Y-%%c') = date_format(p.project_end, '%%Y-%%c') "
@@ -620,12 +618,10 @@ def login(team=None):
                            team=team,
                            tables_md=[list_projects_md.to_html(table_id='list_projects_md', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "table-striped",
-                                                                        "w-100"])],
+                                                               classes=["display", "w-100"])],
                            tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "table-striped",
-                                                                        "w-100"])],
+                                                               classes=["display", "w-100"])],
                            asklogin=True,
                            site_env=site_env,
                            site_net=site_net,
@@ -638,9 +634,9 @@ def login(team=None):
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/<page>/', methods=['POST', 'GET'], strict_slashes=False)
-@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/', methods=['POST', 'GET'], strict_slashes=False)
-@app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
+@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/<page>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+@app.route('/dashboard/<project_alias>/<folder_id>/<tab>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+@app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     """Dashboard for a project"""
     if current_user.is_authenticated:
@@ -747,11 +743,11 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     project_manager_link = project_managers['project_manager']
     if project_managers['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\">Jeanine Nault</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\">Jeanine Nault</a>"
     elif project_managers['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\">Nathan Ian Anderson</a>"
     elif project_managers['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']}, cur=cur)
@@ -1159,7 +1155,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def dashboard(project_alias=None):
     """Dashboard for a project"""
     if current_user.is_authenticated:
@@ -1401,7 +1397,7 @@ def dashboard(project_alias=None):
 
 
 @cache.memoize()
-@app.route('/about/', methods=['GET'], strict_slashes=False)
+@app.route('/about/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def about():
     """About page for the system"""
     if current_user.is_authenticated:
@@ -1420,7 +1416,7 @@ def about():
                            user_address=user_address)
 
 
-@app.route('/qc/<project_alias>/', methods=['POST', 'GET'], strict_slashes=False)
+@app.route('/qc/<project_alias>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def qc(project_alias=None):
     """List the folders and QC status"""
@@ -1465,10 +1461,7 @@ def qc(project_alias=None):
     if project_admin is None:
         # Not allowed
         return redirect(url_for('home'))
-    # project_settings = run_query(("SELECT coalesce(s.qc_percent, 0.1) as qc_percent FROM projects p "
-    #                                    "     LEFT JOIN qc_settings s ON (s.project_id = p.project_id) "
-    #                                    " WHERE p.project_alias = %(project_alias)s "),
-    #                                   {'project_alias': project_alias}, cur=cur)
+
     project_settings = run_query(("SELECT * FROM qc_settings "
                                  " WHERE project_id = %(project_id)s"),
                                 {'project_id': project_id}, cur=cur)
@@ -1596,7 +1589,7 @@ def qc(project_alias=None):
                            site_net=site_net)
 
 
-@app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
@@ -1855,7 +1848,7 @@ def qc_process(folder_id):
                                project_alias=project_alias['project_alias'], site_env=site_env), 400
 
 
-@app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False)
+@app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def qc_done(folder_id):
     """Run QC on a folder"""
@@ -1958,7 +1951,7 @@ def qc_done(folder_id):
     return redirect(url_for('qc', project_alias=project_alias))
 
 
-@app.route('/home/', methods=['GET'], strict_slashes=False)
+@app.route('/home/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def home():
     """Home for user, listing projects and options"""
@@ -2088,7 +2081,7 @@ def home():
                            site_env=site_env, site_net=site_net)
 
 
-@app.route('/new_project/', methods=['GET'], strict_slashes=False)
+@app.route('/new_project/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def new_project(msg=None):
     """Create a new project"""
@@ -2120,7 +2113,7 @@ def new_project(msg=None):
                                site_env=site_env)
 
 
-@app.route('/create_new_project/', methods=['POST'], strict_slashes=False)
+@app.route('/create_new_project/', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def create_new_project():
     """Create a new project"""
@@ -2228,11 +2221,6 @@ def create_new_project():
                                          "    (%(project_id)s, %(user_id)s)"),
                                         {'project_id': project_id,
                                          'user_id': '101'}, cur=cur)
-    # if current_user.id != '106':
-    #     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-    #                                      "    (%(project_id)s, %(user_id)s)"),
-    #                                     {'project_id': project_id,
-    #                                      'user_id': '106'})
     if p_unitstaff != '':
         unitstaff = p_unitstaff.split(',')
         logging.info("unitstaff: {}".format(p_unitstaff))
@@ -2258,12 +2246,6 @@ def create_new_project():
                                                      'user_id': get_user_project[0]['user_id']}, cur=cur)
     fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES "
                                           "    (%(project_id)s, 'project_checks', %(value)s)")
-    # file_check = request.values.get('unique_file')
-    # if file_check == "1":
-    #     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'}, cur=cur)
-    # file_check = request.values.get('tifpages')
-    # if file_check == "1":
-    #     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'}, cur=cur)
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'}, cur=cur)
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'}, cur=cur)
     file_check = request.values.get('raw_pair')
@@ -2287,7 +2269,7 @@ def create_new_project():
     return redirect(url_for('home', _anchor=p_alias))
 
 
-@app.route('/edit_project/<project_alias>/', methods=['GET'], strict_slashes=False)
+@app.route('/edit_project/<project_alias>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def edit_project(project_alias=None):
     """Edit a project"""
@@ -2357,7 +2339,7 @@ def edit_project(project_alias=None):
                            site_net=site_net)
 
 
-@app.route('/proj_links/<project_alias>/', methods=['GET'], strict_slashes=False)
+@app.route('/proj_links/<project_alias>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def proj_links(project_alias=None):
     """Add / edit links associated with a project"""
@@ -2432,7 +2414,7 @@ def proj_links(project_alias=None):
                            site_net=site_net)
 
 
-@app.route('/add_links/', methods=['POST'], strict_slashes=False)
+@app.route('/add_links/', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def add_links(project_alias=None):
     """Create a new project"""
@@ -2488,7 +2470,7 @@ def add_links(project_alias=None):
     return redirect(url_for('proj_links', project_alias=project_alias))
 
 
-@app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False)
+@app.route('/project_update/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 @login_required
 def project_update(project_alias):
     """Save edits to a project"""
@@ -2548,12 +2530,6 @@ def project_update(project_alias):
                                   " WHERE project_alias = %(project_alias)s"),
                                  {'p_desc': p_desc,
                                   'project_alias': project_alias}, cur=cur)
-    # if p_url != '':
-    #     project = query_database_insert(("UPDATE projects SET "
-    #                               "   project_url = %(p_url)s "
-    #                               " WHERE project_alias = %(project_alias)s"),
-    #                              {'p_url': p_url,
-    #                               'project_alias': project_alias}, cur=cur)
     if p_end != 'None':
         project = query_database_insert(("UPDATE projects SET "
                                   "   project_end = CAST(%(p_end)s AS date) "
@@ -2574,12 +2550,12 @@ def project_update(project_alias):
 
 
 @cache.memoize(60)
-@app.route('/dashboard/', methods=['GET'], strict_slashes=False)
+@app.route('/dashboard/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def dashboard_empty():
     return redirect(url_for('login'))
 
 
-@app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def file(file_id=None):
     """File details"""
     if current_user.is_authenticated:
@@ -2699,13 +2675,13 @@ def file(file_id=None):
                            )
 
 
-@app.route('/file/', methods=['GET'], strict_slashes=False)
+@app.route('/file/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def file_empty():
     return redirect(url_for('login'))
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_alias>/search_files', methods=['GET'], strict_slashes=False)
+@app.route('/dashboard/<project_alias>/search_files', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def search_files(project_alias):
     """Search files"""
     if current_user.is_authenticated:
@@ -2805,7 +2781,7 @@ def search_files(project_alias):
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], strict_slashes=False)
+@app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def search_folders(project_alias):
     """Search files"""
     if current_user.is_authenticated:
@@ -2916,13 +2892,13 @@ def search_folders(project_alias):
                            user_address=user_address)
 
 
-@app.route("/logout", methods=['GET'], strict_slashes=False)
+@app.route("/logout", methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def logout():
     logout_user()
     return redirect(url_for('login'))
 
 
-@app.route("/notuser", methods=['GET'], strict_slashes=False)
+@app.route("/notuser", methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def not_user():
     # Declare the login form
     form = LoginForm(request.form)
@@ -2934,7 +2910,7 @@ def not_user():
 # Osprey API
 ###################################
 @cache.memoize()
-@app.route('/api/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/api/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_route_list():
     """Print available routes in JSON"""
     # Adapted from https://stackoverflow.com/a/17250154
@@ -2953,7 +2929,7 @@ def api_route_list():
     return jsonify(data)
 
 
-@app.route('/api/projects/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/api/projects/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_projects():
     """Get the list of projects."""
     # Connect to db
@@ -3038,7 +3014,7 @@ def api_get_projects():
     return jsonify(data)
 
 
-@app.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
     # Connect to db
@@ -3141,7 +3117,7 @@ def api_get_project_details(project_alias=None):
     return jsonify(data[0])
 
 
-@app.route('/api/update/<project_alias>', methods=['POST'], strict_slashes=False)
+@app.route('/api/update/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
     # Connect to db
@@ -3410,32 +3386,6 @@ def api_update_project_details(project_alias=None):
                                  " VALUES (%(file_id)s, %(filetype)s, %(value)s) ON DUPLICATE KEY UPDATE md5 = %(value)s")
                         res = query_database_insert(query,
                                                     {'file_id': file_id, 'filetype': filetype, 'value': query_value}, cur=cur)
-                        # Check for the same MD5 in another file
-                        # query = ("SELECT f.file_id, f.file_name, fol.project_folder "
-                        #          " FROM files f, file_md5 m, folders fol "
-                        #          " WHERE f.folder_id = fol.folder_id AND f.file_id = m.file_id AND"
-                        #          "   m.filetype='tif' and m.md5 = %(value)s and f.file_id != %(file_id)s")
-                        # res = query_database(query, {'value': query_value, 'file_id': file_id})
-                        # if len(res) == 0:
-                        #     check_results = 0
-                        #     check_info = ""
-                        # elif len(res) == 1:
-                        #     check_results = 1
-                        #     conflict_file = res[0]['file_name']
-                        #     conflict_folder = res[0]['project_folder']
-                        #     check_info = "File ({}) with the same MD5 hash in folder: {}".format(conflict_file, conflict_folder)
-                        # else:
-                        #     check_results = 1
-                        #     conflict_folder = []
-                        #     for row in res:
-                        #         conflict_folder.append('/'.join([row['project_folder'], row['file_name']]))
-                        #     conflict_folder = ', '.join(conflict_folder)
-                        #     check_info = "Files with the same MD5 hash: {}".format(conflict_folder)
-                        # query = ("INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
-                        #          "VALUES (%(file_id)s, %(folder_id)s, 'md5', %(check_results)s, %(check_info)s, CURRENT_TIME) ON DUPLICATE KEY UPDATE "
-                        #          " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
-                        # res = query_database_insert(query, {'file_id': file_id, 'folder_id': folder_id,
-                        #                                     'check_results': check_results, 'check_info': check_info})
                     elif query_property == "exif":
                         filetype = request.form.get("filetype")
                         data_json = json.loads(query_value)
@@ -3456,10 +3406,7 @@ def api_update_project_details(project_alias=None):
                                         else:
                                             this_val = str(item)
                                 row_data = (file_id, filetype, key.split(':')[0], key.split(':')[1], this_key, this_val, this_val)
-                                # exif_data.append(row_data)
                                 res = query_database_insert(query, row_data, cur=cur)
-                        # res = query_database_insert_multi(query, exif_data, cur=cur)
-                        # logging.info("exif_data for {}:{}".format(file_id, exif_data))
                     elif query_property == "delete":
                         query = ("DELETE FROM files WHERE file_id = %(file_id)s")
                         res = query_database_insert(query, {'file_id': file_id}, cur=cur)
@@ -3476,7 +3423,7 @@ def api_update_project_details(project_alias=None):
             raise InvalidUsage('Unauthorized', status_code=401)
 
 
-@app.route('/api/new/<project_alias>', methods=['POST'], strict_slashes=False)
+@app.route('/api/new/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 def api_new_folder(project_alias=None):
     """Update a project properties."""
     api_key = request.form.get("api_key")
@@ -3596,7 +3543,7 @@ def api_new_folder(project_alias=None):
             raise InvalidUsage('Unauthorized', status_code=401)
 
 
-@app.route('/api/folders/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/api/folders/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
     # Connect to db
@@ -3676,7 +3623,7 @@ def api_get_folder_details(folder_id=None):
         return None
 
 
-@app.route('/api/files/<file_id>', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/api/files/<file_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_file_details(file_id=None):
     """Get the details of a file."""
 
@@ -3743,7 +3690,7 @@ def api_get_file_details(file_id=None):
     return val
 
 
-@app.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_report(report_id=None):
     """Get the data from a project report."""
     if report_id is None:
@@ -3793,7 +3740,7 @@ def api_get_report(report_id=None):
 
 
 @cache.memoize()
-@app.route('/reports/', methods=['GET'], strict_slashes=False)
+@app.route('/reports/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def data_reports_form():
     """Report of a project"""
     project_alias = request.values.get("project_alias")
@@ -3802,7 +3749,7 @@ def data_reports_form():
 
 
 @cache.memoize()
-@app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], strict_slashes=False)
+@app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def data_reports(project_alias=None, report_id=None):
     """Report of a project"""
 
@@ -3875,7 +3822,7 @@ def data_reports(project_alias=None, report_id=None):
 
 
 @cache.memoize()
-@app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def get_preview(file_id=None, max=None):
     """Return image previews"""
     if file_id is None:
@@ -3951,7 +3898,7 @@ def get_preview(file_id=None, max=None):
 
 
 @cache.memoize()
-@app.route('/barcode_image/<barcode>/', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/barcode_image/<barcode>/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def get_barcodeimage(barcode=None):
     """Return image previews using a barcode that has a collex prefix in format: prefix:barcode"""
     if barcode is None:
@@ -4025,4 +3972,4 @@ def get_barcodeimage(barcode=None):
 
 #####################################
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
