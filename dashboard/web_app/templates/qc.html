@@ -13,6 +13,22 @@
             <i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
     </p>
 
+    <h4>QC Progress</h4>
+
+<div class="card w-25">
+    <h5 class="card-header">Total number of folders: {{ project_qc_stats.total }}</h5>
+    <div class="card-body">
+        <ul class="list-group">
+            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-success">QC Passed</span></h5><h5> {{ project_qc_stats.ok }} folders</h5></li>
+            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-danger">QC Failed</span></h5><h5> {{ project_qc_stats.failed }} folders</h5></li>
+            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-secondary">QC Pending</span></h5><h5> {{ project_qc_stats.pending }} folders</h5></li>
+        </ul>
+    </div>
+</div>
+
+
+    <br><br>
+
     <h4>Next Folder for QC:</h4>
 
         <table class="table table-striped border">
@@ -30,7 +46,7 @@
                 {% for folder in folder_qc_info %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('dashboard_f', project_alias=project.project_alias, folder_id=folder.folder_id) }}" title="See Folder Details"><i class="fa-solid fa-list"></i> {{ folder.project_folder }}</a>
+                        {{ folder.project_folder }}
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
@@ -100,7 +116,7 @@
                     {% for folder in folder_qc_done %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('dashboard_f', project_alias=project.project_alias, folder_id=folder.folder_id) }}" title="See Folder Details"><i class="fa-solid fa-list"></i> {{ folder.project_folder }}</a>
+                            {{ folder.project_folder }}
                         </td>
                         <td>
                              <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>

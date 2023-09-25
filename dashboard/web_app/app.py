@@ -42,11 +42,8 @@ from PIL import Image
 
 import settings
 
-# Profile app
-# from werkzeug.middleware.profiler import ProfilerMiddleware
 
-
-site_ver = "2.6.0"
+site_ver = "2.6.1"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -739,7 +736,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             for fcheck in project_postprocessing_temp:
                 project_postprocessing.append(fcheck['file_check'])
         filechecks_list = []
-
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_ok = run_query(("WITH "
@@ -971,7 +967,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
                                                   " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
                                                  {'folder_id': folder_id}, cur=cur))
-            logging.info("project_postprocessing {}".format(project_info['project_postprocessing']))
+            logging.info("project_postprocessing {}".format(project_postprocessing))
             post_processing_df['file_name'] = '<a href="/file/' \
                                               + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
                                               + post_processing_df['file_name'].astype(str) \
@@ -1446,6 +1442,27 @@ def qc(project_alias=None):
 
     project_settings = project_settings[0]
 
+    project_qc_stats = {}
+
+    project_qc_ok = run_query(("SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
+                        "WHERE f.project_id = %(project_id)s and q.qc_status = 0"),
+                        {'project_id': project_id}, cur=cur)[0]
+
+    project_qc_failed = run_query((
+                                  "SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
+                                  "WHERE f.project_id = %(project_id)s and q.qc_status = 1"),
+                              {'project_id': project_id}, cur=cur)[0]
+
+    project_qc_count = run_query((
+        "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s"),
+        {'project_id': project_id}, cur=cur)[0]
+
+    project_qc_stats['total'] = project_qc_count['no_folders']
+    project_qc_stats['ok'] = project_qc_ok['no_folders']
+    project_qc_stats['failed'] = project_qc_failed['no_folders']
+
+    project_qc_stats['pending'] = project_qc_stats['total'] - (project_qc_stats['ok'] + project_qc_stats['failed'])
+
     folder_qc_done = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                 " errors AS "
                                 "         (SELECT folder_id, count(file_id) as no_files "
@@ -1551,6 +1568,7 @@ def qc(project_alias=None):
                            folder_qc_done_len=len(folder_qc_done),
                            project=project,
                            form=form,
+                           project_qc_stats=project_qc_stats,
                            site_env=site_env,
                            site_net=site_net)
 
