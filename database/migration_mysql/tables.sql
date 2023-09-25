@@ -50,6 +50,7 @@ DROP TABLE IF EXISTS folders_md5 CASCADE;
 DROP TABLE IF EXISTS folders CASCADE;
 DROP TABLE IF EXISTS projects_links CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS projects_settings CASCADE;
 DROP TABLE IF EXISTS dams_cdis_file_status_view_dpo CASCADE;
 DROP TABLE IF EXISTS dams_vfcu_file_view_dpo CASCADE;
 DROP TABLE IF EXISTS projects_stats_detail CASCADE;
@@ -189,8 +190,7 @@ create table folders (
     processing_md5 boolean DEFAULT 0,
     no_files INT,
     file_errors INT DEFAULT 9,
-    updated_at timestamp DEFAULT CURRENT_TIMESTAMP
-                ON UPDATE CURRENT_TIMESTAMP,
+    updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT fk_foldproj
     FOREIGN KEY (project_id) 
         REFERENCES projects(project_id)
@@ -232,8 +232,7 @@ CREATE TABLE folders_links (
     folder_id       INT,
     link_text       VARCHAR(254),
     link_url        VARCHAR(254),
-    updated_at      timestamp DEFAULT CURRENT_TIMESTAMP
-                ON UPDATE CURRENT_TIMESTAMP,
+    updated_at      timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT fk_foldlink
     FOREIGN KEY (folder_id) 
         REFERENCES folders(folder_id)
