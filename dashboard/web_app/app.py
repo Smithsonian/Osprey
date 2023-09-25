@@ -40,10 +40,6 @@ from wtforms.validators import DataRequired
 from datetime import datetime
 from PIL import Image
 
-# Plotly
-import plotly
-import plotly.express as px
-
 import settings
 
 # Profile app
@@ -442,32 +438,6 @@ def login(team=None):
         team_heading = "Summary of Collections Digitization Projects"
         html_title = "Collections Digitization Dashboard"
 
-        # Summary chart
-        query = ("with d as ("
-                 "   SELECT stat_date, sum(images_captured) as images_captured, sum(objects_digitized) as objects_digitized "
-                 "     FROM projects_stats_detail where time_interval ='monthly' group by stat_date)"
-                 "   SELECT stat_date, 'Images' as itype, "
-                 "            sum(images_captured) over (order by stat_date asc rows between unbounded preceding and current row)  as no_images"
-                 "          FROM d "
-                 "         UNION "
-                 "        SELECT stat_date, 'Objects' as itype,"
-                 "        sum(objects_digitized) over (order by stat_date asc rows between unbounded preceding and current row) as no_images"
-                 "      FROM d "
-                 "     ORDER BY stat_date")
-        df = pd.DataFrame(run_query(query, cur=cur))
-        df = df.rename(columns={"stat_date": "date"})
-        fig = px.line(df, x="date", y="no_images", color='itype',
-                      labels=dict(date="Date", no_images="Cumulative Count", itype="Count"),
-                      markers=True)
-        fig.update_layout(legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=0.01
-        ))
-        fig.update_layout(height=580)
-        graphJSON_summary = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
         # Summary stats
         summary_stats = {
             'objects_digitized': "{:,}".format(run_query(("SELECT SUM(objects_digitized) as total "
@@ -487,7 +457,6 @@ def login(team=None):
                       cur=cur)[0]['total'])
         }
     elif team == "md":
-        graphJSON_summary = None
         team_heading = "Summary of Mass Digitization Team Projects"
         html_title = "Summary of the Mass Digitization Team Projects, Collections Digitization"
 
@@ -518,7 +487,6 @@ def login(team=None):
         }
 
     elif team == "is":
-        graphJSON_summary = None
         team_heading = "Summary of Imaging Services Team Projects"
         html_title = "Summary of the Imaging Services Team Projects, Collections Digitization"
         # IS stats
@@ -549,7 +517,6 @@ def login(team=None):
         }
 
     elif team == "inf":
-        graphJSON_summary = None
         team_heading = "Summary of the Informatics Team Projects"
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
         summary_stats = None
@@ -613,7 +580,6 @@ def login(team=None):
                            msg=msg,
                            user_exists=user_exists,
                            username=username,
-                           graphJSON_summary=graphJSON_summary,
                            summary_stats=summary_stats,
                            team=team,
                            tables_md=[list_projects_md.to_html(table_id='list_projects_md', index=False,
