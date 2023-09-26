@@ -3069,12 +3069,15 @@ def api_get_project_details(project_alias=None):
                                      {'project_id': data[0]['project_id']}, cur=cur)
         else:
             folders = run_query(("SELECT "
-                                      "folder_id, project_id, project_folder as folder, "
-                                      "folder_path, status, notes, "
-                                      "error_info, date_format(date, '%%y-%%m-%%d') as capture_date, "
-                                      "no_files, file_errors, "
-                                      " CASE WHEN delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams "
-                                      "FROM folders WHERE project_id = %(project_id)s"),
+                                      "f.folder_id, f.project_id, f.project_folder as folder, "
+                                      "f.folder_path, f.status, f.notes, "
+                                      "f.error_info, date_format(f.date, '%%y-%%m-%%d') as capture_date, "
+                                      "f.no_files, f.file_errors, "
+                                      " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
+                                      " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                                              " WHEN q.qc_status = 1 THEN 'QC Failed' "
+                                              " WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status "
+                                      "FROM folders f LEFT JOIN qc_folders q ON (f.folder_id = q.folder_id) WHERE project_id = %(project_id)s"),
                                      {'project_id': data[0]['project_id']}, cur=cur)
         project_checks = run_query(("SELECT settings_value as project_check FROM projects_settings "
                                          " WHERE project_id = %(project_id)s AND project_setting = 'project_checks'"),

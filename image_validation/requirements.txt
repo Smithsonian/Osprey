@@ -1,4 +1,0 @@
-xmltodict
-pandas
-Pillow
-requests

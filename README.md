@@ -13,14 +13,8 @@ problems early.
 
 The system has two main components:
 
- * [image_validation](image_validation) - Python tool that runs a series of checks on folders. Results are sent to the dashboard via an HTTP API to be saved to the database.
- * [dashboard](dashboard) - Dashboard and QC system that reads the MySQL database and displays the results, written in Python/Flask.
-
-The database schema is in [database](database).
-
-## Under construction
-
- * A separate validator for audio files is in progress under [wav_validation](wav_validation).
+ * [Osprey Worker](https://github.com/Smithsonian/Osprey_Worker/) - Python tool that runs a series of checks on folders. Results are sent to the dashboard via an HTTP API to be saved to the database.
+ * [Osprey Misc](https://github.com/Smithsonian/Osprey_Misc/) - Database and scripts.
 
 ## License
 
