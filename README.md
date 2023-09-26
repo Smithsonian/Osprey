@@ -4,6 +4,10 @@ Osprey is a system that checks the images produced by vendors in mass
 digitization projects by the Collections Digitization program of the
 Digitization Program Office, OCIO, Smithsonian.
 
+![DPO Logo](https://github.com/Smithsonian/Osprey/assets/2302171/fa136270-943d-47f3-8a86-2eb6660b2913)
+
+https://dpo.si.edu/
+
 The system checks that the files pass a number of tests and displays
 the results in a web dashboard. This allows the vendor, the
 project manager, and the unit to monitor the progress and detect
