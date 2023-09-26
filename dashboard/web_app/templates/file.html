@@ -143,7 +143,11 @@
             <!--Embedded Metadata:</h4> -->
             <div style="font-size: 0.9em;">
                 {% for table in tables %}
+                    {% if file_metadata_rows > 0 %}
                        {{ table|safe }}
+                    {% else %}
+                        <p>Image metadata is not available.</p>
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>

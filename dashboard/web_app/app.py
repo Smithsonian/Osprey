@@ -2653,6 +2653,7 @@ def file(file_id=None):
                            tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                          escape=False,
                                                          classes=["display", "compact", "table-striped"])],
+                           file_metadata_rows=file_metadata.shape[0],
                            file_links=file_links,
                            form=form,
                            site_env=site_env,
