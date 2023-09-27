@@ -270,7 +270,7 @@
                             href="{{ url_for('file', file_id=file.file_id) }}"
                             title="Details of the file {{ file.file_name }}">
 
-                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" width="160px" style="padding: 10px;" alt="Image preview of the file {{ file.file_name }}"><br>
+                        <img src="{% if file.preview_image_ext == None %}{{ url_for('get_preview', file_id=file.file_id, max=160) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid"><br>
 
                         <small>{{ file.file_name }}</small>
                   </a>

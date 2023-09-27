@@ -85,6 +85,10 @@ app.config.from_mapping(config)
 cache = Cache(app)
 
 
+# Secure cookies
+SESSION_COOKIE_SECURE = True
+
+
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
 class InvalidUsage(Exception):
     status_code = 400
@@ -831,10 +835,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         else:
             offset = (page - 1) * no_items
         files_df = run_query((
-                                 "WITH data AS (SELECT file_id, COALESCE(preview_image, CONCAT('/preview_image/', file_id, '/?')) as preview_image, "
-                                 "         folder_id, file_name FROM files "
+                                 "WITH data AS (SELECT file_id, CONCAT('/preview_image/', file_id, '/?') as preview_image, "
+                                 "         preview_image as preview_image_ext, folder_id, file_name FROM files "
                                  "WHERE folder_id = %(folder_id)s)"
-                                 " SELECT file_id, preview_image, folder_id, file_name"
+                                 " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name"
                                  " FROM data "
                                  " ORDER BY file_name "
                                  "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
