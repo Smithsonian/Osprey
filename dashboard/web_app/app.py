@@ -74,19 +74,16 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 
 # Cache config
 config = {
-    "DEBUG": True,  # some Flask specific configs
     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
     "CACHE_DIR": "{}/cache".format(os.getcwd()),
-    "CACHE_DEFAULT_TIMEOUT": 60
+    "CACHE_DEFAULT_TIMEOUT": 60,
+    "SESSION_COOKIE_SECURE": True
 }
 app = Flask(__name__)
 app.secret_key = settings.secret_key
 app.config.from_mapping(config)
 cache = Cache(app)
 
-
-# Secure cookies
-SESSION_COOKIE_SECURE = True
 
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
@@ -376,7 +373,7 @@ def kiosk_mode(request, kiosks):
 @cache.memoize()
 @app.route('/team/<team>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 @app.route('/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
-def login(team=None):
+def homepage(team=None):
     """Main homepage for the system"""
     if current_user.is_authenticated:
         user_exists = True
@@ -874,7 +871,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                             "  COALESCE(f.preview_image, CONCAT('/preview_image/', f.file_id, '/?')) as preview_image "
+                                                             "  CASE WHEN f.preview_image is NULL THEN CONCAT('/preview_image/', f.file_id, '/?') ELSE f.preview_image END as preview_image "
                                                              " FROM files f where f.folder_id = %(folder_id)s"),
                                                             {'folder_id': folder_id}, cur=cur))
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
@@ -887,7 +884,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                + '<button type="button" class="btn btn-light btn-sm" ' \
                                                + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
                                                + 'data-bs-info="' + folder_files_df['preview_image'] \
-                                               + '" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) \
+                                               + '&max=1200" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) \
                                                + '" data-bs-text = "Details of the file ' + folder_files_df[
                                                    'file_name'].astype(str) \
                                                + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
@@ -2542,7 +2539,7 @@ def project_update(project_alias):
 @cache.memoize(60)
 @app.route('/dashboard/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def dashboard_empty():
-    return redirect(url_for('login'))
+    return redirect(url_for('homepage'))
 
 
 @app.route('/file/<file_id>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
@@ -2669,7 +2666,7 @@ def file(file_id=None):
 
 @app.route('/file/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def file_empty():
-    return redirect(url_for('login'))
+    return redirect(url_for('homepage'))
 
 
 @cache.memoize()
@@ -2887,7 +2884,7 @@ def search_folders(project_alias):
 @app.route("/logout", methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('homepage'))
 
 
 @app.route("/notuser", methods=['GET'], strict_slashes=False, provide_automatic_options=False)

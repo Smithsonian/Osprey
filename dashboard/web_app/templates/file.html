@@ -16,7 +16,7 @@
 
         <div class="col">
              <p>
-                <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}" role="button">
+                <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}" title="Folder {{ folder_info.project_folder }} page" role="button">
                     <i class="fa-solid fa-list"></i> Back to folder {{ folder_info.project_folder }}
                 </a>
             </p>
@@ -60,7 +60,8 @@
 
                     {% endif %}
 
-                File ID: {{ file_details.file_id }}
+                    Filename: {{ file_details.file_name }}<br>
+                    File ID: {{ file_details.file_id }}
                 </small>
                 </p>
 

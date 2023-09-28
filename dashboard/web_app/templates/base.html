@@ -101,8 +101,7 @@
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
-            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}">{% block page_title %}{% endblock %}</a>
-
+            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}" title="Project Homepage">{% block page_title %}{% endblock %}</a>
 
 
         <div class="row">
@@ -112,11 +111,11 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home"><i class="fa-solid fa-house"></i> My Projects ({{ username }})</a>
-                        <!-- <a href="{{ url_for('login') }}" class="navitems" aria-label="See all projects">All Projects</a> -->
+                        <a href="{{ url_for('homepage') }}" class="navitems" aria-label="System Homepage" title="System Homepage"><i class="fa-solid fa-house"></i> Home</a>
+                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home" title="User Home"> My Projects ({{ username }})</a>
                         <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
-                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system">Logout</a>
+                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system" title="Logout of the system">Logout</a>
                     </small>
                 </div>
 
@@ -124,7 +123,7 @@
 
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
-                        <!-- <a href="{{ url_for('login') }}" class="navitems" aria-label="See all Projects">All Projects</a> -->
+                        <a href="{{ url_for('homepage') }}" class="navitems" aria-label="Homepage"><i class="fa-solid fa-house"></i> Home</a>
                         {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system">Login</a> {% endif %}
                         <a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">API</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
