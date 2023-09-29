@@ -37,33 +37,37 @@
         <div class="col-4">
             <h4>Image Preview:</h4>
 
-                <p><small>
-
                     {% if kiosk  %}
 
-                        <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
+                        <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
 
                     {% else %}
 
-                        <a href="{% if file_details.preview_image_ext == None %}{{ file_details.preview_image }}{% else %}{{ file_details.preview_image_ext }}{% endif %}" target="_blank" rel="noopener noreferrer" alt="Opens in new window">
-                            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid">
-                            <br>Open JPG in a new tab <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span>
-                        </a>
+                        <a href="{% if file_details.preview_image_ext == None %}{{ file_details.preview_image }}{% else %}{{ file_details.preview_image_ext }}{% endif %}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
+                            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top"></a>
 
+                    <h5>Filename: {{ file_details.file_name }}</h5>
+                        <small>File ID: {{ file_details.file_id }}</small>
+
+                        {% if file_links|length > 0 %}
                         <!-- File Links -->
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Links related to this image:</h5>
+                                    <div class="list-group">
 
-                        {% for link in file_links %}
-                            <br><a href="{{ link.link_url }}" target="_blank">{{ link.link_name | safe }}</a>
-                        {% endfor %}
+                                    {% for link in file_links %}
+                                          <a href="{{ link.link_url }}" class="list-group-item">{{ link.link_name | safe }}</a>
+                                    {% endfor %}
 
-                        <br>
+                                    </div>
+
+                            <!-- End card -->
+                                </div>
+                            </div>
+                        {% endif %}
 
                     {% endif %}
-
-                    Filename: {{ file_details.file_name }}<br>
-                    File ID: {{ file_details.file_id }}
-                </small>
-                </p>
 
                 <table class="table compact table-striped" style="width:100%">
                     <caption style="caption-side: top;"><h4>File Technical Checks</h4></caption>
