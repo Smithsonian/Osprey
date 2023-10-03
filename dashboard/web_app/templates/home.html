@@ -63,7 +63,7 @@
 
                                     <p><small>We have started the pilot project of the digitization of the JPC Archive. This pilot will digitize about 8,000 items from the archive and will help us tests the
                                         workflows and systems integration. </small></p>
-                                    <a href="/dashboard/jpc_pilot/" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Project Dashboard</a>
+                                    <a href="{{ url_for('dashboard', project_alias = 'jpc_pilot') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Pilot Project Dashboard</a>
                             </div>
                         </div>
 
@@ -79,7 +79,7 @@
 
                                     <p><small>We are digitizing about 25,000 lots, with up to three individuals per lot,
                                         adding over 120,000 images of freshwater mussels - otherwise known as the Mollusca family Unionidae.</small></p>
-                                    <a href="/dashboard/nmnh_unionoida/" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
+                                    <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
 
                             </div>
                         </div>
@@ -95,7 +95,7 @@
                                     <h2 class="card-title">Digitization of the National Herbarium Continues</h2>
 
                                     <p><small>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</small></p>
-                                    <a href="/dashboard/botany_accessions/" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
+                                    <a href="{{ url_for('dashboard', project_alias = 'botany_accessions') }}" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
 
                             </div>
                         </div>

@@ -43,7 +43,7 @@ from PIL import Image
 import settings
 
 
-site_ver = "2.6.1"
+site_ver = "2.6.2"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -597,6 +597,11 @@ def homepage(team=None):
                            )
 
 
+@app.route('/team/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+def empty_team():
+    return redirect(url_for('homepage'))
+
+
 @cache.memoize()
 @app.route('/dashboard/<project_alias>/<folder_id>/<tab>/<page>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 @app.route('/dashboard/<project_alias>/<folder_id>/<tab>/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
@@ -609,6 +614,16 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         user_exists = False
         username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    try:
+        folder_id = int(folder_id)
+    except ValueError:
+        error_msg = "Invalid folder ID"
+        return render_template('error.html', form=form, error_msg=error_msg,
+                               project_alias=project_alias, site_env=site_env), 400
 
     # Tab
     if tab is None or tab == '':
@@ -645,9 +660,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         logging.error(e)
         raise InvalidUsage('System error')
 
-    # Declare the login form
-    form = LoginForm(request.form)
-
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
@@ -673,7 +685,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                      "Please click the link below to go to the main page of the dashboard.")
         return render_template('error.html', form=form, error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env), 404
-
 
     project_stats = {}
     if project_alias is None:
@@ -3735,8 +3746,16 @@ def api_get_report(report_id=None):
 @app.route('/reports/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def data_reports_form():
     """Report of a project"""
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
     project_alias = request.values.get("project_alias")
     report_id = request.values.get("report_id")
+    print(project_alias)
+    if project_alias is None or report_id is None:
+        error_msg = "Report is not available."
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 404
     return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
 
 
@@ -3760,8 +3779,6 @@ def data_reports(project_alias=None, report_id=None):
         logging.error(e)
         raise InvalidUsage('System error')
 
-    # Declare the login form
-    form = LoginForm(request.form)
 
     if project_alias is None:
         error_msg = "Project is not available."
