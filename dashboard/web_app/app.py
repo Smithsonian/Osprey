@@ -3050,7 +3050,8 @@ def api_get_project_details(project_alias=None):
                                "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%%y-%%m-%%d') END as project_end, "
                                "project_notice, "
                                "cast(updated_at as DATE) AS updated_at "
-                               "FROM projects WHERE project_alias = %(project_alias)s"),
+                               "FROM projects "
+                               " WHERE project_alias = %(project_alias)s"),
                               {'project_alias': project_alias}, cur=cur)
     else:
         data = run_query(("SELECT "
@@ -3090,8 +3091,14 @@ def api_get_project_details(project_alias=None):
                                       " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
                                       " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                               " WHEN q.qc_status = 1 THEN 'QC Failed' "
-                                              " WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status "
-                                      "FROM folders f LEFT JOIN qc_folders q ON (f.folder_id = q.folder_id) WHERE project_id = %(project_id)s"),
+                                              " WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
+                                      " GROUP_CONCAT(b.badge_text) as badges"
+                                      " FROM folders f LEFT JOIN qc_folders q ON (f.folder_id = q.folder_id)"
+                                      "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id) "
+                                      " WHERE project_id = %(project_id)s"
+                                      " GROUP BY f.folder_id, f.project_id, f.project_folder, f.folder_path, "
+                                      "      f.status, f.notes, f.error_info, f.date, f.no_files,"
+                                      "      f.file_errors, q.qc_status"),
                                      {'project_id': data[0]['project_id']}, cur=cur)
         project_checks = run_query(("SELECT settings_value as project_check FROM projects_settings "
                                          " WHERE project_id = %(project_id)s AND project_setting = 'project_checks'"),
@@ -3623,6 +3630,47 @@ def api_get_folder_details(folder_id=None):
         conn.close()
         return jsonify(data[0])
     else:
+        return None
+
+
+@app.route('/api/folders/qc/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+def api_get_folder_qc(folder_id=None):
+    """Get the details of a folder and the list of files."""
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logging.error(e)
+        raise InvalidUsage('System error')
+
+    api_key = request.form.get("api_key")
+    logging.info("api_key: {}".format(api_key))
+
+    if validate_api_key(api_key, cur=cur):
+        query = (
+            "SELECT f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
+            " CASE WHEN q.file_qc = 0 THEN 'Image OK' WHEN q.file_qc = 1 THEN 'Critical Issue' "
+            "   WHEN q.file_qc = 2 THEN 'Major Issue' WHEN q.file_qc = 3 THEN 'Minor Issue' END AS file_qc, "
+            " q.qc_info, u.full_name, DATE_FORMAT(q.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at "
+            " FROM qc_files q, files f, users u WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
+            "       AND q.qc_by = u.user_id ")
+        data1 = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+        data = {}
+        data['qc'] = data1
+        cur.close()
+        conn.close()
+        return jsonify(data)
+    else:
+        cur.close()
+        conn.close()
         return None
 
 
