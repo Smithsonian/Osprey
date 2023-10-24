@@ -1,0 +1,13 @@
+flask
+requests
+simplejson
+beautifulsoup4
+flask-login
+wtforms
+flask_wtf
+pandas
+Flask-Caching
+PyMySQL
+Pillow
+werkzeug
+mod-wsgi
