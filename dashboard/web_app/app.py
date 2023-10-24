@@ -1761,7 +1761,7 @@ def qc_process(folder_id):
                                               "   FROM files_checks WHERE file_id = %(file_id)s"),
                                              {'file_id': file_qc['file_id']}, cur=cur)
                 image_url = '/preview_image/' + str(file_qc['file_id']) + '/?'
-                image_url_prev = '/preview_image/' + str(file_qc['file_id']) + '/?max=600'
+                image_url_prev = '/preview_image/' + str(file_qc['file_id']) + '/?max=1200'
                 file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                              "   FROM files_exif "
                                                              "   WHERE file_id = %(file_id)s "
