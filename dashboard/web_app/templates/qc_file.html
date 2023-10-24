@@ -52,35 +52,37 @@
         </div>
 
 
-        <div class="col-8">
+        <div class="col">
 
             <div class="card">
                 <div class="card-body text-bg-secondary p-3">
                     <h5 class="card-title">File: {{ file_details.file_name }}</h5>
-                    <p class="card-text"><p>Preview resized to a max of 600x600 (fullsize below):</p>
-                        <img src="{{ image_url_prev }}" style="max-width: 600px; max-height: 600px;">
+                    <p class="card-text"><p>Preview resized to a max of 1200 x 1200:<br>
+                        <a href="{{ image_url }}&dl=1" style="color: #fff!important"><img src="{{ image_url_prev }}" style="max-width: 1200px; max-height: 1200px;"><br>
+                    <i class="fa-solid fa-download"></i> Download full size JPG</a></p>
                 </div>
             </div>
 
-
         </div>
-
 
     </div>
 
-    <div class="row">
-        <br><br>
-        <div class="card">
-            <div class="card-body p-3">
-                <h5 class="card-title">Fullsize image - mouseover to zoom in:</h5>
-                <p class="card-text"><a><small><a href="{{ image_url }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>
-            </div>
-                <!-- Image zoom from: https://www.jacklmoore.com/zoom/ -->
-                <img src="{{ image_url }}" style="width:100%;" class="card-img-bottom" id="previmg">
-        </div>
+    <hr>
 
-
-    </div>
+{##}
+{#    <div class="row">#}
+{#        <br><br>#}
+{#        <div class="card">#}
+{#            <div class="card-body p-3">#}
+{#                <h5 class="card-title">Fullsize image - mouseover to zoom in:</h5>#}
+{#                <p class="card-text"><a><small><a href="{{ image_url }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>#}
+{#            </div>#}
+{#                <!-- Image zoom from: https://www.jacklmoore.com/zoom/ -->#}
+{#                <img src="{{ image_url }}" style="width:100%;" class="card-img-bottom" id="previmg">#}
+{#        </div>#}
+{##}
+{##}
+{#    </div>#}
 
     <div class="row">
 
