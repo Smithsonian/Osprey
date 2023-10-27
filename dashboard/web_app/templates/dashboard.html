@@ -187,6 +187,10 @@
 
         {% if tab == "filechecks" %}
 
+            {% if is_admin %}
+                <p style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></p>
+            {% endif %}
+
                 {% if folder_links | length > 0 %}
 
                     <div class="pb-1 float-end">
