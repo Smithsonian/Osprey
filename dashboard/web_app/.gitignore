@@ -2,3 +2,5 @@ cache
 __pychache__
 .idea
 settings.py
+
+!na.jpg
