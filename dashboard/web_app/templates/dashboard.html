@@ -139,12 +139,12 @@
 
             {% for folder in project_folders %}
                 {% if folder.badge_text == "Folder under verification..." %}
-                    <a href="#" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
+                    <a href="#" id="{{ folder.project_folder | replace(' ', '_') }}" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
                 {% else %}
                     {% if folder.project_folder == folder_name.project_folder %}
-                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary"><strong>{{ folder.project_folder }}</strong>
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
                     {% else %}
-                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}">{{ folder.project_folder }}
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
                     {% endif %}
                 {% endif %}
 
@@ -165,30 +165,50 @@
 
                 </a>
 
-        {% endfor %}
-        </p>
-    </div>
+            {% endfor %}
+            </p>
+        </div>
 
     </div>
 <div class="col overflow-x-auto" style="font-size: 0.9em;">
 
     {% if folder_name != None %}
 
-        <!-- Choose team -->
-
-                <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
-                    <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to view the file check results of the folder" aria-label="Link to view the file check results of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
-                    <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews of the folder" aria-label="Link to view image previews of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
-                    {% if postproc_data %}
-                        <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-processing steps of the folder" aria-label="Link to view the post-processing steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
+        <!-- This folder badges -->
+        {% for folder in project_folders %}
+                {% if folder.folder_id == folder_id %}
+                    <div style="text-align: right;">
+                    {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                    &nbsp;  <span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
                     {% endif %}
-                </div>
+
+                    {% if folder_badge is not none %}
+                        {% for folder_badge in project_folders_badges %}
+                            {% if folder_badge.folder_id == folder.folder_id %}
+                                <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+
+        <!-- Choose view -->
+            <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
+                <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to view the file check results of the folder" aria-label="Link to view the file check results of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
+                <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews of the folder" aria-label="Link to view image previews of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                {% if postproc_data %}
+                    <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-processing steps of the folder" aria-label="Link to view the post-processing steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
+                {% endif %}
+            </div>
 
 
         {% if tab == "filechecks" %}
 
+
             {% if is_admin %}
-                <p style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></p>
+                <div style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></div>
             {% endif %}
 
                 {% if folder_links | length > 0 %}
