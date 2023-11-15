@@ -43,7 +43,7 @@ from PIL import Image
 import settings
 
 
-site_ver = "2.6.3"
+site_ver = "2.6.4"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -75,7 +75,7 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 # Cache config
 config = {
     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
-    "CACHE_DIR": "{}/cache".format(os.getcwd()),
+    "CACHE_DIR": settings.cache_folder,
     "CACHE_DEFAULT_TIMEOUT": 60,
     "SESSION_COOKIE_SECURE": True
 }

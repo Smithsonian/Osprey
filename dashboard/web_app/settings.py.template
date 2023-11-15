@@ -15,5 +15,6 @@ env = "dev"
 site_net = "internal"
 
 log_folder = ""
+cache_folder = ""
 
 kiosks = []
