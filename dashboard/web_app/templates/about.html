@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+{% block title %}DPO Collections Digitization Dashboard{% endblock %}
 
-{% block page_title %}DPO Collection Digitization Dashboard{% endblock %}
+{% block page_title %}DPO Collections Digitization Dashboard{% if site_net == "internal" %} - SI Internal{% endif %}{% endblock %}
 
 {% block homelink %}/{% endblock %}
 
@@ -10,7 +10,8 @@
 
     <div class="row">
         <div class="col-8">
-            <p>Osprey Dashboard version {{ site_ver }}<br>
+            <p>Osprey - DPO Collections Digitization Dashboard - version {{ site_ver }}<br>
+                {% if site_net == "internal" %}<strong>This is the SI Internal instance.</strong><br>{% endif %}
             Source at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
 
             <p class="w-50"><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system provides a convenient way to see the products of

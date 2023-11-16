@@ -3,4 +3,4 @@ __pychache__
 .idea
 settings.py
 
-!na.jpg
+!static/*
