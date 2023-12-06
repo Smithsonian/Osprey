@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
+
+{% block page_title %}
+
+        {{ project_info.project_title }}
+
+{% endblock %}
+
+{% block homelink %}
+    {% if kiosk %}""{% else %}{{ url_for('dashboard', project_alias=project_alias) }}{% endif %}
+{% endblock %}
+
+{% block content %}
+
+
+<div class="row">
+    <div class="col-6">
+        <div class="card">
+          <h2><span class="badge bg-dark d-flex">Project Details</span></h2>
+          <div class="card-body" style="padding: 4px;">
+
+                {% if project_info.project_description != None and project_info.project_description != "" %}<strong>{{ project_info.project_description }}</strong><br><br>{% endif %}
+                <div class="row">
+                    <!-- If there are no links, move items -->
+                    {% if projects_links|length > 0 %}
+                      <div class="col-6">
+                          <!-- links and media -->
+                            <div class="list-group">
+                            {% for link in projects_links %}
+                                  <small><a href="{{ link.url }}" title="{{ link.link_title }} (external link)" target="_blank" class="list-group-item list-group-item-action list-group-item-primary">
+                                    {% if link.link_type == "yt" %}
+                                        <i class="fa-solid fa-video" title="YouTube Video"></i>
+                                    {% elif link.link_type == "video" %}
+                                        <i class="fa-solid fa-video" title="Video"></i>
+                                    {% elif link.link_type == "fb" %}
+                                        <i class="fa-brands fa-facebook" title="Facebook Post"></i>
+                                    {% elif link.link_type == "ig" %}
+                                        <i class="fa-brands fa-instagram" title="Instagram Post"></i>
+                                    {% elif link.link_type == "news" %}
+                                        <i class="fa-solid fa-newspaper" title="News Item"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-link" title="Link"></i>
+                                    {% endif %}
+                                    {{ link.link_title }}
+                                        <i class="small fa-solid fa-arrow-up-right-from-square"></i>
+                                        <span class="screen-reader-only">(link is external)</span>
+                                    </a>
+                                </small>
+                            {% endfor %}
+                          </div>
+                        </div>
+                    {% endif %}
+                      <div class="col-3">
+                          <small>
+                              <div title="Project Manager"><i class="fa-solid fa-user-gear"></i> {{ project_manager_link | safe }}<br></div>
+                              <div title="Team">
+                                  <i class="fa-solid fa-people-group"></i>
+                                  {% if project_info.project_section == "MD" %}Mass Digitization{% elif project_info.project_section == "IS" %}Imaging Services{% endif %}<br>
+                              </div>
+                              <div title="Unit"><i class="fa-solid fa-building-columns"></i> {{ project_info.project_unit }}<br></div>
+                              <div title="Project Type"><i class="fa-solid fa-diagram-project"></i> {{ project_info.project_type }}</div>
+                          </small>
+                      </div>
+                      <div class="col-3">
+                          <small>
+                              <div title="Project Area"><i class="fa-solid fa-book-open"></i> {{ project_info.project_area }}<br></div>
+                              <div title="Project Status"><i class="fa-solid fa-list-check"></i> {{ project_info.project_status }}<br></div>
+                              <div title="Dates of the Project"><i class="fa-solid fa-calendar-days"></i> {{ project_info.pdates }}<br></div>
+                              <div title="Disk Space Used"><i class="fa-solid fa-hard-drive"></i> {{ project_disk }}</div>
+                          </small>
+                      </div>
+                    {% if projects_links|length > 0 %}
+                        <div class="col-6">&nbsp;</div>
+                    {% endif %}
+                </div>
+
+          </div>
+        </div>
+    </div>
+    <div class="col">
+
+        <div class="row">
+            <div class="col">
+                    <h1 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h1>
+                    <h1 title="Total number of objects/specimens digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h1>
+            </div>
+            <div class="col">
+                    <h1 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h1>
+                    <h1 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h1>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">&nbsp;</div>
+                <div class="col">
+                    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
+                    <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+                    </form>
+                </div>
+
+        </div>
+    </div>
+
+    </div>
+
+<hr>
+
+<div class="row">
+
+    <div class="col-auto" style="font-size: 0.9em;">
+
+        {% if proj_reports %}
+
+            <!-- Project Reports -->
+            <form action="{{ url_for('data_reports_form') }}" method="GET">
+            <div class="row">
+                <div class="col-8">
+                    <input type="hidden" name="project_alias" value="{{ project_alias }}">
+                    <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
+                        {% for report in reports %}
+                                <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary btn-sm">Open Report</button></form>
+                </div>
+            </div>
+
+            <hr>
+
+        {% endif %}
+
+    <h4>{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
+                     in the Project:</h4>
+        <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
+
+            {% for folder in project_folders %}
+                {% if folder.badge_text == "Folder under verification..." %}
+                    <a href="#" id="{{ folder.project_folder | replace(' ', '_') }}" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
+                {% else %}
+                    {% if folder.project_folder == folder_name.project_folder %}
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+                    {% else %}
+                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
+                    {% endif %}
+                {% endif %}
+
+                {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                &nbsp;&nbsp;<span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                {% endif %}
+
+                {% if folder_badge is not none %}
+
+                        {% for folder_badge in project_folders_badges %}
+                                {% if folder_badge.folder_id == folder.folder_id %}
+                                    <br>
+                                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                                {% endif %}
+                        {% endfor %}
+
+                    {% endif %}
+
+                </a>
+
+            {% endfor %}
+            </p>
+        </div>
+
+    </div>
+<div class="col overflow-x-auto" style="font-size: 0.9em;">
+
+    {% if folder_name != None %}
+
+        <!-- This folder badges -->
+        {% for folder in project_folders %}
+                {% if folder.folder_id == folder_id %}
+                    <div style="text-align: right;">
+                    {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                    &nbsp;  <span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                    {% endif %}
+
+                    {% if folder_badge is not none %}
+                        {% for folder_badge in project_folders_badges %}
+                            {% if folder_badge.folder_id == folder.folder_id %}
+                                <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+
+        <!-- Choose view -->
+            <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
+                <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to view the file check results of the folder" aria-label="Link to view the file check results of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
+                <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews of the folder" aria-label="Link to view image previews of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                {% if postproc_data %}
+                    <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-processing steps of the folder" aria-label="Link to view the post-processing steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
+                {% endif %}
+            </div>
+
+
+        {% if tab == "filechecks" %}
+
+
+            {% if is_admin %}
+                <div style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></div>
+            {% endif %}
+
+                {% if folder_links | length > 0 %}
+
+                    <div class="pb-1 float-end">
+                        <div class="card text-bg-light border-dark">
+                            <div class="card-header">
+                                Links related to this folder
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for link in folder_links %}
+                                        <li class="list-group-item"><a href="{{ link.link_url }}" title="Link for {{ link.link_text }}" class="card-link">{{ link.link_text }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                {% endif %}
+
+                <br>
+                    {% if qc_check %}
+
+                        <div class="alert alert-secondary" role="alert">
+                            <div class="row">
+                                <div class="col-3">
+                                    <h4>QC Issues Found:</h4>
+                                </div>
+                                <div class="col-9">
+                                    {% for table in qc_details %}
+                                        {{ table|safe }}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    <br><hr>
+                    {% endif %}
+                <br>
+
+{#                {% for table in tables %}#}
+{#                       {{ table|safe }}#}
+{#                {% endfor %}#}
+
+            <table id="files_table" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>file_name</th>
+                        <th>jhove</th>
+                        <th>magick</th>
+                        <th>raw_pair</th>
+                        <th>sequence</th>
+                        <th>tifpages</th>
+                        <th>tif_compression</th>
+                        <th>unique_file</th>
+                    </tr>
+                </thead>
+            </table>
+
+
+
+
+
+
+
+
+
+
+              <!-- File preview modal -->
+              <div class="modal fade" id="previewmodal1" tabindex="-1" aria-labelledby="previewmodal1Label" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="previewmodal1Label">Image Preview (JPG)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                          <p><div class="float-end"><em>Image is resized to a max of 1200x1200. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link</a></p>
+
+                           <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+          {% elif tab == "lightbox" %}
+
+              <br><br>
+                <h5>Image Previews for the Folder {{ folder_name.project_folder }}</h5>
+
+                  <div class="row">
+                      <div class="col">
+                          <p><small><em>Sorted by file_name</em></small></p>
+                      </div>
+                      <div class="col">
+                          {{ pagination_html | safe }}
+                      </div>
+                  </div>
+
+
+                {% for file in files_df %}
+                    <a type="button" class="btn btn-light btn-sm"
+                            href="{{ url_for('file', file_id=file.file_id) }}"
+                            title="Details of the file {{ file.file_name }}">
+
+                        <img src="{% if file.preview_image_ext == None %}{{ url_for('get_preview', file_id=file.file_id, max=160) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid"><br>
+
+                        <small>{{ file.file_name }}</small>
+                  </a>
+
+                {% endfor %}
+
+            <br>{{ pagination_html | safe }}
+
+
+
+        {% elif tab == "postprod" %}
+
+            <br><br>
+
+                {% for table in post_processing %}
+                    {% if post_processing_rows == 0 %}
+                        <br><p>No data available.</p>
+                    {% else %}
+                       {{ table|safe }}
+                    {% endif %}
+                {% endfor %}
+
+        {% else %}
+            &nbsp;
+        {% endif %}
+
+
+    {% else %}
+        <p>Select a folder on the left</p>
+
+    {% endif %}
+
+    </div></div></div>
+</div>
+    <br>
+    {% if project_info.project_notice != None %}
+        <div class="alert alert-info m-100" role="alert">
+            <small>{{ project_info.project_notice | safe }}</small>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+
+{% if folder_id != None %}
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+
+        {% if tab == "filechecks" %}
+
+            var previewmodal1 = document.getElementById('previewmodal1');
+            previewmodal1.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              var filelink = button.getAttribute('data-bs-link')
+              var filetext = button.getAttribute('data-bs-text')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody1 = previewmodal1.querySelector('.modal-body img')
+              // modalBody1.src = checkinfo + '&max=1200';
+              modalBody1.src = checkinfo;
+              var modalBody2 = previewmodal1.querySelector('.modal-body a')
+              modalBody2.href = filelink;
+              previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
+            });
+
+                $('#qc_details_table').DataTable({
+                    dom: 'Bfrtip',
+                        buttons: [
+                            'csvHtml5',
+                            'excelHtml5',
+                            'pdfHtml5'
+                        ],
+                    "order": [],
+                    "columnDefs": [
+                        {
+                            'targets': 0,
+                            'createdCell':  function (td, cellData, rowData, row, col) {
+                                $(td).attr('scope', 'row');
+                            }
+                        }],
+                    lengthMenu: [
+                        [25, 50, 100, -1],
+                        [25, 50, 100, 'All'],
+                    ]
+                });
+
+                $('#files_table').append('<caption style="caption-side: top"><h5>Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
+
+                $('#files_table').DataTable({
+                    dom: 'Bfrtip',
+                        buttons: [
+                            'csvHtml5',
+                            'excelHtml5',
+                            'pdfHtml5'
+                        ],
+                    "order": [],
+                    "columnDefs": [
+                        {
+                            'targets': 0,
+                            'createdCell':  function (td, cellData, rowData, row, col) {
+                                $(td).attr('scope', 'row');
+                            }
+                        }],
+                    lengthMenu: [
+                        [25, 50, 100, -1],
+                        [25, 50, 100, 'All'],
+                    ],
+                    serverSide: true,
+                    ajax: '/ajax/{{ project_alias }}/{{ folder_id }}/',
+                    processing: true,
+                    'rowCallback': function(row, data, index){
+                        if(data[1] == 'OK'){
+                            $(row).find('td:eq(1)').css('background', '#198754');
+                            $(row).find('td:eq(1)').css('color', 'white');
+                        } else if(data[1] == 'Failed'){
+                            $(row).find('td:eq(1)').css('background', '#dc3545');
+                            $(row).find('td:eq(1)').css('color', 'white');
+                        } else if(data[1] == 'Pending'){
+                            $(row).find('td:eq(1)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(1)').css('color', 'black');
+                        };
+                        if(data[3] == 'OK'){
+                            $(row).find('td:eq(3)').css('background', '#198754');
+                            $(row).find('td:eq(3)').css('color', 'white');
+                        } else if(data[3] == 'Failed'){
+                            $(row).find('td:eq(3)').css('background', '#dc3545');
+                            $(row).find('td:eq(3)').css('color', 'white');
+                        } else if(data[3] == 'Pending'){
+                            $(row).find('td:eq(3)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(3)').css('color', 'black');
+                        };
+                        if(data[2] == 'OK'){
+                            $(row).find('td:eq(2)').css('background', '#198754');
+                            $(row).find('td:eq(2)').css('color', 'white');
+                        } else if(data[2] == 'Failed'){
+                            $(row).find('td:eq(2)').css('background', '#dc3545');
+                            $(row).find('td:eq(2)').css('color', 'white');
+                        } else if(data[2] == 'Pending'){
+                            $(row).find('td:eq(2)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(2)').css('color', 'black');
+                        };
+                        if(data[4] == 'OK'){
+                            $(row).find('td:eq(4)').css('background', '#198754');
+                            $(row).find('td:eq(4)').css('color', 'white');
+                        } else if(data[4] == 'Failed'){
+                            $(row).find('td:eq(4)').css('background', '#dc3545');
+                            $(row).find('td:eq(4)').css('color', 'white');
+                        } else if(data[4] == 'Pending'){
+                            $(row).find('td:eq(4)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(4)').css('color', 'black');
+                        };
+                        if(data[5] == 'OK'){
+                            $(row).find('td:eq(5)').css('background', '#198754');
+                            $(row).find('td:eq(5)').css('color', 'white');
+                        } else if(data[5] == 'Failed'){
+                            $(row).find('td:eq(5)').css('background', '#dc3545');
+                            $(row).find('td:eq(5)').css('color', 'white');
+                        } else if(data[5] == 'Pending'){
+                            $(row).find('td:eq(5)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(5)').css('color', 'black');
+                        };
+                        if(data[6] == 'OK'){
+                            $(row).find('td:eq(6)').css('background', '#198754');
+                            $(row).find('td:eq(6)').css('color', 'white');
+                        } else if(data[6] == 'Failed'){
+                            $(row).find('td:eq(6)').css('background', '#dc3545');
+                            $(row).find('td:eq(6)').css('color', 'white');
+                        } else if(data[6] == 'Pending'){
+                            $(row).find('td:eq(6)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(6)').css('color', 'black');
+                        };
+                        if(data[7] == 'OK'){
+                            $(row).find('td:eq(7)').css('background', '#198754');
+                            $(row).find('td:eq(7)').css('color', 'white');
+                        } else if(data[7] == 'Failed'){
+                            $(row).find('td:eq(7)').css('background', '#dc3545');
+                            $(row).find('td:eq(7)').css('color', 'white');
+                        } else if(data[7] == 'Pending'){
+                            $(row).find('td:eq(7)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(7)').css('color', 'black');
+                        };
+                        if(data[8] == 'OK'){
+                            $(row).find('td:eq(8)').css('background', '#198754');
+                            $(row).find('td:eq(8)').css('color', 'white');
+                        } else if(data[8] == 'Failed'){
+                            $(row).find('td:eq(8)').css('background', '#dc3545');
+                            $(row).find('td:eq(8)').css('color', 'white');
+                        } else if(data[8] == 'Pending'){
+                            $(row).find('td:eq(8)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(8)').css('color', 'black');
+                        };
+                        if(data[9] == 'OK'){
+                            $(row).find('td:eq(9)').css('background', '#198754');
+                            $(row).find('td:eq(9)').css('color', 'white');
+                        } else if(data[9] == 'Failed'){
+                            $(row).find('td:eq(9)').css('background', '#dc3545');
+                            $(row).find('td:eq(9)').css('color', 'white');
+                        } else if(data[9] == 'Pending'){
+                            $(row).find('td:eq(9)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(9)').css('color', 'black');
+                        };
+                    },
+                });
+
+
+        {% elif tab == "postprod" %}
+
+                $('#post_processing_table').append('<caption style="caption-side: top"><h5>Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
+
+                $('#post_processing_table').DataTable({
+                    dom: 'Bfrtip',
+                        buttons: [
+                            'csvHtml5',
+                            'excelHtml5',
+                            'pdfHtml5'
+                        ],
+                    "order": [],
+                    "columnDefs": [
+                        {
+                            'targets': 0,
+                            'createdCell':  function (td, cellData, rowData, row, col) {
+                                $(td).attr('scope', 'row');
+                            }
+                        }],
+                    lengthMenu: [
+                        [25, 50, 100, -1],
+                        [25, 50, 100, 'All'],
+                    ],
+                    'rowCallback': function(row, data, index){
+                        if(data[1] == 'Completed'){
+                            $(row).find('td:eq(1)').css('background', '#198754');
+                            $(row).find('td:eq(1)').css('color', 'white');
+                        } else if(data[1] == 'Failed'){
+                            $(row).find('td:eq(1)').css('background', '#dc3545');
+                            $(row).find('td:eq(1)').css('color', 'white');
+                        } else if(data[1] == 'Pending'){
+                            $(row).find('td:eq(1)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(1)').css('color', 'black');
+                        };
+                        if(data[3] == 'Completed'){
+                            $(row).find('td:eq(3)').css('background', '#198754');
+                            $(row).find('td:eq(3)').css('color', 'white');
+                        } else if(data[3] == 'Failed'){
+                            $(row).find('td:eq(3)').css('background', '#dc3545');
+                            $(row).find('td:eq(3)').css('color', 'white');
+                        } else if(data[3] == 'Pending'){
+                            $(row).find('td:eq(3)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(3)').css('color', 'black');
+                        };
+                        if(data[2] == 'Completed'){
+                            $(row).find('td:eq(2)').css('background', '#198754');
+                            $(row).find('td:eq(2)').css('color', 'white');
+                        } else if(data[2] == 'Failed'){
+                            $(row).find('td:eq(2)').css('background', '#dc3545');
+                            $(row).find('td:eq(2)').css('color', 'white');
+                        } else if(data[2] == 'Pending'){
+                            $(row).find('td:eq(2)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(2)').css('color', 'black');
+                        };
+                        if(data[4] == 'Completed'){
+                            $(row).find('td:eq(4)').css('background', '#198754');
+                            $(row).find('td:eq(4)').css('color', 'white');
+                        } else if(data[4] == 'Failed'){
+                            $(row).find('td:eq(4)').css('background', '#dc3545');
+                            $(row).find('td:eq(4)').css('color', 'white');
+                        } else if(data[4] == 'Pending'){
+                            $(row).find('td:eq(4)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(4)').css('color', 'black');
+                        };
+                        if(data[5] == 'Completed'){
+                            $(row).find('td:eq(5)').css('background', '#198754');
+                            $(row).find('td:eq(5)').css('color', 'white');
+                        } else if(data[5] == 'Failed'){
+                            $(row).find('td:eq(5)').css('background', '#dc3545');
+                            $(row).find('td:eq(5)').css('color', 'white');
+                        } else if(data[5] == 'Pending'){
+                            $(row).find('td:eq(5)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(5)').css('color', 'black');
+                        };
+                        if(data[6] == 'Completed'){
+                            $(row).find('td:eq(6)').css('background', '#198754');
+                            $(row).find('td:eq(6)').css('color', 'white');
+                        } else if(data[6] == 'Failed'){
+                            $(row).find('td:eq(6)').css('background', '#dc3545');
+                            $(row).find('td:eq(6)').css('color', 'white');
+                        } else if(data[6] == 'Pending'){
+                            $(row).find('td:eq(6)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(6)').css('color', 'black');
+                        };
+                        if(data[7] == 'Completed'){
+                            $(row).find('td:eq(7)').css('background', '#198754');
+                            $(row).find('td:eq(7)').css('color', 'white');
+                        } else if(data[7] == 'Failed'){
+                            $(row).find('td:eq(7)').css('background', '#dc3545');
+                            $(row).find('td:eq(7)').css('color', 'white');
+                        } else if(data[7] == 'Pending'){
+                            $(row).find('td:eq(7)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(7)').css('color', 'black');
+                        };
+                        if(data[8] == 'Completed'){
+                            $(row).find('td:eq(8)').css('background', '#198754');
+                            $(row).find('td:eq(8)').css('color', 'white');
+                        } else if(data[8] == 'Failed'){
+                            $(row).find('td:eq(8)').css('background', '#dc3545');
+                            $(row).find('td:eq(8)').css('color', 'white');
+                        } else if(data[8] == 'Pending'){
+                            $(row).find('td:eq(8)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(8)').css('color', 'black');
+                        };
+                        if(data[9] == 'Completed'){
+                            $(row).find('td:eq(9)').css('background', '#198754');
+                            $(row).find('td:eq(9)').css('color', 'white');
+                        } else if(data[9] == 'Failed'){
+                            $(row).find('td:eq(9)').css('background', '#dc3545');
+                            $(row).find('td:eq(9)').css('color', 'white');
+                        } else if(data[9] == 'Pending'){
+                            $(row).find('td:eq(9)').css('background', '#e2e3e5');
+                            $(row).find('td:eq(9)').css('color', 'black');
+                        };
+                    },
+                });
+
+        {% endif %}
+
+
+
+
+            // Refresh dashboard after 10 minutes of inactivity
+            // https://stackoverflow.com/a/55144842
+            function reloadPage() {
+                clearTimeout(idleTime);
+                idleTime = setTimeout(function () {
+                    location.reload();
+                }, 600000);
+            }
+
+            var idleTime;
+             reloadPage();
+            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
+                clearTimeout(idleTime);
+                reloadPage();
+            });
+
+
+        });
+
+    </script>
+
+    {% endif %}
+
+{##}
+{#    <script type="text/javascript">#}
+{##}
+{#        var triggerTabList = [].slice.call(document.querySelectorAll('#nav-tab a'))#}
+{#            triggerTabList.forEach(function (triggerEl) {#}
+{#              var tabTrigger = new bootstrap.Tab(triggerEl)#}
+{##}
+{#              triggerEl.addEventListener('click', function (event) {#}
+{#                event.preventDefault()#}
+{#                tabTrigger.show()#}
+{#              })#}
+{#            })#}
+{##}
+{#    </script>#}
+
+{% endblock %}

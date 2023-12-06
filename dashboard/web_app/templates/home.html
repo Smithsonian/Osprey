@@ -52,22 +52,7 @@
         {% if team == "summary" %}
 
             <ul class="list-group list-group-flush">
-                  <li class="list-group-item">
 
-                      <div class="row g-0">
-                            <div class="col-2">
-                                <img src="{{ url_for('static', filename='items/Brown_James18.jpg') }}" class="img-fluid" alt="Singer James Brown is captured off stage around Memphis" style="padding: 10px;">
-                            </div>
-                            <div class="col">
-                                    <h2 class="card-title">Digitization of the JPC Archive has Started</h2>
-
-                                    <p><small>We have started the pilot project of the digitization of the JPC Archive. This pilot will digitize about 8,000 items from the archive and will help us tests the
-                                        workflows and systems integration. </small></p>
-                                    <a href="{{ url_for('dashboard', project_alias = 'jpc_pilot') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Pilot Project Dashboard</a>
-                            </div>
-                        </div>
-
-                  </li>
                   <li class="list-group-item">
 
                         <div class="row g-0">
@@ -83,8 +68,8 @@
 
                             </div>
                         </div>
-
                   </li>
+
                   <li class="list-group-item">
 
                         <div class="row g-0">
@@ -99,8 +84,24 @@
 
                             </div>
                         </div>
-
                   </li>
+
+                  <li class="list-group-item">
+
+                    <div class="row g-0">
+                          <div class="col-2">
+                              <img src="{{ url_for('static', filename='items/Brown_James18.jpg') }}" class="img-fluid" alt="Singer James Brown is captured off stage around Memphis" style="padding: 10px;">
+                          </div>
+                          <div class="col">
+                                  <h2 class="card-title">Digitization of the JPC Archive has Started</h2>
+
+                                  <p><small>We have started the pilot project of the digitization of the JPC Archive. This pilot will digitize about 8,000 items from the archive and will help us tests the
+                                      workflows and systems integration. </small></p>
+                                  <a href="{{ url_for('dashboard', project_alias = 'jpc_pilot') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Pilot Project Dashboard</a>
+                          </div>
+                      </div>
+                </li>
+                
             </ul>
 
 
