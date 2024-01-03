@@ -2,10 +2,12 @@
 
 {% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
 
-{% block page_title %}{{ project_info.project_title }}{% endblock %}
-
 {% block homelink %}
-    {% if kiosk %}""{% else %}{{ url_for('dashboard', project_alias=project_alias) }}{% endif %}
+    {% if kiosk %}
+        <p class="navbar-brand navtitle">{{ project_info.project_title }}</p>
+    {% else %}
+        <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+    {% endif %}
 {% endblock %}
 
 {% block content %}

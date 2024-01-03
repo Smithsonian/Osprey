@@ -121,7 +121,8 @@ def page_not_found(e):
     error_msg = "Error: {}".format(e)
     # Declare the login form
     form = LoginForm(request.form)
-    return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 404
+    return render_template('error.html', form=form, error_msg=error_msg, 
+                           project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
 
 @app.errorhandler(500)
@@ -130,7 +131,8 @@ def sys_error(e):
     error_msg = "System error: {}".format(e)
     # Declare the login form
     form = LoginForm(request.form)
-    return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 500
+    return render_template('error.html', form=form, error_msg=error_msg, 
+                           project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 500
 
 
 def validate_api_key(api_key, cur=None):
@@ -439,7 +441,7 @@ def homepage(team=None):
 
     if team is None:
         team = "summary"
-        team_heading = "Summary of Collections Digitization Projects"
+        team_heading = "Collections Digitization - Highlights"
         html_title = "Collections Digitization Dashboard"
 
         # Summary stats
@@ -462,7 +464,7 @@ def homepage(team=None):
         }
     elif team == "md":
         team_heading = "Summary of Mass Digitization Team Projects"
-        html_title = "Summary of the Mass Digitization Team Projects, Collections Digitization"
+        html_title = "Mass Digitization Team Projects, Collections Digitization"
 
         # MD stats
         summary_stats = {
@@ -492,7 +494,7 @@ def homepage(team=None):
 
     elif team == "is":
         team_heading = "Summary of Imaging Services Team Projects"
-        html_title = "Summary of the Imaging Services Team Projects, Collections Digitization"
+        html_title = "Imaging Services Team Projects, Collections Digitization"
         # IS stats
         summary_stats = {
             'objects_digitized': "{:,}".format(run_query(
@@ -531,10 +533,14 @@ def homepage(team=None):
                      " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
                      " p.project_status, "
                      " p.project_manager, "
-                     " CASE WHEN date_format(p.project_start, '%%Y-%%c') = date_format(p.project_end, '%%Y-%%c') "
-                     "       THEN CONCAT(date_format(p.project_start, '%%d'), '-', date_format(p.project_end, '%%d %%b %%Y')) "
+                     " CASE "
                      "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' -') "
-                     "      ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' to ', date_format(p.project_end, '%%d %%b %%Y')) END"
+                     "      WHEN p.project_start = p.project_end THEN date_format(p.project_start, '%%d %%b %%Y') "                     
+                     "      WHEN date_format(p.project_start, '%%Y-%%c') = date_format(p.project_end, '%%Y-%%c') "
+                     "          THEN CONCAT(date_format(p.project_start, '%%d'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
+                     "      WHEN date_format(p.project_start, '%%Y') = date_format(p.project_end, '%%Y') "
+                     "          THEN CONCAT(date_format(p.project_start, '%%d %%b'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
+                     "      ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' to ', date_format(p.project_end, '%%d %%b %%Y')) END "
                      "         as project_dates, "
                      " CASE WHEN p.objects_estimated IS True THEN CONCAT(coalesce(format(ps.objects_digitized, 0), 0), '*') ELSE "
                      " coalesce(format(ps.objects_digitized, 0), 0) END as objects_digitized, "
@@ -548,29 +554,31 @@ def homepage(team=None):
                      "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
                      " ORDER BY p.projects_order DESC")
     list_projects_md = pd.DataFrame(run_query(section_query, {'section': 'MD'}, cur=cur))
+    list_projects_md = list_projects_md.drop("images_public", axis=1)
     list_projects_md = list_projects_md.rename(columns={
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "PM",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
         "project_dates": "Dates",
-        "project_progress": "Project Progress<sup>*</sup>",
-        "objects_digitized": "Objects Digitized",
-        "images_taken": "Images Captured",
-        "images_public": "Public Images"
+        # "project_progress": "Project Progress<sup>*</sup>",
+        "objects_digitized": "Specimens/Objects Digitized",
+        "images_taken": "Images Captured"#,
+        # "images_public": "Public Images"
     })
 
     list_projects_is = pd.DataFrame(run_query(section_query, {'section': 'IS'}, cur=cur))
+    list_projects_is = list_projects_is.drop("images_public", axis=1)
     list_projects_is = list_projects_is.rename(columns={
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "PM",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
         "project_dates": "Dates",
-        "project_progress": "Project Progress<sup>*</sup>",
-        "objects_digitized": "Objects Digitized",
-        "images_taken": "Images Captured",
-        "images_public": "Public Images"
+        # "project_progress": "Project Progress<sup>*</sup>",
+        "objects_digitized": "Specimens/Objects Digitized",
+        "images_taken": "Images Captured"#,
+        # "images_public": "Public Images"
     })
 
     cur.close()
@@ -595,6 +603,7 @@ def homepage(team=None):
                            asklogin=True,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            last_update=last_update[0]['updated_at'],
                            kiosk=kiosk,
                            user_address=user_address,
@@ -629,7 +638,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     except ValueError:
         error_msg = "Invalid folder ID"
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 400
+                               project_alias=project_alias, site_env=site_env, site_net=site_net), 400
 
     # Tab
     if tab is None or tab == '':
@@ -638,7 +647,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         if tab not in ['filechecks', 'lightbox', 'postprod']:
             error_msg = "Invalid tab ID."
             return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
+                                   project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     # Page
     if page is None or page == '':
@@ -649,7 +658,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         except:
             error_msg = "Invalid page number."
             return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
+                                   project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     # Connect to db
     try:
@@ -670,14 +679,14 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env), 404
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
     else:
         project_id = project_id_check[0]['project_id']
 
@@ -690,13 +699,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     if current_user.is_authenticated:
         username = current_user.name
@@ -836,7 +845,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
             return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                                   site_env=site_env), 404
+                                   site_env=site_env, site_net=site_net, site_ver=site_ver), 404
         else:
             folder_name = folder_name[0]
 
@@ -1120,6 +1129,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            reports=reports,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address,
                            qc_check=qc_check,
@@ -1154,7 +1164,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     except ValueError:
         error_msg = "Invalid folder ID"
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 400
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     # Tab
     if tab is None or tab == '':
@@ -1163,7 +1173,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         if tab not in ['filechecks', 'lightbox', 'postprod']:
             error_msg = "Invalid tab ID."
             return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
+                                   project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     # Page
     if page is None or page == '':
@@ -1174,7 +1184,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         except:
             error_msg = "Invalid page number."
             return render_template('error.html', form=form, error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env), 400
+                                   project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     # Connect to db
     try:
@@ -1195,14 +1205,14 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env), 404
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
     else:
         project_id = project_id_check[0]['project_id']
 
@@ -1215,13 +1225,13 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     if current_user.is_authenticated:
         username = current_user.name
@@ -1361,7 +1371,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
             return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                                   site_env=site_env), 404
+                                   site_env=site_env, site_net=site_net, site_ver=site_ver), 404
         else:
             folder_name = folder_name[0]
 
@@ -1645,6 +1655,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                            reports=reports,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address,
                            qc_check=qc_check,
@@ -1671,7 +1682,7 @@ def filestable(project_alias=None, folder_id=None):
     except ValueError:
         error_msg = "Invalid folder ID"
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 400
+                               project_alias=project_alias, site_env=site_env, site_ver=site_ver, site_net=site_net), 400
 
     # Connect to db
     try:
@@ -1692,14 +1703,14 @@ def filestable(project_alias=None, folder_id=None):
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env), 404
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
     else:
         project_id = project_id_check[0]['project_id']
 
@@ -1712,12 +1723,12 @@ def filestable(project_alias=None, folder_id=None):
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     if project_alias is None:
         error_msg = "Project is not available."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env), 404
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     filechecks_list_temp = run_query(
         ("SELECT settings_value as file_check FROM projects_settings "
@@ -1740,7 +1751,7 @@ def filestable(project_alias=None, folder_id=None):
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
             return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                                   site_env=site_env), 404
+                                   site_env=site_env, site_net=site_net, site_ver=site_ver), 404
         else:
             folder_name = folder_name[0]
 
@@ -1859,7 +1870,7 @@ def dashboard(project_alias=None):
     if project_id is False:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env), 404
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     logging.info("project_id: {}".format(project_id))
     logging.info("project_alias: {}".format(project_alias))
@@ -1903,7 +1914,7 @@ def dashboard(project_alias=None):
     except:
         error_msg = "Project is not available."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env), 404
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_statistics = run_query(("SELECT COALESCE(images_taken, 0) as images_taken, COALESCE(objects_digitized, 0) as objects_digitized"
                                     "  FROM projects_stats WHERE project_id = %(project_id)s"),
@@ -2057,6 +2068,7 @@ def dashboard(project_alias=None):
                            reports=reports,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address,
                            project_disk=project_disk,
@@ -2081,8 +2093,9 @@ def about():
 
     # Declare the login form
     form = LoginForm(request.form)
-    return render_template('about.html', site_ver=site_ver, form=form, site_env=site_env, kiosk=kiosk,
-                           user_address=user_address)
+    return render_template('about.html', form=form, 
+                           site_net=site_net, site_env=site_env, site_ver=site_ver,
+                           kiosk=kiosk, user_address=user_address)
 
 
 @app.route('/qc/<project_alias>/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -2267,8 +2280,7 @@ def qc(project_alias=None):
                                     {'project_id': project_id}, cur=cur)
     cur.close()
     conn.close()
-    return render_template('qc.html', site_ver=site_ver,
-                           username=username,
+    return render_template('qc.html', username=username,
                            project_settings=project_settings,
                            folder_qc_info=folder_qc_info,
                            folder_qc_done=folder_qc_done,
@@ -2277,7 +2289,8 @@ def qc(project_alias=None):
                            form=form,
                            project_qc_stats=project_qc_stats,
                            site_env=site_env,
-                           site_net=site_net)
+                           site_net=site_net,
+                           site_ver=site_ver)
 
 
 @app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
@@ -2487,7 +2500,8 @@ def qc_process(folder_id):
                                        msg=msg,
                                        form=form,
                                        site_env=site_env,
-                                       site_net=site_net
+                                       site_net=site_net,
+                                       site_ver=site_ver
                                        )
             else:
                 error_files = run_query(("SELECT f.file_name, "
@@ -2534,11 +2548,12 @@ def qc_process(folder_id):
                                        qc_folder_result=qc_folder_result,
                                        form=form,
                                        site_env=site_env,
-                                       site_net=site_net)
+                                       site_net=site_net,
+                                       site_ver=site_ver)
     else:
         error_msg = "Folder is not available for QC."
         return render_template('error.html', form=form, error_msg=error_msg,
-                               project_alias=project_alias['project_alias'], site_env=site_env), 400
+                               project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -2771,7 +2786,7 @@ def home():
 
     return render_template('userhome.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr, form=form,
-                           site_env=site_env, site_net=site_net)
+                           site_env=site_env, site_net=site_net, site_ver=site_ver)
 
 
 @app.route('/new_project/', methods=['GET'], provide_automatic_options=False)
@@ -2803,7 +2818,8 @@ def new_project(msg=None):
                                msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
                                form=form,
-                               site_env=site_env)
+                               site_env=site_env,
+                               site_net=site_net, site_ver=site_ver)
 
 
 @app.route('/create_new_project/', methods=['POST'], provide_automatic_options=False)
@@ -2904,7 +2920,7 @@ def create_new_project():
                               "  (project_id, collex_total, collex_to_digitize) VALUES  "
                               "   ( %(project_id)s, %(collex_total)s, %(collex_total)s)"),
                              {'project_id': project_id,
-                              'collex_total': p_noobjects}, cur=cur)
+                              'collex_total': int(p_noobjects)}, cur=cur)
     user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
                                      "    (%(project_id)s, %(user_id)s)"),
                                     {'project_id': project_id,
@@ -3029,7 +3045,7 @@ def edit_project(project_alias=None):
                            project=project,
                            form=form,
                            site_env=site_env,
-                           site_net=site_net)
+                           site_net=site_net, site_ver=site_ver)
 
 
 @app.route('/proj_links/<project_alias>/', methods=['GET'], provide_automatic_options=False)
@@ -3104,7 +3120,7 @@ def proj_links(project_alias=None):
                            form=form,
                            projects_links=projects_links,
                            site_env=site_env,
-                           site_net=site_net)
+                           site_net=site_net, site_ver=site_ver)
 
 
 @app.route('/add_links/', methods=['POST'], provide_automatic_options=False)
@@ -3280,14 +3296,14 @@ def file(file_id=None):
 
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     folder_info = run_query(
         "SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
         {'file_id': file_id}, cur=cur)
     if len(folder_info) == 0:
         error_msg = "Invalid File ID."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 400
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
     else:
         folder_info = folder_info[0]
     file_details = run_query(("WITH data AS ("
@@ -3333,7 +3349,7 @@ def file(file_id=None):
                                                  "       lower(taggroup) != 'system' "
                                                  " ORDER BY taggroup, tag "),
                                                 {'file_id': file_id}, cur=cur))
-    file_links = run_query("SELECT link_name, link_url FROM files_links WHERE file_id = %(file_id)s ",
+    file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
                                 {'file_id': file_id}, cur=cur)
     if current_user.is_authenticated:
         user_name = current_user.name
@@ -3365,6 +3381,7 @@ def file(file_id=None):
                            form=form,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address
                            )
@@ -3421,7 +3438,7 @@ def search_files(project_alias):
         cur.close()
         conn.close()
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env), 400
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 400
     else:
         logging.info("q: {}".format(q))
         logging.info("metadata: {}".format(metadata))
@@ -3471,6 +3488,7 @@ def search_files(project_alias):
                            form=form,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address)
 
@@ -3516,7 +3534,7 @@ def search_folders(project_alias):
         cur.close()
         conn.close()
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                                site_net=site_net, site_env=site_env), 400
+                                site_net=site_net, site_env=site_env, site_ver=site_ver), 400
     else:
         logging.info("q: {}".format(q))
         logging.info("offset: {}".format(offset))
@@ -3583,6 +3601,7 @@ def search_folders(project_alias):
                            form=form,
                            site_env=site_env,
                            site_net=site_net,
+                           site_ver=site_ver,
                            kiosk=kiosk,
                            user_address=user_address)
 
@@ -3744,7 +3763,7 @@ def api_route_list():
             func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
         else:
             continue
-    data = {'routes': func_list, 'sys_ver': site_ver, 'env': settings.env}
+    data = {'routes': func_list, 'sys_ver': site_ver, 'env': site_env, 'net': site_net}
     return jsonify(data)
 
 
@@ -4622,7 +4641,8 @@ def data_reports_form():
     print(project_alias)
     if project_alias is None or report_id is None:
         error_msg = "Report is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, 
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
     return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
 
 
@@ -4652,7 +4672,7 @@ def data_reports(project_alias=None, report_id=None):
 
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env), 404
+        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net), 404
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -4663,7 +4683,7 @@ def data_reports(project_alias=None, report_id=None):
     if len(project_id) == 0:
         error_msg = "Project was not found."
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id,
-                               site_env=site_env, site_net=site_net), 404
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     project_id = project_id[0]['project_id']
     project_report = run_query(("SELECT * FROM data_reports WHERE "
@@ -4674,7 +4694,7 @@ def data_reports(project_alias=None, report_id=None):
         cur.close()
         conn.close()
         return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net), 404
+                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
     report_data = pd.DataFrame(run_query(project_report[0]['query'], cur=cur))
     report_data_updated = run_query(project_report[0]['query_updated'], cur=cur)[0]['updated_at']
@@ -4696,7 +4716,8 @@ def data_reports(project_alias=None, report_id=None):
                            report_data_updated=report_data_updated,
                            form=form,
                            site_env=site_env,
-                           site_net=site_net
+                           site_net=site_net,
+                           site_ver=site_ver
                            )
 
 

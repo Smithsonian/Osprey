@@ -2,10 +2,11 @@
 
 {% block title %}Details of {{ file_details.file_name }} - DPO Collections Digitization Dashboard{% endblock %}
 
-{% block page_title %}Details of {{ file_details.file_name }}{% endblock %}
+{% block homelink %}
+    <p class="navbar-brand navtitle">Details of {{ file_details.file_name }}</p>
+{% endblock %}
 
 {% block head_blocks %}
-
 
 {% endblock %}
 
@@ -52,18 +53,18 @@
                         {% if file_links|length > 0 %}
                         <!-- File Links -->
                             <div class="card">
+                                <h5 class="card-header text-white bg-primary">Links related to this image</h5>
                                 <div class="card-body">
-                                    <h5 class="card-title">Links related to this image:</h5>
                                     <div class="list-group">
 
                                     {% for link in file_links %}
-                                          <a href="{{ link.link_url }}" class="list-group-item">{{ link.link_name | safe }}</a>
+                                          <a href="{{ link.link_url }}" title="{{ link.link_aria }}" class="list-group-item">{{ link.link_name | safe }}</a>
                                     {% endfor %}
 
                                     </div>
+                                </div>
 
                             <!-- End card -->
-                                </div>
                             </div>
                         {% endif %}
 

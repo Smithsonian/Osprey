@@ -34,12 +34,14 @@
         }
         body {
           margin-bottom: 160px;
+          font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
         }
         footer {
             position: absolute;
             bottom: 0;
             width: 100%;
             height: 180px;
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
         }
         .chart {
             width: 100%;
@@ -71,12 +73,25 @@
             text-decoration: none;
         }
 
-
         .navitems {
             color: #FFFFFF;
             text-decoration: none;
             padding-left: 1rem;
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
         }
+
+        .btn, .badge, .dataTables_info {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+
+        p, small, strong, li, th, td {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+
+        .footer-text {
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+
     </style>
 
     {% block head_blocks %}
@@ -101,9 +116,8 @@
     <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
-            <a class="navbar-brand navtitle" href="{% block homelink %}{% endblock %}" title="Project Homepage">{% block page_title %}{% endblock %}</a>
-
-
+            {% block homelink %}{% endblock %}
+            
         <div class="row">
             <div class="col">
 
@@ -123,7 +137,7 @@
                 <div style="text-align: right; color: #FFFFFF;">
                     <small>
                         <a href="{{ url_for('homepage') }}" class="navitems" aria-label="Homepage"><i class="fa-solid fa-house"></i> Home</a>
-                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system">Login</a> {% endif %}
+                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system"><i class="fa-solid fa-user"></i> Login</a> {% endif %}
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
                     </small>
                 </div>
@@ -154,7 +168,7 @@
 
         <form method="post" action="" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
 
-        <h1>Login:</h1>
+        <p><strong>Do not</strong> use your SI credentials. This feature will be added in a future version.</p>
 
         {{ form.hidden_tag() }}
 
@@ -175,8 +189,6 @@
             <label for="password">Password</label>
         </div>
         <br />
-
-        <p><strong>Do not</strong> use your SI login. This feature will be added in a future version.</p>
 
         <button class="w-100 btn btn-lg btn-primary" type="submit" aria-label='Sign In'>Sign In</button>
 
@@ -199,19 +211,19 @@
             <a href="https://dpo.si.edu"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" class="text-white" style="background: #3F4249!important;">Office of the Chief Information Officer</a></p>
-            <p><a href="{{ url_for('about') }}" class="text-white" style="background: #3F4249!important;">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" class="text-white" style="background: #3F4249!important;">Terms of Use</a></p>
-            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white" style="background: #3F4249!important;">Vulnerability Disclosure Policy</a></p>
+            <p><a href="https://www.si.edu/ocio" class="text-white footer-text" style="background: #3F4249!important;">Office of the Chief Information Officer</a></p>
+            <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;">Vulnerability Disclosure Policy</a></p>
         </div>
         <div class="col">
             {% if site_net == "external" %}
-                <p><a href="https://si.edu/" class="text-white" style="background: #3F4249!important;">Smithsonian Home</a></p>
+                <p><a href="https://si.edu/" class="text-white footer-text" style="background: #3F4249!important;">Smithsonian Home</a></p>
             {% else %}
-                <p><a href="https://prism.si.edu/" class="text-white" style="background: #3F4249!important;">PRISM</a></p>
+                <p><a href="https://prism.si.edu/" class="text-white footer-text" style="background: #3F4249!important;">PRISM</a></p>
             {% endif %}
-            <p><a href="https://www.si.edu/Accessibility" class="text-white" style="background: #3F4249!important;">Accessibility</a></p>
-            <p><a href="https://www.si.edu/privacy" class="text-white" style="background: #3F4249!important;">Privacy</a></p>
+            <p><a href="https://www.si.edu/Accessibility" class="text-white footer-text" style="background: #3F4249!important;">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="text-white footer-text" style="background: #3F4249!important;">Privacy</a></p>
         </div>
 
     </div>

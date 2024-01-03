@@ -4,6 +4,10 @@
 
 {% block page_title %}Project QC{% endblock %}
 
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
 {% block content %}
 
     <div class="row">

@@ -2,10 +2,8 @@
 
 {% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
 
-{% block page_title %}
-
-        {{ project_info.project_title }}
-
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="/" title="Collections Digitization Dashboard">{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}</a>
 {% endblock %}
 
 {% block homelink %}

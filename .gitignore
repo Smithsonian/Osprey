@@ -122,3 +122,4 @@ check_folder_md5/logs/
 .idea
 
 edan.py
+dashboard/web_app/send_to_dev.sh

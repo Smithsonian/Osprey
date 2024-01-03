@@ -4,9 +4,11 @@
 {% block title %}{{ html_title }}{% endblock %}
 
 <!-- page heading -->
-{% block page_title %}{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}{% endblock %}
+<!-- {% block page_title %}{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}{% endblock %} -->
 
-{% block homelink %}/{% endblock %}
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="/" title="Collections Digitization Dashboard">{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}</a>
+{% endblock %}
 
 {% block head_blocks %}
 
@@ -39,11 +41,11 @@
     {% if team != "inf" %}
 
         <ul class="list-group list-group-horizontal">
-            <li class="list-group-item active flex-fill"><strong>Specimens/Objects Digitized:</strong> {{ summary_stats.objects_digitized }}</li>
-            <li class="list-group-item active flex-fill"><strong>Images Captured:</strong> {{ summary_stats.images_captured }}</li>
-            <li class="list-group-item active flex-fill"><strong>Public Images:</strong> {{ summary_stats.images_public }}</li>
-            <li class="list-group-item active flex-fill"><strong>Digitization Projects:</strong> {{ summary_stats.digitization_projects }}</li>
-            <li class="list-group-item active flex-fill"><strong>Active Projects:</strong> {{ summary_stats.active_projects }}</li>
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Specimens/Objects Digitized:</strong> {{ summary_stats.objects_digitized }}</li>
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Images Captured:</strong> {{ summary_stats.images_captured }}</li>
+            <!-- <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Public Images:</strong> {{ summary_stats.images_public }}</li> -->
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Digitization Projects:</strong> {{ summary_stats.digitization_projects }}</li>
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Active Projects:</strong> {{ summary_stats.active_projects }}</li>
         </ul>
 
     {% endif %}
@@ -110,10 +112,12 @@
             {% for table in tables_md %}
                        {{ table|safe }}
             {% endfor %}
+            <p>* Value was estimated</p>
     {% elif team == "is" %}
             {% for table in tables_is %}
                        {{ table|safe }}
             {% endfor %}
+            <p>* Value was estimated</p>
     {% elif team == "inf" %}
             <p><em>Coming soon...</em></p>
     {% endif %}

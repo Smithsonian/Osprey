@@ -2,39 +2,28 @@
 
 {% block title %}DPO Collections Digitization Dashboard{% endblock %}
 
-{% block page_title %}DPO Collections Digitization Dashboard{% if site_net == "internal" %} - SI Internal{% endif %}{% endblock %}
-
-{% block homelink %}/{% endblock %}
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="/" title="Home">DPO Collections Digitization Dashboard{% if site_net == "internal" %} - SI Internal{% endif %}</a>
+{% endblock %}
 
 {% block content %}
 
-    <div class="row">
-        <div class="col-8">
-            <p>Osprey - DPO Collections Digitization Dashboard - version {{ site_ver }}<br>
-                {% if site_net == "internal" %}<strong>This is the SI Internal instance.</strong><br>{% endif %}
-            Source at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a>
+    <p style="font-size: large;"><strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
+    
+    {% if site_net == "internal" %}<p><strong>This is the SI-Internal instance</strong></p>{% endif %}
 
-            <p class="w-50"><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system provides a convenient way to see the products of
-                digitization projects in a timely fashion. Do not link to specific pages or images since they will go away without notice.</p>
+    <p>Osprey is an open-source application and the source is hosted 
+        at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey 
+            <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a></p>
 
-            <p><a href="{{ url_for('api_route_list') }}" class="navitems" aria-label="Go to the API">Osprey API</a></p>
+    <p class="w-50"><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system 
+        provides a convenient way to see the products of digitization projects in a timely fashion. Do not link to specific
+        pages or images since they will go away without notice.</p>
 
-            <p>This is a project of:</p>
-            <p class="px-3">
-                <a href="https://dpo.si.edu/">Digitization Program Office<br>
-                <a href="https://www.si.edu/ocio">Office of the Chief Information Officer</a><br>
-                <a href="http://si.edu/">Smithsonian</a>
-            </p>
-        </div>
-        <div class="col">
-            <img src="{{ url_for('static', filename='dpo266.png') }}" class="me-0" alt="Logo of the Digitization Program Office">
-        </div>
-    </div>
+    <p><a href="{{ url_for('api_route_list') }}" title="Link to the Osprey API Routes">Osprey API</a> (JSON)</p>
 
+    <p>This is a project of the: <a href="https://dpo.si.edu/">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://www.si.edu/ocio">Office of the Chief Information Officer</a></p>
 
-            <br><br>
-
-        <hr>
-
+    <br><br>
 
 {% endblock %}

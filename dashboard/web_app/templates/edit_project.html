@@ -2,7 +2,9 @@
 
 {% block title %}Project Dashboard{% endblock %}
 
-{% block page_title %}Edit Project{% endblock %}
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="/" title="Collections Digitization Dashboard">{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}</a>
+{% endblock %}
 
 {% block content %}
 

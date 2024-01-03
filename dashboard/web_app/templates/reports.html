@@ -2,9 +2,9 @@
 
 {% block title %}{{ project_info.project_title }} - Reports{% endblock %}
 
-{% block page_title %}{{ project_info.project_title }}{% endblock %}
-
-{% block homelink %}{{ url_for('dashboard', project_alias=project_alias) }}{% endblock %}
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+{% endblock %}
 
 {% block content %}
 
