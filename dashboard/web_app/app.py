@@ -44,7 +44,7 @@ from wtforms.validators import DataRequired
 import settings
 
 
-site_ver = "2.6.5"
+site_ver = "2.6.6"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -4255,6 +4255,9 @@ def api_update_project_details(project_alias=None):
                                             this_val = str(item)
                                 row_data = (file_id, filetype, key.split(':')[0], key.split(':')[1], this_key, this_val, this_val)
                                 res = query_database_insert(query, row_data, cur=cur)
+                            # Remove directory entries that reveal system paths
+                            res = run_query("delete from files_exif where taggroup = 'System' and tag = 'Directory' and file_id = %(file_id)s;", 
+                                            {'file_id': file_id}, return_val=False, cur=cur)
                     elif query_property == "delete":
                         query = ("DELETE FROM files WHERE file_id = %(file_id)s")
                         res = query_database_insert(query, {'file_id': file_id}, cur=cur)

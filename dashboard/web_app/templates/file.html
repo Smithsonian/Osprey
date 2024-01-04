@@ -44,87 +44,23 @@
 
                     {% else %}
 
-                        <a href="{% if file_details.preview_image_ext == None %}{{ file_details.preview_image }}{% else %}{{ file_details.preview_image_ext }}{% endif %}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
-                            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top"></a>
+                        {% if file_details.preview_image_ext == None %}
+                            <a href="{{ file_details.preview_image }}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
+                                <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
+                            </a>
 
-                    <h5>Filename: {{ file_details.file_name }}</h5>
-                        <small>File ID: {{ file_details.file_id }}</small>
+                        {% else %}
 
-                        {% if file_links|length > 0 %}
-                        <!-- File Links -->
-                            <div class="card">
-                                <h5 class="card-header text-white bg-primary">Links related to this image</h5>
-                                <div class="card-body">
-                                    <div class="list-group">
+                            <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
 
-                                    {% for link in file_links %}
-                                          <a href="{{ link.link_url }}" title="{{ link.link_aria }}" class="list-group-item">{{ link.link_name | safe }}</a>
-                                    {% endfor %}
-
-                                    </div>
-                                </div>
-
-                            <!-- End card -->
-                            </div>
                         {% endif %}
+
+                        <p style="font-size: large;">Filename: {{ file_details.file_name }}</p>
+                        <p>File ID: {{ file_details.file_id }}</p>
 
                     {% endif %}
 
-                <table class="table compact table-striped" style="width:100%">
-                    <caption style="caption-side: top;"><h4>File Technical Checks</h4></caption>
-                <thead>
-                    <tr>
-                        <th>Check</th>
-                        <th>Result</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for check in file_checks %}
-                        <tr>
-                            <td>
-                                <strong>{{ check.file_check }}</strong><br>
-                                <small>
-                                    {% if check.file_check == 'tif_compression' %}
-                                        TIF file is compressed using the lossless compression LZW.
-                                    {% elif check.file_check == 'tifpages' %}
-                                        Check that there are no more than 1 page in the TIF, usually a thumbnail.
-                                    {% elif check.file_check == 'magick' %}
-                                        File is valid according to ImageMagick.
-                                    {% elif check.file_check == 'jhove' %}
-                                        File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>.
-                                    {% elif check.file_check == 'unique_file' %}
-                                        Filename is unique in the project.
-                                    {% elif check.file_check == 'raw_pair' %}
-                                        Raw file was found for the image.
-                                    {% elif check.file_check == 'valid_name' %}
-                                        Filename is in the list of allowed names.
-                                    {% elif check.file_check == 'old_name' %}
-                                        Filename was not found in list outside the project.
-                                    {% elif check.file_check == 'derivative' %}
-                                        Derivative file is present.
-                                    {% elif check.file_check == 'prefix' %}
-                                        Filename has the correct prefix.
-                                    {% elif check.file_check == 'sequence' %}
-                                        File sequence is correct.
-                                    {% else %}
-                                        Checks for {{ check.file_check }}.
-                                    {% endif %}
-                                </small>
-                            </td>
-                            <td>
-                                {% if check.check_results == 0 %}
-                                    <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
-                                {% elif check.check_results == 1 %}
-                                    <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
-                                {% elif check.check_results == 9 %}
-                                    <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
 
-                </table>
 
 
                     <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
@@ -146,8 +82,94 @@
 
         </div>
         <div class="col">
-            <!--Embedded Metadata:</h4> -->
-            <div style="font-size: 0.9em;">
+
+            <div class="row">
+                <div class="col">
+
+                    <div class="card">
+                        <h5 class="card-header text-white bg-primary">File Technical Checks</h5>
+                        <div class="card-body">
+                            <table class="table compact table-striped" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Check</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for check in file_checks %}
+                                    <tr>
+                                        <td style="font-size: small;">
+                                            <strong>{{ check.file_check }}</strong><br>
+                                                {% if check.file_check == 'tif_compression' %}
+                                                    TIF file is compressed using the lossless compression LZW.
+                                                {% elif check.file_check == 'tifpages' %}
+                                                    Check that there are no more than 1 page in the TIF, usually a thumbnail.
+                                                {% elif check.file_check == 'magick' %}
+                                                    File is valid according to ImageMagick.
+                                                {% elif check.file_check == 'jhove' %}
+                                                    File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>.
+                                                {% elif check.file_check == 'unique_file' %}
+                                                    Filename is unique in the project.
+                                                {% elif check.file_check == 'raw_pair' %}
+                                                    Raw file was found for the image.
+                                                {% elif check.file_check == 'valid_name' %}
+                                                    Filename is in the list of allowed names.
+                                                {% elif check.file_check == 'old_name' %}
+                                                    Filename was not found in list outside the project.
+                                                {% elif check.file_check == 'derivative' %}
+                                                    Derivative file is present.
+                                                {% elif check.file_check == 'prefix' %}
+                                                    Filename has the correct prefix.
+                                                {% elif check.file_check == 'sequence' %}
+                                                    File sequence is correct.
+                                                {% else %}
+                                                    Checks for {{ check.file_check }}.
+                                                {% endif %}
+                                        </td>
+                                        <td style="font-size: small;">
+                                            {% if check.check_results == 0 %}
+                                                <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
+                                            {% elif check.check_results == 1 %}
+                                                <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
+                                            {% elif check.check_results == 9 %}
+                                                <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+            
+                            </table>
+                        </div>
+                    </div>
+
+
+                </div>
+                <div class="col">
+                    {% if file_links|length > 0 %}
+                    <!-- File Links -->
+                        <div class="card">
+                            <h5 class="card-header text-white bg-primary">Links related to this image</h5>
+                            <div class="card-body">
+                                <div class="list-group">
+
+                                {% for link in file_links %}
+                                    <a href="{{ link.link_url }}" title="{{ link.link_aria }}" class="list-group-item">{{ link.link_name | safe }}</a>
+                                {% endfor %}
+
+                                </div>
+                            </div>
+                        <!-- End card -->
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <hr>
+
+            <!--Embedded Metadata: -->
+            <div style="font-size: small;">
                 {% for table in tables %}
                     {% if file_metadata_rows > 0 %}
                        {{ table|safe }}
@@ -159,7 +181,7 @@
         </div>
     </div>
 
-
+<br>
 
 {% endblock %}
 
