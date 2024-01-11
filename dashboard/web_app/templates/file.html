@@ -172,7 +172,7 @@
             <div style="font-size: small;">
                 {% for table in tables %}
                     {% if file_metadata_rows > 0 %}
-                       {{ table|safe }}
+                       {{ taxon_details|safe }}
                     {% else %}
                         <p>Image metadata is not available.</p>
                     {% endif %}

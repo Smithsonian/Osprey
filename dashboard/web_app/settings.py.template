@@ -18,3 +18,6 @@ log_folder = ""
 cache_folder = ""
 
 kiosks = []
+
+analytics_code = """
+"""
