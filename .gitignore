@@ -114,12 +114,11 @@ settings.py
 
 *.sql
 
-check_folder_md5/check_md5.py
-check_folder_md5/logs/
-
 *.txt
 
 .idea
 
 edan.py
-dashboard/web_app/send_to_dev.sh
+send_to_dev.sh
+
+*.code-workspace

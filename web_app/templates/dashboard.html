@@ -127,8 +127,8 @@
 
         {% endif %}
 
-    <h4>{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
-                     in the Project:</h4>
+    <p style="font-size: medium;">{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
+                     in the Project:</p>
         <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
@@ -151,7 +151,7 @@
                         {% for folder_badge in project_folders_badges %}
                                 {% if folder_badge.folder_id == folder.folder_id %}
                                     <br>
-                                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
                                 {% endif %}
                         {% endfor %}
 
@@ -256,7 +256,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
-                          <p><div class="float-end"><em>Image is resized to a max of 1200x1200. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link</a></p>
+                          <p><div class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 1200x1200. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link to image</a></p>
 
                            <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>
