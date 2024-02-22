@@ -13,9 +13,12 @@ from flask import url_for
 from flask import send_file
 
 # caching
-from flask_caching import Cache
+# from flask_caching import Cache
 
-import logging
+from cache import cache
+# Logging
+from logger import logger
+
 import os
 import locale
 import math
@@ -48,48 +51,43 @@ site_ver = "2.6.6"
 site_env = settings.env
 site_net = settings.site_net
 
-cur_path = os.path.abspath(os.getcwd())
-
-# Logging
-current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-logfile = '{}/app_{}.log'.format(settings.log_folder, current_time)
-logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG,
-                    format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
-                    datefmt='%y-%b-%d %H:%M:%S')
-logger = logging.getLogger("web_osprey")
-
-logging.info("site_ver = {}".format(site_ver))
-logging.info("site_env = {}".format(site_env))
-logging.info("site_net = {}".format(site_net))
-
+logger.info("site_ver = {}".format(site_ver))
+logger.info("site_env = {}".format(site_env))
+logger.info("site_net = {}".format(site_net))
 
 # Set locale for number format
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-
 
 # Remove DecompressionBombWarning due to large files
 # by using a large threshold
 # https://github.com/zimeon/iiif/issues/11
 Image.MAX_IMAGE_PIXELS = 1000000000
 
-
 # Cache config
-config = {
-    "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
-    "CACHE_DIR": settings.cache_folder,
-    "CACHE_DEFAULT_TIMEOUT": 60,
-    "SESSION_COOKIE_SECURE": True
-}
+# config = {
+#     "CACHE_TYPE": "FileSystemCache",  # Flask-Caching related configs
+#     "CACHE_DIR": settings.cache_folder,
+#     "CACHE_DEFAULT_TIMEOUT": 60,
+#     "SESSION_COOKIE_SECURE": True
+# }
 app = Flask(__name__)
 app.secret_key = settings.secret_key
-app.config.from_mapping(config)
-cache = Cache(app)
+
+# app.config.from_mapping(config)
+# cache = Cache(app)
+
+# Add logger
+app.logger.addHandler(logger)
+
+# Setup cache
+cache.init_app(app)
 
 # Disable strict trailing slashes
 app.url_map.strict_slashes = False
 
 # Disable OPTIONS
 # app.url_map.provide_automatic_options = False
+
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
 class InvalidUsage(Exception):
@@ -117,36 +115,32 @@ def handle_invalid_usage(error):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    logging.error(e)
+    logger.error(e)
     error_msg = "Error: {}".format(e)
-    # Declare the login form
-    form = LoginForm(request.form)
-    return render_template('error.html', form=form, error_msg=error_msg, 
+    return render_template('error.html', error_msg=error_msg, 
                            project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
 
 
 @app.errorhandler(500)
 def sys_error(e):
-    logging.error(e)
+    logger.error(e)
     error_msg = "System error: {}".format(e)
-    # Declare the login form
-    form = LoginForm(request.form)
-    return render_template('error.html', form=form, error_msg=error_msg, 
+    return render_template('error.html', error_msg=error_msg, 
                            project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 500
 
 
 def validate_api_key(api_key, cur=None):
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
     try:
         api_key_check = UUID(api_key)
     except ValueError:
-        logging.info("Invalid UUID: {}".format(api_key))
+        logger.info("Invalid UUID: {}".format(api_key))
         return False
     # Run query
     query = ("SELECT api_key from api_keys WHERE api_key = %(api_key)s")
     parameters = {'api_key': api_key}
-    logging.info("query: {}".format(query))
-    logging.info("parameters: {}".format(parameters))
+    logger.info("query: {}".format(query))
+    logger.info("parameters: {}".format(parameters))
     result = cur.execute(query, parameters)
     data = cur.fetchall()
     if len(data) == 1:
@@ -159,8 +153,8 @@ def validate_api_key(api_key, cur=None):
 
 
 def run_query(query, parameters=None, api=False, return_val=True, cur=None):
-    logging.info("parameters: {}".format(parameters))
-    logging.info("query: {}".format(query))
+    logger.info("parameters: {}".format(parameters))
+    logger.info("query: {}".format(query))
     # Run query
     try:
         if parameters is None:
@@ -168,48 +162,48 @@ def run_query(query, parameters=None, api=False, return_val=True, cur=None):
         else:
             results = cur.execute(query, parameters)
     except pymysql.Error as error:
-        logging.error("Error: {}".format(error))
+        logger.error("Error: {}".format(error))
         if api:
             return jsonify(None)
         else:
             raise InvalidUsage(error, status_code=500)
     if return_val:
         data = cur.fetchall()
-        logging.info("No of results: ".format(len(data)))
+        logger.info("No of results: ".format(len(data)))
         return data
     else:
         return True
 
 
 def query_database_insert(query, parameters, return_res=False, cur=None):
-    logging.info("query: {}".format(query))
-    logging.info("parameters: {}".format(parameters))
+    logger.info("query: {}".format(query))
+    logger.info("parameters: {}".format(parameters))
     # Run query
     data = False
     try:
         results = cur.execute(query, parameters)
     except Exception as error:
-        logging.error("Error: {}".format(error))
+        logger.error("Error: {}".format(error))
         return False
     data = cur.fetchall()
-    logging.info("No of results: ".format(len(data)))
+    logger.info("No of results: ".format(len(data)))
     if len(data) == 0:
         data = False
     return data
 
 
 def query_database_insert_multi(query, parameters, return_res=False, cur=None):
-    logging.info("query: {}".format(query))
-    logging.info("parameters: {}".format(parameters))
+    logger.info("query: {}".format(query))
+    logger.info("parameters: {}".format(parameters))
     # Run query
     data = False
     try:
         results = cur.executemany(query, parameters)
     except Exception as error:
-        logging.error("Error_insert_multi: {}".format(error))
+        logger.error("Error_insert_multi: {}".format(error))
         return False
     data = cur.fetchall()
-    logging.info("No of results: ".format(len(data)))
+    logger.info("No of results: ".format(len(data)))
     if len(data) == 0:
         data = False
     return data
@@ -277,7 +271,7 @@ def user_perms(project_id, user_type='user'):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
     val = False
     if user_type == 'user':
@@ -323,7 +317,7 @@ class User(UserMixin):
                                    autocommit=True)
             cur = conn.cursor()
         except pymysql.Error as e:
-            logging.error(e)
+            logger.error(e)
             raise InvalidUsage('System error')
         query = "SELECT user_active FROM users WHERE username = %(username)s"
         user = cur.execute(query, {'username': name})
@@ -352,7 +346,7 @@ def load_user(username):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
     query = "SELECT username, user_id, user_active, full_name FROM users WHERE username = %(username)s"
     res = cur.execute(query, {'username': username})
@@ -408,7 +402,7 @@ def homepage(team=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # check if both http method is POST and form is valid on submit
@@ -419,9 +413,9 @@ def homepage(team=None):
         password = request.form.get('password', '', type=str)
         query = "SELECT user_id, username, user_active, full_name FROM users WHERE username = %(username)s AND pass = MD5(%(password)s)"
         user = run_query(query, {'username': username, 'password': password}, cur=cur)
-        logging.info(user)
+        logger.info(user)
         if len(user) == 1:
-            logging.info(user[0]['user_active'])
+            logger.info(user[0]['user_active'])
             if user[0]['user_active']:
                 user_obj = User(user[0]['user_id'], user[0]['username'], user[0][
                     'full_name'],
@@ -638,7 +632,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         folder_id = int(folder_id)
     except ValueError:
         error_msg = "Invalid folder ID"
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net,
                                 analytics_code=settings.analytics_code), 400
 
@@ -648,7 +642,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         if tab not in ['filechecks', 'lightbox', 'postprod']:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', form=form, error_msg=error_msg,
+            return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                                 analytics_code=settings.analytics_code), 400
 
@@ -660,7 +654,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             page = int(page)
         except:
             error_msg = "Invalid page number."
-            return render_template('error.html', form=form, error_msg=error_msg,
+            return render_template('error.html', error_msg=error_msg,
                                    project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
 
@@ -676,13 +670,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -690,7 +684,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
     else:
@@ -704,14 +698,14 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     if len(folder_check) == 0:
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -726,7 +720,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             project_admin = True
         else:
             project_admin = False
-        logging.info("project_admin: {} - {}".format(username, project_admin))
+        logger.info("project_admin: {} - {}".format(username, project_admin))
     else:
         project_admin = False
     project_info = run_query("SELECT *, "
@@ -758,7 +752,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         filechecks_list = []
         for fcheck in filechecks_list_temp:
             filechecks_list.append(fcheck['file_check'])
-        logging.info("filechecks_list:{}".format(filechecks_list_temp))
+        logger.info("filechecks_list:{}".format(filechecks_list_temp))
         project_postprocessing = []
 
     if tab == "postprod":
@@ -849,10 +843,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         folder_name = run_query(("SELECT project_folder FROM folders "
                                  "WHERE folder_id = %(folder_id)s and project_id = %(project_id)s"),
                                      {'folder_id': folder_id, 'project_id': project_id}, cur=cur)
-        logging.info("folder_name: {}".format(len(folder_name)))
+        logger.info("folder_name: {}".format(len(folder_name)))
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+            return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                    site_env=site_env, site_net=site_net, site_ver=site_ver), 404
         else:
             folder_name = folder_name[0]
@@ -892,7 +886,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
             else:
                 for fcheck in filechecks_list:
-                    logging.info("fcheck: {}".format(fcheck))
+                    logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                               "   CASE WHEN check_results = 0 THEN 'OK' "
                                                               "       WHEN check_results = 9 THEN 'Pending' "
@@ -901,7 +895,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                               " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                                               "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
                                                              {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
@@ -944,7 +938,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             # Pagination
             pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
             no_pages = math.ceil(files_count / no_items)
-            logging.info("no_pages: {}".format(no_pages))
+            logger.info("no_pages: {}".format(no_pages))
             if page == 1:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" href=\"#\" " \
                                                     "tabindex=\"-1\">Previous</a></li>"
@@ -1002,14 +996,14 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
                                                   " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
                                                  {'folder_id': folder_id}, cur=cur))
-            logging.info("project_postprocessing {}".format(project_postprocessing))
+            logger.info("project_postprocessing {}".format(project_postprocessing))
             post_processing_df['file_name'] = '<a href="/file/' \
                                               + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
                                               + post_processing_df['file_name'].astype(str) \
                                               + '</a>'
             if len(project_postprocessing) > 0:
                 for fcheck in project_postprocessing:
-                    logging.info("fcheck: {}".format(fcheck))
+                    logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                               "   CASE WHEN post_step = 0 THEN 'Completed' "
                                                               "       WHEN post_step = 9 THEN 'Pending' "
@@ -1019,7 +1013,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                               "  where f.folder_id = %(folder_id)s").format(
                         fcheck=fcheck),
                                                              {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         post_processing_df = post_processing_df.merge(list_files, how='outer', on='file_id')
                 post_processing_df = post_processing_df.drop(['file_id'], axis=1)
@@ -1043,7 +1037,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         is_admin = False
     folder_links = run_query("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
                                   {'folder_id': folder_id}, cur=cur)
-    logging.info("folder_links: {}".format(folder_links))
+    logger.info("folder_links: {}".format(folder_links))
 
     # Reports
     reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_title_brief",
@@ -1172,7 +1166,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         folder_id = int(folder_id)
     except ValueError:
         error_msg = "Invalid folder ID"
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
 
@@ -1182,7 +1176,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         if tab not in ['filechecks', 'lightbox', 'postprod']:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', form=form, error_msg=error_msg,
+            return render_template('error.html', error_msg=error_msg,
                                    project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
 
@@ -1194,7 +1188,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
             page = int(page)
         except:
             error_msg = "Invalid page number."
-            return render_template('error.html', form=form, error_msg=error_msg,
+            return render_template('error.html', error_msg=error_msg,
                                    project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
 
@@ -1210,13 +1204,13 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -1224,7 +1218,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
     else:
@@ -1238,14 +1232,14 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     if len(folder_check) == 0:
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -1260,7 +1254,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
             project_admin = True
         else:
             project_admin = False
-        logging.info("project_admin: {} - {}".format(username, project_admin))
+        logger.info("project_admin: {} - {}".format(username, project_admin))
     else:
         project_admin = False
     project_info = run_query("SELECT *, "
@@ -1292,7 +1286,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         filechecks_list = []
         for fcheck in filechecks_list_temp:
             filechecks_list.append(fcheck['file_check'])
-        logging.info("filechecks_list:{}".format(filechecks_list_temp))
+        logger.info("filechecks_list:{}".format(filechecks_list_temp))
         project_postprocessing = []
 
     if tab == "postprod":
@@ -1383,10 +1377,10 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         folder_name = run_query(("SELECT project_folder FROM folders "
                                  "WHERE folder_id = %(folder_id)s and project_id = %(project_id)s"),
                                      {'folder_id': folder_id, 'project_id': project_id}, cur=cur)
-        logging.info("folder_name: {}".format(len(folder_name)))
+        logger.info("folder_name: {}".format(len(folder_name)))
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+            return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                    site_env=site_env, site_net=site_net, site_ver=site_ver), 404
         else:
             folder_name = folder_name[0]
@@ -1426,7 +1420,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
 
             else:
                 for fcheck in filechecks_list:
-                    logging.info("fcheck: {}".format(fcheck))
+                    logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                               "   CASE WHEN check_results = 0 THEN 'OK' "
                                                               "       WHEN check_results = 9 THEN 'Pending' "
@@ -1435,7 +1429,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                                                               " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                                               "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
                                                              {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
@@ -1478,7 +1472,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
             # Pagination
             pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
             no_pages = math.ceil(files_count / no_items)
-            logging.info("no_pages: {}".format(no_pages))
+            logger.info("no_pages: {}".format(no_pages))
             if page == 1:
                 pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" href=\"#\" " \
                                                     "tabindex=\"-1\">Previous</a></li>"
@@ -1536,14 +1530,14 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
             post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
                                                   " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
                                                  {'folder_id': folder_id}, cur=cur))
-            logging.info("project_postprocessing {}".format(project_postprocessing))
+            logger.info("project_postprocessing {}".format(project_postprocessing))
             post_processing_df['file_name'] = '<a href="/file/' \
                                               + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
                                               + post_processing_df['file_name'].astype(str) \
                                               + '</a>'
             if len(project_postprocessing) > 0:
                 for fcheck in project_postprocessing:
-                    logging.info("fcheck: {}".format(fcheck))
+                    logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                               "   CASE WHEN post_step = 0 THEN 'Completed' "
                                                               "       WHEN post_step = 9 THEN 'Pending' "
@@ -1553,7 +1547,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                                                               "  where f.folder_id = %(folder_id)s").format(
                         fcheck=fcheck),
                                                              {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         post_processing_df = post_processing_df.merge(list_files, how='outer', on='file_id')
                 post_processing_df = post_processing_df.drop(['file_id'], axis=1)
@@ -1577,7 +1571,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
         is_admin = False
     folder_links = run_query("SELECT * FROM folders_links WHERE folder_id = %(folder_id)s",
                                   {'folder_id': folder_id}, cur=cur)
-    logging.info("folder_links: {}".format(folder_links))
+    logger.info("folder_links: {}".format(folder_links))
 
     # Reports
     reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_title_brief",
@@ -1698,7 +1692,7 @@ def filestable(project_alias=None, folder_id=None):
         folder_id = int(folder_id)
     except ValueError:
         error_msg = "Invalid folder ID"
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_ver=site_ver, site_net=site_net,
                            analytics_code=settings.analytics_code), 400
 
@@ -1714,13 +1708,13 @@ def filestable(project_alias=None, folder_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -1728,7 +1722,7 @@ def filestable(project_alias=None, folder_id=None):
                                       {'project_alias': project_alias}, cur=cur)
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
     else:
@@ -1742,13 +1736,13 @@ def filestable(project_alias=None, folder_id=None):
     if len(folder_check) == 0:
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -1759,7 +1753,7 @@ def filestable(project_alias=None, folder_id=None):
     filechecks_list = []
     for fcheck in filechecks_list_temp:
         filechecks_list.append(fcheck['file_check'])
-    logging.info("filechecks_list:{}".format(filechecks_list_temp))
+    logger.info("filechecks_list:{}".format(filechecks_list_temp))
     project_postprocessing = []
 
     files_df = ""
@@ -1769,10 +1763,10 @@ def filestable(project_alias=None, folder_id=None):
         folder_name = run_query(("SELECT project_folder FROM folders "
                                  "WHERE folder_id = %(folder_id)s and project_id = %(project_id)s"),
                                      {'folder_id': folder_id, 'project_id': project_id}, cur=cur)
-        logging.info("folder_name: {}".format(len(folder_name)))
+        logger.info("folder_name: {}".format(len(folder_name)))
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
-            return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+            return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                    site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
         else:
@@ -1806,7 +1800,7 @@ def filestable(project_alias=None, folder_id=None):
 
         else:
             for fcheck in filechecks_list:
-                logging.info("fcheck: {}".format(fcheck))
+                logger.info("fcheck: {}".format(fcheck))
                 list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                           "   CASE WHEN check_results = 0 THEN 'OK' "
                                                           "       WHEN check_results = 9 THEN 'Pending' "
@@ -1815,7 +1809,7 @@ def filestable(project_alias=None, folder_id=None):
                                                           " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                                           "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
                                                          {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                logging.info("list_files.size: {}".format(list_files.shape[0]))
+                logger.info("list_files.size: {}".format(list_files.shape[0]))
                 if list_files.shape[0] > 0:
                     folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
             preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
@@ -1880,7 +1874,7 @@ def dashboard(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Declare the login form
@@ -1892,12 +1886,12 @@ def dashboard(project_alias=None):
     project_id = project_alias_exists(project_alias, cur=cur)
     if project_id is False:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
-    logging.info("project_id: {}".format(project_id))
-    logging.info("project_alias: {}".format(project_alias))
+    logger.info("project_id: {}".format(project_id))
+    logger.info("project_alias: {}".format(project_alias))
     if current_user.is_authenticated:
         username = current_user.name
         project_admin = run_query(("SELECT count(*) as no_results FROM users u, qc_projects p "
@@ -1908,7 +1902,7 @@ def dashboard(project_alias=None):
             project_admin = True
         else:
             project_admin = False
-        logging.info("project_admin: {} - {}".format(username, project_admin))
+        logger.info("project_admin: {} - {}".format(username, project_admin))
     else:
         project_admin = False
     project_info = run_query("SELECT *, CONCAT('https://dpo.si.edu/', lower(replace(project_manager, ' ', '-'))) as project_manager_link, "
@@ -1937,7 +1931,7 @@ def dashboard(project_alias=None):
         filechecks_list = project_info['project_checks'].split(',')
     except:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -2148,7 +2142,7 @@ def qc(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Declare the login form
@@ -2344,7 +2338,7 @@ def qc_process(folder_id):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Declare the login form
@@ -2380,7 +2374,7 @@ def qc_process(folder_id):
                                 'qc_val': qc_val,
                                 'qc_by': user_id['user_id']
                                 }, cur=cur)
-            logging.info("file_id: {}".format(file_id_q))
+            logger.info("file_id: {}".format(file_id_q))
             return redirect(url_for('qc_process', folder_id=folder_id))
     project_id = run_query("SELECT project_id from folders WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id}, cur=cur)[0]
@@ -2423,7 +2417,7 @@ def qc_process(folder_id):
         'no_files': folder_stats1[0]['no_files'],
         'no_errors': folder_stats2[0]['no_errors']
     }
-    logging.info("qc_status: {} | no_files: {}".format(folder_qc['qc_status'], folder_stats['no_files']))
+    logger.info("qc_status: {} | no_files: {}".format(folder_qc['qc_status'], folder_stats['no_files']))
     project_alias = run_query(("SELECT project_alias FROM projects WHERE project_id IN "
                                     "   (SELECT project_id "
                                     "       FROM folders "
@@ -2449,7 +2443,7 @@ def qc_process(folder_id):
                                   "  FROM files WHERE folder_id = %(folder_id)s "
                                   "  ORDER BY RAND() LIMIT {})").format(no_files_for_qc),
                                  {'folder_id': folder_id}, cur=cur)
-            logging.info("1587: {}".format(no_files_for_qc))
+            logger.info("1587: {}".format(no_files_for_qc))
             return redirect(url_for('qc_process', folder_id=folder_id))
         else:
             qc_stats_q = run_query(("WITH errors AS "
@@ -2541,7 +2535,6 @@ def qc_process(folder_id):
                                               "  WHERE q.folder_id = %(folder_id)s "
                                               "  AND q.file_qc > 0 AND q.file_id = f.file_id"),
                                              {'folder_id': folder_id}, cur=cur)
-                print(error_files)
                 qc_folder_result = True
                 crit_files = 0
                 major_files = 0
@@ -2582,7 +2575,7 @@ def qc_process(folder_id):
                                        analytics_code=settings.analytics_code)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', form=form, error_msg=error_msg,
+        return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
 
@@ -2604,7 +2597,7 @@ def qc_done(folder_id):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -2713,7 +2706,7 @@ def home():
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Declare the login form
@@ -2721,7 +2714,7 @@ def home():
 
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
-    logging.info(is_admin)
+    logger.info(is_admin)
     ip_addr = request.environ['REMOTE_ADDR']
     projects = run_query(("select p.project_title, p.project_id, p.project_alias, "
                                "     date_format(p.project_start, '%%b-%%Y') as project_start, "
@@ -2741,7 +2734,7 @@ def home():
                               {'username': user_name}, cur=cur)
     project_list = []
     for project in projects:
-        logging.info("project: {}".format(project))
+        logger.info("project: {}".format(project))
         project_total = run_query(("SELECT count(*) as no_files "
                                         "    FROM files "
                                         "    WHERE folder_id IN ("
@@ -2792,7 +2785,7 @@ def home():
             project_alias = project['project_id']
         else:
             project_alias = project['project_alias']
-        logging.info("project_alias: {}".format(project_alias))
+        logger.info("project_alias: {}".format(project_alias))
         project_list.append({
             'project_title': project['project_title'],
             'project_id': project['project_id'],
@@ -2872,7 +2865,7 @@ def create_new_project():
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -2965,8 +2958,8 @@ def create_new_project():
                                          'user_id': '101'}, cur=cur)
     if p_unitstaff != '':
         unitstaff = p_unitstaff.split(',')
-        logging.info("unitstaff: {}".format(p_unitstaff))
-        logging.info("len_unitstaff: {}".format(len(unitstaff)))
+        logger.info("unitstaff: {}".format(p_unitstaff))
+        logger.info("len_unitstaff: {}".format(len(unitstaff)))
         if len(unitstaff) > 0:
             for staff in unitstaff:
                 staff_user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
@@ -3037,7 +3030,7 @@ def edit_project(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -3108,7 +3101,7 @@ def proj_links(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -3175,7 +3168,7 @@ def add_links(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -3231,7 +3224,7 @@ def project_update(project_alias):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     username = current_user.name
@@ -3324,21 +3317,21 @@ def file(file_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     file_id, file_uid = check_file_id(file_id, cur=cur)
 
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
     folder_info = run_query(
         "SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
         {'file_id': file_id}, cur=cur)
     if len(folder_info) == 0:
         error_msg = "Invalid File ID."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
     else:
         folder_info = folder_info[0]
     file_details = run_query(("WITH data AS ("
@@ -3392,7 +3385,7 @@ def file(file_id=None):
     else:
         user_name = ""
         is_admin = False
-    logging.info("project_alias: {}".format(project_alias))
+    logger.info("project_alias: {}".format(project_alias))
 
     cur.close()
     conn.close()
@@ -3454,7 +3447,7 @@ def search_files(project_alias):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     q = request.values.get('q')
@@ -3473,13 +3466,13 @@ def search_files(project_alias):
         error_msg = "No search query was submitted."
         cur.close()
         conn.close()
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
     else:
-        logging.info("q: {}".format(q))
-        logging.info("metadata: {}".format(metadata))
-        logging.info("offset: {}".format(offset))
+        logger.info("q: {}".format(q))
+        logger.info("metadata: {}".format(metadata))
+        logger.info("offset: {}".format(offset))
         if metadata is None or metadata == '0':
             results = run_query(("SELECT "
                                       "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, CONCAT('/preview_image/', file_id)) as preview_image, fd.project_folder "
@@ -3557,7 +3550,7 @@ def search_folders(project_alias):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     q = request.values.get('q')
@@ -3571,12 +3564,12 @@ def search_folders(project_alias):
         error_msg = "No search query was submitted."
         cur.close()
         conn.close()
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                 site_net=site_net, site_env=site_env, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
     else:
-        logging.info("q: {}".format(q))
-        logging.info("offset: {}".format(offset))
+        logger.info("q: {}".format(q))
+        logger.info("offset: {}".format(offset))
         results = run_query((
                                      "WITH pfolders AS (SELECT folder_id from folders WHERE project_id in (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)),"
                                      " errors AS "
@@ -3666,7 +3659,7 @@ def update_folder_dams(project_alias=None, folder_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # Del DAMS status badge, if exists
@@ -3822,12 +3815,12 @@ def api_get_projects():
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     # For post use request.form.get("variable")
     section = request.form.get("section")
-    # logging.info("VAL: {}".format(val))
+    # logger.info("VAL: {}".format(val))
     if section not in ['MD', 'IS']:
         query = (" SELECT "
                  " p.project_id, "
@@ -3882,7 +3875,7 @@ def api_get_projects():
     data = ({"projects": projects_data, "last_update": last_update[0]['updated_at']})
     # For admin
     api_key = request.form.get("api_key")
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
     if api_key is not None:
         if validate_api_key(api_key, cur=cur):
             query = (" SELECT * FROM qc_settings WHERE project_id = %(project_id)s")
@@ -3907,11 +3900,11 @@ def api_get_project_details(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     api_key = request.form.get("api_key")
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
     if api_key is None or validate_api_key(api_key, cur=cur) is False:
         data = run_query(("SELECT "
                                "project_id, "
@@ -4020,11 +4013,11 @@ def api_update_project_details(project_alias=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     api_key = request.form.get("api_key")
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
     if api_key is None:
         raise InvalidUsage('Missing key', status_code=401)
     else:
@@ -4261,12 +4254,12 @@ def api_update_project_details(project_alias=None):
                             " VALUES (%(file_id)s, %(folder_id)s, %(file_check)s, %(check_results)s, %(check_info)s, CURRENT_TIME) "
                             " ON DUPLICATE KEY UPDATE "
                             " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
-                        logging.info(query)
+                        logger.info(query)
                         res = query_database_insert(query,
                                                     {'file_id': file_id, 'folder_id': folder_id,
                                                      'file_check': file_check,
                                                      'check_results': check_results, 'check_info': check_info}, cur=cur)
-                        logging.info(res)
+                        logger.info(res)
                     elif query_property == "filemd5":
                         filetype = request.form.get("filetype")
                         folder_id = request.form.get("folder_id")
@@ -4318,7 +4311,7 @@ def api_update_project_details(project_alias=None):
 def api_new_folder(project_alias=None):
     """Update a project properties."""
     api_key = request.form.get("api_key")
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
     if api_key is None:
         raise InvalidUsage('Missing key', status_code=401)
     else:
@@ -4334,7 +4327,7 @@ def api_new_folder(project_alias=None):
                                    autocommit=True)
             cur = conn.cursor()
         except pymysql.Error as e:
-            logging.error(e)
+            logger.error(e)
             raise InvalidUsage('System error')
 
         if validate_api_key(api_key, cur=cur):
@@ -4372,7 +4365,7 @@ def api_new_folder(project_alias=None):
                                  "  VALUES (%(folder_id)s, %(filename)s, %(timestamp)s, uuid_v4s())")
                         data = query_database_insert(query, {'folder_id': folder_id, 'filename': filename,
                                                              'timestamp': timestamp}, cur=cur)
-                        logging.debug("new_file:{}".format(data))
+                        logger.debug("new_file:{}".format(data))
                         query = ("SELECT file_id, uid FROM files WHERE folder_id = %(folder_id)s AND file_name = %(filename)s")
                         file_info = run_query(query, {'folder_id': folder_id, 'filename': filename}, cur=cur)
                         file_id = file_info[0]['file_id']
@@ -4449,7 +4442,7 @@ def api_get_folder_details(folder_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, f.status, "
@@ -4467,7 +4460,7 @@ def api_get_folder_details(folder_id=None):
     project_id = data[0]['project_id']
     if len(data) == 1:
         api_key = request.form.get("api_key")
-        logging.info("api_key: {}".format(api_key))
+        logger.info("api_key: {}".format(api_key))
         if api_key is None:
             query = ("SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
                  " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
@@ -4493,7 +4486,7 @@ def api_get_folder_details(folder_id=None):
                 files_list = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
                 folder_files_df = pd.DataFrame(files_list)
                 for fcheck in filechecks_list:
-                    logging.info("fcheck: {}".format(fcheck))
+                    logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
                                                          "   CASE WHEN check_results = 0 THEN 'OK' "
                                                          "       WHEN check_results = 9 THEN 'Pending' "
@@ -4502,7 +4495,7 @@ def api_get_folder_details(folder_id=None):
                                                          " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
                                                          "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
                                                         {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
-                    logging.info("list_files.size: {}".format(list_files.shape[0]))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
                     if list_files.shape[0] > 0:
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 files = folder_files_df
@@ -4529,11 +4522,11 @@ def api_get_folder_qc(folder_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     api_key = request.form.get("api_key")
-    logging.info("api_key: {}".format(api_key))
+    logger.info("api_key: {}".format(api_key))
 
     if validate_api_key(api_key, cur=cur):
         query = (
@@ -4571,7 +4564,7 @@ def api_get_file_details(file_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     file_id, file_uid = check_file_id(file_id, cur=cur)
@@ -4640,13 +4633,13 @@ def api_get_report(report_id=None):
                                    autocommit=True)
             cur = conn.cursor()
         except pymysql.Error as e:
-            logging.error(e)
+            logger.error(e)
             raise InvalidUsage('System error')
 
         file_name = request.args.get("file_name")
         dams_uan = request.args.get("dams_uan")
-        logging.info("file_name: {}".format(file_name))
-        logging.info("dams_uan: {}".format(dams_uan))
+        logger.info("file_name: {}".format(file_name))
+        logger.info("dams_uan: {}".format(dams_uan))
         query = run_query("SELECT * FROM data_reports WHERE report_id = %(report_id)s",
                                {'report_id': report_id}, cur=cur)
         if len(query) == 0:
@@ -4681,10 +4674,9 @@ def data_reports_form():
 
     project_alias = request.values.get("project_alias")
     report_id = request.values.get("report_id")
-    print(project_alias)
     if project_alias is None or report_id is None:
         error_msg = "Report is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, 
+        return render_template('error.html', error_msg=error_msg, project_alias=None, 
                                site_env=site_env, site_net=site_net, site_ver=site_ver), 404
     return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
 
@@ -4709,13 +4701,13 @@ def data_reports(project_alias=None, report_id=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
 
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net), 404
+        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net), 404
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -4725,7 +4717,7 @@ def data_reports(project_alias=None, report_id=None):
 
     if len(project_id) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_id,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_id,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -4737,7 +4729,7 @@ def data_reports(project_alias=None, report_id=None):
         error_msg = "Report was not found."
         cur.close()
         conn.close()
-        return render_template('error.html', form=form, error_msg=error_msg, project_alias=project_alias,
+        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -4795,11 +4787,11 @@ def get_preview(file_id=None, max=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     data = run_query("SELECT folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id}, cur=cur)
-    logging.info(data)
+    logger.info(data)
     if len(data) == 0:
         filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
@@ -4818,7 +4810,7 @@ def get_preview(file_id=None, max=None):
                     if os.path.isfile(img_resized):
                         filename = img_resized
                     else:
-                        logging.info(filename)
+                        logger.info(filename)
                         img = Image.open(filename)
                         wpercent = (int(width) / float(img.size[0]))
                         hsize = int((float(img.size[1]) * float(wpercent)))
@@ -4826,13 +4818,13 @@ def get_preview(file_id=None, max=None):
                         filename = "/tmp/{}_{}.jpg".format(file_id, width)
                         img.save(filename, icc_profile=img.info.get('icc_profile'))
                 else:
-                    logging.info(filename)
+                    logger.info(filename)
                     filename = "static/na.jpg"
         except:
             filename = "static/na.jpg"
     if not os.path.isfile(filename):
         filename = "static/na.jpg"
-    logging.debug("preview_request: {} - {}".format(file_id, filename))
+    logger.debug("preview_request: {} - {}".format(file_id, filename))
 
     cur.close()
     conn.close()
@@ -4866,7 +4858,7 @@ def get_barcodeimage(barcode=None):
                                autocommit=True)
         cur = conn.cursor()
     except pymysql.Error as e:
-        logging.error(e)
+        logger.error(e)
         raise InvalidUsage('System error')
 
     if barcode_split[0] == 'nmnhbot':
@@ -4882,7 +4874,7 @@ def get_barcodeimage(barcode=None):
             file_id = data['file_id']
             folder_id = data['folder_id']
             preview_image = data['preview_image']
-            logging.info("data: {}".format(data))
+            logger.info("data: {}".format(data))
             if preview_image is not None:
                 redirect(preview_image, code=302)
             else:
@@ -4905,9 +4897,9 @@ def get_barcodeimage(barcode=None):
                     else:
                         filename = "static/na.jpg"
         if not os.path.isfile(filename):
-            logging.info(filename)
+            logger.info(filename)
             filename = "static/na.jpg"
-    logging.debug("barcode_request: {} - {}".format(barcode, filename))
+    logger.debug("barcode_request: {} - {}".format(barcode, filename))
     cur.close()
     conn.close()
     try:
