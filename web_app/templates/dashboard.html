@@ -252,7 +252,7 @@
                   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title" id="previewmodal1Label">Image Preview (JPG)</h5>
+                        <h1 modal-title" id="previewmodal1Label">Image Preview (JPG)</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
@@ -271,7 +271,7 @@
           {% elif tab == "lightbox" %}
 
               <br><br>
-                <h5>Image Previews for the Folder {{ folder_name.project_folder }}</h5>
+                <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
 
                   <div class="row">
                       <div class="col">
@@ -384,7 +384,7 @@
                     ]
                 });
 
-                $('#files_table').append('<caption style="caption-side: top"><h5>Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
+                $('#files_table').append('<caption style="caption-side: top"><p class="fs-3">Files in the Folder {{ folder_name.project_folder }}</p></caption>');
 
                 $('#files_table').DataTable({
                     dom: 'Bfrtip',
@@ -502,7 +502,7 @@
 
         {% elif tab == "postprod" %}
 
-                $('#post_processing_table').append('<caption style="caption-side: top"><h5>Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</h5></caption>');
+                $('#post_processing_table').append('<caption style="caption-side: top"><p class="fs-3">Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</p></caption>');
 
                 $('#post_processing_table').DataTable({
                     dom: 'Bfrtip',

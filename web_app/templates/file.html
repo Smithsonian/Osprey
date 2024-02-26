@@ -3,7 +3,7 @@
 {% block title %}Details of {{ file_details.file_name }} - DPO Collections Digitization Dashboard{% endblock %}
 
 {% block homelink %}
-    <p class="navbar-brand navtitle">Details of {{ file_details.file_name }}</p>
+    <h1 class="navbar-brand navtitle">Details of {{ file_details.file_name }}</h1>
 {% endblock %}
 
 {% block head_blocks %}
@@ -36,7 +36,7 @@
 
     <div class="row">
         <div class="col-4">
-            <h4>Image Preview:</h4>
+            <h2>Image Preview:</h2>
 
                     {% if kiosk  %}
 
@@ -67,7 +67,7 @@
                       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
                         <div class="modal-content">
                           <div class="modal-header">
-                            <h5 class="modal-title" id="checkmodalLabel">Check Details</h5>
+                            <h1 class="modal-title" id="checkmodalLabel">Check Details</h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                           </div>
                           <div class="modal-body">
@@ -87,7 +87,7 @@
                 <div class="col">
 
                     <div class="card">
-                        <h5 class="card-header text-white bg-primary">File Technical Checks</h5>
+                        <h2 class="card-header text-white bg-primary">File Technical Checks</h2>
                         <div class="card-body">
                             <table class="table compact table-striped" style="width:100%">
                             <thead>
@@ -150,7 +150,7 @@
                     {% if file_links|length > 0 %}
                     <!-- File Links -->
                         <div class="card">
-                            <h5 class="card-header text-white bg-primary">Links related to this image</h5>
+                            <p class="fs-3 card-header text-white bg-primary">Links related to this image</p>
                             <div class="card-body">
                                 <div class="list-group">
 
@@ -192,7 +192,7 @@
     <script type="text/javascript">
         $(document).ready( function () {
 
-            $('#file_metadata').append('<caption style="caption-side: top;"><h4>Embedded metadata in the file: {{ file_details.file_name }}</h4></caption>');
+            $('#file_metadata').append('<caption style="caption-side: top;"><p class="fs-3">Embedded metadata in the file: {{ file_details.file_name }}</p></caption>');
 
             $('#file_metadata').DataTable({
                 dom: 'Bfrtip',
