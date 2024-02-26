@@ -119,7 +119,7 @@
                     </select>
                 </div>
                 <div class="col">
-                    <button type="submit" class="btn btn-primary btn-sm">Open Report</button></form>
+                    <button type="submit" class="btn btn-primary">Open Report</button></form>
                 </div>
             </div>
 
@@ -190,10 +190,10 @@
 
         <!-- Choose view -->
             <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
-                <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to view the file check results of the folder" aria-label="Link to view the file check results of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
-                <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews of the folder" aria-label="Link to view image previews of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to the file checks of the folder" aria-label="Link to view the file checks of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
+                <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews in a lightbox of the folder" aria-label="Link to view image previews in a lightbox of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
                 {% if postproc_data %}
-                    <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-processing steps of the folder" aria-label="Link to view the post-processing steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
+                    <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-production steps of the folder" aria-label="Link to view the post-production steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
                 {% endif %}
             </div>
 

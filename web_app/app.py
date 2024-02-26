@@ -523,7 +523,7 @@ def homepage(team=None):
 
     section_query = (" SELECT "
                      " p.projects_order, "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
                      " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
                      " p.project_status, "
                      " p.project_manager, "
@@ -553,7 +553,7 @@ def homepage(team=None):
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
+        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
         "project_dates": "Dates",
         # "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Specimens/Objects Digitized",
@@ -567,7 +567,7 @@ def homepage(team=None):
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
+        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
         "project_dates": "Dates",
         # "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Specimens/Objects Digitized",
@@ -1269,11 +1269,11 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
 
     project_manager_link = project_managers['project_manager']
     if project_managers['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\">Jeanine Nault</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\" title=\"Link to Jeanine Nault's staff page\">Jeanine Nault</a>"
     elif project_managers['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\">Nathan Ian Anderson</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
     elif project_managers['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\">Erin M. Mazzei</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']}, cur=cur)
@@ -1917,11 +1917,11 @@ def dashboard(project_alias=None):
 
     project_manager_link = project_managers['project_manager']
     if project_managers['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\">Jeanine Nault</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\" title=\"Link to Jeanine Nault's staff page\">Jeanine Nault</a>"
     elif project_managers['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
     elif project_managers['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
 
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",

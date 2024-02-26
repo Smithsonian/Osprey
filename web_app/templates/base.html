@@ -212,22 +212,22 @@
   <div class="container-fluid">
       <div class="row">
         <div class="col">
-            <a href="https://dpo.si.edu"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
+            <a href="https://dpo.si.edu" class="text-white footer-text"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" class="text-white footer-text" style="background: #3F4249!important;">Office of the Chief Information Officer</a></p>
-            <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;">Terms of Use</a></p>
-            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;">Vulnerability Disclosure Policy</a></p>
+            <p><a href="https://www.si.edu/ocio" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Office of the Chief Information Officer">Office of the Chief Information Officer</a></p>
+            <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;" title="Link to page with contact information and about the system">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Terms of Use">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>
         </div>
         <div class="col">
             {% if site_net == "external" %}
-                <p><a href="https://si.edu/" class="text-white footer-text" style="background: #3F4249!important;">Smithsonian Home</a></p>
+                <p><a href="https://si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Smithsonian Homepage">Smithsonian Home</a></p>
             {% else %}
-                <p><a href="https://prism.si.edu/" class="text-white footer-text" style="background: #3F4249!important;">PRISM</a></p>
+                <p><a href="https://prism.si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the PRISM website">PRISM</a></p>
             {% endif %}
-            <p><a href="https://www.si.edu/Accessibility" class="text-white footer-text" style="background: #3F4249!important;">Accessibility</a></p>
-            <p><a href="https://www.si.edu/privacy" class="text-white footer-text" style="background: #3F4249!important;">Privacy</a></p>
+            <p><a href="https://www.si.edu/Accessibility" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Accessibility information page">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Privacy information page">Privacy</a></p>
         </div>
 
     </div>
