@@ -519,7 +519,19 @@ def homepage(team=None):
     elif team == "inf":
         team_heading = "Summary of the Informatics Team Projects"
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
-        summary_stats = None
+        # IS stats
+        summary_stats = {
+            'digitization_projects': "{:,}".format(
+                        run_query(
+                            "SELECT COUNT(*) as total "
+                            "FROM projects_informatics", cur=cur)[0]['total']),
+            'active_projects': "{:,}".format(run_query(("SELECT COUNT(*) as total "
+                            "FROM projects_informatics WHERE project_status='Ongoing'"),
+                           cur=cur)[0]['total']),
+            'records': "{:,}".format(run_query(("SELECT SUM(records) as total "
+                          " FROM projects_informatics WHERE records_redundant IS False"),
+                         cur=cur)[0]['total'])
+        }
 
     section_query = (" SELECT "
                      " p.projects_order, "
@@ -534,7 +546,7 @@ def homepage(team=None):
                      "          THEN CONCAT(date_format(p.project_start, '%%d'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
                      "      WHEN date_format(p.project_start, '%%Y') = date_format(p.project_end, '%%Y') "
                      "          THEN CONCAT(date_format(p.project_start, '%%d %%b'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
-                     "      ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' to ', date_format(p.project_end, '%%d %%b %%Y')) END "
+                     "      ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) END "
                      "         as project_dates, "
                      " CASE WHEN p.objects_estimated IS True THEN CONCAT(coalesce(format(ps.objects_digitized, 0), 0), '*') ELSE "
                      " coalesce(format(ps.objects_digitized, 0), 0) END as objects_digitized, "
@@ -575,6 +587,37 @@ def homepage(team=None):
         # "images_public": "Public Images"
     })
 
+
+    # Informatics Table
+    inf_section_query = (" SELECT "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<strong>', p.project_title, '</strong><br>', p.summary) as project_title, "
+                     " p.project_status, "
+                     " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
+                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository in Github\" class=\"bg-white\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') END as github_link, "
+                     " CASE "
+                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
+                     "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "                     
+                     "      ELSE CONCAT(date_format(p.project_start, '%b %Y'), ' - ', date_format(p.project_end, '%b %Y')) END "
+                     "         as project_dates, "
+                     " CASE WHEN p.records = 0 THEN 'NA' ELSE "
+                     " (CASE WHEN p.records_estimated IS True THEN CONCAT(coalesce(format(p.records, 0), 0), '*') ELSE "
+                     "      coalesce(format(p.records, 0), 0) END) END as records, "
+                     " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
+                     " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
+                     " ORDER BY p.project_end, p.project_start DESC")
+    list_projects_inf = pd.DataFrame(run_query(inf_section_query, cur=cur))
+    list_projects_inf = list_projects_inf.rename(columns={
+        "project_unit": "Unit",
+        "project_title": "Title",
+        "project_status": "Status",
+        "github_link": "Repository",
+        "info_link": "More Info",
+        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
+        "project_dates": "Dates",
+        "records": "Records Created or Enhanced"
+    })
+
     cur.close()
     conn.close()
 
@@ -592,6 +635,9 @@ def homepage(team=None):
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
                            tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
+                                                               border=0, escape=False,
+                                                               classes=["display", "w-100"])],
+                           tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
                            asklogin=True,
@@ -1050,7 +1096,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     if tab == "filechecks":
         # QC folder status
-        qc_check = run_query("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s AND qc_status = 1",
+        # qc_check = run_query("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s AND qc_status = 1",
+        #                     {'folder_id': folder_id}, cur=cur)
+        qc_check = run_query("SELECT * FROM qc_files WHERE folder_id = %(folder_id)s AND file_qc != 0",
                             {'folder_id': folder_id}, cur=cur)
         if len(qc_check) > 0:
             qc_check = True

@@ -48,6 +48,14 @@
             <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Active Projects:</strong> {{ summary_stats.active_projects }}</li>
         </ul>
 
+    {% else %}
+
+        <ul class="list-group list-group-horizontal">
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Records Created or Enhanced:</strong> {{ summary_stats.records }}</li>
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Projects:</strong> {{ summary_stats.digitization_projects }}</li>
+            <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Active Projects:</strong> {{ summary_stats.active_projects }}</li>
+        </ul>
+
     {% endif %}
 
     <hr>
@@ -110,16 +118,21 @@
 
     {% elif team == "md" %}
             {% for table in tables_md %}
-                       {{ table|safe }}
+                {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
     {% elif team == "is" %}
             {% for table in tables_is %}
-                       {{ table|safe }}
+                {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
     {% elif team == "inf" %}
-            <p><em>Coming soon...</em></p>
+            {% for table in tables_inf %}
+                {{ table|safe }}
+            {% endfor %}
+            <p>* Value was estimated</p>
+            <p>Some projects may 
+                touch the same records, so the total above will be less than the sum of all projects.</p>
     {% endif %}
 
     <br>
@@ -143,6 +156,8 @@
 
         $('#list_projects_is').append('<caption style="caption-side: top;"><h2>Imaging Services Projects</h2></caption>');
 
+        $('#list_projects_inf').append('<caption style="caption-side: top;"><h2>Informatics Projects (under construction)</h2></caption>');
+
         $(document).ready( function () {
             var table1 = $('#list_projects_md').DataTable({
                 order: [[0, 'desc']],
@@ -164,6 +179,12 @@
 
             table2.column( 0 ).visible( false );
 
+            var table3 = $('#list_projects_inf').DataTable({
+                "ordering": false,
+                "searching": false,
+                "paging": false,
+                "lengthChange": false
+            });
 
         });
     </script>
