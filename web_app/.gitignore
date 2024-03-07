@@ -7,3 +7,5 @@ settings.py
 
 *.code-workspace
 .vs
+
+static/figs

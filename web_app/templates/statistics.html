@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics of {{ project_info.project_title }} - DPO Collections Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <h1 class="navbar-brand navtitle">Project Statistics of {{ project_info.project_title }}</h1>
+{% endblock %}
+
+{% block head_blocks %}
+
+{% endblock %}
+
+
+{% block content %}
+
+<h2>Main statistics for the project</h2>
+
+    <div class="row">
+        {% for stat in proj_stats_vals1 %}
+        <div class="col-3">
+            <div class="card">
+                <p style="font-size: x-large;" class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</p>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-10">
+                            <p style="font-size: larger;"><strong>
+                                {{ stat.step_value |round(stat.round_val)}} {{ stat.step_units }}</strong></p>
+                            {% if stat.step_notes %}
+                                <p>{{ stat.step_notes }}</p>
+                            {% endif %}
+                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        {% endfor %}
+    
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <p><em>Note: Days in the calculations are working days (Mon-Fri, excluding federal holidays).</em></p>
+            <br>        
+        </div>
+    </div>
+
+
+    <div class="row">
+        <div class="col">
+
+            <h2>Detailed statistics for the project</h2>
+
+            {% for stat in proj_stats %}
+
+            <div class="card">
+                <p style="font-size: x-large;" class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</p>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-10">
+                            {% if stat.step_notes %}
+                                <p>{{ stat.step_notes }}</p>
+                            {% endif %}
+                
+                            <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
+                                alt="{{ stat.step_info }} of the {{ project_info.project_title }} project. The figure shows {{ stat.step_units }}">
+                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
+                        </div>
+                        <div class="col-2">
+                            <a href="{{ url_for('proj_statistics_dl', project_id=project_info.proj_id, step_id=stat.step_id) }}" class="btn btn-primary text-white w-100" role="button"><i class="fa-solid fa-download"></i> Download data in CSV</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <br>
+
+            {% endfor %}
+        </div>
+        
+    </div>
+
+    <br><br>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+
+{% endblock %}

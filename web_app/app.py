@@ -11,6 +11,7 @@ from flask import jsonify
 from flask import redirect
 from flask import url_for
 from flask import send_file
+from flask import Response
 
 # caching
 # from flask_caching import Cache
@@ -29,6 +30,9 @@ from datetime import datetime
 from PIL import Image
 from uuid import UUID
 
+from time import strftime
+from time import localtime
+
 # MySQL
 import pymysql
 
@@ -44,10 +48,11 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired
 
+
 import settings
 
 
-site_ver = "2.6.7"
+site_ver = "2.7.1"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -618,6 +623,19 @@ def homepage(team=None):
         "records": "Records Created or Enhanced"
     })
 
+    # Informatics Software
+    inf_software = ("SELECT CONCAT('<strong>', software_name, '</strong>') as software_name, software_details, "
+                    " CONCAT('<a href=\"', repository, '\" title=\"Link to code repository in Github\" class=\"bg-white\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') as repository, "
+                    " CONCAT('<a href=\"', more_info, '\" title=\"Link to a page with more information about the software\" class=\"bg-white\">More Info</a>') as more_info "
+                    " FROM informatics_software ORDER BY sortby DESC")
+    list_software = pd.DataFrame(run_query(inf_software, cur=cur))
+    list_software = list_software.rename(columns={
+        "software_name": "Software",
+        "software_details": "Details",
+        "repository": "Repository",
+        "more_info": "Details"
+    })
+
     cur.close()
     conn.close()
 
@@ -640,6 +658,9 @@ def homepage(team=None):
                            tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
+                           tables_software=[list_software.to_html(table_id='list_software', index=False,
+                                                               border=0, escape=False,
+                                                               classes=["display", "w-100"])],
                            asklogin=True,
                            site_env=site_env,
                            site_net=site_net,
@@ -649,7 +670,7 @@ def homepage(team=None):
                            user_address=user_address,
                            team_heading=team_heading,
                            html_title=html_title,
-                           analytics_code=settings.analytics_code
+                           analytics_code=settings.analytics_code                           
                            )
 
 
@@ -864,6 +885,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                           " project_id = %(project_id)s"),
                          {'project_id': project_id}, cur=cur)
     project_stats['objects'] = format(int(proj_obj[0]['no_objects']), ',d')
+    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
 
     project_folders_badges = run_query("SELECT b.folder_id, b.badge_type, b.badge_css, b.badge_text FROM folders_badges b, folders f WHERE b.folder_id = f.folder_id and f.project_id = %(project_id)s and b.badge_type != 'no_files'", {'project_id': project_id}, cur=cur)
     folder_name = None
@@ -1191,7 +1213,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            project_disk=project_disk,
                            projects_links=projects_links,
                            project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code
+                           analytics_code=settings.analytics_code,
+                           project_stats_other=project_stats_other
                            )
 
 
@@ -1983,7 +2006,7 @@ def dashboard(project_alias=None):
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
-    project_statistics = run_query(("SELECT COALESCE(images_taken, 0) as images_taken, COALESCE(objects_digitized, 0) as objects_digitized"
+    project_statistics = run_query(("SELECT COALESCE(images_taken, 0) as images_taken, COALESCE(objects_digitized, 0) as objects_digitized "
                                     "  FROM projects_stats WHERE project_id = %(project_id)s"),
                                    {'project_id': project_id}, cur=cur)[0]
 
@@ -2031,6 +2054,8 @@ def dashboard(project_alias=None):
                                      {'project_id': project_id}, cur=cur)
 
     project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
+
+    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
 
     folder_name = None
     folder_qc = {
@@ -2141,8 +2166,119 @@ def dashboard(project_alias=None):
                            project_disk=project_disk,
                            projects_links=projects_links,
                            project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code
+                           analytics_code=settings.analytics_code,
+                           project_stats_other=project_stats_other
                            )
+
+
+
+@cache.memoize()
+@app.route('/dashboard/<project_alias>/statistics/', methods=['POST', 'GET'], provide_automatic_options=False)
+def proj_statistics(project_alias=None):
+    """Statistics for a project"""
+    user_exists = False
+    username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logger.error(e)
+        raise InvalidUsage('System error')
+
+    # Check if project exists
+    if project_alias_exists(project_alias, cur=cur) is False:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+
+    project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
+                                      {'project_alias': project_alias}, cur=cur)
+    if len(project_id_check) == 0:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+    else:
+        project_id = project_id_check[0]['project_id']
+
+    project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s", {'project_id': project_id}, cur=cur)[0]
+
+    proj_stats = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and stat_type='column' and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']}, cur=cur)
+
+    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4", {'proj_id': project_info['proj_id']}, cur=cur)
+
+    # proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4, 4", {'proj_id': project_info['proj_id']}, cur=cur)
+
+    cur.close()
+    conn.close()
+
+    return render_template('statistics.html',
+                           project_alias=project_alias,
+                           project_info=project_info,
+                           proj_stats=proj_stats,
+                           proj_stats_vals1=proj_stats_vals1)
+
+
+
+@cache.memoize()
+@app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
+def proj_statistics_dl(project_id=None, step_id=None):
+    """Download statistics for a project"""
+    
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logger.error(e)
+        raise InvalidUsage('System error')
+
+    project_id_check = run_query("SELECT proj_id FROM projects WHERE proj_id = %(proj_id)s",
+                                      {'proj_id': project_id}, cur=cur)
+    if len(project_id_check) == 0:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                               project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+
+    project_info = run_query("SELECT * FROM projects WHERE proj_id = %(proj_id)s", {'proj_id': project_id}, cur=cur)[0]
+
+    proj_stats = run_query("SELECT e.step_info, e.step_notes, e.step_units, s.* FROM projects_detail_statistics_steps e RIGHT JOIN projects_detail_statistics s ON (e.step_id = s.step_id) WHERE e.step_id = %(step_id)s and stat_type = 'column'", {'step_id': step_id}, cur=cur)
+
+    cur.close()
+    conn.close()
+
+    csv_data = "data_type,info,units,date,value\n"
+    for data_row in proj_stats:
+        csv_data += f"{data_row['step_info']}, {data_row['step_notes']}, {data_row['step_units']}, {data_row['date']}, {data_row['step_value']}\n"
+
+    current_time = strftime("%Y%m%d_%H%M%S", localtime())
+
+    # Create a direct download response with the CSV data and appropriate headers
+    response = Response(csv_data, content_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename={}_stats_{}.csv".format(project_info['project_alias'], current_time)
+ 
+    return response
 
 
 @cache.memoize()
@@ -3386,23 +3522,23 @@ def file(file_id=None):
                                    "         SELECT file_id, "
                                    "             CONCAT(%(preview)s, file_id) as preview_image, "
                                    "             preview_image as preview_image_ext, "
-                                   "             folder_id, file_name, dams_uan "
+                                   "             folder_id, file_name, dams_uan, file_ext "
                                    "             FROM files "
                                    "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
                                    " UNION "
-                                   "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, folder_id, file_name, dams_uan "
+                                   "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, folder_id, file_name, dams_uan, file_ext "
                                    "             FROM files "
                                    "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
                                    "             ORDER BY file_name"
                                    "),"
-                                   "data2 AS (SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, dams_uan, "
+                                   "data2 AS (SELECT file_id, preview_image, file_ext, preview_image_ext, folder_id, file_name, dams_uan, "
                                    "         lag(file_id,1) over (order by file_name) prev_id,"
                                    "         lead(file_id,1) over (order by file_name) next_id "
                                    " FROM data)"
                                    " SELECT "
                                    " file_id, "
                                    "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE CONCAT(preview_image, '?') END AS preview_image, "
-                                   " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id "
+                                   " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext "
                                    "FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
                                   {'folder_id': folder_info['folder_id'], 'file_id': file_id,
                                    'preview': '/preview_image/'}, cur=cur)
@@ -3421,10 +3557,10 @@ def file(file_id=None):
     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                  " FROM files_exif "
                                                  " WHERE file_id = %(file_id)s AND "
-                                                 "       lower(filetype) = 'tif' AND "
+                                                 "       lower(filetype) = %(file_ext)s AND "
                                                  "       lower(taggroup) != 'system' "
                                                  " ORDER BY taggroup, tag "),
-                                                {'file_id': file_id}, cur=cur))
+                                                {'file_id': file_id, 'file_ext': file_details['file_ext']}, cur=cur))
     file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
                                 {'file_id': file_id}, cur=cur)
     if current_user.is_authenticated:
@@ -4194,7 +4330,7 @@ def api_update_project_details(project_alias=None):
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'folder_md5', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "TIF {}".format(query_value)}, cur=cur)
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "Main {}".format(query_value)}, cur=cur)
                         elif query_property == "tif_md5_matches_ok":
                             clear_badges = run_query(
                                 "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'",
@@ -4203,7 +4339,7 @@ def api_update_project_details(project_alias=None):
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'folder_md5', 'bg-success', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                                 "       badge_css = 'bg-success', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id, 'value': 'TIF MD5 Valid'}, cur=cur)
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': 'Main MD5 Valid'}, cur=cur)
                         elif query_property == "raw_md5_matches_error":
                             query = (
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
@@ -4408,11 +4544,12 @@ def api_new_folder(project_alias=None):
                     filename = request.form.get("filename")
                     timestamp = request.form.get("timestamp")
                     folder_id = request.form.get("folder_id")
+                    filetype = request.form.get("filetype")
                     if filename is not None and timestamp is not None and folder_id is not None:
-                        query = ("INSERT INTO files (folder_id, file_name, file_timestamp, uid) "
-                                 "  VALUES (%(folder_id)s, %(filename)s, %(timestamp)s, uuid_v4s())")
+                        query = ("INSERT INTO files (folder_id, file_name, file_timestamp, uid, file_ext) "
+                                 "  VALUES (%(folder_id)s, %(filename)s, %(timestamp)s, uuid_v4s(), %(file_ext)s)")
                         data = query_database_insert(query, {'folder_id': folder_id, 'filename': filename,
-                                                             'timestamp': timestamp}, cur=cur)
+                                                             'timestamp': timestamp, 'file_ext': filetype}, cur=cur)
                         logger.debug("new_file:{}".format(data))
                         query = ("SELECT file_id, uid FROM files WHERE folder_id = %(folder_id)s AND file_name = %(filename)s")
                         file_info = run_query(query, {'folder_id': folder_id, 'filename': filename}, cur=cur)

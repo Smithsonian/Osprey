@@ -30,7 +30,7 @@
           position: relative;
           min-height: 100%;
           padding-bottom:20px;
-          padding-top:100px;
+          padding-top:0px;
         }
         body {
           margin-bottom: 160px;
@@ -49,7 +49,10 @@
 
         .skipnav { text-align: left; }
           .skipnav a { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
-          .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; }
+          .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; 
+            background-color: #fff;
+    border: 2px solid #000;
+    color: #000;}
 
         .screen-reader-only {
             position: absolute;
@@ -115,7 +118,7 @@
 
 <div class="container-fluid">
 
-    <nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
+    <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
       <!-- Navbar content -->
         <div class="container-fluid">
             {% block homelink %}{% endblock %}
@@ -150,6 +153,8 @@
             </div>
         </div>
     </nav>
+
+    <br>
 
     <a name="maincontent"></a>
 
@@ -254,11 +259,6 @@
             type="text/javascript"
             src="{{ url_for('static', filename='js/datatables.min.js') }}"
     ></script>
-    <script
-            type="text/javascript"
-            src="{{ url_for('static', filename='js/pdfmake.min.js') }}"
-    ></script>
-
 
     {% block javascripts %}
     {% endblock %}

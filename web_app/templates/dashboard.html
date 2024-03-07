@@ -85,14 +85,19 @@
                     <h1 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h1>
             </div>
         </div>
-
+        <hr>
         <div class="row">
-            <div class="col">&nbsp;</div>
-                <div class="col">
-                    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
-                    <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
-                    </form>
-                </div>
+            <div class="col">
+                {% if project_stats_other.other_stat != "0" %}
+                    <h1 title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></h1>
+                {% endif %}
+                <!-- <a href="{{ url_for('proj_statistics', project_alias=project_alias) }}" class="btn btn-info btn-lg text-white w-100" style="font-size:x-large;" role="button"><i class="fa-solid fa-chart-column"></i> Project Statistics</a> -->
+            </div>
+            <div class="col">
+                <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
+                <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
+                </form>
+            </div>
 
         </div>
     </div>
@@ -105,6 +110,9 @@
 
     <div class="col-auto" style="font-size: 0.9em;">
 
+        <!-- Accessibility link to files -->
+        <div class="skipnav"><a href="#filestable">Skip to Files</a></div>
+        
         {% if proj_reports %}
 
             <!-- Project Reports -->
@@ -127,8 +135,7 @@
 
         {% endif %}
 
-    <p style="font-size: medium;">{% if project_folders|length == 1 %}{{ project_folders|length }} Folder {% else %}{{ project_folders|length }} Folders {% endif %}
-                     in the Project:</p>
+    <p style="font-size: medium;">This project is organized in {% if project_folders|length == 1 %}{{ project_folders|length }} Folder{% else %}{{ project_folders|length }} Folders{% endif %}:</p>
         <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
@@ -188,6 +195,9 @@
             {% endfor %}
 
 
+        <!-- Accessible jump to files -->
+        <a name="filestable"></a>
+
         <!-- Choose view -->
             <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
                 <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to the file checks of the folder" aria-label="Link to view the file checks of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
@@ -196,7 +206,6 @@
                     <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-production steps of the folder" aria-label="Link to view the post-production steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
                 {% endif %}
             </div>
-
 
         {% if tab == "filechecks" %}
 
@@ -367,8 +376,7 @@
                     dom: 'Bfrtip',
                         buttons: [
                             'csvHtml5',
-                            'excelHtml5',
-                            'pdfHtml5'
+                            'excelHtml5'
                         ],
                     "order": [],
                     "columnDefs": [
@@ -390,8 +398,7 @@
                     dom: 'Bfrtip',
                         buttons: [
                             'csvHtml5',
-                            'excelHtml5',
-                            'pdfHtml5'
+                            'excelHtml5'
                         ],
                     "order": [],
                     "columnDefs": [
@@ -508,8 +515,7 @@
                     dom: 'Bfrtip',
                         buttons: [
                             'csvHtml5',
-                            'excelHtml5',
-                            'pdfHtml5'
+                            'excelHtml5'
                         ],
                     "order": [],
                     "columnDefs": [

@@ -133,6 +133,15 @@
             <p>* Value was estimated</p>
             <p>Some projects may 
                 touch the same records, so the total above will be less than the sum of all projects.</p>
+            <p>Small projects (<em>e.g.</em> simple file edits, data transfer, small data fixes) are not
+                included in the table above.</p>
+
+            <hr>
+
+            {% for table in tables_software %}
+                {{ table|safe }}
+            {% endfor %}
+                
     {% endif %}
 
     <br>
@@ -180,6 +189,14 @@
             table2.column( 0 ).visible( false );
 
             var table3 = $('#list_projects_inf').DataTable({
+                "ordering": false,
+                "searching": false,
+                "paging": false,
+                "lengthChange": false
+            });
+
+            
+            var table4 = $('#list_software').DataTable({
                 "ordering": false,
                 "searching": false,
                 "paging": false,
