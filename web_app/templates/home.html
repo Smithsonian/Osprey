@@ -63,6 +63,23 @@
 
             <ul class="list-group list-group-flush">
 
+
+                <li class="list-group-item">
+
+                    <div class="row g-0">
+                          <div class="col-2">
+                              <img src="{{ url_for('static', filename='items/Hank_Aaron.jpg') }}" class="img-fluid" alt="Photo of Hank Aaron from the JPC Archive" style="padding: 10px;">
+                          </div>
+                          <div class="col">
+                                  <h2 class="card-title">Digitization of the JPC Archive is Now in Production</h2>
+
+                                  <p><small>After the successful Pilot Project, we have started the production project of the digitization of the JPC Archive. This phase will start by digitizing the Priority 1 material: about 70,275 reflective and transmissive photographic items. 
+                                    We will continue to develop and test the systems integration. </small></p>
+                                  <a href="{{ url_for('dashboard', project_alias = 'jpc_production') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Prodcution Project Dashboard">JPC Production Project Dashboard</a>
+                          </div>
+                      </div>
+                </li>
+
                   <li class="list-group-item">
 
                         <div class="row g-0">
@@ -96,21 +113,6 @@
                         </div>
                   </li>
 
-                  <li class="list-group-item">
-
-                    <div class="row g-0">
-                          <div class="col-2">
-                              <img src="{{ url_for('static', filename='items/Brown_James18.jpg') }}" class="img-fluid" alt="Singer James Brown is captured off stage around Memphis" style="padding: 10px;">
-                          </div>
-                          <div class="col">
-                                  <h2 class="card-title">Digitization of the JPC Archive has Started</h2>
-
-                                  <p><small>We have started the pilot project of the digitization of the JPC Archive. This pilot will digitize about 8,000 items from the archive and will help us tests the
-                                      workflows and systems integration. </small></p>
-                                  <a href="{{ url_for('dashboard', project_alias = 'jpc_pilot') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Pilot Project Dashboard">JPC Pilot Project Dashboard</a>
-                          </div>
-                      </div>
-                </li>
                 
             </ul>
 
@@ -121,11 +123,13 @@
                 {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
+            <p>We thank DAMS for providing DPO with access to their data. </p>
     {% elif team == "is" %}
             {% for table in tables_is %}
                 {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
+            <p>We thank DAMS for providing DPO with access to their data. </p>
     {% elif team == "inf" %}
             {% for table in tables_inf %}
                 {{ table|safe }}
@@ -137,7 +141,7 @@
                 included in the table above.</p>
 
             <hr>
-
+            <h2>Software We Have Published</h2>
             {% for table in tables_software %}
                 {{ table|safe }}
             {% endfor %}

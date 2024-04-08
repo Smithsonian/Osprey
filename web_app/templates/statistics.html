@@ -13,18 +13,67 @@
 
 {% block content %}
 
-<h2>Main statistics for the project</h2>
+
+
+<div class="row">
+    <div class="col">
+        <p>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Back to the Project Dashboard" role="button">
+                <i class="fa-solid fa-gauge-simple-high"></i> Back to {{ project_info.project_title }} Dashboard
+            </a>
+        </p>        
+
+    <h2>Main statistics of the project</h2>
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col">
+        <h3 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h3>
+    </div>
+    <div class="col">
+        <h3 title="Total number of objects/specimens digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h3>
+    </div>
+    <div class="col">
+        <h3 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h3>
+    </div>
+    <div class="col">
+        <h3 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h3>
+    </div>
+
+    {% if project_stats_other.other_stat != "0" %}
+        <div class="col">
+            <h3 title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span>
+            </h3>
+        </div>
+    {% endif %}
+
+</div>
+
+
+<div class="row">
+    <div class="col">
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>Production Statistics of the Project</h2>
+    </div>
+</div>
 
     <div class="row">
         {% for stat in proj_stats_vals1 %}
         <div class="col-3">
             <div class="card">
-                <p style="font-size: x-large;" class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</p>
+                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-10">
                             <p style="font-size: larger;"><strong>
-                                {{ stat.step_value |round(stat.round_val)}} {{ stat.step_units }}</strong></p>
+                                {{ stat.step_value | float | round(stat.round_val)}} {{ stat.step_units }}</strong></p>
                             {% if stat.step_notes %}
                                 <p>{{ stat.step_notes }}</p>
                             {% endif %}
@@ -39,32 +88,73 @@
     
     </div>
     
+
+
     <div class="row">
         <div class="col">
-            <p><em>Note: Days in the calculations are working days (Mon-Fri, excluding federal holidays).</em></p>
             <br>        
         </div>
     </div>
 
 
     <div class="row">
+        {% for stat in proj_stats_vals2 %}
+        <div class="col-3">
+            <div class="card">
+                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-10">
+                            <p style="font-size: larger;"><strong>
+                                {{ stat.step_value | float | round(stat.round_val)}} {{ stat.step_units }}</strong></p>
+                            {% if stat.step_notes %}
+                                <p>{{ stat.step_notes }}</p>
+                            {% endif %}
+                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        {% endfor %}
+    
+    </div>
+
+
+    <div class="row">
+        <div class="col">
+            <hr>
+        </div>
+    </div>    
+
+
+    <div class="row">
         <div class="col">
 
-            <h2>Detailed statistics for the project</h2>
+            <h2>Figures describing progress in several steps of the project</h2>
 
-            {% for stat in proj_stats %}
+            {% for stat in proj_stats_steps %}
 
             <div class="card">
-                <p style="font-size: x-large;" class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</p>
+                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-10">
                             {% if stat.step_notes %}
-                                <p>{{ stat.step_notes }}</p>
+
+                                <p>{{ stat.step_notes }}.</p>
+                                    <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
+                                alt="{{ stat.step_notes }} in the project. The link on the right allows to download the data table.">
+
+                            {% else %}
+
+                                <p>{{ stat.step_notes }}.</p>
+                                    <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
+                                alt="{{ stat.step_info }} of the {{ project_info.project_title }} project. The figure shows {{ stat.step_units }} by date. The link on the right allows to download the data table.">
+
                             {% endif %}
                 
-                            <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
-                                alt="{{ stat.step_info }} of the {{ project_info.project_title }} project. The figure shows {{ stat.step_units }}">
                             <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
                         </div>
                         <div class="col-2">

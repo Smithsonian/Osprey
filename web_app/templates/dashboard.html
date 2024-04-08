@@ -69,7 +69,6 @@
                         <div class="col-6">&nbsp;</div>
                     {% endif %}
                 </div>
-
           </div>
         </div>
     </div>
@@ -77,19 +76,19 @@
 
         <div class="row">
             <div class="col">
-                    <h1 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h1>
-                    <h1 title="Total number of objects/specimens digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h1>
+                    <p title="Total number of images in the project" style="font-size: x-large;"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></p>
+                    <p title="Total number of objects/specimens digitized" style="font-size: x-large;"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></p>
             </div>
             <div class="col">
-                    <h1 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h1>
-                    <h1 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h1>
+                    <p title="Images that passes all checks" style="font-size: x-large;"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></p>
+                    <p title="Images with errors" style="font-size: x-large;"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></p>
             </div>
         </div>
         <hr>
         <div class="row">
             <div class="col">
                 {% if project_stats_other.other_stat != "0" %}
-                    <h1 title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></h1>
+                    <p title="{{ project_stats_other.other_name }} in this project" style="font-size: x-large;"><span class="badge bg-warning w-100" style="color: black;">{{project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></p>
                 {% endif %}
                 <!-- <a href="{{ url_for('proj_statistics', project_alias=project_alias) }}" class="btn btn-info btn-lg text-white w-100" style="font-size:x-large;" role="button"><i class="fa-solid fa-chart-column"></i> Project Statistics</a> -->
             </div>
@@ -101,18 +100,18 @@
 
         </div>
     </div>
-
-    </div>
+</div>
 
 <hr>
 
 <div class="row">
-
     <div class="col-auto" style="font-size: 0.9em;">
 
-        <!-- Accessibility link to files -->
-        <div class="skipnav"><a href="#filestable">Skip to Files</a></div>
-        
+        {% if folder_name != None %}
+            <!-- Accessibility link to files, only if there is a folder selected -->
+            <div class="skipnav"><a href="#filestable">Skip to Files</a></div>
+        {% endif %}
+
         {% if proj_reports %}
 
             <!-- Project Reports -->
@@ -208,7 +207,6 @@
             </div>
 
         {% if tab == "filechecks" %}
-
 
             {% if is_admin %}
                 <div style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></div>

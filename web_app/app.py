@@ -28,6 +28,9 @@ import json
 import time
 from datetime import datetime
 from PIL import Image
+from PIL import ImageFilter
+from PIL import ImageFont
+from PIL import ImageDraw
 from uuid import UUID
 
 from time import strftime
@@ -52,7 +55,7 @@ from wtforms.validators import DataRequired
 import settings
 
 
-site_ver = "2.7.1"
+site_ver = "2.7.2"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -595,11 +598,11 @@ def homepage(team=None):
 
     # Informatics Table
     inf_section_query = (" SELECT "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
                      " CONCAT('<strong>', p.project_title, '</strong><br>', p.summary) as project_title, "
                      " p.project_status, "
                      " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
-                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository in Github\" class=\"bg-white\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') END as github_link, "
+                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
                      " CASE "
                      "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
                      "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "                     
@@ -610,7 +613,7 @@ def homepage(team=None):
                      "      coalesce(format(p.records, 0), 0) END) END as records, "
                      " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
                      " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
-                     " ORDER BY p.project_end, p.project_start DESC")
+                     " ORDER BY p.project_start DESC, p.project_end DESC")
     list_projects_inf = pd.DataFrame(run_query(inf_section_query, cur=cur))
     list_projects_inf = list_projects_inf.rename(columns={
         "project_unit": "Unit",
@@ -618,15 +621,15 @@ def homepage(team=None):
         "project_status": "Status",
         "github_link": "Repository",
         "info_link": "More Info",
-        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
         "project_dates": "Dates",
         "records": "Records Created or Enhanced"
     })
 
     # Informatics Software
     inf_software = ("SELECT CONCAT('<strong>', software_name, '</strong>') as software_name, software_details, "
-                    " CONCAT('<a href=\"', repository, '\" title=\"Link to code repository in Github\" class=\"bg-white\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') as repository, "
-                    " CONCAT('<a href=\"', more_info, '\" title=\"Link to a page with more information about the software\" class=\"bg-white\">More Info</a>') as more_info "
+                    " CONCAT('<a href=\"', repository, '\" title=\"Link to code repository in Github\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') as repository, "
+                    " CONCAT('<a href=\"', more_info, '\" title=\"Link to a page with more information about the software\">More Info</a>') as more_info "
                     " FROM informatics_software ORDER BY sortby DESC")
     list_software = pd.DataFrame(run_query(inf_software, cur=cur))
     list_software = list_software.rename(columns={
@@ -802,11 +805,11 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     project_manager_link = project_managers['project_manager']
     if project_managers['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\">Jeanine Nault</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\">Jeanine Nault</a>"
     elif project_managers['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\">Nathan Ian Anderson</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
     elif project_managers['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\">Erin M. Mazzei</a>"
+        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']}, cur=cur)
@@ -886,6 +889,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                          {'project_id': project_id}, cur=cur)
     project_stats['objects'] = format(int(proj_obj[0]['no_objects']), ',d')
     project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
+    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
 
     project_folders_badges = run_query("SELECT b.folder_id, b.badge_type, b.badge_css, b.badge_text FROM folders_badges b, folders f WHERE b.folder_id = f.folder_id and f.project_id = %(project_id)s and b.badge_type != 'no_files'", {'project_id': project_id}, cur=cur)
     folder_name = None
@@ -929,9 +933,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             offset = (page - 1) * no_items
         files_df = run_query((
                                  "WITH data AS (SELECT file_id, CONCAT('/preview_image/', file_id, '/?') as preview_image, "
-                                 "         preview_image as preview_image_ext, folder_id, file_name FROM files "
+                                 "         preview_image as preview_image_ext, folder_id, file_name, sensitive_contents FROM files "
                                  "WHERE folder_id = %(folder_id)s)"
-                                 " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name"
+                                 " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, sensitive_contents "
                                  " FROM data "
                                  " ORDER BY file_name "
                                  "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
@@ -2056,6 +2060,7 @@ def dashboard(project_alias=None):
     project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
 
     project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
+    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
 
     folder_name = None
     folder_qc = {
@@ -2216,11 +2221,47 @@ def proj_statistics(project_alias=None):
 
     project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s", {'project_id': project_id}, cur=cur)[0]
 
-    proj_stats = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and stat_type='column' and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_steps = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and (stat_type='column' or stat_type='boxplot' or stat_type='area') and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    # proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4, 4", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4, 4", {'proj_id': project_info['proj_id']}, cur=cur)
+
+    # Stats
+    project_stats = {}
+    project_statistics = run_query(("SELECT COALESCE(images_taken, 0) as images_taken, COALESCE(objects_digitized, 0) as objects_digitized "
+                                    "  FROM projects_stats WHERE project_id = %(project_id)s"),
+                                    {'project_id': project_id}, cur=cur)[0]
+    project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
+    project_ok = run_query(("WITH "
+                                    " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                    " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                    " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
+                                    " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                    " data AS ("
+                                    "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
+                                    " FROM checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                    " group by c.file_id)"
+                                    "SELECT count(file_id) as no_files FROM data WHERE check_results = 0"),
+                                {'project_id': project_id}, cur=cur)
+    project_stats['ok'] = format(int(project_ok[0]['no_files']), ',d')
+    project_err = run_query(("WITH "
+                                    " folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                    " files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),"
+                                    " checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),"
+                                    " checklist as (select c.file_check, f.file_id from checks c, files_q f),"
+                                    " data AS ("
+                                    "SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results"
+                                    " FROM checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)"
+                                    "      WHERE check_results = 1 "
+                                    " group by c.file_id)"
+                                    "SELECT count(file_id) as no_files FROM data WHERE check_results != 0"),
+                                    {'project_id': project_id}, cur=cur)
+    project_stats['errors'] = format(int(project_err[0]['no_files']), ',d')
+    project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
+
+    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
+    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
 
     cur.close()
     conn.close()
@@ -2228,8 +2269,11 @@ def proj_statistics(project_alias=None):
     return render_template('statistics.html',
                            project_alias=project_alias,
                            project_info=project_info,
-                           proj_stats=proj_stats,
-                           proj_stats_vals1=proj_stats_vals1)
+                           proj_stats_steps=proj_stats_steps,
+                           proj_stats_vals1=proj_stats_vals1,
+                           proj_stats_vals2=proj_stats_vals2,
+                           project_stats=project_stats,
+                           project_stats_other=project_stats_other)
 
 
 
@@ -2263,7 +2307,7 @@ def proj_statistics_dl(project_id=None, step_id=None):
 
     project_info = run_query("SELECT * FROM projects WHERE proj_id = %(proj_id)s", {'proj_id': project_id}, cur=cur)[0]
 
-    proj_stats = run_query("SELECT e.step_info, e.step_notes, e.step_units, s.* FROM projects_detail_statistics_steps e RIGHT JOIN projects_detail_statistics s ON (e.step_id = s.step_id) WHERE e.step_id = %(step_id)s and stat_type = 'column'", {'step_id': step_id}, cur=cur)
+    proj_stats = run_query("SELECT e.step_info, e.step_notes, e.step_units, s.* FROM projects_detail_statistics_steps e RIGHT JOIN projects_detail_statistics s ON (e.step_id = s.step_id) WHERE e.step_id = %(step_id)s", {'step_id': step_id}, cur=cur)
 
     cur.close()
     conn.close()
@@ -3522,7 +3566,7 @@ def file(file_id=None):
                                    "         SELECT file_id, "
                                    "             CONCAT(%(preview)s, file_id) as preview_image, "
                                    "             preview_image as preview_image_ext, "
-                                   "             folder_id, file_name, dams_uan, file_ext "
+                                   "             folder_id, file_name, dams_uan, file_ext"
                                    "             FROM files "
                                    "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
                                    " UNION "
@@ -3563,6 +3607,9 @@ def file(file_id=None):
                                                 {'file_id': file_id, 'file_ext': file_details['file_ext']}, cur=cur))
     file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
                                 {'file_id': file_id}, cur=cur)
+    file_sensitive = run_query("SELECT sensitive_contents FROM files WHERE file_id = %(file_id)s ",
+                                {'file_id': file_id}, cur=cur)[0]
+    
     if current_user.is_authenticated:
         user_name = current_user.name
         is_admin = user_perms('', user_type='admin')
@@ -3590,6 +3637,7 @@ def file(file_id=None):
                                                          classes=["display", "compact", "table-striped"])],
                            file_metadata_rows=file_metadata.shape[0],
                            file_links=file_links,
+                           file_sensitive=str(file_sensitive['sensitive_contents']),
                            form=form,
                            site_env=site_env,
                            site_net=site_net,
@@ -3947,6 +3995,71 @@ def update_folder_dams(project_alias=None, folder_id=None):
     return redirect(url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id))
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route('/update_image/<file_id>', methods=['GET'], provide_automatic_options=False)
+@login_required
+def update_image(file_id=None):
+
+    """Update image as having sensitive contents"""
+    # Connect to db
+    try:
+        conn = pymysql.connect(host=settings.host,
+                               user=settings.user,
+                               passwd=settings.password,
+                               database=settings.database,
+                               port=settings.port,
+                               charset='utf8mb4',
+                               cursorclass=pymysql.cursors.DictCursor,
+                               autocommit=True)
+        cur = conn.cursor()
+    except pymysql.Error as e:
+        logger.error(e)
+        raise InvalidUsage('System error')
+
+    if current_user.is_authenticated:
+        user_name = current_user.name
+        is_admin = user_perms('', user_type='admin')
+    else:
+        cur.close()
+        conn.close()
+        return redirect(url_for('homepage'))
+
+    if is_admin:
+        update = query_database_insert(
+            ("UPDATE files SET sensitive_contents = 1 WHERE file_id = %(file_id)s"),
+                {'file_id': file_id}, cur=cur)
+
+        cur.close()
+        conn.close()
+        return redirect(url_for('file', file_id=file_id))
+    else:
+        cur.close()
+        conn.close()
+        return redirect(url_for('homepage'))
+
+
+
+
+
+
 @app.route("/logout", methods=['GET'], provide_automatic_options=False)
 def logout():
     logout_user()
@@ -4199,7 +4312,6 @@ def api_update_project_details(project_alias=None):
     except pymysql.Error as e:
         logger.error(e)
         raise InvalidUsage('System error')
-
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
     if api_key is None:
@@ -4217,7 +4329,13 @@ def api_update_project_details(project_alias=None):
             query_property = request.form.get("property")
             query_value = request.form.get("value")
             if query_type is not None and query_property is not None and query_value is not None:
-                if query_type == "folder":
+                if query_type == "startup":
+                    query = ("DELETE FROM folders_badges WHERE badge_type = 'verification' and folder_id in (SELECT folder_id from folders WHERE project_id = %(project_id)s)")
+                    res = run_query(query, {'project_id': project_id}, cur=cur, return_val=False)
+                    cur.close()
+                    conn.close()
+                    return jsonify({"result": True})
+                elif query_type == "folder":
                     folder_id = request.form.get("folder_id")
                     if folder_id is not None:
                         if query_property == "status0":
@@ -4307,6 +4425,16 @@ def api_update_project_details(project_alias=None):
                                      "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
                                      "UPDATE projects_stats p, data SET p.objects_digitized = data.no_objects where p.project_id = data.project_id".format(query_obj['project_object_query'].replace('\\', '')))
                             res = query_database_insert(query, {'project_id': project_id}, cur=cur)
+                            ## Get query for no. of other stat
+                            query_stat_other = run_query("SELECT other_stat_calc FROM projects_stats WHERE project_id = %(project_id)s",
+                                                 {'project_id': project_id}, cur=cur)
+                            if query_stat_other[0]['other_stat_calc'] != None:
+                                query = ("with data as "
+                                        "  (select fol.project_id, {} as no_objects"
+                                        "          from files f, folders fol "
+                                        "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
+                                        "UPDATE projects_stats p, data SET p.other_stat = data.no_objects where p.project_id = data.project_id".format(query_stat_other[0]['other_stat_calc'].replace('\\', '')))
+                                res = query_database_insert(query, {'project_id': project_id}, cur=cur)
                         elif query_property == "raw0":
                             query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                      " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
@@ -4391,7 +4519,7 @@ def api_update_project_details(project_alias=None):
                         cur.close()
                         conn.close()
                         return jsonify({"result": True})
-                if query_type == "file":
+                elif query_type == "file":
                     file_id = request.form.get("file_id")
                     folder_id = request.form.get("folder_id")
                     if query_property == "unique":
@@ -4484,7 +4612,7 @@ def api_update_project_details(project_alias=None):
                     conn.close()
                     return jsonify({"result": True})
                 else:
-                    raise InvalidUsage('Invalid value for type', status_code=400)
+                    raise InvalidUsage('Invalid value for type: {}'.format(query_type), status_code=400)
             else:
                 raise InvalidUsage('Missing args', status_code=400)
         else:
@@ -4946,7 +5074,7 @@ def data_reports(project_alias=None, report_id=None):
 
 @cache.memoize()
 @app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
-def get_preview(file_id=None, max=None):
+def get_preview(file_id=None, max=None, sensitive=None):
     """Return image previews"""
     if file_id is None:
         raise InvalidUsage('file_id missing', status_code=400)
@@ -5010,6 +5138,29 @@ def get_preview(file_id=None, max=None):
     if not os.path.isfile(filename):
         filename = "static/na.jpg"
     logger.debug("preview_request: {} - {}".format(file_id, filename))
+
+    # Check for sensitive contents
+    img = run_query("SELECT * FROM files WHERE file_id = %(file_id)s", {'file_id': file_id}, cur=cur)[0]
+    logger.debug("sensitive_contents: {} - {}".format(file_id, img['sensitive_contents']))
+    sensitive = request.args.get('sensitive')
+    if str(img['sensitive_contents']) == "1" and filename != "static/na.jpg" and sensitive != "ok":
+        filename = "image_previews/folder{}/{}.jpg".format(folder_id, file_id)
+        try:
+            img = Image.open(filename)
+            if width is not None:
+                wpercent = (int(width) / float(img.size[0]))
+                hsize = int((float(img.size[1]) * float(wpercent)))
+                img = img.resize((int(width), hsize), Image.LANCZOS)
+                img_blurred = img.filter(ImageFilter.GaussianBlur(radius = (hsize/100)))
+            else:
+                width = "000"
+                img_blurred = img.filter(ImageFilter.GaussianBlur(radius = (img.size[1]/100)))
+            filename = "/tmp/{}_{}.jpg".format(file_id, width)
+            img_blurred.save(filename, icc_profile=img.info.get('icc_profile'))
+            logger.info("Img blurred {} {}".format(file_id, filename))
+        except:
+            logger.error("Sensitive {} {}".format(file_id, filename))
+            filename = "static/na.jpg"
 
     cur.close()
     conn.close()
