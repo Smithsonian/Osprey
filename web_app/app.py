@@ -55,7 +55,7 @@ from wtforms.validators import DataRequired
 import settings
 
 
-site_ver = "2.7.2"
+site_ver = "2.7.3"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -2524,14 +2524,62 @@ def qc(project_alias=None):
                                      "   projects p "
                                      " WHERE f.project_id = p.project_id "
                                      "   AND p.project_id = %(project_id)s) "
-                                     " SELECT * FROM qc WHERE qc_status = 'QC Pending'"
+                                     " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
+                                    {'project_id': project_id}, cur=cur)
+    folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
+                                     " errors AS "
+                                     "         (SELECT folder_id, count(file_id) as no_files "
+                                     "             FROM qc_files "
+                                     "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                     "                 AND file_qc > 0 AND file_qc != 9 "
+                                     "               GROUP BY folder_id),"
+                                     "passed AS "
+                                     "         (SELECT folder_id, count(file_id) as no_files "
+                                     "             FROM qc_files "
+                                     "             WHERE folder_id IN (SELECT folder_id from pfolders) "
+                                     "                 AND file_qc = 0 "
+                                     "               GROUP BY folder_id),"
+                                     "total AS (SELECT folder_id, count(file_id) as no_files FROM qc_files "
+                                     "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                     "                GROUP BY folder_id), "
+                                     " files_total AS (SELECT folder_id, count(file_id) as no_files FROM files "
+                                     "             WHERE folder_id IN (SELECT folder_id from pfolders)"
+                                     "                GROUP BY folder_id), "
+                                     " qc as (SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
+                                     "       ft.no_files, f.file_errors, f.status, f.date, f.error_info, "
+                                     "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                                     "      WHEN q.qc_status = 1 THEN 'QC Failed' "
+                                     "      ELSE 'QC Pending' END AS qc_status, "
+                                     "      q.qc_ip, u.username AS qc_by, "
+                                     "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at, "
+                                     "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
+                                     "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
+                                     "       COALESCE(total.no_files, 0) as qc_stats_no_files "
+                                     " FROM folders f LEFT JOIN qc_folders q ON "
+                                     "       (f.folder_id = q.folder_id)"
+                                     "       LEFT JOIN users u ON "
+                                     "           (q.qc_by = u.user_id)"
+                                     "       LEFT JOIN errors ON "
+                                     "           (f.folder_id = errors.folder_id)"
+                                     "       LEFT JOIN passed ON "
+                                     "           (f.folder_id = passed.folder_id)"
+                                     "       LEFT JOIN total ON "
+                                     "           (f.folder_id = total.folder_id)"
+                                     "       LEFT JOIN files_total ft ON "
+                                     "           (f.folder_id = ft.folder_id), "
+                                     "   projects p "
+                                     " WHERE f.project_id = p.project_id "
+                                     "   AND p.project_id = %(project_id)s) "
+                                     " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is not null "
+                                     "  ORDER BY date ASC, project_folder ASC"),
                                     {'project_id': project_id}, cur=cur)
     cur.close()
     conn.close()
     return render_template('qc.html', username=username,
                            project_settings=project_settings,
                            folder_qc_info=folder_qc_info,
+                           folder_qc_pending=folder_qc_pending,
                            folder_qc_done=folder_qc_done,
                            folder_qc_done_len=len(folder_qc_done),
                            project=project,
@@ -2584,6 +2632,28 @@ def qc_process(folder_id):
         return redirect(url_for('home'))
     file_id_q = request.values.get('file_id')
     msg = ""
+    # check if folder is owned, assigned otherwise
+    folder_owner = run_query(("SELECT f.*, u.username from qc_folders f, users u "
+                                    "    WHERE u.user_id = f.qc_by "
+                                    "        AND f.folder_id = %(folder_id)s"),
+                                   {'folder_id': folder_id}, cur=cur)
+    if len(folder_owner) == 1:
+        print(folder_owner[0]['username'])
+        print(username)
+        if folder_owner[0]['username'] != username:
+            # Not allowed
+            project_alias = run_query(("SELECT p.project_alias from folders f, projects p "
+                                    "    WHERE f.project_id = p.project_id "
+                                    "        AND f.folder_id = %(folder_id)s"),
+                                   {'folder_id': folder_id}, cur=cur)
+            return redirect(url_for('qc', project_alias=project_alias[0]['project_alias']))
+    else:
+        # Assign user
+        q = query_database_insert(("UPDATE qc_folders SET qc_by = %(qc_by)s "
+                                " WHERE folder_id = %(folder_id)s"),
+                               {'folder_id': folder_id,
+                                'qc_by': current_user.id
+                                }, cur=cur)
     if file_id_q is not None:
         qc_info = request.values.get('qc_info')
         qc_val = request.values.get('qc_val')
@@ -2710,7 +2780,7 @@ def qc_process(folder_id):
                                           "     AND f.folder_id = %(folder_id)s AND q.file_qc = 9 "
                                           "  LIMIT 1 "),
                                          {'folder_id': folder_id}, cur=cur)[0]
-                file_details = run_query(("SELECT file_id, folder_id, file_name "
+                file_details = run_query(("SELECT file_id, folder_id, file_name, sensitive_contents "
                                                " FROM files WHERE file_id = %(file_id)s"),
                                               {'file_id': file_qc['file_id']}, cur=cur)[0]
                 file_checks = run_query(("SELECT file_check, check_results, "
@@ -5246,4 +5316,4 @@ def get_barcodeimage(barcode=None):
 
 #####################################
 if __name__ == '__main__':
-    app.run(threaded=True, debug=False)
+    app.run(threaded=True, debug=True)

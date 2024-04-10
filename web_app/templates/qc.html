@@ -17,14 +17,41 @@
 
     <h4>QC Progress</h4>
 
-<div class="card w-25">
-    <h5 class="card-header">Total number of folders: {{ project_qc_stats.total }}</h5>
-    <div class="card-body">
-        <ul class="list-group">
-            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-success">QC Passed</span></h5><h5> {{ project_qc_stats.ok }} folders</h5></li>
-            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-danger">QC Failed</span></h5><h5> {{ project_qc_stats.failed }} folders</h5></li>
-            <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-secondary">QC Pending</span></h5><h5> {{ project_qc_stats.pending }} folders</h5></li>
-        </ul>
+
+
+<div class="row">
+    <div class="col-4">
+        <div class="card">
+            <h5 class="card-header">Total number of folders: {{ project_qc_stats.total }}</h5>
+            <div class="card-body">
+                <ul class="list-group">
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-success">QC Passed</span></h5><h5> {{ project_qc_stats.ok }} folders</h5></li>
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-danger">QC Failed</span></h5><h5> {{ project_qc_stats.failed }} folders</h5></li>
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-secondary">QC Pending</span></h5><h5> {{ project_qc_stats.pending }} folders</h5></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <h5 class="card-header">Folders with QC in Progress</h5>
+            <div class="card-body">
+                
+                <ul>
+
+                {% for folder in folder_qc_pending %}
+                    <li>
+                        {{ folder.project_folder }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
+                        {% if folder.qc_by == username %}
+                            <br><a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -82,7 +109,7 @@
                                 {% if folder.qc_stats_no_errors + folder.qc_stats_no_passed > 0 %}
                                     <small>QC in Progress: [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}]</small><br>
                                 {% endif %}
-                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Run QC on folder</a><br>
+                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Run QC on Folder</a><br>
                             {% endif %}
                             <span class="badge bg-secondary">QC Pending</span>
                         {% elif folder.qc_status == "QC Passed" %}
