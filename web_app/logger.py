@@ -12,6 +12,7 @@ current_time = strftime("%Y%m%d_%H%M%S", localtime())
 # Create folder if it doesn't exists
 os.makedirs('logs', exist_ok=True)
 
+
 # From https://docs.python.org/3/howto/logging-cookbook.html#using-a-rotator-and-namer-to-customize-log-rotation-processing
 def rotator(source, dest):
     with open(source, 'rb') as f_in:
