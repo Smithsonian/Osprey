@@ -3964,6 +3964,11 @@ def update_folder_dams(project_alias=None, folder_id=None):
         logger.error(e)
         raise InvalidUsage('System error')
 
+    # Set as in the way to DAMS
+    damsupdate = query_database_insert(
+        ("UPDATE folders SET delivered_to_dams = 1 WHERE folder_id = %(folder_id)s"),
+        {'folder_id': folder_id}, cur=cur)
+        
     # Del DAMS status badge, if exists
     delbadge = query_database_insert(
             ("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'dams_status'"),
