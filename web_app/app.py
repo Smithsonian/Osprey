@@ -55,7 +55,7 @@ from wtforms.validators import DataRequired
 import settings
 
 
-site_ver = "2.7.3"
+site_ver = "2.7.4"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -3718,6 +3718,138 @@ def file(file_id=None):
                            )
 
 
+
+
+
+# @app.route('/file_iiif/<file_id>/', methods=['GET'], provide_automatic_options=False)
+# def file_iiif(file_id=None):
+#     """File details using TIFY IIIF Viewer"""
+#     if current_user.is_authenticated:
+#         user_exists = True
+#         username = current_user.name
+#     else:
+#         user_exists = False
+#         username = None
+
+#     # Declare the login form
+#     form = LoginForm(request.form)
+
+#     # Connect to db
+#     try:
+#         conn = pymysql.connect(host=settings.host,
+#                                user=settings.user,
+#                                passwd=settings.password,
+#                                database=settings.database,
+#                                port=settings.port,
+#                                charset='utf8mb4',
+#                                cursorclass=pymysql.cursors.DictCursor,
+#                                autocommit=True)
+#         cur = conn.cursor()
+#     except pymysql.Error as e:
+#         logger.error(e)
+#         raise InvalidUsage('System error')
+
+#     file_id, file_uid = check_file_id(file_id, cur=cur)
+
+#     if file_id is None:
+#         error_msg = "File ID is missing."
+#         return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+
+#     folder_info = run_query(
+#         "SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
+#         {'file_id': file_id}, cur=cur)
+#     if len(folder_info) == 0:
+#         error_msg = "Invalid File ID."
+#         return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+#     else:
+#         folder_info = folder_info[0]
+#     file_details = run_query(("WITH data AS ("
+#                                    "         SELECT file_id, "
+#                                    "             CONCAT(%(preview)s, file_id) as preview_image, "
+#                                    "             preview_image as preview_image_ext, "
+#                                    "             folder_id, file_name, dams_uan, file_ext"
+#                                    "             FROM files "
+#                                    "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
+#                                    " UNION "
+#                                    "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, folder_id, file_name, dams_uan, file_ext "
+#                                    "             FROM files "
+#                                    "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
+#                                    "             ORDER BY file_name"
+#                                    "),"
+#                                    "data2 AS (SELECT file_id, preview_image, file_ext, preview_image_ext, folder_id, file_name, dams_uan, "
+#                                    "         lag(file_id,1) over (order by file_name) prev_id,"
+#                                    "         lead(file_id,1) over (order by file_name) next_id "
+#                                    " FROM data)"
+#                                    " SELECT "
+#                                    " file_id, "
+#                                    "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE CONCAT(preview_image, '?') END AS preview_image, "
+#                                    " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext "
+#                                    "FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
+#                                   {'folder_id': folder_info['folder_id'], 'file_id': file_id,
+#                                    'preview': '/preview_image/'}, cur=cur)
+
+#     file_details = file_details[0]
+#     project_alias = run_query(("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
+#                     " WHERE project_id = %(project_id)s"),
+#                    {'project_id': folder_info['project_id']}, cur=cur)[0]
+#     project_alias = project_alias['project_id']
+
+#     file_checks = run_query(("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
+#                                   " ELSE check_info END AS check_info "
+#                                   " FROM files_checks WHERE file_id = %(file_id)s"),
+#                                  {'file_id': file_id}, cur=cur)
+#     image_url = '/preview_image/' + str(file_id)
+#     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
+#                                                  " FROM files_exif "
+#                                                  " WHERE file_id = %(file_id)s AND "
+#                                                  "       lower(filetype) = %(file_ext)s AND "
+#                                                  "       lower(taggroup) != 'system' "
+#                                                  " ORDER BY taggroup, tag "),
+#                                                 {'file_id': file_id, 'file_ext': file_details['file_ext']}, cur=cur))
+#     file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
+#                                 {'file_id': file_id}, cur=cur)
+#     file_sensitive = run_query("SELECT sensitive_contents FROM files WHERE file_id = %(file_id)s ",
+#                                 {'file_id': file_id}, cur=cur)[0]
+    
+#     if current_user.is_authenticated:
+#         user_name = current_user.name
+#         is_admin = user_perms('', user_type='admin')
+#     else:
+#         user_name = ""
+#         is_admin = False
+#     logger.info("project_alias: {}".format(project_alias))
+
+#     cur.close()
+#     conn.close()
+
+#     # kiosk mode
+#     kiosk, user_address = kiosk_mode(request, settings.kiosks)
+
+#     return render_template('file_iiif.html',
+#                            folder_info=folder_info,
+#                            file_details=file_details,
+#                            file_checks=file_checks,
+#                            username=user_name,
+#                            image_url=image_url,
+#                            is_admin=is_admin,
+#                            project_alias=project_alias,
+#                            tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
+#                                                          escape=False,
+#                                                          classes=["display", "compact", "table-striped"])],
+#                            file_metadata_rows=file_metadata.shape[0],
+#                            file_links=file_links,
+#                            file_sensitive=str(file_sensitive['sensitive_contents']),
+#                            form=form,
+#                            site_env=site_env,
+#                            site_net=site_net,
+#                            site_ver=site_ver,
+#                            kiosk=kiosk,
+#                            user_address=user_address,
+#                            analytics_code=settings.analytics_code
+#                            )
+
+
+
 @app.route('/file/', methods=['GET'], provide_automatic_options=False)
 def file_empty():
     return redirect(url_for('homepage'))
@@ -4629,13 +4761,29 @@ def api_update_project_details(project_alias=None):
                                                      'check_results': check_results, 'check_info': check_info}, cur=cur)
                     elif query_property == "filechecks":
                         # Add to server side:
-                        #  - valid_name
                         #  - dupe_elsewhere
                         #  - md5
                         folder_id = request.form.get("folder_id")
                         file_check = request.form.get("file_check")
                         check_results = query_value
                         check_info = request.form.get("check_info")
+                        if file_check == 'filename':
+                            query = ("SELECT settings_details FROM projects_settings "
+                                 " WHERE project_id = %(project_id)s AND project_setting = 'project_checks' and settings_value = 'filename'")
+                            res = run_query(query, {'project_id': project_id}, cur=cur)
+                            if len(res) == 0:
+                                check_results = 1
+                                check_info = "Query for filename not found"
+                            else:
+                                query = res[0]['settings_details']
+                                res = query_database_insert(query, {'file_id': file_id,}, cur=cur)
+                                logger.info(res)
+                                # Get results for file query
+                                if res[0]['result'] == "1":
+                                    check_results = 0
+                                else:
+                                    check_results = 1
+                                check_info = res[0]['info']
                         query = (
                             "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
                             " VALUES (%(file_id)s, %(folder_id)s, %(file_check)s, %(check_results)s, %(check_info)s, CURRENT_TIME) "
@@ -5244,6 +5392,7 @@ def get_preview(file_id=None, max=None, sensitive=None):
         return send_file(filename, mimetype='image/jpeg')
     except:
         return send_file("static/na.jpg", mimetype='image/jpeg')
+
 
 
 @cache.memoize()

@@ -30,26 +30,73 @@
 
 <div class="row">
     <div class="col">
-        <h3 title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h3>
-    </div>
-    <div class="col">
-        <h3 title="Total number of objects/specimens digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h3>
-    </div>
-    <div class="col">
-        <h3 title="Images that passes all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h3>
-    </div>
-    <div class="col">
-        <h3 title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h3>
-    </div>
-
-    {% if project_stats_other.other_stat != "0" %}
-        <div class="col">
-            <h3 title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span>
-            </h3>
+        <div class="card">
+            <h3 class="card-header text-white bg-primary" title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h3>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-10">
+                        <p>Number of images (usually pairs of TIF and RAW files) ingested by the system for this project.</p>
+                    </div>
+                </div>
+            </div>
         </div>
-    {% endif %}
-
+    </div>
+    <div class="col">
+        <div class="card">
+            <h3 class="card-header text-white bg-secondary" title="Total number of {{ project_info.obj_type }} digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h3>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-10">
+                        <p>Number of {{ project_info.obj_type |lower }} digitized in this project. The number of {{ project_info.obj_type | lower }} may not match the number of images when taking multiple images of a single {{ project_info.obj_type | lower }} or when multiple {{ project_info.obj_type | lower }} are digitized together.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <h3 class="card-header text-white bg-success" title="Images that passed all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h3>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-10">
+                        <p>Number of images without any technical errors.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <h3 class="card-header text-white bg-danger" title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h3>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-10">
+                        <p>Number of images with technical errors detected by the system. These are usually formatting issues or incorrect filenames.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+
+{% if project_stats_other.other_stat != "0" %}
+<br>
+<div class="row">
+    <div class="col-3">
+        <div class="card">
+            <h3 class="card-header text-white bg-warning" title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{ project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></h3>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-10">
+                        <p>Number of {{ project_stats_other.other_name }} digitized in this project.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 
 <div class="row">
@@ -57,6 +104,7 @@
         <hr>
     </div>
 </div>
+
 
 <div class="row">
     <div class="col">
@@ -68,7 +116,7 @@
         {% for stat in proj_stats_vals1 %}
         <div class="col-3">
             <div class="card">
-                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
+                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-10">
@@ -101,7 +149,7 @@
         {% for stat in proj_stats_vals2 %}
         <div class="col-3">
             <div class="card">
-                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
+                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-10">
@@ -137,7 +185,7 @@
             {% for stat in proj_stats_steps %}
 
             <div class="card">
-                <h3 class="card-header text-white bg-{{ stat.css }}">{{ stat.step_info }}</h3>
+                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-10">
@@ -171,6 +219,7 @@
     </div>
 
     <br><br>
+
 
 {% endblock %}
 
