@@ -910,6 +910,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     }
     qc_check = ""
     qc_details = pd.DataFrame()
+    qc_folder_info = ""
 
     if folder_id is not None and folder_id != '':
         folder_name = run_query(("SELECT project_folder FROM folders "
@@ -1141,9 +1142,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                               + qc_details['file_name'].astype(str) \
                                               + '</a>'
             qc_details = qc_details.drop(['file_id'], axis=1)
+            qc_folder_info = run_query(("SELECT qc_info from qc_folders where folder_id = %(folder_id)s"),
+                                {'folder_id': folder_id}, cur=cur)
+            qc_folder_info=qc_folder_info[0]['qc_info']
         else:
             qc_check = False
             qc_details = pd.DataFrame()
+            qc_folder_info = ""
 
     # Disk space
     project_disks = run_query(("SELECT FORMAT_BYTES(sum(filesize)) as filesize, UPPER(filetype) as filetype "
@@ -1209,6 +1214,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            kiosk=kiosk,
                            user_address=user_address,
                            qc_check=qc_check,
+                           qc_folder_info=qc_folder_info,
                            qc_details=[qc_details.to_html(table_id='qc_details_table',
                                                        index=False,
                                                        border=0,
