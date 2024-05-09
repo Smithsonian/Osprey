@@ -697,6 +697,11 @@ def empty_team():
 @app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
 def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     """Dashboard for a project"""
+
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -1242,6 +1247,11 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 @app.route('/dashboard_ajax/<project_alias>/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
 def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     """Dashboard for a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -1778,6 +1788,10 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
 def filestable(project_alias=None, folder_id=None):
     """Dashboard for a project"""
 
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     try:
         folder_id = int(folder_id)
     except ValueError:
@@ -1945,6 +1959,11 @@ def filestable(project_alias=None, folder_id=None):
 @app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def dashboard(project_alias=None):
     """Dashboard for a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2196,6 +2215,11 @@ def dashboard(project_alias=None):
 @app.route('/dashboard/<project_alias>/statistics/', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics(project_alias=None):
     """Statistics for a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     user_exists = False
     username = None
 
@@ -2297,6 +2321,10 @@ def proj_statistics(project_alias=None):
 def proj_statistics_dl(project_id=None, step_id=None):
     """Download statistics for a project"""
     
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+        
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -2344,6 +2372,11 @@ def proj_statistics_dl(project_id=None, step_id=None):
 @app.route('/about/', methods=['GET'], provide_automatic_options=False)
 def about():
     """About page for the system"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2366,6 +2399,11 @@ def about():
 @login_required
 def qc(project_alias=None):
     """List the folders and QC status"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2610,6 +2648,11 @@ def qc(project_alias=None):
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2897,7 +2940,11 @@ def qc_process(folder_id):
 @login_required
 def qc_done(folder_id):
     """Run QC on a folder"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -3000,6 +3047,11 @@ def qc_done(folder_id):
 @login_required
 def home():
     """Home for user, listing projects and options"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3131,6 +3183,11 @@ def home():
 @login_required
 def new_project(msg=None):
     """Create a new project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3165,7 +3222,11 @@ def new_project(msg=None):
 @login_required
 def create_new_project():
     """Create a new project"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -3321,6 +3382,11 @@ def create_new_project():
 @login_required
 def edit_project(project_alias=None):
     """Edit a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3392,6 +3458,11 @@ def edit_project(project_alias=None):
 @login_required
 def proj_links(project_alias=None):
     """Add / edit links associated with a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3468,7 +3539,11 @@ def proj_links(project_alias=None):
 @login_required
 def add_links(project_alias=None):
     """Create a new project"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -3524,7 +3599,11 @@ def add_links(project_alias=None):
 @login_required
 def project_update(project_alias):
     """Save edits to a project"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -3608,6 +3687,11 @@ def dashboard_empty():
 @app.route('/file/<file_id>/', methods=['GET'], provide_automatic_options=False)
 def file(file_id=None):
     """File details"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3874,6 +3958,11 @@ def file_empty():
 @app.route('/dashboard/<project_alias>/search_files', methods=['GET'], provide_automatic_options=False)
 def search_files(project_alias):
     """Search files"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3977,6 +4066,11 @@ def search_files(project_alias):
 @app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], provide_automatic_options=False)
 def search_folders(project_alias):
     """Search files"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -4091,7 +4185,11 @@ def search_folders(project_alias):
 @app.route('/folder_update/<project_alias>/<folder_id>', methods=['GET'], provide_automatic_options=False)
 @login_required
 def update_folder_dams(project_alias=None, folder_id=None):
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if folder_id is None or project_alias is None:
         return redirect(url_for('home'))
 
@@ -4239,8 +4337,12 @@ def update_folder_dams(project_alias=None, folder_id=None):
 @app.route('/update_image/<file_id>', methods=['GET'], provide_automatic_options=False)
 @login_required
 def update_image(file_id=None):
-
     """Update image as having sensitive contents"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Connect to db
     try:
         conn = pymysql.connect(host=settings.host,
@@ -5219,7 +5321,11 @@ def api_get_report(report_id=None):
 @app.route('/reports/', methods=['GET'], provide_automatic_options=False)
 def data_reports_form():
     """Report of a project"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Declare the login form
     form = LoginForm(request.form)
 
@@ -5236,7 +5342,11 @@ def data_reports_form():
 @app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], provide_automatic_options=False)
 def data_reports(project_alias=None, report_id=None):
     """Report of a project"""
-
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     # Declare the login form
     form = LoginForm(request.form)
 
@@ -5314,6 +5424,11 @@ def data_reports(project_alias=None, report_id=None):
 @app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def get_preview(file_id=None, max=None, sensitive=None):
     """Return image previews"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if file_id is None:
         raise InvalidUsage('file_id missing', status_code=400)
     #
@@ -5414,6 +5529,11 @@ def get_preview(file_id=None, max=None, sensitive=None):
 @app.route('/barcode_image/<barcode>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def get_barcodeimage(barcode=None):
     """Return image previews using a barcode that has a collex prefix in format: prefix:barcode"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if barcode is None:
         raise InvalidUsage('barcode value missing', status_code=400)
     #
