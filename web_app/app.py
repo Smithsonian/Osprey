@@ -36,6 +36,8 @@ from uuid import UUID
 from time import strftime
 from time import localtime
 
+from flask_minify import Minify
+
 # MySQL
 import pymysql
 
@@ -80,6 +82,9 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 # }
 app = Flask(__name__)
 app.secret_key = settings.secret_key
+
+# Minify responses
+Minify(app=app, html=True, js=True, cssless=True)
 
 # app.config.from_mapping(config)
 # cache = Cache(app)
@@ -5476,4 +5481,7 @@ def get_barcodeimage(barcode=None):
 
 #####################################
 if __name__ == '__main__':
-    app.run(threaded=True, debug=True)
+    if site_env == "dev":
+        app.run(threaded=True, debug=True)
+    else:
+        app.run(threaded=True, debug=False)

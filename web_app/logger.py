@@ -5,12 +5,13 @@ from time import strftime
 from time import localtime
 import gzip
 import shutil
+import settings
 
 # Logging
 current_time = strftime("%Y%m%d_%H%M%S", localtime())
 
 # Create folder if it doesn't exists
-os.makedirs('logs', exist_ok=True)
+# os.makedirs('logs', exist_ok=True)
 
 
 # From https://docs.python.org/3/howto/logging-cookbook.html#using-a-rotator-and-namer-to-customize-log-rotation-processing
@@ -25,7 +26,7 @@ def namer(name):
     return name + ".gz"
 
 
-logfile = 'logs/ospreyapp_{}.log'.format(current_time)
+logfile = '{}/ospreyapp_{}.log'.format(settings.log_folder, current_time)
 logging.basicConfig(level=logging.DEBUG,
                     format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
                     datefmt='%y-%b-%d %H:%M:%S',
