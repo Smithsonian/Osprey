@@ -57,7 +57,7 @@ from wtforms.validators import DataRequired
 import settings
 
 
-site_ver = "2.7.4"
+site_ver = "2.7.5"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -390,6 +390,10 @@ def kiosk_mode(request, kiosks):
 @app.route('/', methods=['GET', 'POST'], provide_automatic_options=False)
 def homepage(team=None):
     """Main homepage for the system"""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
