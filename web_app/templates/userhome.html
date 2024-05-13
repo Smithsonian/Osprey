@@ -6,6 +6,17 @@
     <a class="navbar-brand navtitle" href="./" title="Collections Digitization Dashboard">Osprey - User Home</a>
 {% endblock %}
 
+
+{% block head_blocks %}
+    <style>
+        .btn-sm {
+            font-size: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+
 {% block content %}
 
     <div class="row">
@@ -14,7 +25,7 @@
                 <h3>Admin options:</h3>
                 <p>
                     <a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>
-                    <a class="btn btn-info btn-sm disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
+                    <a class="btn btn-info disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
                 </p>
             {% endif %}
 

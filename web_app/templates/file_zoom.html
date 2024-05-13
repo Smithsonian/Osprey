@@ -8,11 +8,6 @@
 
 {% block head_blocks %}
 
-
-
-<link rel="stylesheet" href="{{ url_for('static', filename='css/tify.css') }}">
-
-
 {% endblock %}
 
 
@@ -54,21 +49,18 @@
 
                     {% if kiosk  %}
 
-                        <!-- <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top"> -->
-                        <div id="tify" style="width: 600px"></div>
+                        <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
 
                     {% else %}
 
                         {% if file_details.preview_image_ext == None %}
-                            <!-- <a href="{{ file_details.preview_image }}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
+                            <a href="{{ file_details.preview_image }}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
                                 <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
-                            </a> -->
-                            <div id="tify" style="width: 600px"></div>
+                            </a>
 
                         {% else %}
 
-                            <!-- <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">  -->
-                            <div id="tify" style="width: 600px"></div>
+                            <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
 
                         {% endif %}
 
@@ -248,16 +240,5 @@
 
         });
     </script>
-
-
-    <script src="{{ url_for('static', filename='js/tify.js') }}"></script>
-
-    <script>
-        new Tify({
-          container: '#tify',
-          manifestUrl: "{{ url_for('get_preview_iiif', file_id=file_details.file_id) }}"
-        })
-        </script>
-
 
 {% endblock %}

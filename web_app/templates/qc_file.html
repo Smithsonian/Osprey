@@ -11,8 +11,7 @@
 {% block content %}
 
     <div class="row">
-
-        <div class="col-4">
+        <div class="col-6">
 
             <p><a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project_alias) }}" role="button">
                         <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
@@ -27,36 +26,36 @@
             <p>[{{ qc_stats.no_errors + qc_stats.passed }} of {{ qc_stats.no_files }}]</p>
 
             <hr>
-
-
-                <h4>Visual QC Results:</h4>
-
-                <form action="{{ url_for('qc_process', folder_id=folder.folder_id) }}" method="POST">
-
-                <div class="mb-3">
-                    <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
-                        <label class="btn btn-outline-success" for="success-outlined">Image OK</label><br><br>
-                    <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
-                        <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label> <small>- Incorrect file name</small><br><br>
-                    <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
-                        <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label> <small>- Incorrect orientation or rotation, overly cropped image</small><br><br>
-                    <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
-                  <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> <small>- Uncropped or skewed</small><br><br>
-                </div>
-                <div class="mb-3">
-
-                  <p class="text-danger">{{ msg | safe }}</p>
-                  <label for="qc_info" class="form-label">QC details or issues:</label>
-                  <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
-              </div>
-                    <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
-                  <button type="submit" class="btn btn-primary">Submit</button>
-                </form>
-            </p>
         </div>
+        <div class="col-6">
+            <h4>Visual QC Results:</h4>
 
+            <form action="{{ url_for('qc_process', folder_id=folder.folder_id) }}" method="POST">
 
-        <div class="col">
+            <div class="mb-3">
+                <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
+                    <label class="btn btn-outline-success" for="success-outlined">Image OK</label><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
+                    <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label> <small>- Incorrect file name</small><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
+                    <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label> <small>- Incorrect orientation or rotation, overly cropped image</small><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
+              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> <small>- Uncropped or skewed</small><br><br>
+            </div>
+            <div class="mb-3">
+
+              <p class="text-danger">{{ msg | safe }}</p>
+              <label for="qc_info" class="form-label">QC details or issues:</label>
+              <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
+          </div>
+                <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
 
             <div class="card">
                 <div class="card-body text-bg-secondary p-3">
@@ -65,9 +64,21 @@
                         {% if file_details.sensitive_contents == 1 %}
                         <h3><em>This image may include sensitive contents.</em></h3>
                         <br>{% endif%}
-                        <p>Preview resized to a max of 1200 x 1200:<br>
-                        <a href="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="color: #fff!important"><img src="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="max-width: 1200px; max-height: 1200px;"><br>
-                    <i class="fa-solid fa-download"></i> Download full size JPG</a></p>
+
+                        {% if zoom_exists == 1%}
+                            <p>Use your mousewheel or <strong>+</strong> and <strong>-</strong> to zoom in.</p>
+                            <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>
+
+                            <br>
+                            <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" style="color: #fff!important"><i class="fa-solid fa-download"></i> Download full size JPG</a></p>
+                        {% else %}
+                            <p>Preview resized to a max of 1200 x 1200:<br>
+                            <a href="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="color: #fff!important"><img src="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="max-width: 1200px; max-height: 1200px;"><br>
+
+                                <br>
+                                <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" style="color: #fff!important"><i class="fa-solid fa-download"></i> Download full size JPG</a></p>
+                        {% endif %}
+                       
                 </div>
             </div>
 
@@ -75,22 +86,24 @@
 
     </div>
 
-    <hr>
 
-
-    <div class="row">
-        <br><br>
-        <div class="card">
-            <div class="card-body p-3">
-                <h5 class="card-title">Fullsize image - mouseover to zoom in:</h5>
-                <p class="card-text"><a><small><a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>
+    {% if zoom_exists == 0 %}
+    <br><br>
+        <div class="row">
+            
+            <div class="card">
+                <div class="card-body p-3">
+                    <h5 class="card-title">Fullsize image - mouseover to zoom:</h5>
+                    <p class="card-text"><a><small><a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}&dl=1"><i class="fa-solid fa-download"></i> Download JPG</a></small></p>
+                </div>
+                    <!-- Image zoom from: https://www.jacklmoore.com/zoom/ -->
+                    <img src="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" style="width:100%;" class="card-img-bottom" id="previmg">
             </div>
-                <!-- Image zoom from: https://www.jacklmoore.com/zoom/ -->
-                <img src="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" style="width:100%;" class="card-img-bottom" id="previmg">
         </div>
 
+    {% endif %}
 
-    </div>
+    <br><br>
 
     <div class="row">
 
@@ -199,7 +212,6 @@
                 ],
             });
 
-
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
               // Button that triggered the modal
@@ -215,23 +227,36 @@
               modalBody.textContent = checkinfo
             })
 
-
-            //Zoom
-            $('#previmg')
-                .wrap('<span style="display:inline-block"></span>')
-                .css('display', 'block')
-                .parent()
-                .zoom();
-
+            {{ zoom_js | safe}}
+            
         });
     </script>
 
 
-    <!-- Zoom -->
-    <script
+    {% if zoom_exists == 0 %}
+        <!-- Zoom -->
+        <script
             type="text/javascript"
             src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
-    ></script>
-
+        ></script>
+    
+    {% else %}
+        <!-- openseadragon -->
+        <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+            <script type="text/javascript">
+                var viewer = OpenSeadragon({
+                    id: "openseadragon",
+                    prefixUrl: "{{ url_for('static', filename='images/') }}",
+                    tileSources: "{{ zoom_filename }}",
+                    timeout: 60000,
+                    tileRetryMax: 2,
+                    defaultZoomLevel: 0,
+                    preload: true,
+                    placeholderFillStyle: "LightGray",
+                    constrainDuringPan: true            
+                });
+        </script>
+    
+    {% endif %}
 
 {% endblock %}

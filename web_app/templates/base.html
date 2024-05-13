@@ -107,8 +107,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
 
-    <title class="pagetitle">{% block title %}
-    {% endblock %}</title>
+    <title class="pagetitle">{% block title %}{% endblock %}</title>
 
 </head>
 <body>
@@ -262,9 +261,10 @@
     {% block javascripts %}
     {% endblock %}
 
-
-    <!-- Analytics block -->
-    {{ analytics_code | safe }}
-
+    {% if site_env == "prod" %}
+        <!-- Analytics block -->
+        {{ analytics_code | safe }}
+    {% endif %}
+    
 </body>
 </html>
