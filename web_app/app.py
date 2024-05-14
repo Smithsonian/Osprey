@@ -48,7 +48,8 @@ from flask_login import UserMixin
 from flask_login import current_user
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField
+from wtforms import StringField
+from wtforms import PasswordField
 from wtforms.validators import DataRequired
 
 import settings
@@ -1167,6 +1168,16 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
+    # Add sort to show Failed tests at the top
+    # Sort by filename first
+    files_table_sort = "[0, 'asc']"
+    
+    no_cols = folder_files_df.shape[1]
+    i = 1
+    while i < no_cols:
+        files_table_sort = "{},{}".format(files_table_sort,("[{}, 'desc']".format(i)))
+        i += 1
+
     return render_template('dashboard.html',
                            page_no=page_no,
                            project_id=project_id,
@@ -1219,7 +1230,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            projects_links=projects_links,
                            project_manager_link=project_manager_link,
                            analytics_code=settings.analytics_code,
-                           project_stats_other=project_stats_other
+                           project_stats_other=project_stats_other,
+                           files_table_sort=files_table_sort
                            )
 
 

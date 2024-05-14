@@ -155,15 +155,13 @@
                 {% endif %}
 
                 {% if folder_badge is not none %}
-
-                        {% for folder_badge in project_folders_badges %}
-                                {% if folder_badge.folder_id == folder.folder_id %}
-                                    <br>
-                                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
-                                {% endif %}
-                        {% endfor %}
-
-                    {% endif %}
+                    {% for folder_badge in project_folders_badges %}
+                        {% if folder_badge.folder_id == folder.folder_id %}
+                            <br>
+                            <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
 
                 </a>
 
@@ -172,28 +170,28 @@
         </div>
 
     </div>
-<div class="col overflow-x-auto" style="font-size: 0.9em;">
+    <div class="col overflow-x-auto" style="font-size: 0.9em;">
 
     {% if folder_name != None %}
 
         <!-- This folder badges -->
         {% for folder in project_folders %}
-                {% if folder.folder_id == folder_id %}
-                    <div style="text-align: right;">
-                    {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+            {% if folder.folder_id == folder_id %}
+                <div style="text-align: right;">
+                {% if folder.no_files != "0 files" and folder.no_files != "0" %}
                     &nbsp;  <span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
-                    {% endif %}
-
-                    {% if folder_badge is not none %}
-                        {% for folder_badge in project_folders_badges %}
-                            {% if folder_badge.folder_id == folder.folder_id %}
-                                <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                    </div>
                 {% endif %}
-            {% endfor %}
+
+                {% if folder_badge is not none %}
+                    {% for folder_badge in project_folders_badges %}
+                        {% if folder_badge.folder_id == folder.folder_id %}
+                            <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
 
 
         <!-- Accessible jump to files -->
@@ -401,7 +399,7 @@
                             'csvHtml5',
                             'excelHtml5'
                         ],
-                    "order": [],
+                    "order": [{{ files_table_sort | safe }}],
                     "columnDefs": [
                         {
                             'targets': 0,
