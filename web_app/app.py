@@ -3028,15 +3028,15 @@ def qc_done(folder_id):
     else:
         ok_folders = 0
         for folder in project_qc_hist:
-            if folder['qc_status'] != "0":
+            if folder['qc_status'] == "0":
                 ok_folders += 1
-            if ok_folders <= 3:
-                level = 'Tightened'
-            elif ok_folders == 5:
-                level = 'Normal'
-            else:
-                level = 'Normal'
-    res = query_database_insert("UPDATE qc_settings SET qc_level = %(qc_level)s WHERE project_id = %(project_id)s",
+        if ok_folders <= 3:
+            level = 'Tightened'
+        elif ok_folders == 5:
+            level = 'Normal'
+        else:
+            level = 'Normal'
+    res = query_database_insert("UPDATE qc_settings SET qc_level = %(qc_level)s, qc_percent = qc_{}_percent WHERE project_id = %(project_id)s".format(level.lower()),
                                 {'project_id': project_id, 'qc_level': level}, cur=cur)
     cur.close()
     conn.close()
@@ -3797,7 +3797,7 @@ def file(file_id=None):
         zoom_filename = None
 
     return render_template('file.html',
-                           zoom=zoom_exists,
+                           zoom_exists=zoom_exists,
                            zoom_filename=zoom_filename,
                            folder_info=folder_info,
                            file_details=file_details,
