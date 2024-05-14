@@ -35,7 +35,7 @@
     </div>
 
     <div class="row">
-        {% if zoom == 1 %}
+        {% if zoom_exists == 1 %}
             <div class="col-12">
         {% else %}
             <div class="col-6">
@@ -59,7 +59,7 @@
 
                     {% else %}
 
-                        {% if zoom == 1 %}
+                        {% if zoom_exists == 1 %}
 
                             <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>
 
@@ -252,7 +252,7 @@
     </script>
 
 
-    {% if zoom == 1 %}
+    {% if zoom_exists == 1 %}
         <!-- openseadragon -->
         <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
             <script type="text/javascript">
@@ -264,7 +264,7 @@
                     tileRetryMax: 2,
                     defaultZoomLevel: 0,
                     preload: true,
-                    placeholderFillStyle: "#9e9d99",
+                    placeholderFillStyle: "LightGray",
                     constrainDuringPan: true            
                 });
         </script>
