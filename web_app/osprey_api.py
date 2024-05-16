@@ -618,10 +618,7 @@ def api_update_project_details(project_alias=None):
                                 res = run_query(query, {'file_id': file_id,}, cur=cur)
                                 logger.info(res)
                                 # Get results for file query
-                                if res[0]['result'] == "1":
-                                    check_results = 0
-                                else:
-                                    check_results = 1
+                                check_results = res[0]['result']
                                 check_info = res[0]['info']
                         query = (
                             "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
