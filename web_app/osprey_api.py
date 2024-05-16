@@ -831,7 +831,7 @@ def api_get_folder_details(folder_id=None):
                               "          'QC Pending') as qc_status "
                         " FROM folders f "
                      " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
-                      " WHERE f.folder_id = %(folder_id)s"), {'folder_id': folder_id}, api=True, cur=cur)
+                      " WHERE f.folder_id = %(folder_id)s"), {'folder_id': folder_id}, cur=cur)
     project_id = data[0]['project_id']
     if len(data) == 1:
         api_key = request.form.get("api_key")
@@ -841,7 +841,7 @@ def api_get_folder_details(folder_id=None):
                  " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
                  " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
                  " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
-            files = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+            files = run_query(query, {'folder_id': folder_id}, cur=cur)
             data[0]['files'] = files
         else:
             if validate_api_key(api_key, cur=cur):
@@ -858,7 +858,7 @@ def api_get_folder_details(folder_id=None):
                     " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
                     " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
                     " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
-                files_list = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+                files_list = run_query(query, {'folder_id': folder_id}, cur=cur)
                 folder_files_df = pd.DataFrame(files_list)
                 for fcheck in filechecks_list:
                     logger.info("fcheck: {}".format(fcheck))
@@ -911,7 +911,7 @@ def api_get_folder_qc(folder_id=None):
             " q.qc_info, u.full_name, DATE_FORMAT(q.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at "
             " FROM qc_files q, files f, users u WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
             "       AND q.qc_by = u.user_id ")
-        data1 = run_query(query, {'folder_id': folder_id}, api=True, cur=cur)
+        data1 = run_query(query, {'folder_id': folder_id}, cur=cur)
         data = {}
         data['qc'] = data1
         cur.close()
