@@ -418,7 +418,7 @@ def homepage(team=None):
         username = request.form.get('username', '', type=str)
         password = request.form.get('password', '', type=str)
         query = "SELECT user_id, username, user_active, full_name FROM users WHERE username = %(username)s AND pass = MD5(%(password)s)"
-        user = run_query(query, {'username': username, 'password': password}, cur=cur)
+        user = run_query(query, {'username': username.lower(), 'password': password}, cur=cur)
         logger.info(user)
         if len(user) == 1:
             logger.info(user[0]['user_active'])

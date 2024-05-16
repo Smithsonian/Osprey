@@ -615,7 +615,7 @@ def api_update_project_details(project_alias=None):
                                 check_info = "Query for filename not found"
                             else:
                                 query = res[0]['settings_details']
-                                res = query_database_insert(query, {'file_id': file_id,}, cur=cur)
+                                res = run_query(query, {'file_id': file_id,}, cur=cur)
                                 logger.info(res)
                                 # Get results for file query
                                 if res[0]['result'] == "1":
