@@ -143,25 +143,6 @@ def query_database_insert_multi(query, parameters, return_res=False, cur=None):
 ###################################
 osprey_api = Blueprint('osprey_api', __name__)
 @cache.memoize()
-@osprey_api.route('/api/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
-def api_route_list():
-    """Print available routes in JSON"""
-    # Adapted from https://stackoverflow.com/a/17250154
-    func_list = {}
-    for rule in osprey_api.url_map.iter_rules():
-        # Skip 'static' routes
-        if str(rule).startswith('/api/new'):
-            continue
-        elif str(rule).startswith('/api/update'):
-            continue
-        elif str(rule).startswith('/api'):
-            func_list[rule.rule] = osprey_api.view_functions[rule.endpoint].__doc__
-        else:
-            continue
-    data = {'routes': func_list, 'sys_ver': site_ver, 'env': site_env, 'net': site_net}
-    return jsonify(data)
-
-
 @osprey_api.route('/api/projects/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_projects():
     """Get the list of projects."""
@@ -247,6 +228,7 @@ def api_get_projects():
     return jsonify(data)
 
 
+@cache.memoize()
 @osprey_api.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""

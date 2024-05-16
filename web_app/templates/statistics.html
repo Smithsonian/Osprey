@@ -29,7 +29,7 @@
 
 
 <div class="row">
-    <div class="col">
+    <div class="col-4">
         <div class="card">
             <h3 class="card-header text-white bg-primary" title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h3>
             <div class="card-body">
@@ -41,7 +41,7 @@
             </div>
         </div>
     </div>
-    <div class="col">
+    <div class="col-4">
         <div class="card">
             <h3 class="card-header text-white bg-secondary" title="Total number of {{ project_info.obj_type }} digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h3>
             <div class="card-body">
@@ -53,7 +53,7 @@
             </div>
         </div>
     </div>
-    <div class="col">
+    <div class="col-4">
         <div class="card">
             <h3 class="card-header text-white bg-success" title="Images that passed all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h3>
             <div class="card-body">
@@ -65,7 +65,12 @@
             </div>
         </div>
     </div>
-    <div class="col">
+</div>
+
+
+<br>
+<div class="row">
+    <div class="col-4">
         <div class="card">
             <h3 class="card-header text-white bg-danger" title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h3>
             <div class="card-body">
@@ -77,13 +82,8 @@
             </div>
         </div>
     </div>
-</div>
-
-
-{% if project_stats_other.other_stat != "0" %}
-<br>
-<div class="row">
-    <div class="col-3">
+    {% if project_stats_other.other_stat != "0" %}
+    <div class="col-4">
         <div class="card">
             <h3 class="card-header text-white bg-warning" title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{ project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></h3>
             <div class="card-body">
@@ -95,8 +95,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
-{% endif %}
+
 
 
 <div class="row">
@@ -114,7 +115,7 @@
 
     <div class="row">
         {% for stat in proj_stats_vals1 %}
-        <div class="col-3">
+        <div class="col-4">
             <div class="card">
                 <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
                 <div class="card-body">
@@ -147,7 +148,7 @@
 
     <div class="row">
         {% for stat in proj_stats_vals2 %}
-        <div class="col-3">
+        <div class="col-4">
             <div class="card">
                 <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
                 <div class="card-body">

@@ -61,6 +61,12 @@
     <hr>
         {% if team == "summary" %}
 
+            <p>The <strong>Collections Digitization</strong> program of the Digitization Program Office supports Smithsonian museums in their efforts to digitize collections as comprehensively, quickly, and cost-effectively as possible by building end-to-end workflows, creating high speed, high quality digitization processes, and by pairing up the digital surrogates we create with the collections records stored in the Smithsonian's various databases.</p>
+
+            <hr>
+
+            <p style="font-size: large;">Some of our projects:</p>
+
             <ul class="list-group list-group-flush">
 
 
@@ -73,8 +79,8 @@
                           <div class="col">
                                   <h2 class="card-title">Digitization of the JPC Archive is Now in Production</h2>
 
-                                  <p><small>After the successful Pilot Project, we have started the production project of the digitization of the JPC Archive. This phase will start by digitizing the Priority 1 material: about 70,275 reflective and transmissive photographic items. 
-                                    We will continue to develop and test the systems integration. </small></p>
+                                  <p>After the successful Pilot Project, we have started the production project of the digitization of the JPC Archive. This phase will start by digitizing the Priority 1 material: about 70,275 reflective and transmissive photographic items.<br> 
+                                    We will continue to develop and test the systems integration.</p>
                                   <a href="{{ url_for('dashboard', project_alias = 'jpc_production') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Prodcution Project Dashboard">JPCA Production Project Dashboard</a>
                           </div>
                       </div>
@@ -89,8 +95,8 @@
                             <div class="col">
                                     <h2 class="card-title">A Photoshoot with 25,000 Mussels</h2>
 
-                                    <p><small>We are digitizing about 25,000 lots, with up to three individuals per lot,
-                                        adding over 120,000 images of freshwater mussels - otherwise known as the Mollusca family Unionidae.</small></p>
+                                    <p>We are digitizing about 25,000 lots, with up to three individuals per lot,
+                                        adding over 120,000 images of freshwater mussels - otherwise known as the Mollusca order Unionidae.</p>
                                     <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
 
                             </div>
@@ -106,7 +112,7 @@
                             <div class="col">
                                     <h2 class="card-title">Digitization of the National Herbarium Continues</h2>
 
-                                    <p><small>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</small></p>
+                                    <p>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</p>
                                     <a href="{{ url_for('dashboard', project_alias = 'botany_accessions') }}" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
 
                             </div>
@@ -119,18 +125,33 @@
 
 
     {% elif team == "md" %}
+
+            <p><strong>Mass Digitization</strong> aims to digitize large museum collections efficiently without sacrificing image quality or object care. This method employs three major workflows: physical, imaging, and virtual, designed to handle objects safely, optimize capture throughputs, and automate image delivery. Guiding principles include comprehensive end-to-end processes, high-volume work for economies of scale, relentless pursuit of efficiency, and robust project management. Our innovative Item Driven Image Fidelity (IDIF) wherein we determine the optimal resolvable resolution for a project, and institution-wide infrastructure, create sustainable, repeatable results. To date, over 5.4 million items have been successfully digitized. </p>
+
+            <hr>
+            
             {% for table in tables_md %}
                 {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
             <p>We thank DAMS for providing DPO with access to their data. </p>
     {% elif team == "is" %}
+
+            <p><strong>Imaging Services</strong> acts as a focal point in the Smithsonian Institution for photographic support. Addressing a crucial need within the Smithsonian Institution by providing digital imaging support for annually accessioned objects (referred to as "keep-up" digitization) and for small-scale collections, particularly in smaller museums and departments lacking staff photographers. These projects may be executed by the unit under the supervision and training of Imaging Services, or directly undertaken by Imaging Services' in-house imaging staff, without the involvement of external vendors.</p>
+
+            <hr>
+            
             {% for table in tables_is %}
                 {{ table|safe }}
             {% endfor %}
             <p>* Value was estimated</p>
             <p>We thank DAMS for providing DPO with access to their data. </p>
     {% elif team == "inf" %}
+
+            <p>In the <strong>Informatics</strong> team, we provide essential support for informatics projects that involve enriching or creating digital records, supported by guidance, funding, and in-kind resources from the DPO. Our approach focuses on scalability, automation, interconnectivity, innovation, machine learning, open-source software, and reusable solutions. We prioritize workflows capable of handling large volumes of records, automating tedious tasks, and establishing seamless data transfer between systems. Research into cutting-edge tools and technologies, including AI, allows us to enhance images and records. We promote transparency through open-source software and develop adaptable solutions for broader applications across projects and institutions. </p>
+
+            <hr>
+
             {% for table in tables_inf %}
                 {{ table|safe }}
             {% endfor %}

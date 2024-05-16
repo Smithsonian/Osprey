@@ -8,7 +8,7 @@
 
 {% block content %}
 
-    <p style="font-size: large;"><strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
+    <p style="font-size: large;"><img src="{{ url_for('static', filename='osprey_logo_200.png') }}" alt="Osprey Application Logo"> <strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
     
     {% if site_net == "internal" %}<p><strong>This is the SI-Internal instance</strong></p>{% endif %}
 
@@ -25,5 +25,13 @@
     <p>This is a project of the: <a href="https://dpo.si.edu/" title="Link to the website of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://www.si.edu/ocio" class="bg-white" title="Link to the Office of the Chief Information Officer">Office of the Chief Information Officer</a></p>
 
     <br><br>
+
+    <p>Special thanks to:</p>
+    <ul>
+        <li>OCIO for hosting our servers and supporting the infrastructure we use in our projects</li>
+        <li>The DAMS team for sharing their data</li>
+        <li>The Osprey (<em>Pandion haliaetus</em>) silhouette image is from Phylopic (<a href="https://www.phylopic.org/images/8353477c-dc5d-44b6-ab3c-9d0cdf4d64f7/pandion-haliaetus">link to source</a>)</li>
+    </ul>
+    <p><small></small></p>
 
 {% endblock %}

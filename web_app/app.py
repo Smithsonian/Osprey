@@ -13,6 +13,7 @@ from flask import url_for
 from flask import send_file
 from flask import Response
 from flask import Blueprint
+from flask import send_from_directory
 
 from cache import cache
 # Logging
@@ -83,6 +84,8 @@ cache.init_app(app)
 # Disable strict trailing slashes
 app.url_map.strict_slashes = False
 
+# Add blueprints
+app.register_blueprint(osprey_api)
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
 class InvalidUsage(Exception):
@@ -365,6 +368,13 @@ def kiosk_mode(request, kiosks):
 # System routes
 ###################################
 @cache.memoize()
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                          'favicon.ico',mimetype='image/vnd.microsoft.icon')
+
+
+@cache.memoize()
 @app.route('/team/<team>', methods=['GET', 'POST'], provide_automatic_options=False)
 @app.route('/', methods=['GET', 'POST'], provide_automatic_options=False)
 def homepage(team=None):
@@ -513,7 +523,7 @@ def homepage(team=None):
         }
 
     elif team == "inf":
-        team_heading = "Summary of the Informatics Team Projects"
+        team_heading = "Summary of Informatics Team Projects"
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
         # IS stats
         summary_stats = {
@@ -2253,9 +2263,9 @@ def proj_statistics(project_alias=None):
 
     proj_stats_steps = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and (stat_type='column' or stat_type='boxplot' or stat_type='area') and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 4, 4", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']}, cur=cur)
 
     # Stats
     project_stats = {}
@@ -3800,9 +3810,9 @@ def file(file_id=None):
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
     # DZI zoomable image
-    zoom_filename = url_for('static', filename='/dzi/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
+    zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
     
-    if os.path.isfile('static/dzi/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)):
+    if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)):
         zoom_exists = 1
     else:
         zoom_exists = 0
@@ -4572,6 +4582,26 @@ def get_barcodeimage(barcode=None):
         return send_file(filename, mimetype='image/jpeg')
     except:
         return send_file("static/na.jpg", mimetype='image/jpeg')
+
+
+@cache.memoize()
+@app.route('/api/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+def api_route_list():
+    """Print available routes in JSON"""
+    # Adapted from https://stackoverflow.com/a/17250154
+    func_list = {}
+    for rule in app.url_map.iter_rules():
+        # Skip 'static' routes
+        if str(rule).startswith('/api/new'):
+            continue
+        elif str(rule).startswith('/api/update'):
+            continue
+        elif str(rule).startswith('/api'):
+            func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
+        else:
+            continue
+    data = {'routes': func_list, 'sys_ver': site_ver, 'env': site_env, 'net': site_net}
+    return jsonify(data)
 
 
 #####################################
