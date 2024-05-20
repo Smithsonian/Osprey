@@ -1185,7 +1185,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     no_cols = folder_files_df.shape[1]
     i = 1
     while i < no_cols:
-        files_table_sort = "{},{}".format(files_table_sort,("[{}, 'desc']".format(i)))
+        if 'Failed' in folder_files_df.iloc[:, i].values:
+            files_table_sort = "[{}, 'asc']".format(i)
         i += 1
 
     return render_template('dashboard.html',
