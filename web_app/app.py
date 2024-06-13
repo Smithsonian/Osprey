@@ -38,7 +38,8 @@ from time import strftime
 from time import localtime
 
 # MySQL
-import pymysql
+#import pymysql
+import mysql.connector
 
 # Flask Login
 from flask_login import LoginManager
@@ -159,7 +160,7 @@ def run_query(query, parameters=None, return_val=True, cur=None):
             results = cur.execute(query)
         else:
             results = cur.execute(query, parameters)
-    except pymysql.Error as error:
+    except mysql.connector.Error as error:
         logger.error("Error: {}".format(error))
         raise InvalidUsage(error, status_code=500)
     if return_val:
@@ -256,16 +257,23 @@ def user_perms(project_id, user_type='user'):
         return False
     # Connect to db
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
+        # conn = pymysql.connect(host=settings.host,
+        #                        user=settings.user,
+        #                        passwd=settings.password,
+        #                        database=settings.database,
+        #                        port=settings.port,
+        #                        charset='utf8mb4',
+        #                        cursorclass=pymysql.cursors.DictCursor,
+        #                        autocommit=True)
+        # cur = conn.cursor()
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    # except mysql.connector.Error as e:
+    except mysql.connector.Error as e:
         logger.error(e)
         raise InvalidUsage('System error')
     val = False
@@ -301,19 +309,29 @@ class User(UserMixin):
 
     def is_active(self):
         # Connect to db
+        # try:
+        #     conn = pymysql.connect(host=settings.host,
+        #                            user=settings.user,
+        #                            passwd=settings.password,
+        #                            database=settings.database,
+        #                            port=settings.port,
+        #                            charset='utf8mb4',
+        #                            cursorclass=pymysql.cursors.DictCursor,
+        #                            autocommit=True)
+        #     cur = conn.cursor()
+        # except mysql.connector.Error as e:
+        #     logger.error(e)
+        #     raise InvalidUsage('System error')
         try:
-            conn = pymysql.connect(host=settings.host,
-                                   user=settings.user,
-                                   passwd=settings.password,
-                                   database=settings.database,
-                                   port=settings.port,
-                                   charset='utf8mb4',
-                                   cursorclass=pymysql.cursors.DictCursor,
-                                   autocommit=True)
-            cur = conn.cursor()
-        except pymysql.Error as e:
-            logger.error(e)
-            raise InvalidUsage('System error')
+            conn = mysql.connector.connect(host=settings.host,
+                                    user=settings.user,
+                                    password=settings.password,
+                                    database=settings.database,
+                                    port=settings.port, autocommit=True)
+            cur = conn.cursor(dictionary=True)
+        except mysql.connector.Error as err:
+            logger.error(err)
+            return jsonify({'error': 'API error'}), 500
         query = "SELECT user_active FROM users WHERE username = %(username)s"
         user = cur.execute(query, {'username': name})
         cur.close()
@@ -330,19 +348,29 @@ class User(UserMixin):
 @login_manager.user_loader
 def load_user(username):
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
     query = "SELECT username, user_id, user_active, full_name FROM users WHERE username = %(username)s"
     res = cur.execute(query, {'username': username})
     u = cur.fetchall()
@@ -397,20 +425,29 @@ def homepage(team=None):
     msg = None
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
-
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
     # check if both http method is POST and form is valid on submit
     if form.validate_on_submit():
 
@@ -738,19 +775,29 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
@@ -942,9 +989,11 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         else:
             offset = (page - 1) * no_items
         files_df = run_query((
-                                 "WITH data AS (SELECT file_id, CONCAT('/preview_image/', file_id, '/?') as preview_image, "
-                                 "         preview_image as preview_image_ext, folder_id, file_name, sensitive_contents FROM files "
-                                 "WHERE folder_id = %(folder_id)s)"
+                                 "WITH data AS (SELECT f.file_id, CONCAT('/preview_image/', f.file_id, '/?') as preview_image, "
+                                 "         f.preview_image as preview_image_ext, f.folder_id, f.file_name, "
+                                 "               COALESCE(s.sensitive_contents, 0) as sensitive_contents "
+                                 "           FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id "
+                                 " WHERE f.folder_id = %(folder_id)s)"
                                  " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, sensitive_contents "
                                  " FROM data "
                                  " ORDER BY file_name "
@@ -1172,6 +1221,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             project_disk = "{}: {}".format(disk['filetype'], disk['filesize'])
         i += 1
 
+    # Last update for folder
+    fol_last_update = run_query("SELECT date_format(updated_at, '%Y-%b-%d %T') as last_updated FROM folders where folder_id = %(folder_id)s", {'folder_id': folder_id}, cur=cur)[0]['last_updated']
+
     cur.close()
     conn.close()
 
@@ -1190,6 +1242,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         i += 1
 
     return render_template('dashboard.html',
+                           fol_last_update=fol_last_update,
                            page_no=page_no,
                            project_id=project_id,
                            project_info=project_info,
@@ -1297,19 +1350,29 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
@@ -1804,19 +1867,29 @@ def filestable(project_alias=None, folder_id=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
@@ -1975,19 +2048,29 @@ def dashboard(project_alias=None):
         username = None
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -2229,19 +2312,29 @@ def proj_statistics(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
@@ -2328,19 +2421,29 @@ def proj_statistics_dl(project_id=None, step_id=None):
         return redirect(url_for('api_route_list'))
         
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     project_id_check = run_query("SELECT proj_id FROM projects WHERE proj_id = %(proj_id)s",
                                       {'proj_id': project_id}, cur=cur)
@@ -2414,19 +2517,29 @@ def qc(project_alias=None):
         username = None
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -2663,19 +2776,29 @@ def qc_process(folder_id):
         username = None
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -2840,8 +2963,8 @@ def qc_process(folder_id):
                                           "     AND f.folder_id = %(folder_id)s AND q.file_qc = 9 "
                                           "  LIMIT 1 "),
                                          {'folder_id': folder_id}, cur=cur)[0]
-                file_details = run_query(("SELECT file_id, folder_id, file_name, sensitive_contents "
-                                               " FROM files WHERE file_id = %(file_id)s"),
+                file_details = run_query(("SELECT f.file_id, f.folder_id, f.file_name, COALESCE(s.sensitive_contents, 0) as sensitive_contents "
+                                               " FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id WHERE f.file_id = %(file_id)s"),
                                               {'file_id': file_qc['file_id']}, cur=cur)[0]
                 file_checks = run_query(("SELECT file_check, check_results, "
                                               "       CASE WHEN check_info = '' THEN 'Check passed.' "
@@ -2969,19 +3092,29 @@ def qc_done(folder_id):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
 
@@ -3046,14 +3179,15 @@ def qc_done(folder_id):
                                  "    AND q.qc_status != 9 "
                                  " ORDER BY updated_at DESC LIMIT 5"),
                                     {'project_id': project_id}, cur=cur)
-    if len(project_qc_hist) <= 5:
+    if len(project_qc_hist) < 5:
         level = 'Tightened'
     else:
         ok_folders = 0
         for folder in project_qc_hist:
-            if folder['qc_status'] == "0":
+            if folder['qc_status'] == 0:
                 ok_folders += 1
-        if ok_folders <= 3:
+        logger.info("ok_folders post QC: {}".format(ok_folders))
+        if ok_folders <= 4:
             level = 'Tightened'
         elif ok_folders == 5:
             level = 'Normal'
@@ -3083,19 +3217,29 @@ def home():
         username = None
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -3251,19 +3395,29 @@ def create_new_project():
         return redirect(url_for('api_route_list'))
     
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -3421,19 +3575,29 @@ def edit_project(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -3497,19 +3661,29 @@ def proj_links(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -3568,19 +3742,29 @@ def add_links(project_alias=None):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -3628,19 +3812,29 @@ def project_update(project_alias):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -3720,19 +3914,29 @@ def file(file_id=None):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     file_id, file_uid = check_file_id(file_id, cur=cur)
 
@@ -3793,8 +3997,15 @@ def file(file_id=None):
                                                 {'file_id': file_id, 'file_ext': file_details['file_ext']}, cur=cur))
     file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
                                 {'file_id': file_id}, cur=cur)
-    file_sensitive = run_query("SELECT sensitive_contents FROM files WHERE file_id = %(file_id)s ",
-                                {'file_id': file_id}, cur=cur)[0]
+    file_sensitive = run_query("SELECT sensitive_contents, sensitive_info FROM sensitive_contents WHERE file_id = %(file_id)s ",
+                                {'file_id': file_id}, cur=cur)
+    if len(file_sensitive) == 0:
+        file_sensitive = 0
+        sensitive_info = ""
+    else:
+        file_data = file_sensitive[0]
+        file_sensitive = file_data['sensitive_contents']
+        sensitive_info = file_data['sensitive_info']
     
     if current_user.is_authenticated:
         user_name = current_user.name
@@ -3834,7 +4045,8 @@ def file(file_id=None):
                                                          classes=["display", "compact", "table-striped"])],
                            file_metadata_rows=file_metadata.shape[0],
                            file_links=file_links,
-                           file_sensitive=str(file_sensitive['sensitive_contents']),
+                           file_sensitive=str(file_sensitive),
+                           sensitive_info=sensitive_info,
                            form=form,
                            site_env=site_env,
                            site_net=site_net,
@@ -3871,19 +4083,29 @@ def search_files(project_alias):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     q = request.values.get('q')
     metadata = request.values.get('metadata')
@@ -3979,19 +4201,29 @@ def search_folders(project_alias):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     q = request.values.get('q')
     page = request.values.get('page')
@@ -4092,19 +4324,29 @@ def update_folder_dams(project_alias=None, folder_id=None):
 
     """Update folder when sending to DAMS"""
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     # Set as in the way to DAMS
     damsupdate = query_database_insert(
@@ -4231,9 +4473,9 @@ def update_folder_dams(project_alias=None, folder_id=None):
 
 
 
-@app.route('/update_image/<file_id>', methods=['GET'], provide_automatic_options=False)
+@app.route('/update_image/', methods=['POST'], provide_automatic_options=False)
 @login_required
-def update_image(file_id=None):
+def update_image():
     """Update image as having sensitive contents"""
     
     # If API, not allowed - to improve
@@ -4241,41 +4483,50 @@ def update_image(file_id=None):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     if current_user.is_authenticated:
-        user_name = current_user.name
-        is_admin = user_perms('', user_type='admin')
+        user_exists = True
+        username = current_user.name
+        user_id = current_user.id
     else:
         cur.close()
         conn.close()
         return redirect(url_for('homepage'))
 
-    if is_admin:
-        update = query_database_insert(
-            ("UPDATE files SET sensitive_contents = 1 WHERE file_id = %(file_id)s"),
-                {'file_id': file_id}, cur=cur)
+    file_id = int(request.form['file_id'])
+    sensitive_info = request.form['sensitive_info']
 
-        cur.close()
-        conn.close()
-        return redirect(url_for('file', file_id=file_id))
-    else:
-        cur.close()
-        conn.close()
-        return redirect(url_for('homepage'))
+    update = query_database_insert(
+        ("INSERT INTO sensitive_contents (file_id, sensitive_contents, sensitive_info, user_id) VALUES (%(file_id)s, 1, %(sensitive_info)s, %(user_id)s) ON DUPLICATE KEY UPDATE sensitive_contents = 1"),
+            {'file_id': file_id, 'sensitive_info': sensitive_info, 'user_id': current_user.id}, cur=cur)
 
+    cur.close()
+    conn.close()
+    return redirect(url_for('file', file_id=file_id))
+    
 
 
 
@@ -4330,20 +4581,29 @@ def data_reports(project_alias=None, report_id=None):
     form = LoginForm(request.form)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
-
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     if project_alias is None:
         error_msg = "Project is not available."
@@ -4421,19 +4681,29 @@ def get_preview(file_id=None, max=None, sensitive=None):
             raise InvalidUsage('invalid file_id value', status_code=400)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
     
     data = run_query("SELECT folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id}, cur=cur)
     logger.info(data)
@@ -4474,11 +4744,15 @@ def get_preview(file_id=None, max=None, sensitive=None):
     logger.debug("preview_request: {} - {}".format(file_id, filename))
     
     # Check for sensitive contents
-    img = run_query("SELECT * FROM files WHERE file_id = %(file_id)s", {'file_id': file_id}, cur=cur)[0]
-    logger.debug("sensitive_contents: {} - {}".format(file_id, img['sensitive_contents']))
+    img = run_query("SELECT * FROM sensitive_contents WHERE file_id = %(file_id)s", {'file_id': file_id}, cur=cur)
+    if len(img) == 0:
+        img_sen = 0
+    else:
+        img_sen = img[0]['sensitive_contents']
+    logger.debug("sensitive_contents: {} - {}".format(file_id, img_sen))
     sensitive = request.args.get('sensitive')
     
-    if str(img['sensitive_contents']) == "1" and filename != "static/na.jpg" and sensitive != "ok":
+    if str(img_sen) == "1" and filename != "static/na.jpg" and sensitive != "ok":
         filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
         try:
             img = Image.open(filename)
@@ -4524,19 +4798,29 @@ def get_barcodeimage(barcode=None):
         raise InvalidUsage('Invalid barcode', status_code=400)
 
     # Connect to db
+    # try:
+    #     conn = pymysql.connect(host=settings.host,
+    #                            user=settings.user,
+    #                            passwd=settings.password,
+    #                            database=settings.database,
+    #                            port=settings.port,
+    #                            charset='utf8mb4',
+    #                            cursorclass=pymysql.cursors.DictCursor,
+    #                            autocommit=True)
+    #     cur = conn.cursor()
+    # except mysql.connector.Error as e:
+    #     logger.error(e)
+    #     raise InvalidUsage('System error')
     try:
-        conn = pymysql.connect(host=settings.host,
-                               user=settings.user,
-                               passwd=settings.password,
-                               database=settings.database,
-                               port=settings.port,
-                               charset='utf8mb4',
-                               cursorclass=pymysql.cursors.DictCursor,
-                               autocommit=True)
-        cur = conn.cursor()
-    except pymysql.Error as e:
-        logger.error(e)
-        raise InvalidUsage('System error')
+        conn = mysql.connector.connect(host=settings.host,
+                                user=settings.user,
+                                password=settings.password,
+                                database=settings.database,
+                                port=settings.port, autocommit=True)
+        cur = conn.cursor(dictionary=True)
+    except mysql.connector.Error as err:
+        logger.error(err)
+        return jsonify({'error': 'API error'}), 500
 
     if barcode_split[0] == 'nmnhbot':
         query = ("SELECT file_id, folder_id, preview_image FROM files "

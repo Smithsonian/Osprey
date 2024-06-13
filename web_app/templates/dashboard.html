@@ -276,7 +276,7 @@
                 </div>
 
 
-          {% elif tab == "lightbox" %}
+        {% elif tab == "lightbox" %}
 
               <br><br>
                 <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
@@ -323,6 +323,7 @@
             &nbsp;
         {% endif %}
 
+        <br><p>Folder last updated on {{ fol_last_update }}.</p>
 
     {% else %}
         <p>Select a folder on the left</p>

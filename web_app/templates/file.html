@@ -43,14 +43,24 @@
         
             <h2>Image Preview:</h2>
 
-                    {% if is_admin %}
-                        <div style="text-align: left;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_image', file_id=file_details.file_id) }}" role="button">Set Image as Sensitive</a></div>
+                    {% if username != "" %}
+                        <div style="background-color: lightgray; padding: 10px;"><p>If image contains potentially sensitive or offensive material, please enter the details here:</p>
+                        <form action="{{ url_for('update_image') }}" method="POST">
+                            <input type="hidden" class="form-control form-control-md" id="file_id" name="file_id" value="{{ file_details.file_id }}">
+                            <input type="text" class="form-control form-control-md" id="sensitive_info" name="sensitive_info" aria-label="Search Files" placeholder="Enter Reason">
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        </form></div>
                         <br>
                     {% endif %}
 
 
                     {%if file_sensitive == "1" %}
                         <p><em>This image may include sensitive contents. To view the uncensored image, click <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" title="Open uncensored version of this image">this link</a></em></p>
+
+                        {%if sensitive_info != "" and sensitive_info != None %}
+                            <p><em>Staff notes</em>: {{ sensitive_info }}</p> 
+                        {% endif %}
+
                     {% endif %}
 
                     {% if kiosk  %}
