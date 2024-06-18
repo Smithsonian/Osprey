@@ -2516,20 +2516,6 @@ def qc(project_alias=None):
         user_exists = False
         username = None
 
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
@@ -2690,7 +2676,7 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
