@@ -96,22 +96,6 @@
 
 
 
-                    <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
-                      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-                        <div class="modal-content">
-                          <div class="modal-header">
-                            <h1 class="modal-title" id="checkmodalLabel">Check Details</h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                          </div>
-                          <div class="modal-body">
-                            <pre>#</pre>
-                          </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
 
         </div>
     </div>
@@ -135,6 +119,7 @@
                         </div>
                     {% endif %}
 
+            <!-- File checks -->
             <div class="card">
                 <h2 class="card-header text-white bg-primary">File Technical Checks</h2>
                 <div class="card-body">
@@ -193,6 +178,82 @@
                 </div>
             </div>
 
+
+            <!-- File postprocessing -->
+            <div class="card">
+                <h2 class="card-header text-white bg-primary">File Postprocessing Steps</h2>
+                <div class="card-body">
+                    <table class="table compact table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for step in file_postprocessing %}
+                            <tr>
+                                <td style="font-size: small;">
+                                    <strong>{{ step.post_step }}</strong>
+                                </td>
+                                <td style="font-size: small;">
+                                    {% if step.post_results == 0 %}
+                                        <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#postmodal" data-bs-info2="{{ step.post_info }}">Completed</button>
+                                    {% elif step.post_results == 1 %}
+                                        <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#postmodal" data-bs-info2="{{ step.post_info }}">Failed</button>
+                                    {% elif step.post_results == 9 %}
+                                        <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#postmodal" data-bs-info2="{{ step.post_info }}">Pending</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+    
+                    </table>
+                </div>
+            </div>
+
+
+            <!-- File check and post modals -->
+            <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title" id="checkmodalLabel">Check Details</h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <pre>#</pre>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              
+              <div class="modal fade" id="postmodal" tabindex="-1" aria-labelledby="postmodalLabel" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h1 class="modal-title" id="postmodalLabel">Postprocessing Details</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <pre>#</pre>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+
+
         </div>
         <div class="col-8">
 
@@ -243,6 +304,7 @@
                     ],
             });
 
+            // file checks details
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
               // Button that triggered the modal
@@ -255,7 +317,23 @@
               // Update the modal's content.
               var modalBody = exampleModal.querySelector('.modal-body pre')
 
-              modalBody.textContent = checkinfo
+              modalBody.textContent = checkinfo;
+            })
+              
+            // post details
+            var exampleModal2 = document.getElementById('postmodal')
+            exampleModal2.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var postinfo = button.getAttribute('data-bs-info2')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody2 = exampleModal2.querySelector('.modal-body pre')
+
+              modalBody2.textContent = postinfo;
             })
 
         });

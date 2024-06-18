@@ -583,13 +583,13 @@ def homepage(team=None):
                      " p.project_status, "
                      " p.project_manager, "
                      " CASE "
-                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' -') "
-                     "      WHEN p.project_start = p.project_end THEN date_format(p.project_start, '%%d %%b %%Y') "                     
-                     "      WHEN date_format(p.project_start, '%%Y-%%c') = date_format(p.project_end, '%%Y-%%c') "
-                     "          THEN CONCAT(date_format(p.project_start, '%%d'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
-                     "      WHEN date_format(p.project_start, '%%Y') = date_format(p.project_end, '%%Y') "
-                     "          THEN CONCAT(date_format(p.project_start, '%%d %%b'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) "
-                     "      ELSE CONCAT(date_format(p.project_start, '%%d %%b %%Y'), ' - ', date_format(p.project_end, '%%d %%b %%Y')) END "
+                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%d %b %Y'), ' -') "
+                     "      WHEN p.project_start = p.project_end THEN date_format(p.project_start, '%d %b %Y') "                     
+                     "      WHEN date_format(p.project_start, '%Y-%c') = date_format(p.project_end, '%Y-%c') "
+                     "          THEN CONCAT(date_format(p.project_start, '%d'), ' - ', date_format(p.project_end, '%d %b %Y')) "
+                     "      WHEN date_format(p.project_start, '%Y') = date_format(p.project_end, '%Y') "
+                     "          THEN CONCAT(date_format(p.project_start, '%d %b'), ' - ', date_format(p.project_end, '%d %b %Y')) "
+                     "      ELSE CONCAT(date_format(p.project_start, '%d %b %Y'), ' - ', date_format(p.project_end, '%d %b %Y')) END "
                      "         as project_dates, "
                      " CASE WHEN p.objects_estimated IS True THEN CONCAT(coalesce(format(ps.objects_digitized, 0), 0), '*') ELSE "
                      " coalesce(format(ps.objects_digitized, 0), 0) END as objects_digitized, "
@@ -850,8 +850,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         project_admin = False
     project_info = run_query("SELECT *, "
-                             "      CONCAT(date_format(project_start, '%%d-%%b-%%Y'), "
-                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%%d-%%b-%%Y')) END "
+                             "      CONCAT(date_format(project_start, '%d-%b-%Y'), "
+                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
                              "          ) as pdates "
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias}, cur=cur)[0]
@@ -1425,8 +1425,8 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         project_admin = False
     project_info = run_query("SELECT *, "
-                             "      CONCAT(date_format(project_start, '%%d-%%b-%%Y'), "
-                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%%d-%%b-%%Y')) END "
+                             "      CONCAT(date_format(project_start, '%d-%b-%Y'), "
+                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
                              "          ) as pdates "
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias}, cur=cur)[0]
@@ -2101,8 +2101,8 @@ def dashboard(project_alias=None):
     else:
         project_admin = False
     project_info = run_query("SELECT *, CONCAT('https://dpo.si.edu/', lower(replace(project_manager, ' ', '-'))) as project_manager_link, "
-                             "      CONCAT(date_format(project_start, '%%d-%%b-%%Y'), "
-                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%%d-%%b-%%Y')) END "
+                             "      CONCAT(date_format(project_start, '%d-%b-%Y'), "
+                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
                              "          ) as pdates "
                              "   FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id}, cur=cur)[0]
@@ -2357,9 +2357,9 @@ def proj_statistics(project_alias=None):
 
     proj_stats_steps = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and (stat_type='column' or stat_type='boxplot' or stat_type='area') and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']}, cur=cur)
 
-    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%%Y-%%m-%%d %%H:%%i:%%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']}, cur=cur)
+    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']}, cur=cur)
 
     # Stats
     project_stats = {}
@@ -2625,7 +2625,7 @@ def qc(project_alias=None):
                                 "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                 "      ELSE 'QC Pending' END AS qc_status, "
                                 "      q.qc_ip, u.username AS qc_by, "
-                                "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at, "
+                                "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at, "
                                 "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
                                 "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
                                 "       COALESCE(total.no_files, 0) as qc_stats_no_files "
@@ -2673,7 +2673,7 @@ def qc(project_alias=None):
                                      "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                      "      ELSE 'QC Pending' END AS qc_status, "
                                      "      q.qc_ip, u.username AS qc_by, "
-                                     "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at, "
+                                     "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at, "
                                      "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
                                      "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
                                      "       COALESCE(total.no_files, 0) as qc_stats_no_files "
@@ -2720,7 +2720,7 @@ def qc(project_alias=None):
                                      "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                      "      ELSE 'QC Pending' END AS qc_status, "
                                      "      q.qc_ip, u.username AS qc_by, "
-                                     "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at, "
+                                     "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at, "
                                      "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
                                      "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
                                      "       COALESCE(total.no_files, 0) as qc_stats_no_files "
@@ -2868,7 +2868,7 @@ def qc_process(folder_id):
                                       "          WHEN q.qc_status = 1 THEN 'QC Failed' "
                                       "          ELSE 'QC Pending' END AS qc_status, "
                                       "      qc_ip, u.username AS qc_by, "
-                                      "      date_format(q.updated_at, '%%Y-%%m-%%d') AS updated_at"
+                                      "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at"
                                       " FROM qc_folders q, "
                                       "      users u WHERE q.qc_by=u.user_id "
                                       "      AND q.folder_id = %(folder_id)s"),
@@ -3249,8 +3249,8 @@ def home():
     logger.info(is_admin)
     ip_addr = request.environ['REMOTE_ADDR']
     projects = run_query(("select p.project_title, p.project_id, p.project_alias, "
-                               "     date_format(p.project_start, '%%b-%%Y') as project_start, "
-                               "     date_format(p.project_end, '%%b-%%Y') as project_end,"
+                               "     date_format(p.project_start, '%b-%Y') as project_start, "
+                               "     date_format(p.project_end, '%b-%Y') as project_end,"
                                "     p.qc_status, p.project_unit "
                                " FROM qc_projects qp, "
                                "       users u, "
@@ -3913,20 +3913,6 @@ def file(file_id=None):
     # Declare the login form
     form = LoginForm(request.form)
 
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
@@ -3936,7 +3922,7 @@ def file(file_id=None):
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
-        return jsonify({'error': 'API error'}), 500
+        return jsonify({'error': 'System Error'}), 500
 
     file_id, file_uid = check_file_id(file_id, cur=cur)
 
@@ -3987,6 +3973,11 @@ def file(file_id=None):
                                   " ELSE check_info END AS check_info "
                                   " FROM files_checks WHERE file_id = %(file_id)s"),
                                  {'file_id': file_id}, cur=cur)
+    file_postprocessing = run_query(("SELECT post_step, post_results, CASE WHEN post_info = '' THEN 'Step completed.' "
+                                     " WHEN post_info IS NULL THEN 'Step completed.' "
+                                  " ELSE post_info END AS post_info "
+                                  " FROM file_postprocessing WHERE file_id = %(file_id)s"),
+                                 {'file_id': file_id}, cur=cur)
     image_url = '/preview_image/' + str(file_id)
     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                  " FROM files_exif "
@@ -4036,6 +4027,7 @@ def file(file_id=None):
                            folder_info=folder_info,
                            file_details=file_details,
                            file_checks=file_checks,
+                           file_postprocessing=file_postprocessing,
                            username=user_name,
                            image_url=image_url,
                            is_admin=is_admin,
@@ -4142,7 +4134,7 @@ def search_files(project_alias):
                                       " LIMIT 50 "
                                       " OFFSET {offset} ").format(offset=offset),
                                      {'project_alias': project_alias,
-                                      'q': '%%' + q + '%%'}, cur=cur)
+                                      'q': '%' + q + '%'}, cur=cur)
         else:
             results = run_query(("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
                                       "              FROM files_exif "
@@ -4160,7 +4152,7 @@ def search_files(project_alias):
                                       " LIMIT 50 "
                                       " OFFSET {offset} ").format(offset=offset),
                                      {'project_alias': project_alias,
-                                      'q': '%%' + q + '%%'}, cur=cur)
+                                      'q': '%' + q + '%'}, cur=cur)
     cur.close()
     conn.close()
 
@@ -4278,7 +4270,7 @@ def search_folders(project_alias):
                                      "  ORDER BY f.project_folder ASC"
                                      "  LIMIT 50 OFFSET {offset}").format(offset=offset),
                                  {'project_alias': project_alias,
-                                  'q': '%%' + q + '%%'}, cur=cur)
+                                  'q': '%' + q + '%'}, cur=cur)
     results_df = pd.DataFrame({'folder': [], 'no_files': []})
     for row in results:
         results_df.loc[len(results_df.index)] = ['<a href="/dashboard/' + project_alias \

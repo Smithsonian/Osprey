@@ -123,3 +123,4 @@ send_to_dev.sh
 
 *.code-workspace
 web_app/send_to_int.sh
+web_app/send_to_fsosprey.sh

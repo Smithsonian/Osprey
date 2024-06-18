@@ -99,8 +99,15 @@
                 <input type="text" class="form-control form-control-md" id="search_files" name="q" aria-label="Search Files" placeholder="Search Files in the Project">
                 </form>
             </div>
-
         </div>
+
+        {% if project_info.project_message != "" and project_info.project_message != None %}
+            <div class="row">
+                <div class="col">
+                    <p class="p-3 text-danger-emphasis bg-danger-subtle border border-danger-subtle rounded-3">Note: {{ project_info.project_message }}</p>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 
