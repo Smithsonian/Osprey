@@ -31,6 +31,7 @@ try:
                             password=settings.password,
                             database=settings.database,
                             port=settings.port, autocommit=True)
+    conn.time_zone = '-04:00'
     cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
     logger.error(err)
@@ -131,24 +132,6 @@ def query_database_insert(query, parameters, return_res=False, cur=None):
     return data
 
 
-# def query_database_insert_multi(query, parameters, return_res=False, cur=None):
-#     logger.info("query: {}".format(query))
-#     logger.info("parameters: {}".format(parameters))
-#     # Run query
-#     data = False
-#     try:
-#         results = cur.executemany(query, parameters)
-#         conn.commit()
-#     except Exception as error:
-#         logger.error("Error_insert_multi: {}".format(error))
-#         return False
-#     data = cur.fetchall()
-#     logger.info("No of results: ".format(len(data)))
-#     if len(data) == 0:
-#         data = False
-#     return data
-
-
 ###################################
 # Osprey API
 ###################################
@@ -157,30 +140,6 @@ osprey_api = Blueprint('osprey_api', __name__)
 @osprey_api.route('/api/projects/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_projects():
     """Get the list of projects."""
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
     
     # For post use request.form.get("variable")
     section = request.form.get("section")
@@ -244,8 +203,6 @@ def api_get_projects():
         if validate_api_key(api_key, cur=cur):
             query = (" SELECT * FROM qc_settings WHERE project_id = %(project_id)s")
             projects_data = run_query(query, {'section': section}, cur=cur)
-    # cur.close()
-    # conn.close()
     return jsonify(data)
 
 
@@ -253,31 +210,7 @@ def api_get_projects():
 @osprey_api.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
-    
+
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
     if api_key is None or validate_api_key(api_key, cur=cur) is False:
@@ -368,39 +301,13 @@ def api_get_project_details(project_alias=None):
             "SELECT report_id, report_title, updated_at FROM data_reports WHERE project_id = %(project_id)s",
             {'project_id': data[0]['project_id']}, cur=cur)
         data[0]['reports'] = reports
-    # cur.close()
-    # conn.close()
     return jsonify(data[0])
 
 
 @osprey_api.route('/api/update/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
-    
+
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
     if api_key is None:
@@ -421,8 +328,6 @@ def api_update_project_details(project_alias=None):
                 if query_type == "startup":
                     query = ("DELETE FROM folders_badges WHERE badge_type = 'verification' and folder_id in (SELECT folder_id from folders WHERE project_id = %(project_id)s)")
                     res = run_query(query, {'project_id': project_id}, cur=cur, return_val=False)
-                    # cur.close()
-                    # conn.close()
                     return jsonify({"result": True})
                 elif query_type == "folder":
                     folder_id = request.form.get("folder_id")
@@ -607,8 +512,6 @@ def api_update_project_details(project_alias=None):
                             res = query_database_insert(query, {'qc_status': qc_status, 'badge_css': badge_css, 'folder_id': folder_id}, cur=cur)
                         else:
                             raise InvalidUsage('Invalid operation', status_code=401)
-                        # cur.close()
-                        # conn.close()
                         return jsonify({"result": True})
                 elif query_type == "file":
                     file_id = request.form.get("file_id")
@@ -712,8 +615,6 @@ def api_update_project_details(project_alias=None):
                         res = query_database_insert(query, {'file_id': file_id}, cur=cur)
                     else:
                         raise InvalidUsage('Invalid value for property', status_code=400)
-                    # cur.close()
-                    # conn.close()
                     return jsonify({"result": True})
                 else:
                     return jsonify({'error': 'Invalid value for type: {}'.format(query_type)}), 400
@@ -731,31 +632,6 @@ def api_new_folder(project_alias=None):
     if api_key is None:
         return jsonify({'error': 'Missing key'}), 401
     else:
-        # Connect to db
-        # try:
-        #     conn = pymysql.connect(host=settings.host,
-        #                            user=settings.user,
-        #                            passwd=settings.password,
-        #                            database=settings.database,
-        #                            port=settings.port, autocommit=True,
-        #                            charset='utf8mb4',
-        #                            cursorclass=pymysql.cursors.DictCursor,
-        #                            autocommit=True)
-        #     cur = conn.cursor()
-        # except mysql.connector.Error as e:
-        #     logger.error(e)
-        #     return jsonify({'error': 'API error'}), 500
-        # try:
-        #     conn = mysql.connector.connect(host=settings.host,
-        #                             user=settings.user,
-        #                             password=settings.password,
-        #                             database=settings.database,
-        #                             port=settings.port, autocommit=True)
-        #     cur = conn.cursor(dictionary=True)
-        # except mysql.connector.Error as err:
-        #     logger.error(err)
-        #     return jsonify({'error': 'API error'}), 500
-
         if validate_api_key(api_key, cur=cur):
             # Get project_id
             results = run_query("SELECT project_id from projects WHERE project_alias = %(project_alias)s",
@@ -777,8 +653,6 @@ def api_new_folder(project_alias=None):
                                                      return_res=True, cur=cur)
                         data = run_query("SELECT * FROM folders WHERE project_folder = %(project_folder)s AND folder_path = %(folder_path)s AND project_id = %(project_id)s",
                                               {'project_folder': folder, 'folder_path': folder_path, 'project_id': project_id}, cur=cur)
-                        # cur.close()
-                        # conn.close()
                         return jsonify({"result": data})
                     else:
                         return jsonify({'error': 'Missing args'}), 400
@@ -826,8 +700,6 @@ def api_new_folder(project_alias=None):
                                                      'check_results': check_results, 'check_info': check_info, 'uid': file_uid}, cur=cur)
                         query = ("SELECT * FROM files WHERE file_id = %(file_id)s")
                         data = run_query(query, {'file_id': file_id}, cur=cur)
-                        # cur.close()
-                        # conn.close()
                         return jsonify({"result": data})
                     else:
                         return jsonify({'error': 'Missing args'}), 400
@@ -841,8 +713,6 @@ def api_new_folder(project_alias=None):
                                  " filesize = %(filesize)s")
                         data = query_database_insert(query,
                                                      {'file_id': file_id, 'filetype': filetype, 'filesize': filesize}, cur=cur)
-                        # cur.close()
-                        # conn.close()
                         return jsonify({"result": data})
                     else:
                         return jsonify({'error': 'Missing args'}), 400
@@ -857,30 +727,6 @@ def api_new_folder(project_alias=None):
 @osprey_api.route('/api/folders/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
 
     data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, f.status, "
                            "   f.notes, f.date, coalesce(f.no_files, 0) as no_files, f.file_errors, f.error_info, "
@@ -937,8 +783,6 @@ def api_get_folder_details(folder_id=None):
                         folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
                 files = folder_files_df
                 data[0]['files'] = files.to_dict('records')
-        # cur.close()
-        # conn.close()
         return jsonify(data[0])
     else:
         return None
@@ -947,30 +791,6 @@ def api_get_folder_details(folder_id=None):
 @osprey_api.route('/api/folders/qc/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_qc(folder_id=None):
     """Get the details of a folder and the list of files."""
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
 
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
@@ -986,43 +806,14 @@ def api_get_folder_qc(folder_id=None):
         data1 = run_query(query, {'folder_id': folder_id}, cur=cur)
         data = {}
         data['qc'] = data1
-        # cur.close()
-        # conn.close()
         return jsonify(data)
     else:
-        # cur.close()
-        # conn.close()
         return None
 
 
 @osprey_api.route('/api/files/<file_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_file_details(file_id=None):
     """Get the details of a file."""
-
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port, autocommit=True,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     return jsonify({'error': 'API error'}), 500
-    # try:
-    #     conn = mysql.connector.connect(host=settings.host,
-    #                             user=settings.user,
-    #                             password=settings.password,
-    #                             database=settings.database,
-    #                             port=settings.port, autocommit=True)
-    #     cur = conn.cursor(dictionary=True)
-    # except mysql.connector.Error as err:
-    #     logger.error(err)
-    #     return jsonify({'error': 'API error'}), 500
 
     file_id, file_uid = check_file_id(file_id, cur=cur)
 
@@ -1067,8 +858,6 @@ def api_get_file_details(file_id=None):
         val = jsonify(data[0])
     else:
         val = jsonify(None)
-    # cur.close()
-    # conn.close()
     return val
 
 
@@ -1078,30 +867,6 @@ def api_get_report(report_id=None):
     if report_id is None:
         return None
     else:
-        # Connect to db
-        # try:
-        #     conn = pymysql.connect(host=settings.host,
-        #                            user=settings.user,
-        #                            passwd=settings.password,
-        #                            database=settings.database,
-        #                            port=settings.port, autocommit=True,
-        #                            charset='utf8mb4',
-        #                            cursorclass=pymysql.cursors.DictCursor,
-        #                            autocommit=True)
-        #     cur = conn.cursor()
-        # except mysql.connector.Error as e:
-        #     logger.error(e)
-        #     return jsonify({'error': 'API error'}), 500
-        # try:
-        #     conn = mysql.connector.connect(host=settings.host,
-        #                             user=settings.user,
-        #                             password=settings.password,
-        #                             database=settings.database,
-        #                             port=settings.port, autocommit=True)
-        #     cur = conn.cursor(dictionary=True)
-        # except mysql.connector.Error as err:
-        #     logger.error(err)
-        #     return jsonify({'error': 'API error'}), 500
         
         file_name = request.args.get("file_name")
         dams_uan = request.args.get("dams_uan")
@@ -1126,6 +891,4 @@ def api_get_report(report_id=None):
                 {'dams_uan': dams_uan}, cur=cur)
         else:
             data = run_query(query[0]['query_api'], cur=cur)
-        # cur.close()
-        # conn.close()
         return jsonify(data)

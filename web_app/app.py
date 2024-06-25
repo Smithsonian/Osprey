@@ -38,7 +38,6 @@ from time import strftime
 from time import localtime
 
 # MySQL
-#import pymysql
 import mysql.connector
 
 # Flask Login
@@ -257,20 +256,12 @@ def user_perms(project_id, user_type='user'):
         return False
     # Connect to db
     try:
-        # conn = pymysql.connect(host=settings.host,
-        #                        user=settings.user,
-        #                        passwd=settings.password,
-        #                        database=settings.database,
-        #                        port=settings.port,
-        #                        charset='utf8mb4',
-        #                        cursorclass=pymysql.cursors.DictCursor,
-        #                        autocommit=True)
-        # cur = conn.cursor()
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     # except mysql.connector.Error as e:
     except mysql.connector.Error as e:
@@ -308,26 +299,13 @@ class User(UserMixin):
         self.active = active
 
     def is_active(self):
-        # Connect to db
-        # try:
-        #     conn = pymysql.connect(host=settings.host,
-        #                            user=settings.user,
-        #                            passwd=settings.password,
-        #                            database=settings.database,
-        #                            port=settings.port,
-        #                            charset='utf8mb4',
-        #                            cursorclass=pymysql.cursors.DictCursor,
-        #                            autocommit=True)
-        #     cur = conn.cursor()
-        # except mysql.connector.Error as e:
-        #     logger.error(e)
-        #     raise InvalidUsage('System error')
         try:
             conn = mysql.connector.connect(host=settings.host,
                                     user=settings.user,
                                     password=settings.password,
                                     database=settings.database,
                                     port=settings.port, autocommit=True)
+            conn.time_zone = '-04:00'
             cur = conn.cursor(dictionary=True)
         except mysql.connector.Error as err:
             logger.error(err)
@@ -347,26 +325,13 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(username):
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -424,26 +389,13 @@ def homepage(team=None):
     # Flask message injected into the page, in case of any errors
     msg = None
 
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -775,25 +727,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -1350,25 +1290,13 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -1867,25 +1795,13 @@ def filestable(project_alias=None, folder_id=None):
                            analytics_code=settings.analytics_code), 400
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -2048,25 +1964,13 @@ def dashboard(project_alias=None):
         username = None
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -2312,25 +2216,13 @@ def proj_statistics(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -2421,25 +2313,13 @@ def proj_statistics_dl(project_id=None, step_id=None):
         return redirect(url_for('api_route_list'))
         
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -2522,6 +2402,7 @@ def qc(project_alias=None):
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -2762,25 +2643,13 @@ def qc_process(folder_id):
         username = None
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3077,26 +2946,13 @@ def qc_done(folder_id):
     if site_net == "api":
         return redirect(url_for('api_route_list'))
     
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3202,26 +3058,13 @@ def home():
         user_exists = False
         username = None
 
-    # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3381,25 +3224,13 @@ def create_new_project():
         return redirect(url_for('api_route_list'))
     
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3561,25 +3392,13 @@ def edit_project(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3647,25 +3466,13 @@ def proj_links(project_alias=None):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3728,25 +3535,13 @@ def add_links(project_alias=None):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3798,25 +3593,13 @@ def project_update(project_alias):
         return redirect(url_for('api_route_list'))
     
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -3905,6 +3688,7 @@ def file(file_id=None):
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4061,25 +3845,13 @@ def search_files(project_alias):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4179,25 +3951,13 @@ def search_folders(project_alias):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4302,25 +4062,13 @@ def update_folder_dams(project_alias=None, folder_id=None):
 
     """Update folder when sending to DAMS"""
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4442,15 +4190,6 @@ def update_folder_dams(project_alias=None, folder_id=None):
 
 
 
-
-
-
-
-
-
-
-
-
 @app.route('/update_image/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def update_image():
@@ -4461,25 +4200,13 @@ def update_image():
         return redirect(url_for('api_route_list'))
     
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4559,25 +4286,13 @@ def data_reports(project_alias=None, report_id=None):
     form = LoginForm(request.form)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4659,25 +4374,13 @@ def get_preview(file_id=None, max=None, sensitive=None):
             raise InvalidUsage('invalid file_id value', status_code=400)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
@@ -4776,25 +4479,13 @@ def get_barcodeimage(barcode=None):
         raise InvalidUsage('Invalid barcode', status_code=400)
 
     # Connect to db
-    # try:
-    #     conn = pymysql.connect(host=settings.host,
-    #                            user=settings.user,
-    #                            passwd=settings.password,
-    #                            database=settings.database,
-    #                            port=settings.port,
-    #                            charset='utf8mb4',
-    #                            cursorclass=pymysql.cursors.DictCursor,
-    #                            autocommit=True)
-    #     cur = conn.cursor()
-    # except mysql.connector.Error as e:
-    #     logger.error(e)
-    #     raise InvalidUsage('System error')
     try:
         conn = mysql.connector.connect(host=settings.host,
                                 user=settings.user,
                                 password=settings.password,
                                 database=settings.database,
                                 port=settings.port, autocommit=True)
+        conn.time_zone = '-04:00'
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
