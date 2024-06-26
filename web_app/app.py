@@ -1076,9 +1076,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 for fcheck in project_postprocessing:
                     logger.info("fcheck: {}".format(fcheck))
                     list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                              "   CASE WHEN post_step = 0 THEN 'Completed' "
-                                                              "       WHEN post_step = 9 THEN 'Pending' "
-                                                              "       WHEN post_step = 1 THEN 'Failed' "
+                                                              "   CASE WHEN post_results = 0 THEN 'Completed' "
+                                                              "       WHEN post_results = 9 THEN 'Pending' "
+                                                              "       WHEN post_results = 1 THEN 'Failed' "
                                                               "       ELSE 'Pending' END as {fcheck} "
                                                               " FROM files f LEFT JOIN file_postprocessing c ON (f.file_id=c.file_id AND c.post_step = %(file_check)s) "
                                                               "  where f.folder_id = %(folder_id)s").format(
