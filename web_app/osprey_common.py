@@ -2,7 +2,7 @@
 
 import settings
 
-site_ver = "2.7.9"
+site_ver = "2.7.10"
 site_env = settings.env
 site_net = settings.site_net
 
