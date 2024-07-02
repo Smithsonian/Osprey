@@ -1111,7 +1111,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     logger.info("folder_links: {}".format(folder_links))
 
     # Reports
-    reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_title_brief",
+    reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_id",
                              {'project_id': project_id}, cur=cur)
 
     if len(reports) > 0:
@@ -1669,7 +1669,7 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
     logger.info("folder_links: {}".format(folder_links))
 
     # Reports
-    reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_title_brief",
+    reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_id",
                              {'project_id': project_id}, cur=cur)
 
     if len(reports) > 0:
@@ -2120,7 +2120,7 @@ def dashboard(project_alias=None):
 
     # Reports
     reports = run_query("SELECT * FROM data_reports "
-                        " WHERE project_id = %(project_id)s ORDER BY report_title_brief",
+                        " WHERE project_id = %(project_id)s ORDER BY report_id",
                              {'project_id': project_id}, cur=cur)
 
     if len(reports) > 0:
