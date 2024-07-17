@@ -489,6 +489,12 @@ def api_update_project_details(project_alias=None):
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                             if query_value == 1:
                                 res = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
+                        elif query_property == "filename_spaces":
+                            query = (
+                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                " VALUES (%(folder_id)s, 'filename_spaces', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
+                                "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "Files have spaces"}, cur=cur)
                         elif query_property == "qc":
                             query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                             folder_qc = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
