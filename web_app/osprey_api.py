@@ -5,16 +5,16 @@
 # Import flask
 from flask import Flask
 from flask import Blueprint
-import os 
-import shutil
+# import os 
+# import shutil
 from flask import jsonify
 from flask import request
+# from flask import Response
 from uuid import UUID
 import json
 import pandas as pd
 
 # MySQL
-# import pymysql
 import mysql.connector
 
 from osprey_common import *
@@ -26,16 +26,25 @@ import settings
 
 
 try:
-    conn = mysql.connector.connect(host=settings.host,
+    # conn = mysql.connector.connect(host=settings.host,
+    #                         user=settings.user,
+    #                         password=settings.password,
+    #                         database=settings.database,
+    #                         port=settings.port, autocommit=True)
+    conn = mysql.connector.connect(pool_name = "mypool",
+                            pool_size = 8,
+                            host=settings.host,
                             user=settings.user,
                             password=settings.password,
                             database=settings.database,
                             port=settings.port, autocommit=True)
     conn.time_zone = '-04:00'
-    cur = conn.cursor(dictionary=True)
+    # cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
     logger.error(err)
 
+
+cur = None
 
 ################################
 # Functions
@@ -43,37 +52,49 @@ except mysql.connector.Error as err:
 def run_query(query, parameters=None, return_val=True, cur=None):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
+    # Get connection from pool
+    conn1 = mysql.connector.connect(pool_name="mypool")
+    cur1 = conn1.cursor(dictionary=True)
     # Run query
     try:
         if parameters is None:
-            results = cur.execute(query)
+            results = cur1.execute(query)
         else:
-            results = cur.execute(query, parameters)
+            results = cur1.execute(query, parameters)
     except mysql.connector.Error as error:
         logger.error("API Error {}".format(error))
         return jsonify({'error': 'API error'}), 500
     if return_val:
-        data = cur.fetchall()
+        data = cur1.fetchall()
         logger.info("No of results: ".format(len(data)))
+        cur1.close()
+        conn1.close()
         return data
     else:
+        cur1.close()
+        conn1.close()
         return True
 
 
-def validate_api_key(api_key, cur=None):
+def validate_api_key(api_key):
     logger.info("api_key: {}".format(api_key))
     try:
         api_key_check = UUID(api_key)
     except ValueError:
         logger.error("Invalid UUID: {}".format(api_key))
         return jsonify({'error': "Invalid UUID: {}".format(api_key)}), 400
+    # Get connection from pool
+    conn1 = mysql.connector.connect(pool_name="mypool")
+    cur1 = conn1.cursor(dictionary=True)
     # Run query
     query = ("SELECT api_key from api_keys WHERE api_key = %(api_key)s")
     parameters = {'api_key': api_key}
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
-    result = cur.execute(query, parameters)
-    data = cur.fetchall()
+    result = cur1.execute(query, parameters)
+    data = cur1.fetchall()
+    cur1.close()
+    conn1.close()
     if len(data) == 1:
         if data[0]['api_key'] == api_key:
             return True
@@ -87,18 +108,18 @@ def validate_api_key(api_key, cur=None):
 def check_file_id(file_id=None, cur=None):
     if file_id is None:
         return False, False
-    if cur is None:
-        return False, False
-    else:
+    # if cur is None:
+    #     return False, False
+    # else:
+    try:
+        file_id = int(file_id)
+        file_id_type = "int"
+    except ValueError:
         try:
-            file_id = int(file_id)
-            file_id_type = "int"
+            file_uid = UUID(file_id, version=4)
+            file_id_type = "uuid"
         except ValueError:
-            try:
-                file_uid = UUID(file_id, version=4)
-                file_id_type = "uuid"
-            except ValueError:
-                return False, False
+            return False, False
 
     if file_id_type == "uuid":
         file_id = run_query("SELECT file_id FROM files WHERE uid = %(uid)s", {'uid': file_uid}, cur=cur)
@@ -117,18 +138,23 @@ def check_file_id(file_id=None, cur=None):
 def query_database_insert(query, parameters, return_res=False, cur=None):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
+    # Get connection from pool
+    conn1 = mysql.connector.connect(pool_name="mypool")
+    cur1 = conn1.cursor(dictionary=True)
     # Run query
     data = False
     try:
-        results = cur.execute(query, parameters)
+        results = cur1.execute(query, parameters)
     except Exception as error:
         logger.error(error)
         return jsonify({'error': 'API Error'}), 500
     if return_res == True:
-        data = cur.fetchall()
+        data = cur1.fetchall()
         logger.info("No of results: ".format(len(data)))
         if len(data) == 0:
             data = False
+    cur1.close()
+    conn1.close()
     return data
 
 
@@ -154,8 +180,8 @@ def api_get_projects():
                  " p.project_title, "
                  " p.project_status, "
                  " p.project_manager, "
-                 " date_format(p.project_start, '%Y-%b-%d') AS project_start, "
-                 " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%Y-%b-%d') END AS project_end, "
+                 " date_format(p.project_start, '%Y-%m-%d') AS project_start, "
+                 " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%Y-%m-%d') END AS project_end, "
                  " p.objects_estimated,  "
                  " ps.objects_digitized, "
                  " p.images_estimated, "
@@ -179,8 +205,8 @@ def api_get_projects():
                  " p.project_title, "
                  " p.project_status, "
                  " p.project_manager, "
-                 " date_format(p.project_start, '%%Y-%%b-%%d') AS project_start, "
-                 " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%%Y-%%b-%%d') END AS project_end, "
+                 " date_format(p.project_start, '%Y-%m-%d') AS project_start, "
+                 " CASE WHEN p.project_end IS NULL THEN NULL ELSE date_format(p.project_end, '%Y-%m-%d') END AS project_end, "
                  " p.objects_estimated,  "
                  " ps.objects_digitized, "
                  " p.images_estimated, "
@@ -194,13 +220,13 @@ def api_get_projects():
                  "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
                  " ORDER BY p.projects_order DESC")
         projects_data = run_query(query, {'section': section}, cur=cur)
-    last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats", cur=cur)
+    last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%m-%Y') AS updated_at FROM projects_stats", cur=cur)
     data = ({"projects": projects_data, "last_update": last_update[0]['updated_at']})
     # For admin
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
     if api_key is not None:
-        if validate_api_key(api_key, cur=cur):
+        if validate_api_key(api_key):
             query = (" SELECT * FROM qc_settings WHERE project_id = %(project_id)s")
             projects_data = run_query(query, {'section': section}, cur=cur)
     return jsonify(data)
@@ -210,10 +236,11 @@ def api_get_projects():
 @osprey_api.route('/api/projects/<project_alias>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
-
+    if project_alias is None:
+        return jsonify(None)
     api_key = request.form.get("api_key")
     logger.info("api_key: {}".format(api_key))
-    if api_key is None or validate_api_key(api_key, cur=cur) is False:
+    if api_key is None or validate_api_key(api_key) is False:
         data = run_query(("SELECT "
                                "project_id, "
                                "project_title, "
@@ -225,8 +252,8 @@ def api_get_project_details(project_alias=None):
                                "project_method, "
                                "project_manager, "
                                "project_area, "
-                               "date_format(project_start, '%%y-%%m-%%d') AS project_start, "
-                               "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%%y-%%m-%%d') END as project_end, "
+                               "date_format(project_start, '%Y-%m-%d') AS project_start, "
+                               "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%Y-%m-%d') END as project_end, "
                                "project_notice, "
                                "cast(updated_at as DATE) AS updated_at "
                                "FROM projects "
@@ -245,8 +272,8 @@ def api_get_project_details(project_alias=None):
                                "project_manager, "
                                "project_area, "
                                "project_datastorage, "
-                               "date_format(project_start, '%%y-%%m-%%d') AS project_start, "
-                               "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%%y-%%m-%%d') END as project_end, "
+                               "date_format(project_start, '%Y-%m-%d') AS project_start, "
+                               "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%Y-%m-%d') END as project_end, "
                                "project_notice, "
                                "cast(updated_at AS DATE) as updated_at "
                                "FROM projects WHERE project_alias = %(project_alias)s"),
@@ -254,10 +281,10 @@ def api_get_project_details(project_alias=None):
     if data is None:
         return jsonify({'error': 'Project does not exists'}), 401
     else:
-        if api_key is None or validate_api_key(api_key, cur=cur) is False:
+        if api_key is None or validate_api_key(api_key) is False:
             folders = run_query(("SELECT "
                                       "folder_id, project_id, project_folder as folder, status, "
-                                      "notes, error_info, date_format(date, '%%y-%%m-%%d') as capture_date, "
+                                      "notes, error_info, date_format(date, '%Y-%m-%d') as capture_date, "
                                       "no_files, file_errors "
                                       "FROM folders WHERE project_id = %(project_id)s"),
                                      {'project_id': data[0]['project_id']}, cur=cur)
@@ -265,7 +292,7 @@ def api_get_project_details(project_alias=None):
             folders = run_query(("SELECT "
                                       "f.folder_id, f.project_id, f.project_folder as folder, "
                                       "f.folder_path, f.status, f.notes, "
-                                      "f.error_info, date_format(f.date, '%%y-%%m-%%d') as capture_date, "
+                                      "f.error_info, date_format(f.date, '%Y-%m-%d') as capture_date, "
                                       "f.no_files, f.file_errors, "
                                       " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
                                       " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
@@ -313,7 +340,7 @@ def api_update_project_details(project_alias=None):
     if api_key is None:
         return jsonify({'error': 'Missing key'}), 401
     else:
-        if validate_api_key(api_key, cur=cur):
+        if validate_api_key(api_key):
             # Get project_id
             project_id = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s", {'project_alias': project_alias}, cur=cur)
             if len(project_id) == 0:
@@ -494,7 +521,7 @@ def api_update_project_details(project_alias=None):
                                 "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                                 " VALUES (%(folder_id)s, 'filename_spaces', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "Files have spaces"}, cur=cur)
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': "Filenames Have Spaces"}, cur=cur)
                         elif query_property == "qc":
                             query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                             folder_qc = query_database_insert(query, {'folder_id': folder_id}, cur=cur)
@@ -638,7 +665,7 @@ def api_new_folder(project_alias=None):
     if api_key is None:
         return jsonify({'error': 'Missing key'}), 401
     else:
-        if validate_api_key(api_key, cur=cur):
+        if validate_api_key(api_key):
             # Get project_id
             results = run_query("SELECT project_id from projects WHERE project_alias = %(project_alias)s",
                                      {'project_alias': project_alias}, cur=cur)
@@ -733,32 +760,35 @@ def api_new_folder(project_alias=None):
 @osprey_api.route('/api/folders/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
-
+    if folder_id is None:
+        return jsonify(None)
     data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, f.status, "
-                           "   f.notes, f.date, coalesce(f.no_files, 0) as no_files, f.file_errors, f.error_info, "
+                           "   p.project_alias, f.notes, "
+                           "   DATE_FORMAT(f.date, '%Y-%m-%d') as folder_date, "
+                           "   f.file_errors, f.error_info, "
                             " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
-                              "              WHEN f.delivered_to_dams = 1 THEN 'Ready' "
+                              "              WHEN f.delivered_to_dams = 1 THEN 'Ready for DAMS' "
                               "              WHEN f.delivered_to_dams = 9 THEN 'Pending' END as delivered_to_dams, "
                            " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
                               "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
                               "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
                               "          'QC Pending') as qc_status "
                         " FROM folders f "
-                     " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
-                      " WHERE f.folder_id = %(folder_id)s"), {'folder_id': folder_id}, cur=cur)
-    project_id = data[0]['project_id']
+                     " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id), projects p "
+                      " WHERE f.folder_id = %(folder_id)s and f.project_id = p.project_id"), {'folder_id': folder_id}, cur=cur)
     if len(data) == 1:
+        project_id = data[0]['project_id']
         api_key = request.form.get("api_key")
         logger.info("api_key: {}".format(api_key))
         if api_key is None:
-            query = ("SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-                 " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-                 " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
-                 " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
+            query = ("SELECT f.file_id, f.folder_id, f.file_name, "
+                 " f.dams_uan "
+                 " FROM files f WHERE f.folder_id = %(folder_id)s")
             files = run_query(query, {'folder_id': folder_id}, cur=cur)
             data[0]['files'] = files
+            data[0]['no_files'] = len(files) 
         else:
-            if validate_api_key(api_key, cur=cur):
+            if validate_api_key(api_key):
                 filechecks_list_temp = run_query(
                     ("SELECT settings_value as file_check FROM projects_settings "
                      " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
@@ -766,11 +796,10 @@ def api_get_folder_details(folder_id=None):
                 filechecks_list = []
                 for fcheck in filechecks_list_temp:
                     filechecks_list.append(fcheck['file_check'])
-
                 query = (
-                    "SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-                    " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-                    " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
+                    "SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
+                    " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at, "
+                    " DATE_FORMAT(f.created_at, '%Y-%m-%d %H:%i:%S') AS created_at, m.md5 as tif_md5 "
                     " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
                 files_list = run_query(query, {'folder_id': folder_id}, cur=cur)
                 folder_files_df = pd.DataFrame(files_list)
@@ -791,87 +820,182 @@ def api_get_folder_details(folder_id=None):
                 data[0]['files'] = files.to_dict('records')
         return jsonify(data[0])
     else:
-        return None
+        return jsonify(None)
 
 
-@osprey_api.route('/api/folders/qc/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
-def api_get_folder_qc(folder_id=None):
-    """Get the details of a folder and the list of files."""
+# @osprey_api.route('/api/folders/filechecks/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+# def api_get_folder_filechecks_details(folder_id=None): 
+#     """Get the results of file checks from a folder"""
+#     if folder_id is None:
+#         return None
+#     else:
+#         folder_info = run_query(("SELECT folder_id, project_id, project_folder as folder, " 
+#                                  " DATE_FORMAT(date, '%Y-%m-%d %H:%i:%S') as folder_date, "
+#                                  " date_format(updated_at, '%Y-%m-%d %H:%i:%s') AS updated_at "
+#                                  " from folders where folder_id = %(folder_id)s"),
+#                                                     {'folder_id': folder_id}, cur=cur)
+#         if len(folder_info) != 1:
+#             return None
+#         else:
+#             folder_info = folder_info[0]
+#             project_id = folder_info['project_id']
 
-    api_key = request.form.get("api_key")
-    logger.info("api_key: {}".format(api_key))
+#         project_checks_temp = run_query(
+#             ("SELECT settings_value as file_check FROM projects_settings "
+#              " WHERE project_setting = 'project_checks' and project_id = %(project_id)s ORDER BY table_id"),
+#             {'project_id': project_id}, cur=cur)
+#         project_checks = []
+#         if project_checks_temp is not None:
+#             for fcheck in project_checks_temp:
+#                 project_checks.append(fcheck['file_check'])
 
-    if validate_api_key(api_key, cur=cur):
-        query = (
-            "SELECT f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-            " CASE WHEN q.file_qc = 0 THEN 'Image OK' WHEN q.file_qc = 1 THEN 'Critical Issue' "
-            "   WHEN q.file_qc = 2 THEN 'Major Issue' WHEN q.file_qc = 3 THEN 'Minor Issue' END AS file_qc, "
-            " q.qc_info, u.full_name, DATE_FORMAT(q.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at "
-            " FROM qc_files q, files f, users u WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
-            "       AND q.qc_by = u.user_id ")
-        data1 = run_query(query, {'folder_id': folder_id}, cur=cur)
-        data = {}
-        data['qc'] = data1
-        return jsonify(data)
-    else:
-        return None
+#         folder_files_df = pd.DataFrame()
+#         file_checks_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
+#                                                 " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
+#                                                 {'folder_id': folder_id}, cur=cur))
+#         if len(project_checks) > 0:
+#             for fcheck in project_checks:
+#                 logger.info("fcheck: {}".format(fcheck))
+#                 list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+#                                                             "   CASE WHEN check_results = 0 THEN 'OK' "
+#                                                             "       WHEN check_results = 9 THEN 'Pending' "
+#                                                             "       WHEN check_results = 1 THEN 'Failed' "
+#                                                             "       ELSE 'Pending' END as {fcheck} "
+#                                                             " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+#                                                             "  where f.folder_id = %(folder_id)s").format(
+#                     fcheck=fcheck),
+#                                                             {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
+#                 logger.info("list_files.size: {}".format(list_files.shape[0]))
+#                 if list_files.shape[0] > 0:
+#                     file_checks_df = file_checks_df.merge(list_files, how='outer', on='file_id')
+#         else:
+#             file_checks_df = pd.DataFrame()
+#         return Response(file_checks_df.to_json(orient="records"), mimetype='application/json')
 
 
-@osprey_api.route('/api/files/<file_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+# @osprey_api.route('/api/folders/postprocessing/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+# def api_get_folder_postproc_details(folder_id=None): 
+#     """Get the results of postprocessing steps from a folder"""
+#     if folder_id is None:
+#         return None
+#     else:
+#         folder_info = run_query(("SELECT folder_id, project_id, project_folder as folder, " 
+#                                  " DATE_FORMAT(date, '%Y-%m-%d %H:%i:%S') as folder_date, "
+#                                  " date_format(updated_at, '%Y-%m-%d %H:%i:%s') AS updated_at "
+#                                  " from folders where folder_id = %(folder_id)s"),
+#                                                     {'folder_id': folder_id}, cur=cur)
+#         if len(folder_info) != 1:
+#             return None
+#         else:
+#             folder_info = folder_info[0]
+#             project_id = folder_info['project_id']
+#         project_postprocessing_temp = run_query(
+#             ("SELECT settings_value as file_check FROM projects_settings "
+#              " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
+#             {'project_id': project_id}, cur=cur)
+#         project_postprocessing = []
+#         if project_postprocessing_temp is not None:
+#             for fcheck in project_postprocessing_temp:
+#                 project_postprocessing.append(fcheck['file_check'])
+
+#         folder_files_df = pd.DataFrame()
+#         post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
+#                                                 " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
+#                                                 {'folder_id': folder_id}, cur=cur))
+#         if len(project_postprocessing) > 0:
+#             for fcheck in project_postprocessing:
+#                 logger.info("fcheck: {}".format(fcheck))
+#                 list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+#                                                             "   CASE WHEN post_results = 0 THEN 'Completed' "
+#                                                             "       WHEN post_results = 9 THEN 'Pending' "
+#                                                             "       WHEN post_results = 1 THEN 'Failed' "
+#                                                             "       ELSE 'Pending' END as {fcheck} "
+#                                                             " FROM files f LEFT JOIN file_postprocessing c ON (f.file_id=c.file_id AND c.post_step = %(file_check)s) "
+#                                                             "  where f.folder_id = %(folder_id)s").format(
+#                     fcheck=fcheck),
+#                                                             {'file_check': fcheck, 'folder_id': folder_id}, cur=cur))
+#                 logger.info("list_files.size: {}".format(list_files.shape[0]))
+#                 if list_files.shape[0] > 0:
+#                     post_processing_df = post_processing_df.merge(list_files, how='outer', on='file_id')
+#         else:
+#             post_processing_df = pd.DataFrame()
+#         return Response(post_processing_df.to_json(orient="records"), mimetype='application/json')
+
+
+# @osprey_api.route('/api/folders/qc/<int:folder_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
+# def api_get_folder_qc(folder_id=None):
+#     """Get the QC info of a folder."""
+
+#     api_key = request.form.get("api_key")
+#     logger.info("api_key: {}".format(api_key))
+
+#     if validate_api_key(api_key):
+#         query = (
+#             "SELECT f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
+#             " CASE WHEN q.file_qc = 0 THEN 'Image OK' WHEN q.file_qc = 1 THEN 'Critical Issue' "
+#             "   WHEN q.file_qc = 2 THEN 'Major Issue' WHEN q.file_qc = 3 THEN 'Minor Issue' END AS file_qc, "
+#             " q.qc_info, u.full_name, DATE_FORMAT(q.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+#             " FROM qc_files q, files f, users u WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
+#             "       AND q.qc_by = u.user_id ")
+#         data1 = run_query(query, {'folder_id': folder_id}, cur=cur)
+#         data = {}
+#         data['qc'] = data1
+#         return jsonify(data)
+#     else:
+#         return None
+
+
+@osprey_api.route('/api/files/<int:file_id>', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_get_file_details(file_id=None):
     """Get the details of a file."""
-
     file_id, file_uid = check_file_id(file_id, cur=cur)
-
     if file_id is None:
-        return None
-
-    data = run_query(("SELECT uid as osprey_id, folder_id, file_name, cast(file_timestamp AS DATETIME) as file_timestamp, "
-                           "   dams_uan, preview_image, cast(updated_at AS DATETIME) as updated_at, "
-                           "   cast(created_at AS DATETIME) as created_at "
-                           " FROM files WHERE file_id = %(file_id)s"),
-                          {'file_id': file_id}, cur=cur)
-    if len(data) == 1:
-        filechecks = run_query(
-            ("WITH data AS (SELECT settings_value as file_check, %(file_id)s as file_id FROM projects_settings " 
-                " WHERE project_setting = 'project_checks' and project_id IN (SELECT project_id FROM folders WHERE folder_id in (SElect folder_id from files where file_id = %(file_id)s ))) "
-                 " SELECT f.check_info, CASE WHEN f.check_results IS NULL THEN 9 ELSE f.check_results END as check_results, d.file_check, cast(f.updated_at AS DATETIME) as updated_at " 
-                 " FROM data d LEFT JOIN files_checks f ON (d.file_id = f.file_id and d.file_check = f.file_check)"),
-            {'file_id': file_id}, cur=cur)
-        data[0]['file_checks'] = filechecks
-        file_exif = run_query(
-            ("SELECT tag, value, filetype, tagid, taggroup, cast(updated_at AS DATETIME) as updated_at "
-             " FROM files_exif WHERE file_id = %(file_id)s "
-             " UNION "
-             " SELECT tag, value, filetype, tagid, taggroup, cast(updated_at AS DATETIME) as updated_at "
-             " FROM files_exif_old WHERE file_id = %(file_id)s"),
-            {'file_id': file_id}, cur=cur)
-        data[0]['exif'] = file_exif
-        file_md5 = run_query(("SELECT filetype, md5, cast(updated_at AS DATETIME) as updated_at "
-                                   "FROM file_md5 WHERE file_id = %(file_id)s"),
-                                  {'file_id': file_id}, cur=cur)
-        data[0]['md5_hashes'] = file_md5
-        file_links = run_query(
-            ("SELECT link_name, link_url, link_notes, cast(updated_at AS DATETIME) as updated_at "
-             "FROM files_links WHERE file_id = %(file_id)s"),
-            {'file_id': file_id}, cur=cur)
-        data[0]['links'] = file_links
-        file_post = run_query(
-            ("SELECT post_step, post_results, post_info, cast(updated_at AS DATETIME) as updated_at "
-             "FROM file_postprocessing WHERE file_id = %(file_id)s"),
-            {'file_id': file_id}, cur=cur)
-        data[0]['file_postprocessing'] = file_post
-        val = jsonify(data[0])
+        return jsonify(None)
     else:
-        val = jsonify(None)
+        data = run_query(("SELECT file_id, folder_id, file_name, "
+                            "   dams_uan, preview_image, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+                            " FROM files WHERE file_id = %(file_id)s"),
+                            {'file_id': file_id}, cur=cur)
+        if len(data) == 1:
+            data = data[0]
+            filechecks = run_query(
+                ("WITH data AS (SELECT settings_value as file_check, %(file_id)s as file_id FROM projects_settings " 
+                    " WHERE project_setting = 'project_checks' and project_id IN (SELECT project_id FROM folders WHERE folder_id in (SElect folder_id from files where file_id = %(file_id)s ))) "
+                    " SELECT f.check_info, CASE WHEN f.check_results IS NULL THEN 9 ELSE f.check_results END as check_results, d.file_check,  DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at " 
+                    " FROM data d LEFT JOIN files_checks f ON (d.file_id = f.file_id and d.file_check = f.file_check)"),
+                {'file_id': file_id}, cur=cur)
+            data['file_checks'] = filechecks
+            file_exif = run_query(
+                ("SELECT tag, value, filetype, tagid, taggroup "
+                " FROM files_exif WHERE file_id = %(file_id)s"),
+                {'file_id': file_id}, cur=cur)
+            data['exif'] = file_exif
+            file_md5 = run_query(("SELECT filetype, md5 "
+                                    "FROM file_md5 WHERE file_id = %(file_id)s"),
+                                    {'file_id': file_id}, cur=cur)
+            data['md5_hashes'] = file_md5
+            file_links = run_query(
+                ("SELECT link_name, link_url, link_notes "
+                "FROM files_links WHERE file_id = %(file_id)s"),
+                {'file_id': file_id}, cur=cur)
+            data['links'] = file_links
+            file_post = run_query(
+                ("SELECT post_step, post_results, post_info, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+                "FROM file_postprocessing WHERE file_id = %(file_id)s"),
+                {'file_id': file_id}, cur=cur)
+            data['file_postprocessing'] = file_post
+            val = jsonify(data)
+        else:
+            val = jsonify(None)
     return val
 
 
+@osprey_api.route('/api/reports/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 @osprey_api.route('/api/reports/<report_id>/', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_report(report_id=None):
     """Get the data from a project report."""
     if report_id is None:
-        return None
+        return jsonify(None)
     else:
         
         file_name = request.args.get("file_name")

@@ -4550,6 +4550,8 @@ def api_route_list():
             continue
         elif str(rule).startswith('/api/update'):
             continue
+        elif str(rule) == '/api/reports/':
+            continue
         elif str(rule).startswith('/api'):
             func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
         else:
