@@ -964,7 +964,7 @@ def api_get_file_details(file_id=None):
             filechecks = run_query(
                 ("WITH data AS (SELECT settings_value as file_check, %(file_id)s as file_id FROM projects_settings " 
                     " WHERE project_setting = 'project_checks' and project_id IN (SELECT project_id FROM folders WHERE folder_id in (SElect folder_id from files where file_id = %(file_id)s ))) "
-                    " SELECT f.check_info, CASE WHEN f.check_results IS NULL THEN 9 ELSE f.check_results END as check_results, d.file_check,  DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at " 
+                    " SELECT f.check_info, CASE WHEN f.check_results IS NULL THEN 'Pending' WHEN f.check_results = 9 THEN 'Pending' WHEN f.check_results = 0 THEN 'OK' WHEN f.check_results = 1 THEN 'Failed' END as check_results, d.file_check, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at " 
                     " FROM data d LEFT JOIN files_checks f ON (d.file_id = f.file_id and d.file_check = f.file_check)"),
                 {'file_id': file_id}, cur=cur)
             data['file_checks'] = filechecks
@@ -983,7 +983,8 @@ def api_get_file_details(file_id=None):
                 {'file_id': file_id}, cur=cur)
             data['links'] = file_links
             file_post = run_query(
-                ("SELECT post_step, post_results, post_info, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+                ("SELECT post_step, post_results, post_info, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%S') as updated_at, "
+                 " CASE WHEN post_results IS NULL THEN 'Pending' WHEN post_results = 9 THEN 'Pending' WHEN post_results = 0 THEN 'OK' WHEN post_results = 1 THEN 'Failed' END as post_results "
                 "FROM file_postprocessing WHERE file_id = %(file_id)s"),
                 {'file_id': file_id}, cur=cur)
             data['file_postprocessing'] = file_post
