@@ -89,27 +89,6 @@ r = requests.post('{}/api/projects/{}'.format([API_URL], [PROJECT_ALIAS]), data=
 These routes are available:
 
  * `/api/`: Print available routes in JSON
- * `/api/files/<file_id>`: Get the details of a file by its `file_id`
-    * `file_id`: ID of the file in the system (integer)
-    * `file_name`: Filename
-    * `dams_uan`: DAMS UAN
-    * `exif`: EXIF metadata
-    * `file_checks`: Checks of the files and results
-    * `file_postprocessing`: Steps tracking data steps of each file
-    * `folder_id`: ID of the folder containing the file
-    * `links`: Links to other systems related to this image
-    * `md5_hashes`: MD5 hashes of files related to this image, usually a TIF and a RAW
-    * `preview_image`: If not null, a link to an external rendering of the image
- * `/api/folders/<folder_id>`: Get the details of a folder and the list of files
-    * `folder`: Name of folder
-    * `folder_id`: ID of this folder (integer)
-    * `folder_date`: Date when the folder was created by the vendor
-    * `no_files`: Number of files in the folder
-    * `project_id`: ID of the project (integer)
-    * `project_alias`: String alias of the project
-    * `delivered_to_dams`: Status of the folder regarding delivery to the DAMS
-    * `qc_status`: QC status of the folder
-    * `files`: Files, including file_id, in this folder
  * `/api/projects/`: Get the list of projects in the system
  * `/api/projects/<project_alias>`: Get the details of a project by specifying the project_alias
     * `project_alias`: String alias of the project
@@ -128,6 +107,27 @@ These routes are available:
     * `project_end`: Date when the digitization ended
     * `project_stats`: Main stats of the project
     * `reports`: Data reports in this project 
+ * `/api/folders/<folder_id>`: Get the details of a folder and the list of files
+    * `folder`: Name of folder
+    * `folder_id`: ID of this folder (integer)
+    * `folder_date`: Date when the folder was created by the vendor
+    * `no_files`: Number of files in the folder
+    * `project_id`: ID of the project (integer)
+    * `project_alias`: String alias of the project
+    * `delivered_to_dams`: Status of the folder regarding delivery to the DAMS
+    * `qc_status`: QC status of the folder
+    * `files`: Files, including file_id, in this folder
+ * `/api/files/<file_id>`: Get the details of a file by its `file_id`
+    * `file_id`: ID of the file in the system (integer)
+    * `file_name`: Filename
+    * `dams_uan`: DAMS UAN
+    * `exif`: EXIF metadata
+    * `file_checks`: Checks of the files and results
+    * `file_postprocessing`: Steps tracking data steps of each file
+    * `folder_id`: ID of the folder containing the file
+    * `links`: Links to other systems related to this image
+    * `md5_hashes`: MD5 hashes of files related to this image, usually a TIF and a RAW
+    * `preview_image`: If not null, a link to an external rendering of the image
  * `/api/reports/<report_id>/`: Get the data from a project report
 
 ## Components
