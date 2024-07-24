@@ -49,7 +49,7 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
 
-Then, test the API by running the main file:
+Then, test the app by running the main file:
 
 ```bash
 ./app.py
