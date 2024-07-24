@@ -255,7 +255,7 @@ def api_get_project_details(project_alias=None):
                                "date_format(project_start, '%Y-%m-%d') AS project_start, "
                                "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%Y-%m-%d') END as project_end, "
                                "project_notice, "
-                               "cast(updated_at as DATE) AS updated_at "
+                               "date_format(updated_at, '%Y-%m-%d') AS updated_at "
                                "FROM projects "
                                " WHERE project_alias = %(project_alias)s"),
                               {'project_alias': project_alias}, cur=cur)
@@ -275,7 +275,7 @@ def api_get_project_details(project_alias=None):
                                "date_format(project_start, '%Y-%m-%d') AS project_start, "
                                "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%Y-%m-%d') END as project_end, "
                                "project_notice, "
-                               "cast(updated_at AS DATE) as updated_at "
+                               "date_format(updated_at, '%Y-%m-%d') as updated_at "
                                "FROM projects WHERE project_alias = %(project_alias)s"),
                               {'project_alias': project_alias}, cur=cur)
     if data is None:
@@ -283,11 +283,16 @@ def api_get_project_details(project_alias=None):
     else:
         if api_key is None or validate_api_key(api_key) is False:
             folders = run_query(("SELECT "
-                                      "folder_id, project_id, project_folder as folder, status, "
-                                      "notes, error_info, date_format(date, '%Y-%m-%d') as capture_date, "
-                                      "no_files, file_errors "
-                                      "FROM folders WHERE project_id = %(project_id)s"),
+                                      "fol.folder_id, fol.project_id, fol.project_folder as folder, fol.status, "
+                                      "fol.error_info, date_format(fol.date, '%Y-%m-%d') as capture_date, "
+                                      "count(f.file_id) as no_files, fol.file_errors "
+                                      "FROM folders fol, files f WHERE f.folder_id = fol.folder_id and "
+                                       " fol.project_id = %(project_id)s "
+                                       " GROUP BY fol.folder_id, fol.project_id, fol.project_folder, fol.status, "
+                                      "fol.error_info, fol.date, "
+                                      " fol.file_errors"),
                                      {'project_id': data[0]['project_id']}, cur=cur)
+            print(folders)
         else:
             folders = run_query(("SELECT "
                                       "f.folder_id, f.project_id, f.project_folder as folder, "
@@ -316,16 +321,14 @@ def api_get_project_details(project_alias=None):
         data[0]['project_postprocessing'] = ','.join(str(v['project_postprocessing']) for v in project_postprocessing)
         data[0]['folders'] = folders
         project_stats = run_query(("SELECT "
-                                        "collex_total, collex_to_digitize, collex_ready, objects_digitized, "
-                                        "images_taken, images_in_dams, images_in_cis, images_public, "
-                                        "no_records_in_cis, no_records_in_collexweb, no_records_in_collectionssiedu, "
-                                        "no_records_in_gbif, cast(updated_at AS DATE) as updated_at "
+                                        "collex_total, objects_digitized, "
+                                        "images_taken "
                                         "FROM projects_stats WHERE project_id = %(project_id)s"),
                                        {'project_id': data[0]['project_id']}, cur=cur)
         data[0]['project_stats'] = project_stats[0]
         # Reports
         reports = run_query(
-            "SELECT report_id, report_title, updated_at FROM data_reports WHERE project_id = %(project_id)s",
+            "SELECT report_id, report_title FROM data_reports WHERE project_id = %(project_id)s",
             {'project_id': data[0]['project_id']}, cur=cur)
         data[0]['reports'] = reports
     return jsonify(data[0])
@@ -762,8 +765,8 @@ def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files."""
     if folder_id is None:
         return jsonify(None)
-    data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, f.status, "
-                           "   p.project_alias, f.notes, "
+    data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, "
+                           "   p.project_alias, "
                            "   DATE_FORMAT(f.date, '%Y-%m-%d') as folder_date, "
                            "   f.file_errors, f.error_info, "
                             " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
@@ -781,7 +784,7 @@ def api_get_folder_details(folder_id=None):
         api_key = request.form.get("api_key")
         logger.info("api_key: {}".format(api_key))
         if api_key is None:
-            query = ("SELECT f.file_id, f.folder_id, f.file_name, "
+            query = ("SELECT f.file_id, f.file_name, "
                  " f.dams_uan "
                  " FROM files f WHERE f.folder_id = %(folder_id)s")
             files = run_query(query, {'folder_id': folder_id}, cur=cur)
@@ -797,7 +800,7 @@ def api_get_folder_details(folder_id=None):
                 for fcheck in filechecks_list_temp:
                     filechecks_list.append(fcheck['file_check'])
                 query = (
-                    "SELECT f.file_id, f.folder_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
+                    "SELECT f.file_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
                     " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at, "
                     " DATE_FORMAT(f.created_at, '%Y-%m-%d %H:%i:%S') AS created_at, m.md5 as tif_md5 "
                     " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")

@@ -78,10 +78,44 @@ The application includes an API with these routes:
 
  * `/api/`: Print available routes in JSON
  * `/api/files/<file_id>`: Get the details of a file by its `file_id`
+    * `file_id`: ID of the file in the system (integer)
+    * `file_name`: Filename
+    * `dams_uan`: DAMS UAN
+    * `exif`: EXIF metadata
+    * `file_checks`: Checks of the files and results
+    * `file_postprocessing`: Steps tracking data steps of each file
+    * `folder_id`: ID of the folder containing the file
+    * `links`: Links to other systems related to this image
+    * `md5_hashes`: MD5 hashes of files related to this image, usually a TIF and a RAW
+    * `preview_image`: If not null, a link to an external rendering of the image
  * `/api/folders/<folder_id>`: Get the details of a folder and the list of files
- * `/api/folders/qc/<folder_id>`: Get the details of a folder and the list of files from QC
+    * `folder`: Name of folder
+    * `folder_id`: ID of this folder (integer)
+    * `folder_date`: Date when the folder was created by the vendor
+    * `no_files`: Number of files in the folder
+    * `project_id`: ID of the project (integer)
+    * `project_alias`: String alias of the project
+    * `delivered_to_dams`: Status of the folder regarding delivery to the DAMS
+    * `qc_status`: QC status of the folder
+    * `files`: Files, including file_id, in this folder
  * `/api/projects/`: Get the list of projects in the system
  * `/api/projects/<project_alias>`: Get the details of a project by specifying the project_alias
+    * `project_alias`: String alias of the project
+    * `project_id`: ID of the project (integer)
+    * `folders`: Folders in this project
+    * `project_unit`: SI Unit
+    * `project_type`: Production or Pilot
+    * `project_status`: Status of the project (*e.g.* ongoing, paused, completed)
+    * `project_area`: Discipline area of the project
+    * `project_description`: Description of the project, goals, and collection digitized
+    * `project_checks`: Checks that run for all files in the project
+    * `project_postprocessing`: Post-project steps tracked in the system
+    * `project_manager`: PM of the project
+    * `project_method`: Method used for digitization
+    * `project_start`: Date when the project started digitization
+    * `project_end`: Date when the digitization ended
+    * `project_stats`: Main stats of the project
+    * `reports`: Data reports in this project 
  * `/api/reports/<report_id>/`: Get the data from a project report
 
 ## Components
