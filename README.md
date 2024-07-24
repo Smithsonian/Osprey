@@ -19,7 +19,7 @@ This repo hosts the code for the dashboard, which presents the progress in each 
 
 <img width="1203" alt="Main Dashboard" src="https://github.com/user-attachments/assets/a8578e8d-f788-45cf-93f3-398b4e63bc5d">
 
-![Example Project](https://user-images.githubusercontent.com/2302171/200641552-ac89022c-e79e-421d-9ac9-c120cbdb20a5.png)
+<img width="1106" alt="Example Project" src="https://github.com/user-attachments/assets/4e201d5b-cee3-4d3b-b893-cb1a1fd3f946">
 
 ## File Checks
 
