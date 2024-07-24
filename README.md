@@ -74,7 +74,19 @@ Setup apache2/httpd as described in the [web_server](web_server) folder
 
 ## API
 
-The application includes an API with these routes:
+The application includes an API which requires a key sent using POST with `api_key`.
+
+### Python example
+
+```python
+import requests
+payload = {'api_key': KEY}
+r = requests.post('{}/api/projects/{}'.format([API_URL], [PROJECT_ALIAS]), data=payload)
+```
+
+### API Routes
+
+These routes are available:
 
  * `/api/`: Print available routes in JSON
  * `/api/files/<file_id>`: Get the details of a file by its `file_id`
