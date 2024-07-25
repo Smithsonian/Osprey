@@ -233,7 +233,6 @@ def check_file_id(file_id=None, cur=None):
                 file_id_type = "uuid"
             except ValueError:
                 return False, False
-
     if file_id_type == "uuid":
         file_id = run_query("SELECT file_id FROM files WHERE uid = %(uid)s", {'uid': file_uid}, cur=cur)
         if len(file_id) == 0:
@@ -699,10 +698,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     try:
         folder_id = int(folder_id)
     except ValueError:
-        error_msg = "Invalid folder ID"
+        error_msg = "Folder not found"
         return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net,
-                                analytics_code=settings.analytics_code), 400
+                                analytics_code=settings.analytics_code), 404
 
     # Tab
     if tab is None or tab == '':
@@ -737,7 +736,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         cur = conn.cursor(dictionary=True)
     except mysql.connector.Error as err:
         logger.error(err)
-        return jsonify({'error': 'API error'}), 500
+        # return jsonify({'error': 'API error'}), 500
+        return render_template('error.html', error_msg="There was a system error. Please try again later.",
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 500
 
     # Check if project exists
     if project_alias_exists(project_alias, cur=cur) is False:
@@ -796,41 +798,18 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias}, cur=cur)[0]
 
-    project_managers = run_query("SELECT project_manager FROM projects WHERE project_alias = %(project_alias)s",
-                                  {'project_alias': project_alias}, cur=cur)[0]
-
-    project_manager_link = project_managers['project_manager']
-    if project_managers['project_manager'] == "Jeanine Nault":
+    project_manager_link = project_info['project_manager']
+    if project_info['project_manager'] == "Jeanine Nault":
         project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\">Jeanine Nault</a>"
-    elif project_managers['project_manager'] == "Nathan Ian Anderson":
+    elif project_info['project_manager'] == "Nathan Ian Anderson":
         project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
-    elif project_managers['project_manager'] == "Erin M. Mazzei":
+    elif project_info['project_manager'] == "Erin M. Mazzei":
         project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']}, cur=cur)
 
-    if tab == "filechecks":
-        filechecks_list_temp = run_query(
-            ("SELECT settings_value as file_check FROM projects_settings "
-             " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
-            {'project_id': project_info['project_id']}, cur=cur)
-        filechecks_list = []
-        for fcheck in filechecks_list_temp:
-            filechecks_list.append(fcheck['file_check'])
-        logger.info("filechecks_list:{}".format(filechecks_list_temp))
-        project_postprocessing = []
-
-    if tab == "postprod":
-        project_postprocessing_temp = run_query(
-            ("SELECT settings_value as file_check FROM projects_settings "
-             " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
-            {'project_id': project_info['project_id']}, cur=cur)
-        project_postprocessing = []
-        if project_postprocessing_temp is not None:
-            for fcheck in project_postprocessing_temp:
-                project_postprocessing.append(fcheck['file_check'])
-        filechecks_list = []
+    
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id}, cur=cur)[0]
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_ok = run_query(("WITH "
@@ -942,8 +921,17 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         files_count = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id}, cur=cur)[0]
         files_count = files_count['no_files']
-
         if tab == "filechecks":
+            filechecks_list_temp = run_query(
+                ("SELECT settings_value as file_check FROM projects_settings "
+                " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
+                {'project_id': project_info['project_id']}, cur=cur)
+            filechecks_list = []
+            for fcheck in filechecks_list_temp:
+                filechecks_list.append(fcheck['file_check'])
+            logger.info("filechecks_list:{}".format(filechecks_list_temp))
+            project_postprocessing = []
+
             page_no = "File Checks"
             if files_count == 0:
                 folder_files_df = pd.DataFrame()
@@ -1062,6 +1050,16 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       + "Next</a></li>"
             pagination_html = pagination_html + "</ul></nav>"
         elif tab == "postprod":
+            project_postprocessing_temp = run_query(
+                ("SELECT settings_value as file_check FROM projects_settings "
+                " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
+                {'project_id': project_info['project_id']}, cur=cur)
+            project_postprocessing = []
+            if project_postprocessing_temp is not None:
+                for fcheck in project_postprocessing_temp:
+                    project_postprocessing.append(fcheck['file_check'])
+            filechecks_list = []
+
             page_no = "Post-Processing Steps"
             folder_files_df = pd.DataFrame()
             post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
@@ -1359,15 +1357,12 @@ def dashboard_f_ajax(project_alias=None, folder_id=None, tab=None, page=None):
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias}, cur=cur)[0]
 
-    project_managers = run_query("SELECT project_manager FROM projects WHERE project_alias = %(project_alias)s",
-                                  {'project_alias': project_alias}, cur=cur)[0]
-
-    project_manager_link = project_managers['project_manager']
-    if project_managers['project_manager'] == "Jeanine Nault":
+    project_manager_link = project_info['project_manager']
+    if project_info['project_manager'] == "Jeanine Nault":
         project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\" title=\"Link to Jeanine Nault's staff page\">Jeanine Nault</a>"
-    elif project_managers['project_manager'] == "Nathan Ian Anderson":
+    elif project_info['project_manager'] == "Nathan Ian Anderson":
         project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
-    elif project_managers['project_manager'] == "Erin M. Mazzei":
+    elif project_info['project_manager'] == "Erin M. Mazzei":
         project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
@@ -2004,24 +1999,20 @@ def dashboard(project_alias=None):
         logger.info("project_admin: {} - {}".format(username, project_admin))
     else:
         project_admin = False
-    project_info = run_query("SELECT *, CONCAT('https://dpo.si.edu/', lower(replace(project_manager, ' ', '-'))) as project_manager_link, "
+    project_info = run_query("SELECT *, "
                              "      CONCAT(date_format(project_start, '%d-%b-%Y'), "
                              "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
                              "          ) as pdates "
                              "   FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id}, cur=cur)[0]
 
-    project_managers = run_query("SELECT project_manager FROM projects WHERE project_alias = %(project_alias)s",
-                                 {'project_alias': project_alias}, cur=cur)[0]
-
-    project_manager_link = project_managers['project_manager']
-    if project_managers['project_manager'] == "Jeanine Nault":
+    project_manager_link = project_info['project_manager']
+    if project_info['project_manager'] == "Jeanine Nault":
         project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\" title=\"Link to Jeanine Nault's staff page\">Jeanine Nault</a>"
-    elif project_managers['project_manager'] == "Nathan Ian Anderson":
+    elif project_info['project_manager'] == "Nathan Ian Anderson":
         project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
-    elif project_managers['project_manager'] == "Erin M. Mazzei":
+    elif project_info['project_manager'] == "Erin M. Mazzei":
         project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
-
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                {'project_id': project_info['project_id']}, cur=cur)
