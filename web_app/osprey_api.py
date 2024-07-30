@@ -367,6 +367,9 @@ def api_update_project_details(project_alias=None):
                         clear_badges = run_query(
                             "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'",
                             {'folder_id': folder_id})
+                        clear_badges = run_query(
+                            "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'verification'",
+                            {'folder_id': folder_id})
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'verification', 'bg-secondary', 'Folder under verification...', CURRENT_TIMESTAMP)")
