@@ -264,8 +264,8 @@ def project_alias_exists(project_alias=None, cur=None):
 def check_file_id(file_id=None, cur=None):
     if file_id is None:
         return False, False
-    if cur is None:
-        return False, False
+    # if cur is None:
+    #     return False, False
     else:
         try:
             file_id = int(file_id)
@@ -3662,7 +3662,7 @@ def file(file_id=None):
     #     return jsonify({'error': 'System Error'}), 500
     cur = None
     file_id, file_uid = check_file_id(file_id, cur=cur)
-
+    print(file_id, file_uid)
     if file_id is None:
         error_msg = "File ID is missing."
         return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
