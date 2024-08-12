@@ -145,39 +145,42 @@
 
     <p style="font-size: medium;">This project is organized in {% if project_stats.no_folders == 1 %}{{ project_stats.no_folders }} folder{% else %}{{ project_stats.no_folders }} folders{% endif %}</p>
 
-    <p style="font-size: medium;">{{ project_folders|length }} folders not delivered to DAMS:</p>
+    {% if project_folders|length > 0 %}
 
-        <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
+        <p style="font-size: medium;">{{ project_folders|length }} folders not delivered to DAMS:</p>
 
-            {% for folder in project_folders %}
-                {% if folder.badge_text == "Folder under verification..." %}
-                    <a href="#" id="{{ folder.project_folder | replace(' ', '_') }}" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
-                {% else %}
-                    {% if folder.project_folder == folder_name.project_folder %}
-                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+            <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
+
+                {% for folder in project_folders %}
+                    {% if folder.badge_text == "Folder under verification..." %}
+                        <a href="#" id="{{ folder.project_folder | replace(' ', '_') }}" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
                     {% else %}
-                        <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
-                    {% endif %}
-                {% endif %}
-
-                {% if folder.no_files != "0 files" and folder.no_files != "0" %}
-                &nbsp;&nbsp;<span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
-                {% endif %}
-
-                {% if folder_badge is not none %}
-                    {% for folder_badge in project_folders_badges %}
-                        {% if folder_badge.folder_id == folder.folder_id %}
-                            <br>
-                            <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
+                        {% if folder.project_folder == folder_name.project_folder %}
+                            <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+                        {% else %}
+                            <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
                         {% endif %}
+                    {% endif %}
+
+                    {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                    &nbsp;&nbsp;<span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                    {% endif %}
+
+                    {% if folder_badge is not none %}
+                        {% for folder_badge in project_folders_badges %}
+                            {% if folder_badge.folder_id == folder.folder_id %}
+                                <br>
+                                <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    </a>
+
                     {% endfor %}
-                {% endif %}
-
-                </a>
-
-                {% endfor %}
-            </p>
-        </div>
+                </p>
+            </div>
+    {% endif %}
 
     {% if project_folders_indams|length > 0 %}
     <br>
