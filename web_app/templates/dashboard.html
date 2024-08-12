@@ -143,7 +143,10 @@
 
         {% endif %}
 
-    <p style="font-size: medium;">This project is organized in {% if project_folders|length == 1 %}{{ project_folders|length }} Folder{% else %}{{ project_folders|length }} Folders{% endif %}:</p>
+    <p style="font-size: medium;">This project is organized in {% if project_stats.no_folders == 1 %}{{ project_stats.no_folders }} folder{% else %}{{ project_stats.no_folders }} folders{% endif %}</p>
+
+    <p style="font-size: medium;">{{ project_folders|length }} folders not delivered to DAMS:</p>
+
         <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
 
             {% for folder in project_folders %}
@@ -172,9 +175,27 @@
 
                 </a>
 
-            {% endfor %}
+                {% endfor %}
             </p>
         </div>
+
+    {% if project_folders_indams|length > 0 %}
+    <br>
+    <hr>
+    <p style="font-size: medium;">{{ project_folders_indams|length }} folders delivered to DAMS:</p>
+        
+            <form action="{{ url_for('dashboard', project_alias=project_alias) }}" method="GET">
+                
+                <select class="form-select form-control form-control-sm" aria-label="Select folder" id="folder_id" name="folder_id">
+                    {% for fol in project_folders_indams %}
+                            <option value="{{ fol.folder_id }}">{{ fol.project_folder }} ({{ fol.no_files }})</option>
+                    {% endfor %}
+                </select><br>
+                <button type="submit" class="btn btn-primary">Open Folder</button>
+            </form>
+                
+    </p>
+    {% endif %}
 
     </div>
     <div class="col overflow-x-auto" style="font-size: 0.9em;">

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- SI Elements -->
+    <link rel="preload" href="{{ url_for('static', filename='css/qfv0ytn.css') }}" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/qfv0ytn.css') }}">
+
+    <!-- favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <!-- Bootstrap CSS -->
+    <link
+            href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+            rel="stylesheet"
+            />
+
+    <!-- Font Awesome -->
+    <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet" />
+
+    <style>
+        html {
+          position: relative;
+          min-height: 100%;
+          padding-bottom: 20px;
+          padding-top: 0px;
+        }
+        body {
+          margin-bottom: 160px;
+          font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+
+        .skipnav { text-align: left; }
+          .skipnav a { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+          .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; 
+            background-color: #fff;
+    border: 2px solid #000;
+    color: #000;}
+
+        .screen-reader-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .navtitle{
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+            color: #FFFFFF;
+            font-size: 1.6rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            padding: 0.8rem 1rem;
+            text-decoration: none;
+        }
+
+        .navitems {
+            color: #FFFFFF;
+            text-decoration: none;
+            padding-left: 1rem;
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+
+        .btn, .badge, .dataTables_info {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+            font-size: 1em;
+            font-weight: 200;
+        }
+
+        p, small, strong, li, th, td {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+
+        .footer-text {
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+
+    </style>
+
+
+    <!-- favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+
+    <title class="pagetitle">{{ filename }} - Full Size Image</title>
+
+</head>
+<body>
+
+
+    
+    <img src="{{ image_path }}" width="{{ width }}" height="{{ width }}">
+
+
+
+
+
+    <!-- JQuery -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"
+    ></script>
+
+    <!-- Bootstrap -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/bootstrap.min.js') }}"
+    ></script>
+    
+</body>
+</html>

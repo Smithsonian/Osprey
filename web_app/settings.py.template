@@ -6,6 +6,8 @@ user = ""
 password = ""
 port = 3306
 
+mysql_pool_size = 8
+
 secret_key = b''
 
 # dev or prod

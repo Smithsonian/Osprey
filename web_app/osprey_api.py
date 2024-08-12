@@ -13,6 +13,7 @@ from flask import request
 from uuid import UUID
 import json
 import pandas as pd
+import time 
 
 # MySQL
 import mysql.connector
@@ -24,9 +25,10 @@ from logger import logger
 
 import settings
 
+# Connect to Mysql and create a pool
 try:
     conn = mysql.connector.connect(pool_name = "mypool",
-                            pool_size = 8,
+                            pool_size = settings.mysql_pool_size,
                             host=settings.host,
                             user=settings.user,
                             password=settings.password,
@@ -43,9 +45,19 @@ except mysql.connector.Error as err:
 def run_query(query, parameters=None, return_val=True):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
-    # Get connection from pool
-    conn1 = mysql.connector.connect(pool_name="mypool")
-    cur1 = conn1.cursor(dictionary=True)
+    # Get connection from pool, try 10 times
+    for i in range(10):
+        try:
+            conn1 = mysql.connector.connect(pool_name="mypool")
+            cur1 = conn1.cursor(dictionary=True)
+            break
+        except mysql.connector.errors.PoolError:
+            logger.warning("Pool Exhausted")
+            time.sleep(2)
+        # Tried 10 times, give up
+        if i == 9:
+            logger.error("Pool Exhausted")
+            return jsonify({'error': 'API error'}), 500
     # Run query
     try:
         if parameters is None:
@@ -53,6 +65,8 @@ def run_query(query, parameters=None, return_val=True):
         else:
             results = cur1.execute(query, parameters)
     except mysql.connector.Error as error:
+        cur1.close()
+        conn1.close()
         logger.error("API Error {}".format(error))
         return jsonify({'error': 'API error'}), 500
     if return_val:
@@ -67,6 +81,39 @@ def run_query(query, parameters=None, return_val=True):
         return True
 
 
+def query_database_insert(query, parameters, return_res=False):
+    logger.info("query: {}".format(query))
+    logger.info("parameters: {}".format(parameters))
+    # Get connection from pool, try 10 times
+    for i in range(10):
+        try:
+            conn1 = mysql.connector.connect(pool_name="mypool")
+            cur1 = conn1.cursor(dictionary=True)
+            break
+        except mysql.connector.errors.PoolError:
+            logger.warning("Pool Exhausted")
+            time.sleep(2)
+        # Tried 10 times, give up
+        if i == 9:
+            logger.error("Pool Exhausted")
+            return jsonify({'error': 'API error'}), 500
+    # Run query
+    data = False
+    try:
+        results = cur1.execute(query, parameters)
+    except Exception as error:
+        logger.error(error)
+        return jsonify({'error': 'API Error'}), 500
+    if return_res == True:
+        data = cur1.fetchall()
+        logger.info("No of results: ".format(len(data)))
+        if len(data) == 0:
+            data = False
+    cur1.close()
+    conn1.close()
+    return data
+
+
 def validate_api_key(api_key=None, url=None, params=None):
     logger.info("api_key: {}".format(api_key))
     if api_key is None:
@@ -76,30 +123,31 @@ def validate_api_key(api_key=None, url=None, params=None):
     except ValueError:
         return False, False
     # Get connection from pool
-    conn1 = mysql.connector.connect(pool_name="mypool")
-    cur1 = conn1.cursor(dictionary=True)
+    # conn1 = mysql.connector.connect(pool_name="mypool")
+    # cur1 = conn1.cursor(dictionary=True)
     # Run query
     query = ("SELECT api_key, is_admin from api_keys WHERE api_key = %(api_key)s and is_active = 1")
     parameters = {'api_key': api_key}
+    data = run_query(query, parameters=parameters, return_val=True)
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
-    cur1.execute(query, parameters)
-    data = cur1.fetchall()
+    # cur1.execute(query, parameters)
+    # data = cur1.fetchall()
     if len(data) == 1:
         if data[0]['api_key'] == api_key:
-            cur1.execute("INSERT INTO api_keys_usage (api_key, valid, url, params) VALUES (%(api_key)s, 1, %(url)s, %(params)s)", {'api_key': api_key, 'url': url, 'params': params})
-            cur1.close()
-            conn1.close()
+            query = ("INSERT INTO api_keys_usage (api_key, valid, url, params) VALUES (%(api_key)s, 1, %(url)s, %(params)s)")
+            params = {'api_key': api_key, 'url': url, 'params': params}
+            query_database_insert(query, params)
             return True, data[0]['is_admin'] == 1
         else:
-            cur1.execute("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)", {'api_key': api_key})
-            cur1.close()
-            conn1.close()
+            query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)")
+            params = {'api_key': api_key}
+            query_database_insert(query, params)
             return False, False
     else:
-        cur1.execute("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)", {'api_key': api_key})
-        cur1.close()
-        conn1.close()
+        query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)")
+        params = {'api_key': api_key}
+        query_database_insert(query, params)
         return False, False
 
 
@@ -129,27 +177,6 @@ def check_file_id(file_id=None):
             return file_id, file_uid[0]['uid']
 
 
-def query_database_insert(query, parameters, return_res=False):
-    logger.info("query: {}".format(query))
-    logger.info("parameters: {}".format(parameters))
-    # Get connection from pool
-    conn1 = mysql.connector.connect(pool_name="mypool")
-    cur1 = conn1.cursor(dictionary=True)
-    # Run query
-    data = False
-    try:
-        results = cur1.execute(query, parameters)
-    except Exception as error:
-        logger.error(error)
-        return jsonify({'error': 'API Error'}), 500
-    if return_res == True:
-        data = cur1.fetchall()
-        logger.info("No of results: ".format(len(data)))
-        if len(data) == 0:
-            data = False
-    cur1.close()
-    conn1.close()
-    return data
 
 
 ###################################
@@ -435,6 +462,21 @@ def api_update_project_details(project_alias=None):
                         # Update updated_at datetime
                         query = ("UPDATE folders SET updated_at = NOW() WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        # Update project counts
+                        query = ("""WITH 
+                                folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),
+                                files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),
+                                checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),
+                                checklist as (select c.file_check, f.file_id from checks c, files_q f),
+                                data AS (
+                                SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results
+                                FROM
+                                checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)
+                                group by c.file_id),
+                                stat_total1 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 0),
+                                stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results != 0)
+                                update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
+                        res = query_database_insert(query, {'project_id': project_id})
                     elif query_property == "raw0":
                         query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                     " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
