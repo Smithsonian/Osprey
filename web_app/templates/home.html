@@ -1,26 +1,164 @@
-{% extends "base.html" %}
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-<!-- html title -->
-{% block title %}{{ html_title }}{% endblock %}
+    <!-- SI Elements -->
+    <link rel="preload" href="{{ url_for('static', filename='css/qfv0ytn.css') }}" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/qfv0ytn.css') }}">
 
-<!-- page heading -->
-<!-- {% block page_title %}{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}{% endblock %} -->
+    <!-- favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
-{% block homelink %}
-    <a class="navbar-brand navtitle" href="/" title="Collections Digitization Dashboard">{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}</a>
-{% endblock %}
+    <!-- Datatables -->
+    <link
+            href="{{ url_for('static', filename='css/datatables.min.css') }}"
+            rel="stylesheet"
+            />
 
-{% block head_blocks %}
+    <!-- Bootstrap CSS -->
+    <link
+            href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+            rel="stylesheet"
+            />
+
+    <!-- Font Awesome -->
+    <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet" />
 
     <style>
+        html {
+          position: relative;
+          min-height: 100%;
+          padding-bottom: 20px;
+          padding-top: 0px;
+        }
+        body {
+          margin-bottom: 160px;
+          font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+        footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+        .chart {
+            width: 100%;
+        }
+
+        .skipnav { text-align: left; }
+        .skipnav a { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+        .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; 
+            background-color: #fff;
+            border: 2px solid #000;
+            color: #000;
+        }
+
+        .screen-reader-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .navtitle{
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+            color: #FFFFFF;
+            font-size: 1.6rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            padding: 0.8rem 1rem;
+            text-decoration: none;
+        }
+
+        .navitems {
+            color: #FFFFFF;
+            text-decoration: none;
+            padding-left: 1rem;
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+
+        .btn, .badge, .dataTables_info {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+            font-size: 1em;
+            font-weight: 200;
+        }
+
+        p, small, strong, li, th, td {
+            font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+        }
+
+        .footer-text {
+            font-family: "minion-pro",Helvetica,Arial,sans-serif;
+        }
+
         div.dt-buttons {
             float: right;
         }
     </style>
 
-{% endblock %}
 
-{% block content %}
+    <!-- favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+
+    <title class="pagetitle">{{ html_title }}</title>
+
+</head>
+<body>
+
+<div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
+
+<div class="container-fluid">
+
+    <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
+      <!-- Navbar content -->
+        <div class="container-fluid">
+            <a class="navbar-brand navtitle" href="/" title="Collections Digitization Dashboard">{{ html_title }}{% if site_net == "internal" %} - SI Internal{% endif %}</a>
+            
+        <div class="row">
+            <div class="col">
+
+            {% if username %}
+
+                <div style="text-align: right; color: #FFFFFF;">
+                    <small>
+                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home" title="User Home"> My Projects ({{ username }})</a>
+                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system" title="Logout of the system">Logout</a>
+                    </small>
+                </div>
+
+            {% else %}
+
+                <div style="text-align: right; color: #FFFFFF;">
+                    <small>
+                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system"><i class="fa-solid fa-user"></i> Login</a> {% endif %}
+                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                    </small>
+                </div>
+
+            {% endif %}
+
+            </div>
+            </div>
+        </div>
+    </nav>
+
+    <br>
+
+    <a name="maincontent"></a>
+
 
     <div class="row">
         <div class="col"><h1>{{ team_heading }}</h1></div>
@@ -43,9 +181,7 @@
         <ul class="list-group list-group-horizontal">
             <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Specimens/Objects Digitized:</strong> {{ summary_stats.objects_digitized }}</li>
             <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Images Captured:</strong> {{ summary_stats.images_captured }}</li>
-            <!-- <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Public Images:</strong> {{ summary_stats.images_public }}</li> -->
             <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Digitization Projects:</strong> {{ summary_stats.digitization_projects }}</li>
-            <!-- <li class="list-group-item active flex-fill" style="font-size:x-large;"><strong>Active Projects:</strong> {{ summary_stats.active_projects }}</li> -->
         </ul>
 
     {% else %}
@@ -169,19 +305,109 @@
                 
     {% endif %}
 
-    <br>
-
-    <!--
-        <p>Select one of the buttons at the top right to see the specific projects of each team.</p>
-        <p>Thanks to the DAMS team for providing some of the data used in these reports.</p>
-    -->
-    <br><br>
-
-{% endblock %}
+    <br><br><br>
 
 
-{% block javascripts %}
+</div>
 
+{% if form %}
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title" id="loginModalLabel">Log In to the System</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+
+        <form method="post" action="/" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
+
+        <p><strong>Do not</strong> use your SI credentials. This feature will be added in a future version.</p>
+
+        {{ form.hidden_tag() }}
+
+        <p class="fw-bold">
+            {% if msg %}
+                {{ msg | safe }}
+            {% endif %}
+        </p>
+
+        <br />
+
+        <div class="form-floating mb-3">
+            {{ form.username(class="form-control", aria_label='Username', autocomplete="off") }}
+            <label for="username">Username</label>
+        </div>
+        <div class="form-floating mb-3">
+            {{ form.password(class="form-control", aria_label='Password', type="password", autocomplete="off") }}
+            <label for="password">Password</label>
+        </div>
+        <br />
+
+        <button class="w-100 btn btn-lg btn-primary" type="submit" aria-label='Sign In'>Sign In</button>
+
+        </form>
+
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<footer class="page-footer font-small bg-secondary pt-2" style="background: #3F4249!important;">
+  <!-- Footer Elements -->
+  <div class="container-fluid">
+      <div class="row">
+        <div class="col">
+            <a href="https://dpo.si.edu" class="text-white footer-text"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office" alt="Logo of the Smithsonian Digitization Program Office"></a>
+        </div>
+        <div class="col">
+            <p><a href="https://www.si.edu/ocio" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Office of the Chief Information Officer">Office of the Chief Information Officer</a></p>
+            <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;" title="Link to page with contact information and about the system">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Terms of Use">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>
+        </div>
+        <div class="col">
+            {% if site_net == "external" %}
+                <p><a href="https://si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Smithsonian Homepage">Smithsonian Home</a></p>
+            {% else %}
+                <p><a href="https://prism.si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the PRISM website">PRISM</a></p>
+            {% endif %}
+            <p><a href="https://www.si.edu/Accessibility" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Accessibility information page">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Privacy information page">Privacy</a></p>
+        </div>
+
+    </div>
+ </div>
+  <!-- Copyright -->
+
+</footer>
+<!-- Footer -->
+
+    <!-- JQuery -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"
+    ></script>
+
+    <!-- Bootstrap -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/bootstrap.min.js') }}"
+    ></script>
+
+    <!-- Datatables -->
+    <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/datatables.min.js') }}"
+    ></script>
+
+    
 
     <!-- Datatables -->
     <script type="text/javascript">
@@ -231,4 +457,10 @@
         });
     </script>
 
-{% endblock %}
+    {% if site_env == "prod" %}
+        <!-- Analytics block -->
+        {{ analytics_code | safe }}
+    {% endif %}
+    
+</body>
+</html>

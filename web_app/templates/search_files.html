@@ -40,7 +40,9 @@
 
             {% for file in results %}
                 <tr>
-                    <td><a href="{{ url_for('file', file_id=file.file_id) }}"><img src="{{ file.preview_image }}?max=200"></a></td>
+                    <td><a href="{{ url_for('file', file_id=file.file_id) }}">
+                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}">
+                    </a></td>
                     <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
                     <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
                 </tr>

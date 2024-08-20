@@ -124,32 +124,36 @@
         {% if proj_reports %}
 
             <!-- Project Reports -->
-            <form action="{{ url_for('data_reports_form') }}" method="GET">
-            <div class="row">
-                <div class="col-8">
-                    <input type="hidden" name="project_alias" value="{{ project_alias }}">
-                    <select class="form-select form-control form-control-sm" aria-label="Default select example" id="report_id" name="report_id">
-                        {% for report in reports %}
-                                <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
-                        {% endfor %}
-                    </select>
+            <div class="card border-primary mb-3">
+                <div class="card-header text-white bg-primary"><strong>Data Reports</strong></div>
+                <div class="card-body text-primary">
+                    
+                    <form action="{{ url_for('data_reports_form') }}" method="GET">
+                        <input type="hidden" name="project_alias" value="{{ project_alias }}">
+                        <select class="form-control form-control-sm form-select" aria-label="Choose a report" id="report_id" name="report_id">
+                            {% for report in reports %}
+                                    <option value="{{ report.report_id }}">{{ report.report_title_brief }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary form-control form-control-sm">View Report</button>
+                    </form>
+                        
                 </div>
-                <div class="col">
-                    <button type="submit" class="btn btn-primary">Open Report</button></form>
-                </div>
-            </div>
+              </div>
+
+
 
             <hr>
 
         {% endif %}
 
-    <p style="font-size: medium;">This project is organized in {% if project_stats.no_folders == 1 %}{{ project_stats.no_folders }} folder{% else %}{{ project_stats.no_folders }} folders{% endif %}</p>
+    <p style="font-size: large;">This project is organized in {% if project_stats.no_folders == 1 %}{{ project_stats.no_folders }} folder{% else %}{{ project_stats.no_folders }} folders{% endif %}:</p>
 
     {% if project_folders|length > 0 %}
 
-        <p style="font-size: medium;">{{ project_folders|length }} folders not delivered to DAMS:</p>
+        <p style="font-size: medium;">{{ project_folders|length }} folder{% if project_folders|length > 1 %}s{% endif %} not delivered to DAMS:</p>
 
-            <div class="list-group shadow d-block overflow-y-auto" style="height: 700px;">
+            <div class="list-group shadow d-block overflow-y-auto" style="max-height: 700px;">
 
                 {% for folder in project_folders %}
                     {% if folder.badge_text == "Folder under verification..." %}
@@ -185,7 +189,7 @@
     {% if project_folders_indams|length > 0 %}
     <br>
     <hr>
-    <p style="font-size: medium;">{{ project_folders_indams|length }} folders delivered to DAMS:</p>
+    <p style="font-size: medium;">{{ project_folders_indams|length }} folder{% if project_folders_indams|length > 1 %}s{% endif %} delivered to DAMS:</p>
         
             <form action="{{ url_for('dashboard', project_alias=project_alias) }}" method="GET">
                 
@@ -206,23 +210,17 @@
     {% if folder_name != None %}
 
         <!-- This folder badges -->
-        {% for folder in project_folders %}
-            {% if folder.folder_id == folder_id %}
-                <div style="text-align: right;">
-                {% if folder.no_files != "0 files" and folder.no_files != "0" %}
-                    &nbsp;  <span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
+        {% if folder_badges != None %}
+            <div style="text-align: right;">
+                {% if files_count != "0 files" and files_count != "0" %}
+                    &nbsp;  <span class="badge bg-primary" alt="{{ files_count }} Files">{{ files_count }} Files</span>
                 {% endif %}
 
-                {% if folder_badge is not none %}
-                    {% for folder_badge in project_folders_badges %}
-                        {% if folder_badge.folder_id == folder.folder_id %}
-                            <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-                </div>
-            {% endif %}
-        {% endfor %}
+                {% for folder_badge in folder_badges %}
+                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
 
 
         <!-- Accessible jump to files -->
@@ -337,7 +335,6 @@
             <br>{{ pagination_html | safe }}
 
 
-
         {% elif tab == "postprod" %}
 
             <br><br>
@@ -358,7 +355,6 @@
 
     {% else %}
         <p>Select a folder on the left</p>
-
     {% endif %}
 
     </div></div></div>
@@ -374,7 +370,6 @@
 
 
 {% block javascripts %}
-
 
 {% if folder_id != None %}
     <!-- Datatables -->
@@ -656,9 +651,6 @@
 
         {% endif %}
 
-
-
-
             // Refresh dashboard after 10 minutes of inactivity
             // https://stackoverflow.com/a/55144842
             function reloadPage() {
@@ -674,27 +666,10 @@
                 clearTimeout(idleTime);
                 reloadPage();
             });
-
-
         });
 
     </script>
 
     {% endif %}
-
-{##}
-{#    <script type="text/javascript">#}
-{##}
-{#        var triggerTabList = [].slice.call(document.querySelectorAll('#nav-tab a'))#}
-{#            triggerTabList.forEach(function (triggerEl) {#}
-{#              var tabTrigger = new bootstrap.Tab(triggerEl)#}
-{##}
-{#              triggerEl.addEventListener('click', function (event) {#}
-{#                event.preventDefault()#}
-{#                tabTrigger.show()#}
-{#              })#}
-{#            })#}
-{##}
-{#    </script>#}
 
 {% endblock %}

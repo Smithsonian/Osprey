@@ -122,22 +122,18 @@ def validate_api_key(api_key=None, url=None, params=None):
         api_key_check = UUID(api_key)
     except ValueError:
         return False, False
-    # Get connection from pool
-    # conn1 = mysql.connector.connect(pool_name="mypool")
-    # cur1 = conn1.cursor(dictionary=True)
     # Run query
     query = ("SELECT api_key, is_admin from api_keys WHERE api_key = %(api_key)s and is_active = 1")
     parameters = {'api_key': api_key}
     data = run_query(query, parameters=parameters, return_val=True)
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
-    # cur1.execute(query, parameters)
-    # data = cur1.fetchall()
     if len(data) == 1:
         if data[0]['api_key'] == api_key:
-            query = ("INSERT INTO api_keys_usage (api_key, valid, url, params) VALUES (%(api_key)s, 1, %(url)s, %(params)s)")
-            params = {'api_key': api_key, 'url': url, 'params': params}
-            query_database_insert(query, params)
+            if data[0]['is_admin'] != 1:
+                query = ("INSERT INTO api_keys_usage (api_key, valid, url, params) VALUES (%(api_key)s, 1, %(url)s, %(params)s)")
+                params = {'api_key': api_key, 'url': url, 'params': params}
+                query_database_insert(query, params)
             return True, data[0]['is_admin'] == 1
         else:
             query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)")
@@ -175,8 +171,6 @@ def check_file_id(file_id=None):
             return False, False
         else:
             return file_id, file_uid[0]['uid']
-
-
 
 
 ###################################
@@ -932,10 +926,6 @@ def api_get_report(report_id=None):
     if valid_api_key == False:
         return jsonify({'error': 'Forbidden'}), 403
     else:
-        # file_name = request.args.get("file_name")
-        # dams_uan = request.args.get("dams_uan")
-        # logger.info("file_name: {}".format(file_name))
-        # logger.info("dams_uan: {}".format(dams_uan))
         data = run_query("SELECT * FROM data_reports WHERE report_id = %(report_id)s",
                                {'report_id': report_id})
         if len(data) == 0:
@@ -943,16 +933,4 @@ def api_get_report(report_id=None):
                                    {'report_id': report_id})
             if len(data) == 0:
                 return jsonify({'error': 'Report not found'}), 404
-        # if file_name is not None and dams_uan is not None:
-        #     return None
-        # elif file_name is not None and dams_uan is None:
-        #     data = run_query(
-        #         "SELECT * FROM ({}) a WHERE file_name = %(file_name)s".format(query[0]['query_api'].replace('%', '%%')),
-        #         {'file_name': file_name})
-        # elif dams_uan is not None and file_name is None:
-        #     data = run_query(
-        #         "SELECT * FROM ({}) a WHERE dams_uan = %(dams_uan)s".format(query[0]['query_api'].replace('%', '%%')),
-        #         {'dams_uan': dams_uan})
-        # else:
-        #     data = run_query(query[0]['query_api'])
         return jsonify(data)

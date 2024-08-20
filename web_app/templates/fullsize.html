@@ -92,17 +92,16 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
 
-    <title class="pagetitle">{{ filename }} - Full Size Image</title>
+    <title class="pagetitle">{{ file_title }} - Full Size Image</title>
 
 </head>
 <body>
 
-
+    <h2>{{ file_title }} - Full Size Image</h2>
     
-    <img src="{{ image_path }}" width="{{ width }}" height="{{ width }}">
-
-
-
+    <p><img src="{{ url_for('get_preview', file_id=file_id) }}" width="{{ wsize }}" height="{{ hsize }}"></p>
+    
+    <p><a href="{{ url_for('get_preview', file_id=file_id, dl=1) }}">Download Fullsize JPG Image</a></p>
 
 
     <!-- JQuery -->
