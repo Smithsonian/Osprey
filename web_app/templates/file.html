@@ -76,9 +76,11 @@
                         {% else %}
 
                             {% if file_details.preview_image_ext == None %}
-                                <a href="{{ url_for('get_preview', file_id=file_details.file_id) }}" rel="noopener noreferrer" title="Preview image of {{ file_details.file_name }}">
-                                    <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
-                                </a>
+                                
+                                <img src="{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
+                            
+                                <p><a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}" rel="noopener noreferrer" title="Open JPG in full size of {{ file_details.file_name }}">Open JPG in full size</a><br>
+                                <a href="{{ url_for('get_preview', file_id=file_details.file_id, dl=1) }}" rel="noopener noreferrer" title="Download JPG in full size of {{ file_details.file_name }}"><i class="fa-solid fa-download"></i> Download JPG in full size</a></p>
 
                             {% else %}
 

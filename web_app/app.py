@@ -3269,7 +3269,6 @@ def get_preview(file_id=None, max=None, sensitive=None):
     logger.info(data)
     max = request.args.get('max')
     dl = request.args.get('dl')
-    print(dl)
     if len(data) == 0:
         if max in ["160", "200", "600", "1200"]:
             filename = "static/na_{}.png".format(max)
@@ -3393,23 +3392,34 @@ def get_fullsize(file_id=None):
             filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
             img = Image.open(filename)
             wsize, hsize = img.size
+            wsize_o = wsize
+            hsize_o = hsize
         except:
             filename = "static/na.jpg"
             file_name = "NA"
             img = Image.open(filename)
             wsize, hsize = img.size 
+            wsize_o = wsize
+            hsize_o = hsize
     if dpr is not None:
         wsize = int((wsize*1.0)/float(dpr))
         hsize = int((hsize*1.0)/float(dpr))
     if not os.path.isfile(filename):
         filename = "static/na.jpg"
+        file_name = "NA"
+        img = Image.open(filename)
+        wsize, hsize = img.size 
+        wsize_o = wsize
+        hsize_o = hsize
     logger.debug("fullsize_request: {} - {}".format(file_id, filename))
     return render_template('fullsize.html',
                            file_id=file_id,
                            filename=filename,
                            file_title=file_name,
                            wsize=wsize,
-                           hsize=hsize)
+                           hsize=hsize,
+                           wsize_o=wsize_o,
+                           hsize_o=hsize_o)
 
 
 @cache.memoize()
