@@ -535,6 +535,7 @@ def api_update_project_details(project_alias=None):
                             " VALUES (%(folder_id)s, 'filename_spaces', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                             "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                         res = query_database_insert(query, {'folder_id': folder_id, 'value': "Filenames Have Spaces"})
+                        clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'verification'", {'folder_id': folder_id})
                     elif query_property == "qc":
                         query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                         folder_qc = query_database_insert(query, {'folder_id': folder_id})
