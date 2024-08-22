@@ -33,7 +33,7 @@ from PIL import ImageFilter
 # from PIL import ImageFont
 # from PIL import ImageDraw
 from uuid import UUID
-
+from pathlib import Path
 from time import strftime
 from time import localtime
 
@@ -3265,7 +3265,7 @@ def get_preview(file_id=None, max=None, sensitive=None):
         except:
             raise InvalidUsage('invalid file_id value', status_code=400)
     
-    data = run_query("SELECT folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
+    data = run_query("SELECT folder_id, file_name FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
     logger.info(data)
     max = request.args.get('max')
     dl = request.args.get('dl')
@@ -3294,8 +3294,8 @@ def get_preview(file_id=None, max=None, sensitive=None):
                     else:
                         logger.info(filename)
                         # img = Image.open(filename)
-                        # wpercent = (int(width) / float(img.size[0]))
-                        # hsize = int((float(img.size[1]) * float(wpercent)))
+                        wpercent = (int(width) / float(img.size[0]))
+                        hsize = int((float(img.size[1]) * float(wpercent)))
                         img = img.resize((int(width), hsize), Image.LANCZOS)
                         filename = "/tmp/{}_{}.jpg".format(file_id, width)
                         img.save(filename, icc_profile=img.info.get('icc_profile'))
@@ -3348,7 +3348,8 @@ def get_preview(file_id=None, max=None, sensitive=None):
             else:
                 filename = "static/na.jpg"
     if dl == "1":
-        return send_file(filename, mimetype='image/jpeg', as_attachment=True)
+        dl_filename = file_stem = Path(data[0]['file_name']).stem
+        return send_file(filename, mimetype='image/jpeg', attachment_filename=dl_filename, as_attachment=True)
     else:
         try:
             return send_file(filename, mimetype='image/jpeg')
