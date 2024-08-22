@@ -3349,7 +3349,7 @@ def get_preview(file_id=None, max=None, sensitive=None):
                 filename = "static/na.jpg"
     if dl == "1":
         dl_filename = file_stem = Path(data[0]['file_name']).stem
-        return send_file(filename, mimetype='image/jpeg', attachment_filename=dl_filename, as_attachment=True)
+        return send_file(filename, mimetype='image/jpeg', download_name=dl_filename, as_attachment=True)
     else:
         try:
             return send_file(filename, mimetype='image/jpeg')
