@@ -3247,7 +3247,7 @@ def data_reports(project_alias=None, report_id=None):
                            )
 
 
-# @cache.memoize()
+@cache.memoize()
 @app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def get_preview(file_id=None, max=None, sensitive=None):
     """Return image previews"""
