@@ -3348,7 +3348,7 @@ def get_preview(file_id=None, max=None, sensitive=None):
             else:
                 filename = "static/na.jpg"
     if dl == "1":
-        dl_filename = file_stem = Path(data[0]['file_name']).stem
+        dl_filename = "{}.jpg".format(Path(data[0]['file_name']).stem)
         return send_file(filename, mimetype='image/jpeg', download_name=dl_filename, as_attachment=True)
     else:
         try:
