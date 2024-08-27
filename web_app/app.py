@@ -598,7 +598,10 @@ def homepage(team=None):
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
+    if settings.site_net == "internal":
+        asklogin = True
+    else:
+        asklogin = False
     return render_template('home.html',
                            form=form,
                            msg=msg,
@@ -618,7 +621,7 @@ def homepage(team=None):
                            tables_software=[list_software.to_html(table_id='list_software', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
-                           asklogin=True,
+                           asklogin=asklogin,
                            site_env=site_env,
                            site_net=site_net,
                            site_ver=site_ver,
