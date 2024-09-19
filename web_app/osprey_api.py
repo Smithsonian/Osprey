@@ -350,6 +350,8 @@ def api_update_project_details(project_alias=None):
             if query_type == "startup":
                 query = ("DELETE FROM folders_badges WHERE badge_type = 'verification' and folder_id in (SELECT folder_id from folders WHERE project_id = %(project_id)s)")
                 res = run_query(query, {'project_id': project_id}, return_val=False)
+                query = ("DELETE FROM folders_badges WHERE badge_type = 'filename_spaces' and folder_id in (SELECT folder_id from folders WHERE project_id = %(project_id)s)")
+                res = run_query(query, {'project_id': project_id}, return_val=False)
                 return jsonify({"result": True})
             elif query_type == "folder":
                 folder_id = request.form.get("folder_id")
