@@ -360,9 +360,9 @@ def kiosk_mode(request, kiosks):
 ###################################
 @cache.memoize()
 @app.route('/favicon.ico')
+@app.route('/static/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                          'favicon.ico',mimetype='image/vnd.microsoft.icon')
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 @cache.memoize()
@@ -3384,7 +3384,10 @@ def get_fullsize(file_id=None):
     except:
         dpr = None
         logger.warning("DPR could not be determined")
-    
+    # Hard code fix for Firefox/Safari, assume 1.5
+    if dpr is None:
+        dpr = 1.5
+
     data = run_query("SELECT file_name, folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
     logger.info(data)
     if len(data) == 0:
