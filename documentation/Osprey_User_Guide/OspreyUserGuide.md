@@ -152,7 +152,7 @@ If you click on a folder, you can review the processing stages, along with any i
 
 **Note: The tabs that display for a given project, particularly the “Post-Production” tab, can be customized to report on any stage in the digitization process,** **as long as DPO has view access to the folders or database where the relevant information resides.**
 
-Automatic file checks and processing are performed multiple times per day by an integrated back-end program called “Osprey Worker”. **The only exception is the JPCA project, which processes the files weekly.**
+Automatic file checks and processing are performed multiple times per day by an integrated back-end program called “Osprey Worker”. **The only exception is the Johnson Publishing Company Archive project (JPCA), which processes the files weekly.**
 
 Any folders that have been fully processed and are fully ingested into DAMS, are removed from the list in the left-side sidebar, but are still viewable, via the dropdown list at the bottom-left of the page, just below the left-side sidebar.
 
@@ -215,6 +215,14 @@ If the file is examined prior to DAMS ingest, then the information listed in the
 - Any embedded metadata associated with the parent/raw files is not displayed in the Embedded Metadata information section
 
 **NOTE: The preview images are stored offline after 90 days as part of the routine maintenance of the system. Contact DPO to keep specific images online for longer.**
+
+Under "File Postprocessing Steps", once the image is checked ready for DAMS ingest, then the "in_dams" "Result" box is marked "Completed"
+
+Once the image is ingested into DAMS, then then the "ready_for_dams" box is marked "Completed"
+
+<img src="./media/image30_1.png" alt="A screenshot of a computer Description automatically generated" />
+
+**Note that for most projects, the standard DAMS ingest timeframe is 1 week. This timeframe may be modified for specific projects, such as the Johnson Publishing Company Archive (JPCA), which ingests every 24 hours**
 
 ### Project QC and Remediation
 
