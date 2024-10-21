@@ -772,7 +772,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     no_fold = run_query(("SELECT count(project_folder) as folders FROM folders f WHERE f.project_id = %(project_id)s"),
                                      {'project_id': project_id})[0]
     project_stats['no_folders'] = format(int(no_fold['folders']), ',d')
-    project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, 0) as no_files, "
+    project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, '0 Files') as no_files, "
                                       "f.file_errors, f.status, f.error_info, "
                                       "f.delivered_to_dams, "
                                       " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
