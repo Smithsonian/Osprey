@@ -103,7 +103,8 @@ try:
                             password=settings.password,
                             database=settings.database,
                             port=settings.port, 
-                            autocommit=True)
+                            autocommit=True,
+                            wait_timeout=600)
     conn.time_zone = '-04:00'
     cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
