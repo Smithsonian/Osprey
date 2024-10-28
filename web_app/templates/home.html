@@ -26,7 +26,6 @@
             /> -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
         
-
     <!-- Font Awesome -->
     <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet" />
 
@@ -62,6 +61,7 @@
                     <small>
                         <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home" title="User Home"> My Projects ({{ username }})</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
                         <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system" title="Logout of the system">Logout</a>
                     </small>
                 </div>
@@ -72,6 +72,7 @@
                     <small>
                         {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system"><i class="fa-solid fa-user"></i> Login</a> {% endif %}
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
                     </small>
                 </div>
 
@@ -86,17 +87,16 @@
 
     <a name="maincontent"></a>
 
-
     <div class="row">
         <div class="col"><h1>{{ team_heading }}</h1></div>
         <div class="col">
             <!-- Choose team -->
             <div style="text-align: right;">
                 <div class="btn-group" role="group" aria-label="Buttons to select team">
-                    <a href="/" aria-label="Link to summary statistics of Collections Digitization" type="button" class="btn btn-outline-dark {% if team == "summary" %}active{% endif %}" aria-pressed="{% if team == "summary" %}true{% else %}false{% endif %}">Summary</a>
-                    <a href="/team/md" aria-label="Link to summary statistics of the Mass Digitization team" type="button" class="btn btn-outline-dark {% if team == "md" %}active{% endif %}" aria-pressed="{% if team == "md" %}true{% else %}false{% endif %}">Mass Digitization</a>
-                    <a href="/team/is" aria-label="Link to summary statistics of the Imaging Services Team" type="button" class="btn btn-outline-dark {% if team == "is" %}active{% endif %}" aria-pressed="{% if team == "is" %}true{% else %}false{% endif %}">Imaging Services</a>
-                    <a href="/team/inf" aria-label="Link to summary statistics of the Informatics Team" type="button" class="btn btn-outline-dark {% if team == "inf" %}active{% endif %}" aria-pressed="{% if team == "inf" %}true{% else %}false{% endif %}">Informatics</a>
+                    <a href="{{ app_root }}/" aria-label="Link to summary statistics of Collections Digitization" type="button" class="btn btn-outline-dark {% if team == "summary" %}active{% endif %}" aria-pressed="{% if team == "summary" %}true{% else %}false{% endif %}">Summary</a>
+                    <a href="{{ app_root }}/team/md" aria-label="Link to summary statistics of the Mass Digitization team" type="button" class="btn btn-outline-dark {% if team == "md" %}active{% endif %}" aria-pressed="{% if team == "md" %}true{% else %}false{% endif %}">Mass Digitization</a>
+                    <a href="{{ app_root }}/team/is" aria-label="Link to summary statistics of the Imaging Services Team" type="button" class="btn btn-outline-dark {% if team == "is" %}active{% endif %}" aria-pressed="{% if team == "is" %}true{% else %}false{% endif %}">Imaging Services</a>
+                    <a href="{{ app_root }}/team/inf" aria-label="Link to summary statistics of the Informatics Team" type="button" class="btn btn-outline-dark {% if team == "inf" %}active{% endif %}" aria-pressed="{% if team == "inf" %}true{% else %}false{% endif %}">Informatics</a>
                 </div>
             </div>
         </div>

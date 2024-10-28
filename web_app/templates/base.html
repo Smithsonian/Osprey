@@ -65,6 +65,7 @@
                         <a href="{{ url_for('homepage') }}" class="navitems" aria-label="System Homepage" title="System Homepage"><i class="fa-solid fa-house"></i> Home</a>
                         <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home" title="User Home"> My Projects ({{ username }})</a>
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
                         <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system" title="Logout of the system">Logout</a>
                     </small>
                 </div>
@@ -76,6 +77,7 @@
                         <a href="{{ url_for('homepage') }}" class="navitems" aria-label="Homepage"><i class="fa-solid fa-house"></i> Home</a>
                         {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system"><i class="fa-solid fa-user"></i> Login</a> {% endif %}
                         <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
+                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
                     </small>
                 </div>
 
@@ -106,7 +108,7 @@
       </div>
       <div class="modal-body">
 
-        <form method="post" action="/" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
+        <form method="post" action="{{ app_root }}/" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
 
         <p><strong>Do not</strong> use your SI credentials. This feature will be added in a future version.</p>
 

@@ -12,26 +12,19 @@ from flask import redirect
 from flask import url_for
 from flask import send_file
 from flask import Response
-from flask import Blueprint
 from flask import send_from_directory
 
 from cache import cache
 # Logging
 from logger import logger
-from osprey_api import osprey_api
-from osprey_common import *
 
 import os
 import locale
 import math
 import pandas as pd
-import json
-import time
 from datetime import datetime
 from PIL import Image
 from PIL import ImageFilter
-# from PIL import ImageFont
-# from PIL import ImageDraw
 from uuid import UUID
 from pathlib import Path
 from time import strftime
@@ -55,6 +48,10 @@ from wtforms.validators import DataRequired
 
 import settings
 
+site_ver = "2.8.0"
+site_env = settings.env
+site_net = settings.site_net
+
 logger.info("site_ver = {}".format(site_ver))
 logger.info("site_env = {}".format(site_env))
 logger.info("site_net = {}".format(site_net))
@@ -69,6 +66,20 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 
 app = Flask(__name__)
 app.secret_key = settings.secret_key
+
+# For subdirs
+def prefix_route(route_function, prefix='', mask='{0}{1}'):
+  '''
+    Defines a new route function with a prefix.
+    The mask argument is a `format string` formatted with, in that order:
+      prefix, route
+  '''
+  def newroute(route, *args, **kwargs):
+    '''New function to prefix the route'''
+    return route_function(mask.format(prefix, route), *args, **kwargs)
+  return newroute
+        
+app.route = prefix_route(app.route, '/')
 
 # Minify responses
 if site_env == "prod":
@@ -87,20 +98,17 @@ app.url_map.strict_slashes = False
 
 # Connect to Mysql and create a pool
 try:
-    conn = mysql.connector.connect(pool_name = "mypool",
-                            pool_size = settings.mysql_pool_size,
-                            host=settings.host,
+    conn = mysql.connector.connect(host=settings.host,
                             user=settings.user,
                             password=settings.password,
                             database=settings.database,
-                            port=settings.port, autocommit=True)
+                            port=settings.port, 
+                            autocommit=True)
     conn.time_zone = '-04:00'
+    cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
     logger.error(err)
 
-
-# Add blueprints
-app.register_blueprint(osprey_api)
 
 # From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
 class InvalidUsage(Exception):
@@ -145,105 +153,33 @@ def sys_error(e):
 def run_query(query, parameters=None, return_val=True):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
-    # Get connection from pool, try 10 times
-    for i in range(10):
-        try:
-            conn1 = mysql.connector.connect(pool_name="mypool")
-            cur1 = conn1.cursor(dictionary=True)
-            break
-        except mysql.connector.errors.PoolError:
-            logger.warning("Pool Exhausted")
-            time.sleep(2)
-        # Tried 10 times, give up
-        if i == 9:
-            logger.error("Pool Exhausted")
-            return jsonify({'error': 'API error'}), 500
     # Run query
-    try:
-        if parameters is None:
-            results = cur1.execute(query)
-        else:
-            results = cur1.execute(query, parameters)
-    except mysql.connector.Error as error:
-        cur1.close()
-        conn1.close()
-        logger.error("API Error {}".format(error))
-        return jsonify({'error': 'API error'}), 500
+    if parameters is None:
+        results = cur.execute(query)
+    else:
+        results = cur.execute(query, parameters)
     if return_val:
-        data = cur1.fetchall()
+        data = cur.fetchall()
         logger.info("No of results: ".format(len(data)))
-        cur1.close()
-        conn1.close()
         return data
     else:
-        cur1.close()
-        conn1.close()
         return True
     
 
 def query_database_insert(query, parameters, return_res=False):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
-    # Get connection from pool, try 10 times
-    for i in range(10):
-        try:
-            conn1 = mysql.connector.connect(pool_name="mypool")
-            cur1 = conn1.cursor(dictionary=True)
-            break
-        except mysql.connector.errors.PoolError:
-            logger.warning("Pool Exhausted")
-            time.sleep(2)
-        # Tried 10 times, give up
-        if i == 9:
-            logger.error("Pool Exhausted")
-            return jsonify({'error': 'API error'}), 500
     # Run query
     data = False
     try:
-        results = cur1.execute(query, parameters)
+        results = cur.execute(query, parameters)
     except Exception as error:
         logger.error("Error: {}".format(error))
-        cur1.close()
-        conn1.close()
         return False
-    data = cur1.fetchall()
+    data = cur.fetchall()
     logger.info("No of results: ".format(len(data)))
     if len(data) == 0:
         data = False
-    cur1.close()
-    conn1.close()
-    return data
-
-
-def query_database_insert_multi(query, parameters, return_res=False):
-    logger.info("query: {}".format(query))
-    logger.info("parameters: {}".format(parameters))
-    # Get connection from pool, try 10 times
-    for i in range(10):
-        try:
-            conn1 = mysql.connector.connect(pool_name="mypool")
-            cur1 = conn1.cursor(dictionary=True)
-            break
-        except mysql.connector.errors.PoolError:
-            logger.warning("Pool Exhausted")
-            time.sleep(2)
-        # Tried 10 times, give up
-        if i == 9:
-            logger.error("Pool Exhausted")
-            return jsonify({'error': 'API error'}), 500
-    # Run query
-    data = False
-    try:
-        results = cur1.executemany(query, parameters)
-    except Exception as error:
-        logger.error("Error_insert_multi: {}".format(error))
-        return False
-    data = cur1.fetchall()
-    logger.info("No of results: ".format(len(data)))
-    if len(data) == 0:
-        data = False
-    cur1.close()
-    conn1.close()
     return data
 
 
@@ -388,7 +324,6 @@ def homepage(team=None):
     msg = None
     # check if both http method is POST and form is valid on submit
     if form.validate_on_submit():
-
         # assign form data to variables
         username = request.form.get('username', '', type=str)
         password = request.form.get('password', '', type=str)
@@ -398,9 +333,8 @@ def homepage(team=None):
         if len(user) == 1:
             logger.info(user[0]['user_active'])
             if user[0]['user_active']:
-                user_obj = User(user[0]['user_id'], user[0]['username'], user[0][
-                    'full_name'],
-                                user[0]['user_active'])
+                user_obj = User(user[0]['user_id'], user[0]['username'], 
+                                user[0]['full_name'], user[0]['user_active'])
                 login_user(user_obj)
                 return redirect(url_for('home'))
             else:
@@ -499,10 +433,10 @@ def homepage(team=None):
                           " FROM projects_informatics WHERE records_redundant IS False"))[0]['total'])
         }
 
-    section_query = (" SELECT "
+    section_query = ((" SELECT "
                      " p.projects_order, "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
+                     " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
                      " p.project_status, "
                      " p.project_manager, "
                      " CASE "
@@ -524,7 +458,7 @@ def homepage(team=None):
                      "        p.project_id, p.project_title, p.project_unit, p.project_status, p.project_description, "
                      "        p.project_method, p.project_manager, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
                      "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
-                     " ORDER BY p.projects_order DESC")
+                     " ORDER BY p.projects_order DESC").format(app_root=settings.app_root))
     list_projects_md = pd.DataFrame(run_query(section_query, {'section': 'MD'}))
     list_projects_md = list_projects_md.drop("images_public", axis=1)
     list_projects_md = list_projects_md.rename(columns={
@@ -533,10 +467,8 @@ def homepage(team=None):
         "project_status": "Status",
         "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
         "project_dates": "Dates",
-        # "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Specimens/Objects Digitized",
-        "images_taken": "Images Captured"#,
-        # "images_public": "Public Images"
+        "images_taken": "Images Captured"
     })
 
     list_projects_is = pd.DataFrame(run_query(section_query, {'section': 'IS'}))
@@ -547,10 +479,8 @@ def homepage(team=None):
         "project_status": "Status",
         "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
         "project_dates": "Dates",
-        # "project_progress": "Project Progress<sup>*</sup>",
         "objects_digitized": "Specimens/Objects Digitized",
-        "images_taken": "Images Captured"#,
-        # "images_public": "Public Images"
+        "images_taken": "Images Captured"
     })
 
     # Informatics Table
@@ -603,12 +533,8 @@ def homepage(team=None):
     else:
         asklogin = False
     return render_template('home.html',
-                           form=form,
-                           msg=msg,
-                           user_exists=user_exists,
-                           username=username,
-                           summary_stats=summary_stats,
-                           team=team,
+                           form=form, msg=msg, user_exists=user_exists,
+                           username=username, summary_stats=summary_stats, team=team,
                            tables_md=[list_projects_md.to_html(table_id='list_projects_md', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
@@ -621,17 +547,11 @@ def homepage(team=None):
                            tables_software=[list_software.to_html(table_id='list_software', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
-                           asklogin=asklogin,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
+                           asklogin=asklogin, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            last_update=last_update[0]['updated_at'],
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           team_heading=team_heading,
-                           html_title=html_title,
-                           analytics_code=settings.analytics_code                           
-                           )
+                           kiosk=kiosk, user_address=user_address, team_heading=team_heading,
+                           html_title=html_title, analytics_code=settings.analytics_code,
+                           app_root=settings.app_root)
 
 
 @app.route('/team/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -748,7 +668,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         project_admin = False
     project_info = run_query("SELECT *, "
                              "      CONCAT(date_format(project_start, '%d-%b-%Y'), "
-                             "          CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
+                             "      CASE WHEN project_end IS NULL THEN '' ELSE CONCAT(' to ', date_format(project_end, '%d-%b-%Y')) END "
                              "          ) as pdates "
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias})[0]
@@ -764,7 +684,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']})
 
-    
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
@@ -843,7 +762,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         else:
             offset = (page - 1) * no_items
         files_df = run_query((
-                                 "WITH data AS (SELECT f.file_id, CONCAT('/preview_image/', f.file_id, '/?') as preview_image, "
+                                 "WITH data AS (SELECT f.file_id, CONCAT('{app_root}/preview_image/', f.file_id, '/?') as preview_image, "
                                  "         f.preview_image as preview_image_ext, f.folder_id, f.file_name, "
                                  "               COALESCE(s.sensitive_contents, 0) as sensitive_contents "
                                  "           FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id "
@@ -851,7 +770,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                  " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, sensitive_contents "
                                  " FROM data "
                                  " ORDER BY file_name "
-                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
+                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items, app_root=settings.app_root),
                              {'folder_id': folder_id})
         files_count = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]
@@ -873,11 +792,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 pagination_html = ""
                 files_df = ""
                 files_count = ""
-                folder_stats = {
-                    'no_files': 0,
-                    'no_errors': 0
-                }
-
+                folder_stats = {'no_files': 0, 'no_errors': 0}
             else:
                 for fcheck in filechecks_list:
                     logger.info("fcheck: {}".format(fcheck))
@@ -899,18 +814,31 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
                 folder_files_df = folder_files_df.sort_values(by=filechecks_list)
                 folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
-                folder_files_df['file_name'] = '<a href="/file/' \
+                # New direct image links
+                # for f in folder_files_df:
+                #     preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(f['folder_id'], "600", f['file_id'])
+                #     if os.path.isfile("static/{}".format(preview_img_path)):
+                #         f['preview_image'] = preview_img_path
+                #     else:
+                #         f['preview_image'] = "na_{}.png".format("600")
+                if site_net == "internal":
+                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
                                                + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
                                                + folder_files_df['file_name'].astype(str) \
                                                + '</a> ' \
                                                + '<button type="button" class="btn btn-light btn-sm" ' \
                                                + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                                               + 'data-bs-info="' + folder_files_df['preview_image'] \
-                                               + '&max=1200" data-bs-link = "/file/' + folder_files_df['file_id'].astype(str) \
+                                               + 'data-bs-info="{}'.format(settings.app_root) + folder_files_df['preview_image'] \
+                                               + '&max=600" data-bs-link = "{}/file/'.format(settings.app_root) + folder_files_df['file_id'].astype(str) \
                                                + '" data-bs-text = "Details of the file ' + folder_files_df[
                                                    'file_name'].astype(str) \
                                                + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
                                                + '<i class="fa-regular fa-image"></i></button>'
+                else:
+                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
+                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
+                                               + folder_files_df['file_name'].astype(str) \
+                                               + '</a> '
                 folder_files_df = folder_files_df.drop(['file_id'], axis=1)
                 folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
 
@@ -926,6 +854,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                     'no_errors': folder_stats2[0]['no_errors']
                 }
                 post_processing_df = pd.DataFrame()
+                
         elif tab == "lightbox":
             page_no = "Lightbox Page {}".format(page)
             # Pagination
@@ -983,6 +912,12 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       + "\">" \
                                       + "Next</a></li>"
             pagination_html = pagination_html + "</ul></nav>"
+            for f in files_df:
+                preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(f['folder_id'], "160", f['file_id'])
+                if os.path.isfile("static/{}".format(preview_img_path)):
+                    f['preview_img_path'] = preview_img_path
+                else:
+                    f['preview_img_path'] = "na_{}.png".format("160")
         elif tab == "postprod":
             project_postprocessing_temp = run_query(
                 ("SELECT settings_value as file_check FROM projects_settings "
@@ -1000,7 +935,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                   " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
                                                  {'folder_id': folder_id}))
             logger.info("project_postprocessing {}".format(project_postprocessing))
-            post_processing_df['file_name'] = '<a href="/file/' \
+            post_processing_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
                                               + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
                                               + post_processing_df['file_name'].astype(str) \
                                               + '</a>'
@@ -1066,7 +1001,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                  "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s and q.file_qc != 0 AND q.file_id = f.file_id "
                                                  "ORDER BY q.file_qc DESC"),
                                 {'folder_id': folder_id}))
-            qc_details['file_name'] = '<a href="/file/' \
+            qc_details['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
                                               + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
                                               + qc_details['file_name'].astype(str) \
                                               + '</a>'
@@ -1130,14 +1065,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                                        escape=False,
                                                        classes=["display", "compact", "table-striped", "w-100"])],
                            titles=[''],
-                           username=user_name,
-                           project_admin=project_admin,
-                           is_admin=is_admin,
-                           tab=tab,
-                           page=page,
-                           files_count=files_count,
-                           pagination_html=pagination_html,
-                           folder_stats=folder_stats,
+                           username=user_name, project_admin=project_admin,
+                           is_admin=is_admin, tab=tab, page=page, files_count=files_count,
+                           pagination_html=pagination_html, folder_stats=folder_stats,
                            post_processing=[post_processing_df.to_html(table_id='post_processing_table',
                                                        index=False,
                                                        border=0,
@@ -1147,16 +1077,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            post_processing_rows=post_processing_df.shape[0],
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
-                           form=form,
-                           proj_reports=proj_reports,
-                           reports=reports,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           qc_check=qc_check,
-                           qc_folder_info=qc_folder_info,
+                           form=form, proj_reports=proj_reports,
+                           reports=reports, site_env=site_env, site_net=site_net,
+                           site_ver=site_ver, kiosk=kiosk, user_address=user_address,
+                           qc_check=qc_check, qc_folder_info=qc_folder_info,
                            qc_details=[qc_details.to_html(table_id='qc_details_table',
                                                        index=False,
                                                        border=0,
@@ -1293,10 +1217,7 @@ def dashboard(project_alias=None, folder_id=None):
     pagination_html = ""
     files_df = ""
     files_count = ""
-    folder_stats = {
-        'no_files': 0,
-        'no_errors': 0
-    }
+    folder_stats = {'no_files': 0, 'no_errors': 0}
     post_processing_df = pd.DataFrame()
     project_folders_badges = run_query(
         "SELECT b.folder_id, b.badge_type, b.badge_css, b.badge_text "
@@ -1345,15 +1266,11 @@ def dashboard(project_alias=None, folder_id=None):
 
     return render_template('dashboard.html',
                            page_no="",
-                           project_id=project_id,
-                           project_info=project_info,
-                           project_alias=project_alias,
-                           project_stats=project_stats,
+                           project_id=project_id, project_info=project_info,
+                           project_alias=project_alias, project_stats=project_stats,
                            project_folders=project_folders,
                            project_folders_indams=project_folders_indams,
-                           files_df=files_df,
-                           folder_id=folder_id,
-                           folder_name=folder_name,
+                           files_df=files_df, folder_id=folder_id, folder_name=folder_name,
                            folder_qc=folder_qc,
                            tables=[folder_files_df.to_html(table_id='files_table',
                                                            index=False,
@@ -1361,13 +1278,9 @@ def dashboard(project_alias=None, folder_id=None):
                                                            escape=False,
                                                            classes=["display", "compact", "table-striped"])],
                            titles=[''],
-                           username=user_name,
-                           project_admin=project_admin,
-                           is_admin=is_admin,
-                           tab=None,
-                           page=1,
-                           files_count=files_count,
-                           pagination_html=pagination_html,
+                           username=user_name, project_admin=project_admin,
+                           is_admin=is_admin, tab=None, page=1,
+                           files_count=files_count, pagination_html=pagination_html,
                            folder_stats=folder_stats,
                            post_processing=[post_processing_df.to_html(table_id='post_processing_table',
                                                                        index=False,
@@ -1378,20 +1291,11 @@ def dashboard(project_alias=None, folder_id=None):
                            postproc_data=(project_info['project_postprocessing'] != ""),
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
-                           form=form,
-                           proj_reports=proj_reports,
-                           reports=reports,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           project_disk=project_disk,
-                           projects_links=projects_links,
-                           project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code,
-                           project_stats_other=project_stats_other
-                           )
+                           form=form, proj_reports=proj_reports, reports=reports,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           kiosk=kiosk, user_address=user_address, project_disk=project_disk,
+                           projects_links=projects_links, project_manager_link=project_manager_link,
+                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other)
 
 
 @cache.memoize()
@@ -1456,7 +1360,6 @@ def proj_statistics(project_alias=None):
                            project_stats_other=project_stats_other)
 
 
-
 @cache.memoize()
 @app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics_dl(project_id=None, step_id=None):
@@ -1487,7 +1390,6 @@ def proj_statistics_dl(project_id=None, step_id=None):
     # Create a direct download response with the CSV data and appropriate headers
     response = Response(csv_data, content_type="text/csv")
     response.headers["Content-Disposition"] = "attachment; filename={}_stats_{}.csv".format(project_info['project_alias'], current_time)
- 
     return response
 
 
@@ -1573,16 +1475,13 @@ def qc(project_alias=None):
     project_settings = project_settings[0]
 
     project_qc_stats = {}
-
     project_qc_ok = run_query(("SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
                         "WHERE f.project_id = %(project_id)s and q.qc_status = 0"),
                         {'project_id': project_id})[0]
-
     project_qc_failed = run_query((
                                   "SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
                                   "WHERE f.project_id = %(project_id)s and q.qc_status = 1"),
                               {'project_id': project_id})[0]
-
     project_qc_count = run_query((
         "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s"),
         {'project_id': project_id})[0]
@@ -1738,16 +1637,10 @@ def qc(project_alias=None):
 
     return render_template('qc.html', username=username,
                            project_settings=project_settings,
-                           folder_qc_info=folder_qc_info,
-                           folder_qc_pending=folder_qc_pending,
-                           folder_qc_done=folder_qc_done,
-                           folder_qc_done_len=len(folder_qc_done),
-                           project=project,
-                           form=form,
-                           project_qc_stats=project_qc_stats,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
+                           folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
+                           folder_qc_done=folder_qc_done, folder_qc_done_len=len(folder_qc_done),
+                           project=project, form=form, project_qc_stats=project_qc_stats,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
 
 
@@ -1967,30 +1860,18 @@ def qc_process(folder_id):
                             """
 
                 return render_template('qc_file.html',
-                                       zoom_exists=zoom_exists,
-                                       zoom_filename=zoom_filename,
-                                       zoom_js=zoom_js,
-                                       folder=folder,
-                                       qc_stats=qc_stats,
-                                       folder_id=folder_id,
-                                       file_qc=file_qc,
-                                       project_settings=project_settings,
-                                       file_details=file_details,
-                                       file_checks=file_checks,
-                                       image_url=image_url,
-                                       image_url_prev=image_url_prev,
-                                       username=username,
+                                       zoom_exists=zoom_exists, zoom_filename=zoom_filename,
+                                       zoom_js=zoom_js, folder=folder, qc_stats=qc_stats,
+                                       folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
+                                       file_details=file_details, file_checks=file_checks, image_url=image_url,
+                                       image_url_prev=image_url_prev, username=username,
                                        project_alias=project_alias['project_alias'],
                                        tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                                      escape=False,
                                                                      classes=["display", "compact", "table-striped"])],
-                                       msg=msg,
-                                       form=form,
-                                       site_env=site_env,
-                                       site_net=site_net,
-                                       site_ver=site_ver,
-                                       analytics_code=settings.analytics_code
-                                       )
+                                       msg=msg, form=form,
+                                       site_env=site_env, site_net=site_net, site_ver=site_ver,
+                                       analytics_code=settings.analytics_code)
             else:
                 error_files = run_query(("SELECT f.file_name, "
                                          " CASE WHEN q.file_qc = 1 THEN 'Critical Issue' "
@@ -2024,17 +1905,10 @@ def qc_process(folder_id):
                     if qc_threshold_minor_comparison <= minor_files:
                         qc_folder_result = False
                 return render_template('qc_done.html',
-                                       folder_id=folder_id,
-                                       folder=folder,
-                                       qc_stats=qc_stats,
-                                       project_settings=project_settings,
-                                       username=username,
-                                       error_files=error_files,
-                                       qc_folder_result=qc_folder_result,
-                                       form=form,
-                                       site_env=site_env,
-                                       site_net=site_net,
-                                       site_ver=site_ver,
+                                       folder_id=folder_id, folder=folder, qc_stats=qc_stats,
+                                       project_settings=project_settings, username=username,
+                                       error_files=error_files, qc_folder_result=qc_folder_result,
+                                       form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
                                        analytics_code=settings.analytics_code)
     else:
         error_msg = "Folder is not available for QC."
@@ -2136,11 +2010,6 @@ def qc_done(folder_id):
 @login_required
 def home():
     """Home for user, listing projects and options"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api_route_list'))
-    
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2160,8 +2029,7 @@ def home():
                                "     date_format(p.project_end, '%b-%Y') as project_end,"
                                "     p.qc_status, p.project_unit "
                                " FROM qc_projects qp, "
-                               "       users u, "
-                               "       projects p "
+                               "       users u, projects p "
                                " WHERE qp.project_id = p.project_id "
                                "     AND qp.user_id = u.user_id "
                                "     AND u.username = %(username)s "
@@ -2177,9 +2045,8 @@ def home():
         project_total = run_query(("SELECT count(*) as no_files "
                                         "    FROM files "
                                         "    WHERE folder_id IN ("
-                                        "            SELECT folder_id "
-                                        "              FROM folders "
-                                        "              WHERE project_id = %(project_id)s)"),
+                                        "        SELECT folder_id FROM folders "
+                                        "          WHERE project_id = %(project_id)s)"),
                                        {'project_id': project['project_id']})
         project_ok = run_query(("WITH a AS ("
                                      "   SELECT file_id FROM files WHERE folder_id IN "
@@ -2277,14 +2144,10 @@ def new_project(msg=None):
     else:
         msg = ""
         return render_template('new_project.html',
-                               username=username,
-                               full_name=full_name,
-                               is_admin=is_admin,
-                               msg=msg,
+                               username=username, full_name=full_name,
+                               is_admin=is_admin, msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form,
-                               site_env=site_env,
-                               site_net=site_net, site_ver=site_ver,
+                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
                                analytics_code=settings.analytics_code)
 
 
@@ -2317,55 +2180,19 @@ def create_new_project():
     p_start = request.values.get('p_start')
     p_unitstaff = request.values.get('p_unitstaff')
     project = query_database_insert(("INSERT INTO projects  "
-                              "   (project_title, "
-                              "    project_unit, "
-                              "    project_alias,"
-                              "    project_description, "
-                              "    project_coordurl,"
-                              "    project_area, "
-                              "    project_section, "
-                              "    project_method, "
-                              "    project_manager, "
-                              "    project_status, "
-                              "    project_type,"
-                              "    project_datastorage,"
-                              "    project_start, "
-                              "    projects_order, "
-                              "      stats_estimated "
-                              " ) "
-                              "  ("
-                              "        SELECT "
-                              "            %(p_title)s,"
-                              "            %(p_unit)s, "
-                              "            %(p_alias)s, "
-                              "            %(p_desc)s, "
-                              "            %(p_coordurl)s, "
-                              "            %(p_area)s, "
-                              "            %(p_md)s, "
-                              "            %(p_method)s, "
-                              "            %(p_manager)s, "
-                              "            'Ongoing', "
-                              "            %(p_prod)s, "
-                              "            %(p_storage)s, "
-                              "            %(p_start)s, "
-                              "            max(projects_order) + 1,"
-                              "              0"
-                              "          FROM projects "
-                              ")"),
-                             {'p_title': p_title,
-                              'p_unit': p_unit,
-                              'p_alias': p_alias,
-                              'p_desc': p_desc,
-                              'p_url': p_url,
-                              'p_coordurl': p_coordurl,
-                              'p_area': p_area,
-                              'p_md': p_md,
-                              'p_noobjects': p_noobjects,
-                              'p_method': p_method,
-                              'p_manager': p_manager,
-                              'p_prod': p_prod,
-                              'p_storage': p_storage,
-                              'p_start': p_start
+                              "   (project_title, project_unit, project_alias, project_description, "
+                              "    project_coordurl, project_area, project_section, project_method, "
+                              "    project_manager, project_status, project_type, project_datastorage,"
+                              "    project_start, projects_order, stats_estimated) "
+                              "  (SELECT "
+                              "            %(p_title)s, %(p_unit)s, %(p_alias)s, %(p_desc)s, "
+                              "            %(p_coordurl)s, %(p_area)s, %(p_md)s, %(p_method)s, "
+                              "            %(p_manager)s, 'Ongoing', %(p_prod)s, %(p_storage)s, "
+                              "            %(p_start)s, max(projects_order) + 1, 0 FROM projects)"),
+                             {'p_title': p_title, 'p_unit': p_unit, 'p_alias': p_alias, 'p_desc': p_desc,
+                              'p_url': p_url, 'p_coordurl': p_coordurl, 'p_area': p_area, 'p_md': p_md,
+                              'p_noobjects': p_noobjects, 'p_method': p_method, 'p_manager': p_manager,
+                              'p_prod': p_prod, 'p_storage': p_storage, 'p_start': p_start
                               })
     project = run_query("SELECT project_id FROM projects WHERE project_title = %(p_title)s AND project_unit = %(p_unit)s",
                              {'p_title': p_title, 'p_unit': p_unit})
@@ -2426,7 +2253,6 @@ def create_new_project():
     file_check = request.values.get('sequence')
     if file_check == "1":
         fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'sequence'})
-
     return redirect(url_for('home', _anchor=p_alias))
 
 
@@ -2465,14 +2291,8 @@ def edit_project(project_alias=None):
         # Not allowed
         return redirect(url_for('home'))
     project = run_query(("SELECT p.project_id, p.project_alias, "
-                              " p.project_title, "
-                              " p.project_alias, "
-                              " p.project_start, "
-                              " p.project_end, "
-                              " p.project_unit, "
-                              " p.project_section, "
-                              " p.project_status, "
-                              " NULL as project_url, "
+                              " p.project_title, p.project_alias, p.project_start, p.project_end, "
+                              " p.project_unit, p.project_section, p.project_status, NULL as project_url, "
                               " COALESCE(p.project_description, '') as project_description, "
                               " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
                               " FROM projects p LEFT JOIN projects_stats s "
@@ -2524,14 +2344,8 @@ def proj_links(project_alias=None):
         # Not allowed
         return redirect(url_for('home'))
     project = run_query(("SELECT p.project_id, p.project_alias, "
-                              " p.project_title, "
-                              " p.project_alias, "
-                              " p.project_start, "
-                              " p.project_end, "
-                              " p.project_unit, "
-                              " p.project_section, "
-                              " p.project_status, "
-                              " NULL as project_url, "
+                              " p.project_title, p.project_alias, p.project_start, p.project_end, "
+                              " p.project_unit, p.project_section, p.project_status, NULL as project_url, "
                               " COALESCE(p.project_description, '') as project_description, "
                               " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
                               " FROM projects p LEFT JOIN projects_stats s "
@@ -2543,12 +2357,8 @@ def proj_links(project_alias=None):
                                {'project_id': project['project_id']})
 
     return render_template('proj_links.html',
-                           username=username,
-                           is_admin=is_admin,
-                           project=project,
-                           form=form,
-                           projects_links=projects_links,
-                           site_env=site_env,
+                           username=username, is_admin=is_admin, project=project,
+                           form=form, projects_links=projects_links, site_env=site_env,
                            site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
 
@@ -2577,16 +2387,8 @@ def add_links(project_alias=None):
     link_type = request.values.get('link_type')
     link_url = request.values.get('link_url')
     new_link = query_database_insert(("INSERT INTO projects_links "
-                              "   (project_id, "
-                              "    link_type, "
-                              "    link_title,"
-                              "    url) "
-                              "  ("
-                              "        SELECT "
-                              "            %(project_id)s,"
-                              "            %(link_type)s, "
-                              "            %(link_title)s, "
-                              "            %(url)s)"),
+                              "   (project_id, link_type, link_title, url) "
+                              "  (SELECT %(project_id)s, %(link_type)s, %(link_title)s, %(url)s)"),
                              {'project_id': project['project_id'],
                               'link_type': link_type,
                               'link_title': link_title,
@@ -2764,6 +2566,13 @@ def file(file_id=None):
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
+    # New direct link to image
+    preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(file_details['folder_id'], "600", file_id)
+    if os.path.isfile("static/{}".format(preview_img_path)):
+        file_details['preview_img_path'] = preview_img_path
+    else:
+        file_details['preview_img_path'] = "na_{}.png".format("600")
+
     # DZI zoomable image
     zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
     
@@ -2774,32 +2583,18 @@ def file(file_id=None):
         zoom_filename = None
 
     return render_template('file.html',
-                           zoom_exists=zoom_exists,
-                           zoom_filename=zoom_filename,
-                           folder_info=folder_info,
-                           file_details=file_details,
-                           file_checks=file_checks,
-                           file_postprocessing=file_postprocessing,
-                           username=user_name,
-                           image_url=image_url,
-                           is_admin=is_admin,
-                           project_alias=project_alias,
+                           zoom_exists=zoom_exists, zoom_filename=zoom_filename, folder_info=folder_info,
+                           file_details=file_details, file_checks=file_checks, 
+                           file_postprocessing=file_postprocessing, username=user_name, image_url=image_url,
+                           is_admin=is_admin, project_alias=project_alias,
                            tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                          escape=False,
                                                          classes=["display", "compact", "table-striped"])],
                            file_metadata_rows=file_metadata.shape[0],
-                           file_links=file_links,
-                           file_sensitive=str(file_sensitive),
-                           sensitive_info=sensitive_info,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           analytics_code=settings.analytics_code
-                           )
-
+                           file_links=file_links, file_sensitive=str(file_sensitive),
+                           sensitive_info=sensitive_info, form=form, site_env=site_env,
+                           site_net=site_net, site_ver=site_ver, kiosk=kiosk, user_address=user_address,
+                           analytics_code=settings.analytics_code)
 
 
 @app.route('/file/', methods=['GET'], provide_automatic_options=False)
@@ -2885,17 +2680,9 @@ def search_files(project_alias):
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
     return render_template('search_files.html',
-                           results=results,
-                           project_info=project_info,
-                           project_alias=project_alias,
-                           q=q,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           analytics_code=settings.analytics_code)
+                           results=results, project_info=project_info, project_alias=project_alias,
+                           q=q, form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           kiosk=kiosk, user_address=user_address, analytics_code=settings.analytics_code)
 
 
 @cache.memoize()
@@ -2973,14 +2760,12 @@ def search_folders(project_alias):
                                   'q': '%' + q + '%'})
     results_df = pd.DataFrame({'folder': [], 'no_files': []})
     for row in results:
-        results_df.loc[len(results_df.index)] = ['<a href="/dashboard/' + project_alias \
+        results_df.loc[len(results_df.index)] = ['<a href="{}/dashboard/'.format(settings.app_root) + project_alias \
                                                  + '/' \
                                                  + str(row['folder_id']) \
                                                  + '/" title="Folder Details">' \
                                                  + row['project_folder'] \
                                                  + '</a> ', str(row['no_files'])]
-    # cur.close()
-    # conn.close()
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
@@ -2991,16 +2776,9 @@ def search_folders(project_alias):
                                                       border=0,
                                                       escape=False,
                                                       classes=["display", "compact", "table-striped"])],
-                           project_info=project_info,
-                           project_alias=project_alias,
-                           q=q,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           kiosk=kiosk,
-                           user_address=user_address,
-                           analytics_code=settings.analytics_code)
+                           project_info=project_info, project_alias=project_alias, q=q,
+                           form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           kiosk=kiosk, user_address=user_address, analytics_code=settings.analytics_code)
 
 
 @app.route('/folder_update/<project_alias>/<folder_id>', methods=['GET'], provide_automatic_options=False)
@@ -3038,11 +2816,8 @@ def update_folder_dams(project_alias=None, folder_id=None):
                 INSERT INTO file_postprocessing
                     (file_id, post_results, post_step)
                 (
-                    SELECT
-                        file_id, 0 as post_results, 'ready_for_dams' as post_step
-                    FROM
-                         (SELECT file_id FROM files WHERE folder_id = %(folder_id)s)
-                        a
+                    SELECT file_id, 0 as post_results, 'ready_for_dams' as post_step
+                    FROM (SELECT file_id FROM files WHERE folder_id = %(folder_id)s) a
                 ) ON
                 DUPLICATE KEY UPDATE
                 post_results = 0
@@ -3056,10 +2831,7 @@ def update_folder_dams(project_alias=None, folder_id=None):
                 (
                     SELECT f.file_id, d.dams_uan
                     FROM
-                        dams_cdis_file_status_view_dpo d,
-                        files f,
-                        folders fold,
-                        projects p
+                        dams_cdis_file_status_view_dpo d, files f, folders fold, projects p
                     WHERE
                         fold.folder_id = f.folder_id AND
                         fold.project_id = p.project_id AND
@@ -3067,8 +2839,7 @@ def update_folder_dams(project_alias=None, folder_id=None):
                         d.file_name = CONCAT(f.file_name, '.tif') AND
                         f.folder_id =   %(folder_id)s
                 ) d
-                SET f.dams_uan = d.dams_uan
-                WHERE f.file_id = d.file_id
+                SET f.dams_uan = d.dams_uan WHERE f.file_id = d.file_id
             """),
                 {'folder_id': folder_id})
 
@@ -3079,19 +2850,14 @@ def update_folder_dams(project_alias=None, folder_id=None):
                     (file_id, post_results, post_step)
                 (
                     SELECT
-                         file_id,
-                         0 as post_results,
-                         'in_dams' as post_step
+                         file_id, 0 as post_results, 'in_dams' as post_step
                     FROM
                      (
                      SELECT file_id FROM files
-                     WHERE
-                        folder_id = %(folder_id)s AND 
+                     WHERE folder_id = %(folder_id)s AND 
                         dams_uan != '' AND dams_uan IS NOT NULL
-                     )
-                    a
-                ) ON
-                DUPLICATE KEY UPDATE post_results = 0
+                     ) a
+                ) ON DUPLICATE KEY UPDATE post_results = 0
             """),
                 {'folder_id': folder_id})
 
@@ -3120,7 +2886,6 @@ def update_folder_dams(project_alias=None, folder_id=None):
     return redirect(url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id))
 
 
-
 @app.route('/update_image/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def update_image():
@@ -3147,7 +2912,6 @@ def update_image():
     return redirect(url_for('file', file_id=file_id))
     
 
-
 @app.route("/logout", methods=['GET'], provide_automatic_options=False)
 def logout():
     logout_user()
@@ -3160,7 +2924,6 @@ def not_user():
     form = LoginForm(request.form)
     logout_user()
     return render_template('notuser.html', form=form, site_env=site_env)
-
 
 
 @cache.memoize()
@@ -3232,31 +2995,22 @@ def data_reports(project_alias=None, report_id=None):
     # cur.close()
     # conn.close()
     return render_template('reports.html',
-                           project_id=project_id,
-                           project_alias=project_alias,
-                           project_info=project_info,
+                           project_id=project_id, project_alias=project_alias, project_info=project_info,
                            report=project_report,
                            tables=[report_data.to_html(table_id='report_data',
                                                        index=False,
                                                        border=0,
                                                        escape=False,
                                                        classes=["display", "compact", "table-striped"])],
-                           report_data_updated=report_data_updated,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net,
-                           site_ver=site_ver,
-                           analytics_code=settings.analytics_code
-                           )
+                           report_data_updated=report_data_updated, form=form,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code)
 
 
 @cache.memoize()
-@app.route('/preview_image/<file_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
+@app.route('/preview_image/<file_id>/', methods=['GET'], provide_automatic_options=False)
 def get_preview(file_id=None, max=None, sensitive=None):
     """Return image previews"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api_route_list'))
     if file_id is None:
         raise InvalidUsage('file_id missing', status_code=400)
     try:
@@ -3272,6 +3026,7 @@ def get_preview(file_id=None, max=None, sensitive=None):
     logger.info(data)
     max = request.args.get('max')
     dl = request.args.get('dl')
+    
     if len(data) == 0:
         if max in ["160", "200", "600", "1200"]:
             filename = "static/na_{}.png".format(max)
@@ -3288,7 +3043,6 @@ def get_preview(file_id=None, max=None, sensitive=None):
             filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
             img = Image.open(filename)
             wsize, hsize = img.size
-
             if width is not None:
                 if os.path.isfile(filename):
                     img_resized = "static/image_previews/folder{}/{}/{}.jpg".format(folder_id, width, file_id)
@@ -3325,7 +3079,10 @@ def get_preview(file_id=None, max=None, sensitive=None):
     if len(img) == 0:
         img_sen = 0
     else:
-        img_sen = img[0]['sensitive_contents']
+        try:
+            img_sen = img[0]['sensitive_contents']
+        except:
+            img_sen = 0
     logger.debug("sensitive_contents: {} - {}".format(file_id, img_sen))
     sensitive = request.args.get('sensitive')
     
@@ -3420,13 +3177,8 @@ def get_fullsize(file_id=None):
         hsize_o = hsize
     logger.debug("fullsize_request: {} - {}".format(file_id, filename))
     return render_template('fullsize.html',
-                           file_id=file_id,
-                           filename=filename,
-                           file_title=file_name,
-                           wsize=wsize,
-                           hsize=hsize,
-                           wsize_o=wsize_o,
-                           hsize_o=hsize_o)
+                           file_id=file_id, filename=filename, file_title=file_name,
+                           wsize=wsize, hsize=hsize, wsize_o=wsize_o, hsize_o=hsize_o)
 
 
 @cache.memoize()
@@ -3488,28 +3240,6 @@ def get_barcodeimage(barcode=None):
         return send_file(filename, mimetype='image/jpeg')
     except:
         return send_file("static/na.jpg", mimetype='image/jpeg')
-
-
-@cache.memoize()
-@app.route('/api/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
-def api_route_list():
-    """Print available routes in JSON"""
-    # Adapted from https://stackoverflow.com/a/17250154
-    func_list = {}
-    for rule in app.url_map.iter_rules():
-        # Skip 'static' routes
-        if str(rule).startswith('/api/new'):
-            continue
-        elif str(rule).startswith('/api/update'):
-            continue
-        elif str(rule) == '/api/reports/':
-            continue
-        elif str(rule).startswith('/api'):
-            func_list[rule.rule] = app.view_functions[rule.endpoint].__doc__
-        else:
-            continue
-    data = {'routes': func_list, 'sys_ver': site_ver, 'env': site_env, 'net': site_net}
-    return jsonify(data)
 
 
 #####################################

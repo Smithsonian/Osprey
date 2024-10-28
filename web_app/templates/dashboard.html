@@ -213,11 +213,11 @@
         {% if folder_badges != None %}
             <div style="text-align: right;">
                 {% if files_count != "0 files" and files_count != "0" %}
-                    &nbsp;  <span class="badge bg-primary" alt="{{ files_count }} Files">{{ files_count }} Files</span>
+                    &nbsp;<span class="badge bg-primary" alt="{{ files_count }} Files">{{ files_count }} Files</span>
                 {% endif %}
 
                 {% for folder_badge in folder_badges %}
-                    <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                    &nbsp;<span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
                 {% endfor %}
             </div>
         {% endif %}
@@ -229,7 +229,9 @@
         <!-- Choose view -->
             <div class="btn-group" role="group" aria-label="Buttons to select view of the folder details">
                 <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}" title="Link to the file checks of the folder" aria-label="Link to view the file checks of the folder" type="button" class="btn btn-outline-dark {% if tab == "filechecks" %}active{% endif %}" aria-pressed="{% if tab == "filechecks" %}true{% else %}false{% endif %}">File Checks</a>
-                <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews in a lightbox of the folder" aria-label="Link to view image previews in a lightbox of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                {% if site_net == "internal" %}
+                    <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}" title="Link to view image previews in a lightbox of the folder" aria-label="Link to view image previews in a lightbox of the folder" type="button" class="btn btn-outline-dark {% if tab == "lightbox" %}active{% endif %}" aria-pressed="{% if tab == "lightbox" %}true{% else %}false{% endif %}">Lightbox</a>
+                {% endif %}
                 {% if postproc_data %}
                     <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}" title="Link to view the post-production steps of the folder" aria-label="Link to view the post-production steps of the folder" type="button" class="btn btn-outline-dark {% if tab == "postprod" %}active{% endif %}" aria-pressed="{% if tab == "postprod" %}true{% else %}false{% endif %}">Post-Production</a>
                 {% endif %}
@@ -285,6 +287,7 @@
 
 
               <!-- File preview modal -->
+              <!-- Only display internally -->
               <div class="modal fade" id="previewmodal1" tabindex="-1" aria-labelledby="previewmodal1Label" aria-hidden="true">
                   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
                     <div class="modal-content">
@@ -293,7 +296,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
-                          <p><div class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 1200x1200. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link to image</a></p>
+                          <p><div class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 600 x 600. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link to image</a></p>
 
                            <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>
@@ -303,13 +306,11 @@
                     </div>
                   </div>
                 </div>
-
-
+            
         {% elif tab == "lightbox" %}
-
+            {% if site_net == "internal" %}
               <br><br>
                 <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
-
                   <div class="row">
                       <div class="col">
                           <p><small><em>Sorted by file_name</em></small></p>
@@ -319,21 +320,20 @@
                       </div>
                   </div>
 
-
                 {% for file in files_df %}
                     <a type="button" class="btn btn-light btn-sm"
                             href="{{ url_for('file', file_id=file.file_id) }}"
                             title="Details of the file {{ file.file_name }}">
 
-                        <img src="{% if file.preview_image_ext == None %}{{ url_for('get_preview', file_id=file.file_id, max=160) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid"><br>
+                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid"><br>
 
                         <small>{{ file.file_name }}</small>
                   </a>
-
                 {% endfor %}
 
-            <br>{{ pagination_html | safe }}
+                <br>{{ pagination_html | safe }}
 
+            {% endif %}
 
         {% elif tab == "postprod" %}
 
