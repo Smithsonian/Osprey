@@ -103,8 +103,8 @@ try:
                             password=settings.password,
                             database=settings.database,
                             port=settings.port, 
-                            autocommit=True,
-                            wait_timeout=600)
+                            autocommit=True, 
+                            connection_timeout=600)
     conn.time_zone = '-04:00'
     cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
@@ -154,6 +154,8 @@ def sys_error(e):
 def run_query(query, parameters=None, return_val=True):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
+    # Check connection to DB and reconnect if needed
+    conn.ping(reconnect=True, attempts=3, delay=1)
     # Run query
     if parameters is None:
         results = cur.execute(query)
@@ -165,11 +167,13 @@ def run_query(query, parameters=None, return_val=True):
         return data
     else:
         return True
-    
+
 
 def query_database_insert(query, parameters, return_res=False):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
+    # Check connection to DB and reconnect if needed
+    conn.ping(reconnect=True, attempts=3, delay=1)
     # Run query
     data = False
     try:
@@ -616,11 +620,17 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             return render_template('error.html', error_msg=error_msg,
                                    project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
-
+    
     # Check if project exists
     if project_alias_exists(project_alias) is False:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
+        # Check if project alias in list of redirects
+        try:
+            if project_alias_exists(settings.proj_redirect[project_alias]):
+                logger.info("project_alias_redirect: {}".format(project_alias))
+                return redirect(url_for('dashboard', project_alias=settings.proj_redirect[project_alias]))
+        except KeyError:
+            error_msg = "Project was not found."
+            return render_template('error.html', error_msg=error_msg,
                                 project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
@@ -1124,12 +1134,19 @@ def dashboard(project_alias=None, folder_id=None):
     project_stats = {}
 
     # Check if project exists
-    project_id = project_alias_exists(project_alias)
-    if project_id is False:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
+    if project_alias_exists(project_alias) is False:
+        # Check if project alias in list of redirects
+        try:
+            if project_alias_exists(settings.proj_redirect[project_alias]):
+                logger.info("project_alias_redirect: {}".format(project_alias))
+                return redirect(url_for('dashboard', project_alias=settings.proj_redirect[project_alias]))
+        except KeyError:
+            error_msg = "Project was not found."
+            return render_template('error.html', error_msg=error_msg,
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
+
+    project_id = project_alias_exists(project_alias)
 
     logger.info("project_id: {}".format(project_id))
     logger.info("project_alias: {}".format(project_alias))
@@ -2212,29 +2229,29 @@ def create_new_project():
                                          "    (%(project_id)s, %(user_id)s)"),
                                         {'project_id': project_id,
                                          'user_id': '101'})
-    if p_unitstaff != '':
-        unitstaff = p_unitstaff.split(',')
-        logger.info("unitstaff: {}".format(p_unitstaff))
-        logger.info("len_unitstaff: {}".format(len(unitstaff)))
-        if len(unitstaff) > 0:
-            for staff in unitstaff:
-                staff_user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
-                                               {'username': staff.strip()})
-                if len(staff_user_id) == 1:
-                    user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                                     "    (%(project_id)s, %(user_id)s)"),
-                                                    {'project_id': project_id,
-                                                     'user_id': staff_user_id[0]['user_id']})
-                else:
-                    user_project = query_database_insert(("INSERT INTO users (username, user_active, is_admin) VALUES "
-                                                   "    (%(username)s, 'T', 'F')"),
-                                                  {'username': staff.strip()})
-                    get_user_project = run_query(("SELECT user_id FROM users WHERE username = %(username)s"),
-                                                         {'username': staff.strip()})
-                    user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                                     "    (%(project_id)s, %(user_id)s)"),
-                                                    {'project_id': project_id,
-                                                     'user_id': get_user_project[0]['user_id']})
+    # if p_unitstaff != '':
+    #     unitstaff = p_unitstaff.split(',')
+    #     logger.info("unitstaff: {}".format(p_unitstaff))
+    #     logger.info("len_unitstaff: {}".format(len(unitstaff)))
+    #     if len(unitstaff) > 0:
+    #         for staff in unitstaff:
+    #             staff_user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
+    #                                            {'username': staff.strip()})
+    #             if len(staff_user_id) == 1:
+    #                 user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
+    #                                                  "    (%(project_id)s, %(user_id)s)"),
+    #                                                 {'project_id': project_id,
+    #                                                  'user_id': staff_user_id[0]['user_id']})
+    #             else:
+    #                 user_project = query_database_insert(("INSERT INTO users (username, user_active, is_admin) VALUES "
+    #                                                "    (%(username)s, 'T', 'F')"),
+    #                                               {'username': staff.strip()})
+    #                 get_user_project = run_query(("SELECT user_id FROM users WHERE username = %(username)s"),
+    #                                                      {'username': staff.strip()})
+    #                 user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
+    #                                                  "    (%(project_id)s, %(user_id)s)"),
+    #                                                 {'project_id': project_id,
+    #                                                  'user_id': get_user_project[0]['user_id']})
     fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES "
                                           "    (%(project_id)s, 'project_checks', %(value)s)")
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'})

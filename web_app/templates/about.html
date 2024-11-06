@@ -8,41 +8,50 @@
 
 {% block content %}
 
-    <p style="font-size: large;"><img src="{{ url_for('static', filename='osprey_logo_200.png') }}" alt="Osprey Application Logo"> <strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
+
+    <div class="row">
+        <div class="col">
+            <p style="font-size: large;"><img src="{{ url_for('static', filename='osprey_logo_200.png') }}" alt="Osprey Application Logo"> <strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            
+            {% if site_net == "internal" %}<p><strong>This is the SI-Internal instance</strong></p>{% endif %}
+
+            <p>Osprey is an open-source application and the source is hosted 
+                at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey 
+                    <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a></p>
+
+            <p><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system 
+                provides a convenient way to see the products of digitization projects in a timely fashion. Do not link to specific
+                pages or images since they will go away without notice.</p>
+
+            {% if site_net == "internal" %}
+                <p>This is a project of the: <a href="https://sinet.sharepoint.com/sites/DPO" title="Link to the SharePoint site of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://sinet.sharepoint.com/sites/ODT" class="bg-white" title="Link to the Office of Digital Transformation
+                ">Office of Digital Transformation</a> (formerly a division of the Office of the Chief Information Officer).</p>
+            {% else %}
+                <p>This is a project of the: <a href="https://dpo.si.edu/" title="Link to the website of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's Office of Digital Transformation.</p>
+            
+            {% endif %}
+        </div>
+        <div class="col">            
+            {% if site_net == "internal" %}
+                <p>There is an API available (JSON). Please contact Luis J. Villanueva, DPO, for an API key.</p>
+            {% endif %}
+
+            <br><br>
+
+            <p>Special thanks to:</p>
+            <ul>
+                <li>OCIO for hosting our servers and supporting the infrastructure we use in our projects</li>
+                <li>The DAMS team for sharing their data</li>
+                <li>The Osprey (<em>Pandion haliaetus</em>) silhouette image is from Phylopic (<a href="https://www.phylopic.org/images/8353477c-dc5d-44b6-ab3c-9d0cdf4d64f7/pandion-haliaetus">link to source</a>)</li>
+            </ul>
+        </div>
+    </div>
     
-    {% if site_net == "internal" %}<p><strong>This is the SI-Internal instance</strong></p>{% endif %}
-
-    <p>Osprey is an open-source application and the source is hosted 
-        at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey 
-            <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a></p>
-
-    <p class="w-50"><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system 
-        provides a convenient way to see the products of digitization projects in a timely fashion. Do not link to specific
-        pages or images since they will go away without notice.</p>
-
-    {% if site_net == "internal" %}
-        <p>This is a project of the: <a href="https://sinet.sharepoint.com/sites/DPO" title="Link to the SharePoint site of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://sinet.sharepoint.com/sites/ODT" class="bg-white" title="Link to the Office of Digital Transformation
-        ">Office of Digital Transformation</a>.</p>
-    {% else %}
-        <p>This is a project of the: <a href="https://dpo.si.edu/" title="Link to the website of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's Office of Digital Transformation.</p>
-    
-    {% endif %}
-
-    <br><br>
-
-    {% if site_net == "internal" %}
-        <p>There is an API available (JSON). Please contact Luis J. Villanueva, DPO, for an API key.</p>
-    {% endif %}
-
-    <br><br>
-
-    <p>Special thanks to:</p>
-    <ul>
-        <li>OCIO for hosting our servers and supporting the infrastructure we use in our projects</li>
-        <li>The DAMS team for sharing their data</li>
-        <li>The Osprey (<em>Pandion haliaetus</em>) silhouette image is from Phylopic (<a href="https://www.phylopic.org/images/8353477c-dc5d-44b6-ab3c-9d0cdf4d64f7/pandion-haliaetus">link to source</a>)</li>
-    </ul>
-
     <br>
 
 {% endblock %}
