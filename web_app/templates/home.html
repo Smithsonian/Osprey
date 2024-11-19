@@ -122,70 +122,92 @@
     {% endif %}
 
     <hr>
-        {% if team == "summary" %}
 
-            <p>The <strong>Collections Digitization</strong> program of the Digitization Program Office supports Smithsonian museums in their efforts to digitize collections as comprehensively, quickly, and cost-effectively as possible by building end-to-end workflows, creating high speed, high quality digitization processes, and by pairing up the digital surrogates we create with the collections records stored in the Smithsonian's various databases.</p>
+    {% if team == "summary" %}
 
-            <hr>
+        <p>The <strong>Collections Digitization</strong> program of the Digitization Program Office supports Smithsonian museums in their efforts to digitize collections as comprehensively, quickly, and cost-effectively as possible by building end-to-end workflows, creating high speed, high quality digitization processes, and by pairing up the digital surrogates we create with the collections records stored in the Smithsonian's various databases.</p>
 
-            <p style="font-size: large;">Some of our projects:</p>
+        <hr>
 
-            <ul class="list-group list-group-flush">
+        <p style="font-size: x-large;">Some of our projects:</p>
 
-
-                <li class="list-group-item">
-
-                    <div class="row g-0">
-                          <div class="col-2">
-                              <img src="{{ url_for('static', filename='items/Hank_Aaron.jpg') }}" class="img-fluid" alt="Photo of Hank Aaron from the JPC Archive" style="padding: 10px;">
-                          </div>
-                          <div class="col">
-                                  <h2 class="card-title">Digitization of the JPC Archive is Now in Production</h2>
-
-                                  <p>After the successful Pilot Project, we have started the production project of the digitization of the JPC Archive. This phase will start by digitizing the Priority 1 material: about 70,275 reflective and transmissive photographic items.<br> 
-                                    We will continue to develop and test the systems integration.</p>
-                                  <a href="{{ url_for('dashboard', project_alias = 'jpc_production') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Prodcution Project Dashboard">JPCA Production Project Dashboard</a>
-                          </div>
-                      </div>
-                </li>
-
-                  <li class="list-group-item">
-
-                        <div class="row g-0">
-                            <div class="col-2">
-                                <img src="{{ url_for('static', filename='items/unionoida.jpg') }}" class="img-fluid" alt="Digitized specimen of freshwater mussel shells and scalebar" style="padding: 10px;">
-                            </div>
-                            <div class="col">
-                                    <h2 class="card-title">A Photoshoot with 25,000 Mussels</h2>
-
-                                    <p>We are digitizing about 25,000 lots, with up to three individuals per lot,
-                                        adding over 120,000 images of freshwater mussels - otherwise known as the Mollusca order Unionoida.</p>
-                                    <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
-
-                            </div>
-                        </div>
-                  </li>
-
-                  <li class="list-group-item">
-
-                        <div class="row g-0">
-                            <div class="col-2">
-                                <img src="{{ url_for('static', filename='items/botany_accession_sample.jpg') }}" class="img-fluid" alt="Digitized mounted specimen from the National Herbarium Collection" style="padding: 10px;">
-                            </div>
-                            <div class="col">
-                                    <h2 class="card-title">Digitization of the National Herbarium Continues</h2>
-
-                                    <p>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</p>
-                                    <a href="{{ url_for('dashboard', project_alias = 'botany_accessions') }}" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
-
-                            </div>
-                        </div>
-                  </li>
-
-                
-            </ul>
-
-
+        <div class="row">
+            <div class="col-6">
+                <!-- Project -->
+                <div class="row">
+                    <div class="col">
+                        <p style="font-size: large;" class="card-title"><strong>Digitization of the JPC Archive is Now in Production</strong></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-4">
+                        <a href="{{ url_for('dashboard', project_alias = 'jpc_production') }}" title="Link to the JPC Archive Prodcution Project Dashboard"><img src="{{ url_for('static', filename='items/Hank_Aaron.jpg') }}" class="img-fluid" alt="Photo of Hank Aaron from the JPC Archive" style="padding: 10px;"></a>
+                    </div>
+                    <div class="col">
+                            <p>After the successful Pilot Project, we have started the production project of the digitization of the JPC Archive. This phase will start by digitizing the Priority 1 material: about 70,275 reflective and transmissive photographic items.<br> 
+                            We will continue to develop and test the systems integration.</p>
+                            <a href="{{ url_for('dashboard', project_alias = 'jpc_production') }}" class="btn btn-sm btn-outline-primary" title="Link to the JPC Archive Prodcution Project Dashboard">JPCA Production Project Dashboard</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <!-- Project -->
+                <div class="row">
+                    <div class="col">
+                        <p style="font-size: large;" class="card-title"><strong>A Photoshoot with 26,000 Mussel Lots</strong></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-4">
+                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" title="Link to the Unionoida Project Dashboard"><img src="{{ url_for('static', filename='items/unionoida.jpg') }}" class="img-fluid" alt="Digitized specimen of freshwater mussel shells and scalebar" style="padding: 10px;"></a>
+                    </div>
+                    <div class="col">
+                        <p>We digitized over 26,000 lots, with up to three individuals per lot,
+                            adding almost 140,000 images of freshwater mussels - otherwise known as the Mollusca order Unionoida.</p>
+                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="row">
+            <div class="col-6">
+                <!-- Project -->
+                <div class="row">
+                    <div class="col">
+                        <br><p style="font-size: large;" class="card-title"><strong>Digitization of the National Herbarium Continues</strong></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-4">
+                        <a href="{{ url_for('dashboard', project_alias = 'botany_accessions') }}" title="Link to the Botany Annual Accessions Project Dashboard"><img src="{{ url_for('static', filename='items/botany_accession_sample.jpg') }}" class="img-fluid" alt="Digitized mounted specimen from the National Herbarium Collection" style="padding: 10px;"></a>
+                    </div>
+                    <div class="col">
+                        <p>The new Imaging Services Team continues to digitize the Herbarium of the National Museum of Natural History. The project digitizes new accessions to the collection.</p>
+                        <a href="{{ url_for('dashboard', project_alias = 'botany_accessions') }}" class="btn btn-sm btn-outline-primary" title="Link to the Botany Annual Accessions Project Dashboard">Botany Project Dashboard</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <!-- Project -->
+                <div class="row">
+                    <div class="col">
+                        <br><p style="font-size: large;" class="card-title"><strong> &nbsp; </strong></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-4">
+                        &nbsp;
+                    </div>
+                    <div class="col">
+                        <p>&nbsp;</p>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        
 
     {% elif team == "md" %}
 
@@ -294,7 +316,9 @@
             <a href="https://dpo.si.edu" class="text-white footer-text"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office" alt="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
         <div class="col">
-            <p><a href="https://www.si.edu/ocio" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Office of the Chief Information Officer">Office of the Chief Information Officer</a></p>
+            {% if site_net == "internal" %}
+                <p><a href="https://sinet.sharepoint.com/sites/ODT" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Office of Digital Transformation">Office of Digital Transformation</a></p>
+            {% endif %}
             <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;" title="Link to page with contact information and about the system">About & Contact</a></p>
             <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Terms of Use">Terms of Use</a></p>
             <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>

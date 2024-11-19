@@ -368,19 +368,19 @@
     {% if zoom_exists == 1 %}
         <!-- openseadragon -->
         <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
-            <script type="text/javascript">
-                var viewer = OpenSeadragon({
-                    id: "openseadragon",
-                    prefixUrl: "{{ url_for('static', filename='images/') }}",
-                    tileSources: "{{ zoom_filename }}",
-                    timeout: 60000,
-                    tileRetryMax: 2,
-                    defaultZoomLevel: 0,
-                    preload: true,
-                    placeholderFillStyle: "LightGray",
-                    constrainDuringPan: true,
-                    showRotationControl: true  
-                });
+
+        <script type="text/javascript">
+            var viewer = OpenSeadragon({
+                id: "openseadragon",
+                prefixUrl: "{{ url_for('static', filename='images/') }}",
+                tileSources: "{{ zoom_filename }}",
+                timeout: 60000,
+                tileRetryMax: 2,
+                preload: true,
+                constrainDuringPan: true,
+                showRotationControl: true,
+                showNavigator: true
+            });
         </script>
     
     {% endif %}
