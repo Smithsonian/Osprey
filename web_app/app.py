@@ -105,7 +105,7 @@ try:
                             port=settings.port, 
                             autocommit=True, 
                             connection_timeout=600)
-    conn.time_zone = '-04:00'
+    conn.time_zone = '-05:00'
     cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
     logger.error(err)
@@ -832,21 +832,21 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 #         f['preview_image'] = preview_img_path
                 #     else:
                 #         f['preview_image'] = "na_{}.png".format("600")
-                if site_net == "internal":
-                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
-                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
-                                               + folder_files_df['file_name'].astype(str) \
-                                               + '</a> ' \
-                                               + '<button type="button" class="btn btn-light btn-sm" ' \
-                                               + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                                               + 'data-bs-info="{}'.format(settings.app_root) + folder_files_df['preview_image'] \
-                                               + '&max=600" data-bs-link = "{}/file/'.format(settings.app_root) + folder_files_df['file_id'].astype(str) \
-                                               + '" data-bs-text = "Details of the file ' + folder_files_df[
-                                                   'file_name'].astype(str) \
-                                               + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
-                                               + '<i class="fa-regular fa-image"></i></button>'
-                else:
-                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
+                # if site_net == "internal":
+                #     folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
+                #                                + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
+                #                                + folder_files_df['file_name'].astype(str) \
+                #                                + '</a> ' \
+                #                                + '<button type="button" class="btn btn-light btn-sm" ' \
+                #                                + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
+                #                                + 'data-bs-info="{}'.format(settings.app_root) + folder_files_df['preview_image'] \
+                #                                + '&max=600" data-bs-link = "{}/file/'.format(settings.app_root) + folder_files_df['file_id'].astype(str) \
+                #                                + '" data-bs-text = "Details of the file ' + folder_files_df[
+                #                                    'file_name'].astype(str) \
+                #                                + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
+                #                                + '<i class="fa-regular fa-image"></i></button>'
+                # else:
+                folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
                                                + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
                                                + folder_files_df['file_name'].astype(str) \
                                                + '</a> '
@@ -2042,19 +2042,14 @@ def home():
     is_admin = user_perms('', user_type='admin')
     logger.info(is_admin)
     ip_addr = request.environ['REMOTE_ADDR']
-    projects = run_query(("select p.project_title, p.project_id, p.project_alias, "
-                               "     date_format(p.project_start, '%b-%Y') as project_start, "
-                               "     date_format(p.project_end, '%b-%Y') as project_end,"
-                               "     p.qc_status, p.project_unit "
+    projects = run_query(("select p.project_title, p.project_id, p.project_alias, date_format(p.project_start, '%b-%Y') as project_start, "
+                               "     date_format(p.project_end, '%b-%Y') as project_end, p.qc_status, p.project_unit "
                                " FROM qc_projects qp, "
                                "       users u, projects p "
-                               " WHERE qp.project_id = p.project_id "
-                               "     AND qp.user_id = u.user_id "
-                               "     AND u.username = %(username)s "
-                               "     AND p.project_alias IS NOT NULL "
+                               " WHERE qp.project_id = p.project_id AND qp.user_id = u.user_id AND u.username = %(username)s "
+                               "     AND p.project_alias IS NOT NULL AND p.project_status != 'Completed' "
                                " GROUP BY p.project_title, p.project_id, p.project_alias, "
-                               "     p.project_start, p.project_end,"
-                               "     p.qc_status, p.project_unit "
+                               "     p.project_start, p.project_end, p.qc_status, p.project_unit "
                                " ORDER BY p.projects_order DESC"),
                               {'username': user_name})
     project_list = []
@@ -2063,8 +2058,7 @@ def home():
         project_total = run_query(("SELECT count(*) as no_files "
                                         "    FROM files "
                                         "    WHERE folder_id IN ("
-                                        "        SELECT folder_id FROM folders "
-                                        "          WHERE project_id = %(project_id)s)"),
+                                        "        SELECT folder_id FROM folders WHERE project_id = %(project_id)s)"),
                                        {'project_id': project['project_id']})
         project_ok = run_query(("WITH a AS ("
                                      "   SELECT file_id FROM files WHERE folder_id IN "
@@ -2075,8 +2069,7 @@ def home():
                                      "   FROM files_checks c, a "
                                      "   WHERE c.file_id = a.file_id "
                                      "   GROUP BY c.file_id) "
-                                     " SELECT count(file_id) as no_files "
-                                     " FROM data WHERE check_results = 0"),
+                                     " SELECT count(file_id) as no_files FROM data WHERE check_results = 0"),
                                     {'project_id': project['project_id']})
         project_err = run_query(
             ("SELECT count(distinct file_id) as no_files FROM files_checks WHERE check_results "
@@ -2517,24 +2510,27 @@ def file(file_id=None):
                                    "         SELECT file_id, "
                                    "             CONCAT(%(preview)s, file_id) as preview_image, "
                                    "             preview_image as preview_image_ext, "
-                                   "             folder_id, file_name, dams_uan, file_ext"
+                                   "             folder_id, file_name, dams_uan, file_ext, "
+                                   "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(NOW(), created_at) as datediff "
                                    "             FROM files "
                                    "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
                                    " UNION "
-                                   "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, folder_id, file_name, dams_uan, file_ext "
+                                   "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, "
+                                   "                folder_id, file_name, dams_uan, file_ext, "
+                                   "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(created_at, NOW()) as datediff "
                                    "             FROM files "
                                    "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
                                    "             ORDER BY file_name"
                                    "),"
-                                   "data2 AS (SELECT file_id, preview_image, file_ext, preview_image_ext, folder_id, file_name, dams_uan, "
+                                   "data2 AS (SELECT file_id, preview_image, file_ext, preview_image_ext, folder_id, file_name, dams_uan, created_at, datediff, "
                                    "         lag(file_id,1) over (order by file_name) prev_id,"
                                    "         lead(file_id,1) over (order by file_name) next_id "
                                    " FROM data)"
                                    " SELECT "
                                    " file_id, "
                                    "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE CONCAT(preview_image, '?') END AS preview_image, "
-                                   " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext "
-                                   "FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
+                                   " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext, created_at, datediff "
+                                   " FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
                                   {'folder_id': folder_info['folder_id'], 'file_id': file_id,
                                    'preview': '/preview_image/'})
 
@@ -2589,7 +2585,7 @@ def file(file_id=None):
     if os.path.isfile("static/{}".format(preview_img_path)):
         file_details['preview_img_path'] = preview_img_path
     else:
-        file_details['preview_img_path'] = "na_{}.png".format("600")
+        file_details['preview_img_path'] = "na_{}.png".format("160")
 
     # DZI zoomable image
     zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
@@ -2994,24 +2990,30 @@ def data_reports(project_alias=None, report_id=None):
                            analytics_code=settings.analytics_code), 404
 
     project_id = project_id[0]['project_id']
-    project_report = run_query(("SELECT * FROM data_reports WHERE "
+    project_report = run_query(("SELECT *, date_format(updated_at, '%Y-%b-%d %T') as updated_at_f FROM data_reports WHERE "
                                      " project_id = %(project_id)s AND report_id = %(report_id)s"),
                                     {'project_id': project_id, 'report_id': report_id})
     if len(project_report) == 0:
         error_msg = "Report was not found."
-        # cur.close()
-        # conn.close()
         return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
                                site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 404
 
-    report_data = pd.DataFrame(run_query(project_report[0]['query']))
     report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
-    report = run_query("SELECT * FROM data_reports WHERE report_id = %(report_id)s", {'report_id': report_id})[0]
+    
+    if project_report[0]['pregenerated'] == 1:
+        report_data = pd.DataFrame()
+        data_file = "reports/{}".format(project_report[0]['pregen_filename'])
+        pregenerated = 1
+        report_date = project_report[0]['updated_at_f']
+    else:
+        report_data = pd.DataFrame(run_query(project_report[0]['query']))
+        data_file = ""
+        pregenerated = 0
+        report_date = ""
     project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id})[0]
-    # cur.close()
-    # conn.close()
+
     return render_template('reports.html',
                            project_id=project_id, project_alias=project_alias, project_info=project_info,
                            report=project_report,
@@ -3021,12 +3023,14 @@ def data_reports(project_alias=None, report_id=None):
                                                        escape=False,
                                                        classes=["display", "compact", "table-striped"])],
                            report_data_updated=report_data_updated, form=form,
+                           data_file=data_file, pregenerated=pregenerated, report_date=report_date, 
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
 
 
 @cache.memoize()
-@app.route('/preview_image/<file_id>/', methods=['GET'], provide_automatic_options=False)
+@app.route('/preview_image/<file_id>', methods=['GET'], provide_automatic_options=False)
+@app.route('/preview_image/<file_id>/<max>', methods=['GET'], provide_automatic_options=False)
 def get_preview(file_id=None, max=None, sensitive=None):
     """Return image previews"""
     if file_id is None:
@@ -3042,7 +3046,8 @@ def get_preview(file_id=None, max=None, sensitive=None):
     
     data = run_query("SELECT folder_id, file_name FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
     logger.info(data)
-    max = request.args.get('max')
+    if max is None:
+        max = request.args.get('max')
     dl = request.args.get('dl')
     
     if len(data) == 0:
@@ -3052,6 +3057,19 @@ def get_preview(file_id=None, max=None, sensitive=None):
             filename = "static/na.jpg"
         return send_file(filename, mimetype='image/jpeg')
     else:
+        if max == "160":
+            folder_id = data[0]['folder_id']
+            filename = "static/image_previews/folder{}/160/{}.jpg".format(folder_id, file_id)
+            if os.path.isfile(filename):
+                logger.info("preview_160: {}".format(filename))
+                if dl == "1":
+                    dl_filename = Path(filename).stem
+                    return send_file(filename, mimetype='image/jpeg', download_name=dl_filename, as_attachment=True)
+                else:
+                    try:
+                        return send_file(filename, mimetype='image/jpeg')
+                    except:
+                        return send_file("static/na_160.jpg", mimetype='image/jpeg')
         try:
             folder_id = data[0]['folder_id']
             if max is not None:
@@ -3263,6 +3281,6 @@ def get_barcodeimage(barcode=None):
 #####################################
 if __name__ == '__main__':
     if site_env == "dev":
-        app.run(threaded=True, debug=True)
+        app.run(threaded=False, debug=True)
     else:
-        app.run(threaded=True, debug=False)
+        app.run(threaded=False, debug=False)
