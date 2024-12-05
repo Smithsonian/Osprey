@@ -26,9 +26,12 @@
 
             <p><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system 
                 provides a convenient way to see the products of digitization projects in a timely fashion. Do not link to specific
-                pages or images since they will go away without notice.</p>
-
+                pages or images since they will go away without notice.</p>            
+            
             {% if site_net == "internal" %}
+
+                <p>Image viewer uses Openseadragon 5.0.0.</p>
+
                 <p>This is a project of the: <a href="https://sinet.sharepoint.com/sites/DPO" title="Link to the SharePoint site of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://sinet.sharepoint.com/sites/ODT" class="bg-white" title="Link to the Office of Digital Transformation
                 ">Office of Digital Transformation</a> (formerly a division of the Office of the Chief Information Officer).</p>
             {% else %}
@@ -38,10 +41,10 @@
         </div>
         <div class="col">            
             {% if site_net == "internal" %}
-                <p>There is an API available (JSON). Please contact Luis J. Villanueva, DPO, for an API key.</p>
+                <!-- <p>There is an API available (JSON). Please contact Luis J. Villanueva, DPO, for an API key.</p> -->
             {% endif %}
 
-            <br><br>
+            <!-- <br><br> -->
 
             <p>Special thanks to:</p>
             <ul>

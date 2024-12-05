@@ -14,12 +14,18 @@
             <p>{{ report.report_title_brief }}</p>
         {% endif %}
 
-    <p>Data last updated on: {{ report_data_updated }}</p>
+    {% if pregenerated == 0 %}
+        <p>Data last updated on: {{ report_data_updated }}</p>
 
         {% for table in tables %}
                {{ table|safe }}
         {% endfor %}
+    {% else %}
 
+        <p>Report generated on: {{ report_date }}</p>
+        <p><a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file }}</a></p>
+
+    {% endif %}
 {% endblock %}
 
 

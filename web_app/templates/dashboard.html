@@ -325,7 +325,7 @@
                             href="{{ url_for('file', file_id=file.file_id) }}"
                             title="Details of the file {{ file.file_name }}">
 
-                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid"><br>
+                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
 
                         <small>{{ file.file_name }}</small>
                   </a>
@@ -357,7 +357,9 @@
         <p>Select a folder on the left</p>
     {% endif %}
 
-    </div></div></div>
+    </div>
+</div>
+</div>
 </div>
     <br>
     {% if project_info.project_notice != None %}

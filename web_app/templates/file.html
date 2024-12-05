@@ -14,7 +14,6 @@
 {% block content %}
 
     <div class="row">
-
         <div class="col">
              <p>
                 <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}" title="Folder {{ folder_info.project_folder }} page" role="button">
@@ -77,10 +76,25 @@
 
                     {% if file_details.preview_image_ext == None %}
                         
-                        <p><a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}" rel="noopener noreferrer" title="Open JPG in full size of {{ file_details.file_name }}"><img src="{{ url_for('static', filename=file_details.preview_img_path) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top"><br>
-                        
-                        Open JPG in full size</a><br>
-                        <a href="{{ url_for('static', filename=file_details.preview_img_path) }}" rel="noopener noreferrer" title="Download JPG in full size of {{ file_details.file_name }}"><i class="fa-solid fa-download"></i> Download JPG in full size</a></p>
+                        {% if file_details.preview_img_path == "na_160.png" %}
+                            <p><img src="{{ url_for('static', filename=file_details.preview_img_path) }}" alt="Preview image of {{ file_details.file_name }}" class="shadow-sm p-3 mb-5 bg-body-tertiary rounded"></p>
+                            
+                            <!-- Info on why the preview is not available -->
+                            <div class="alert alert-info m-100" role="alert">
+                                {% if folder_info.delivered_to_dams == 0 %}
+                                    <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been delivered to DAMS. Please contact the Project Manager for more details.
+                                {% elif file_details.datediff > 59 %}
+                                    <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been removed. Please contact the Project Manager for more details.
+                                {% else %}
+                                    <i class="fa-solid fa-circle-info"></i> The preview is not available because the record was created recently. It might take up to a few hours for the images to be available. Please contact the Project Manager for more details.
+                                {% endif %}
+                            
+                            </div>
+                        {% else %}
+                            <p><a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}" rel="noopener noreferrer" title="Open JPG in full size of {{ file_details.file_name }}"><img src="{{ url_for('static', filename=file_details.preview_img_path) }}" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top"></a><br>
+                            Open JPG in full size</a><br>
+                            <a href="{{ url_for('static', filename=file_details.preview_img_path) }}" rel="noopener noreferrer" title="Download JPG in full size of {{ file_details.file_name }}"><i class="fa-solid fa-download"></i> Download JPG in full size</a></p>            
+                        {% endif %}
                         
                     {% else %}
 
@@ -91,7 +105,8 @@
                 {% endif %}
 
                 <p style="font-size: large;">Filename: {{ file_details.file_name }}</p>
-                <p>File ID: {{ file_details.file_id }}</p>
+                <p>DPO File ID: {{ file_details.file_id }}<br>
+                Record created on: {{ file_details.created_at }}</p>
 
             {% endif %}
 
@@ -112,15 +127,12 @@
                 <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="img-fluid card-img-top">
 
                 <p style="font-size: large;">Filename: {{ file_details.file_name }}</p>
-                <p>File ID: {{ file_details.file_id }}</p>
+                <p>DPO File ID: {{ file_details.file_id }}<br>
+                    Record created on: {{ file_details.created_at }}</p>
 
             {% endif %}
 
         {% endif %}
-
-
-
-
 
         </div>
     </div>
@@ -360,7 +372,6 @@
 
               modalBody2.textContent = postinfo;
             })
-
         });
     </script>
 
@@ -384,6 +395,5 @@
         </script>
     
     {% endif %}
-
 
 {% endblock %}

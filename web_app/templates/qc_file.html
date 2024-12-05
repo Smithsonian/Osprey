@@ -56,7 +56,6 @@
 
     <div class="row">
         <div class="col-12">
-
             <div class="card">
                 <div class="card-body text-bg-secondary p-3">
                     <h5 class="card-title">File: {{ file_details.file_name }}</h5>
@@ -66,11 +65,9 @@
                         <br>{% endif%}
 
                         {% if zoom_exists == 1%}
-                            <p>Use your mousewheel or <strong>+</strong> and <strong>-</strong> to zoom in.</p>
+                            
                             <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>
 
-                            <br>
-                            <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}" style="color: #fff!important"><i class="fa-solid fa-download"></i> Download full size JPG</a></p>
                         {% else %}
                             <p>Preview resized to a max of 1200 x 1200:<br>
                             <a href="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="color: #fff!important"><img src="{{ url_for('get_preview', file_id=file_details.file_id, max=1200, sensitive='ok') }}" style="max-width: 1200px; max-height: 1200px;"><br>
@@ -81,11 +78,8 @@
                        
                 </div>
             </div>
-
         </div>
-
     </div>
-
 
     {% if zoom_exists == 0 %}
     <br><br>
@@ -103,84 +97,80 @@
 
     {% endif %}
 
-    <br><br>
+<br><br>
 
-    <div class="row">
-
+<div class="row">
     <div class="col-4">
 
         <h4>Technical Checks:</h4>
         <p><small>File ID: {{ file_details.file_id }}</small></p>
 
-
         <table class="table compact table-striped" style="width:100%">
-        <thead>
-            <tr>
-                <th>Check</th>
-                <th>Result</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for check in file_checks %}
+            <thead>
                 <tr>
-                    <td>
-                        <strong>{{ check.file_check }}</strong><br>
-                        <small>
-                            {% if check.file_check == 'tif_compression' %}
-                                TIF file is compressed.
-                            {% elif check.file_check == 'tifpages' %}
-                                Check that there are no more than 1 page in the TIF, usually a thumbnail.
-                            {% elif check.file_check == 'magick' %}
-                                File is valid according to ImageMagick.
-                            {% elif check.file_check == 'jhove' %}
-                                File is valid according to JHOVE.
-                            {% elif check.file_check == 'unique_file' %}
-                                Filename is unique in the project.
-                            {% elif check.file_check == 'raw_pair' %}
-                                Raw file was found for the image.
-                            {% elif check.file_check == 'valid_name' %}
-                                Filename is in the list of allowed names.
-                            {% elif check.file_check == 'old_name' %}
-                                Filename was not found in list outside the project.
-                            {% elif check.file_check == 'derivative' %}
-                                Derivative file is present.
-                            {% elif check.file_check == 'prefix' %}
-                                Filename has the correct prefix.
-                            {% endif %}
-                        </small>
-                    </td>
-                    <td>
-                        {% if check.check_results == 0 %}
-                            <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">OK</button>
-                        {% elif check.check_results == 1 %}
-                            <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">Failed</button>
-                        {% elif check.check_results == 9 %}
-                            <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
-                        {% endif %}
-                    </td>
+                    <th>Check</th>
+                    <th>Result</th>
                 </tr>
-            {% endfor %}
+            </thead>
+            <tbody>
+                {% for check in file_checks %}
+                    <tr>
+                        <td>
+                            <strong>{{ check.file_check }}</strong><br>
+                            <small>
+                                {% if check.file_check == 'tif_compression' %}
+                                    TIF file is compressed.
+                                {% elif check.file_check == 'tifpages' %}
+                                    Check that there are no more than 1 page in the TIF, usually a thumbnail.
+                                {% elif check.file_check == 'magick' %}
+                                    File is valid according to ImageMagick.
+                                {% elif check.file_check == 'jhove' %}
+                                    File is valid according to JHOVE.
+                                {% elif check.file_check == 'unique_file' %}
+                                    Filename is unique in the project.
+                                {% elif check.file_check == 'raw_pair' %}
+                                    Raw file was found for the image.
+                                {% elif check.file_check == 'valid_name' %}
+                                    Filename is in the list of allowed names.
+                                {% elif check.file_check == 'old_name' %}
+                                    Filename was not found in list outside the project.
+                                {% elif check.file_check == 'derivative' %}
+                                    Derivative file is present.
+                                {% elif check.file_check == 'prefix' %}
+                                    Filename has the correct prefix.
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            {% if check.check_results == 0 %}
+                                <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">OK</button>
+                            {% elif check.check_results == 1 %}
+                                <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}" title="Click for details">Failed</button>
+                            {% elif check.check_results == 9 %}
+                                <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
             </tbody>
-
         </table>
 
-
-            <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Check Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                  </div>
-                  <div class="modal-body">
-                    <pre>#</pre>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  </div>
-                </div>
-              </div>
+        <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Check Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <div class="modal-body">
+                <pre>#</pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+            </div>
+        </div>
+        </div>
 
 
     </div>
@@ -192,12 +182,9 @@
                 {% endfor %}
             </div>
     </div>
-
 </div>
 
-
 {% endblock %}
-
 
 {% block javascripts %}
 
@@ -228,34 +215,35 @@
             })
 
             {{ zoom_js | safe}}
-            
         });
     </script>
 
 
-    {% if zoom_exists == 0 %}
-        <!-- Zoom -->
+{% if zoom_exists == 1 %}
+    <!-- openseadragon -->
+    <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+
+    <script type="text/javascript">
+        var viewer = OpenSeadragon({
+            id: "openseadragon",
+            prefixUrl: "{{ url_for('static', filename='images/') }}",
+            tileSources: "{{ zoom_filename }}",
+            timeout: 60000,
+            tileRetryMax: 2,
+            preload: true,
+            constrainDuringPan: true,
+            showRotationControl: true,
+            showNavigator: true
+        });
+    </script>
+
+    {% else %}
+
+    <!-- Zoom -->
         <script
             type="text/javascript"
             src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
         ></script>
-    
-    {% else %}
-        <!-- openseadragon -->
-        <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
-            <script type="text/javascript">
-                var viewer = OpenSeadragon({
-                    id: "openseadragon",
-                    prefixUrl: "{{ url_for('static', filename='images/') }}",
-                    tileSources: "{{ zoom_filename }}",
-                    timeout: 60000,
-                    tileRetryMax: 2,
-                    defaultZoomLevel: 0,
-                    preload: true,
-                    placeholderFillStyle: "LightGray",
-                    constrainDuringPan: true            
-                });
-        </script>
     
     {% endif %}
 
