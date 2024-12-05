@@ -20,7 +20,7 @@ from logger import logger
 
 import settings
 
-site_ver = "2.8.0"
+site_ver = "2.8.1"
 site_env = "api"
 site_net = "api"
 
@@ -584,11 +584,18 @@ def api_update_project_details(project_alias=None):
                     query = ("SELECT f.file_id, fol.project_folder FROM files f, folders fol "
                                 " WHERE f.folder_id = fol.folder_id AND f.file_id = %(file_id)s AND f.folder_id != %(folder_id)s"
                                 " AND f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s)")
+                    query = ("with fileinfo as (select * from files where file_id = %(file_id)s) "
+                                " SELECT f.file_id, fol.project_folder "
+                                " FROM files f, folders fol, fileinfo finfo " 
+                                " WHERE f.folder_id = fol.folder_id AND "
+                                " f.file_id != %(file_id)s AND f.folder_id != %(folder_id)s AND "
+                                " f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s) and "
+                                "  f.file_name = finfo.file_name")
                     res = run_query(query, {'file_id': file_id, 
                                      'folder_id': folder_id, 'project_id': project_id})
                     if len(res) == 0:
                         check_results = 0
-                        check_info = ""
+                        check_info = "File not found in the project"
                     elif len(res) == 1:
                         check_results = 1
                         conflict_folder = res[0]['project_folder']
