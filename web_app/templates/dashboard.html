@@ -441,96 +441,20 @@
                         [25, 50, 100, 'All'],
                     ],
                     'rowCallback': function(row, data, index){
-                        if(data[1] == 'OK'){
-                            $(row).find('td:eq(1)').css('background', '#198754');
-                            $(row).find('td:eq(1)').css('color', 'white');
-                        } else if(data[1] == 'Failed'){
-                            $(row).find('td:eq(1)').css('background', '#dc3545');
-                            $(row).find('td:eq(1)').css('color', 'white');
-                        } else if(data[1] == 'Pending'){
-                            $(row).find('td:eq(1)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(1)').css('color', 'black');
-                        };
-                        if(data[3] == 'OK'){
-                            $(row).find('td:eq(3)').css('background', '#198754');
-                            $(row).find('td:eq(3)').css('color', 'white');
-                        } else if(data[3] == 'Failed'){
-                            $(row).find('td:eq(3)').css('background', '#dc3545');
-                            $(row).find('td:eq(3)').css('color', 'white');
-                        } else if(data[3] == 'Pending'){
-                            $(row).find('td:eq(3)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(3)').css('color', 'black');
-                        };
-                        if(data[2] == 'OK'){
-                            $(row).find('td:eq(2)').css('background', '#198754');
-                            $(row).find('td:eq(2)').css('color', 'white');
-                        } else if(data[2] == 'Failed'){
-                            $(row).find('td:eq(2)').css('background', '#dc3545');
-                            $(row).find('td:eq(2)').css('color', 'white');
-                        } else if(data[2] == 'Pending'){
-                            $(row).find('td:eq(2)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(2)').css('color', 'black');
-                        };
-                        if(data[4] == 'OK'){
-                            $(row).find('td:eq(4)').css('background', '#198754');
-                            $(row).find('td:eq(4)').css('color', 'white');
-                        } else if(data[4] == 'Failed'){
-                            $(row).find('td:eq(4)').css('background', '#dc3545');
-                            $(row).find('td:eq(4)').css('color', 'white');
-                        } else if(data[4] == 'Pending'){
-                            $(row).find('td:eq(4)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(4)').css('color', 'black');
-                        };
-                        if(data[5] == 'OK'){
-                            $(row).find('td:eq(5)').css('background', '#198754');
-                            $(row).find('td:eq(5)').css('color', 'white');
-                        } else if(data[5] == 'Failed'){
-                            $(row).find('td:eq(5)').css('background', '#dc3545');
-                            $(row).find('td:eq(5)').css('color', 'white');
-                        } else if(data[5] == 'Pending'){
-                            $(row).find('td:eq(5)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(5)').css('color', 'black');
-                        };
-                        if(data[6] == 'OK'){
-                            $(row).find('td:eq(6)').css('background', '#198754');
-                            $(row).find('td:eq(6)').css('color', 'white');
-                        } else if(data[6] == 'Failed'){
-                            $(row).find('td:eq(6)').css('background', '#dc3545');
-                            $(row).find('td:eq(6)').css('color', 'white');
-                        } else if(data[6] == 'Pending'){
-                            $(row).find('td:eq(6)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(6)').css('color', 'black');
-                        };
-                        if(data[7] == 'OK'){
-                            $(row).find('td:eq(7)').css('background', '#198754');
-                            $(row).find('td:eq(7)').css('color', 'white');
-                        } else if(data[7] == 'Failed'){
-                            $(row).find('td:eq(7)').css('background', '#dc3545');
-                            $(row).find('td:eq(7)').css('color', 'white');
-                        } else if(data[7] == 'Pending'){
-                            $(row).find('td:eq(7)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(7)').css('color', 'black');
-                        };
-                        if(data[8] == 'OK'){
-                            $(row).find('td:eq(8)').css('background', '#198754');
-                            $(row).find('td:eq(8)').css('color', 'white');
-                        } else if(data[8] == 'Failed'){
-                            $(row).find('td:eq(8)').css('background', '#dc3545');
-                            $(row).find('td:eq(8)').css('color', 'white');
-                        } else if(data[8] == 'Pending'){
-                            $(row).find('td:eq(8)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(8)').css('color', 'black');
-                        };
-                        if(data[9] == 'OK'){
-                            $(row).find('td:eq(9)').css('background', '#198754');
-                            $(row).find('td:eq(9)').css('color', 'white');
-                        } else if(data[9] == 'Failed'){
-                            $(row).find('td:eq(9)').css('background', '#dc3545');
-                            $(row).find('td:eq(9)').css('color', 'white');
-                        } else if(data[9] == 'Pending'){
-                            $(row).find('td:eq(9)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(9)').css('color', 'black');
-                        };
+
+                        {% for i in range(1, no_cols) %}
+                            if(data[{{ i }}] == 'OK'){
+                                $(row).find('td:eq({{ i }})').css('background', '#198754');
+                                $(row).find('td:eq({{ i }})').css('color', 'white');
+                            } else if(data[{{ i }}] == 'Failed'){
+                                $(row).find('td:eq({{ i }})').css('background', '#dc3545');
+                                $(row).find('td:eq({{ i }})').css('color', 'white');
+                            } else if(data[{{ i }}] == 'Pending'){
+                                $(row).find('td:eq({{ i }})').css('background', '#e2e3e5');
+                                $(row).find('td:eq({{ i }})').css('color', 'black');
+                            };
+                        {% endfor %}
+
                     },
                 });
 

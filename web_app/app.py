@@ -48,7 +48,7 @@ from wtforms.validators import DataRequired
 
 import settings
 
-site_ver = "2.8.0"
+site_ver = "2.8.1"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -307,9 +307,10 @@ def favicon():
 
 
 @cache.memoize()
+@app.route('/team/<team>/<subset>', methods=['GET', 'POST'], provide_automatic_options=False)
 @app.route('/team/<team>', methods=['GET', 'POST'], provide_automatic_options=False)
 @app.route('/', methods=['GET', 'POST'], provide_automatic_options=False)
-def homepage(team=None):
+def homepage(team=None, subset=None):
     """Main homepage for the system"""
     # If API, not allowed - to improve
     if site_net == "api":
@@ -423,6 +424,8 @@ def homepage(team=None):
                           "   (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')"))[0]['total'])
         }
 
+        
+
     elif team == "inf":
         team_heading = "Summary of Informatics Team Projects"
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
@@ -478,6 +481,14 @@ def homepage(team=None):
 
     list_projects_is = pd.DataFrame(run_query(section_query, {'section': 'IS'}))
     list_projects_is = list_projects_is.drop("images_public", axis=1)
+
+    # Filter 
+    if subset is None:
+        subset = ""
+    else:
+        if subset.lower() == "sawhm":
+            list_projects_is = list_projects_is[list_projects_is.project_manager == 'Laura M. Whitfield']
+
     list_projects_is = list_projects_is.rename(columns={
         "project_unit": "Unit",
         "project_title": "Title",
@@ -488,6 +499,7 @@ def homepage(team=None):
         "images_taken": "Images Captured"
     })
 
+    
     # Informatics Table
     inf_section_query = (" SELECT "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
@@ -556,7 +568,8 @@ def homepage(team=None):
                            last_update=last_update[0]['updated_at'],
                            kiosk=kiosk, user_address=user_address, team_heading=team_heading,
                            html_title=html_title, analytics_code=settings.analytics_code,
-                           app_root=settings.app_root)
+                           app_root=settings.app_root,
+                           subset=subset.upper())
 
 
 @app.route('/team/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -691,6 +704,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
     elif project_info['project_manager'] == "Erin M. Mazzei":
         project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
+    elif project_info['project_manager'] == "Laura M. Whitfield":
+        project_manager_link = "<a href=\"https://dpo.si.edu/laura-whitfield\">Laura M. Whitfield</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']})
@@ -1103,7 +1118,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            analytics_code=settings.analytics_code,
                            project_stats_other=project_stats_other,
                            files_table_sort=files_table_sort,
-                           folder_badges=folder_badges
+                           folder_badges=folder_badges,
+                           no_cols=no_cols
                            )
 
 
@@ -1313,7 +1329,7 @@ def dashboard(project_alias=None, folder_id=None):
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            kiosk=kiosk, user_address=user_address, project_disk=project_disk,
                            projects_links=projects_links, project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other)
+                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other, no_cols=None)
 
 
 @cache.memoize()
@@ -2249,6 +2265,8 @@ def create_new_project():
                                           "    (%(project_id)s, 'project_checks', %(value)s)")
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'})
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'})
+    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5'})
+    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5_raw'})
     file_check = request.values.get('raw_pair')
     if file_check == "1":
         fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'raw_pair'})
