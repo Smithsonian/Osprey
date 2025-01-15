@@ -1,0 +1,25 @@
+
+# Database
+host = ""
+database = ""
+user = ""
+password = ""
+port = 3306
+
+mysql_pool_size = 8
+
+secret_key = b''
+
+# dev or prod
+env = "dev"
+
+# Site is internal, external, or just api
+site_net = "internal"
+
+log_folder = ""
+cache_folder = ""
+
+kiosks = []
+
+analytics_code = """
+"""
