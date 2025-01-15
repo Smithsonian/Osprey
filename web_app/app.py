@@ -29,6 +29,7 @@ from uuid import UUID
 from pathlib import Path
 from time import strftime
 from time import localtime
+import glob
 
 # MySQL
 import mysql.connector
@@ -93,7 +94,7 @@ app.logger.addHandler(logger)
 cache.init_app(app)
 
 # Disable strict trailing slashes
-app.url_map.strict_slashes = False
+app.url_map.strict_slashes = True
 
 
 # Connect to Mysql and create a pool
@@ -1510,14 +1511,14 @@ def qc(project_alias=None):
 
     project_qc_stats = {}
     project_qc_ok = run_query(("SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
-                        "WHERE f.project_id = %(project_id)s and q.qc_status = 0"),
+                        "WHERE f.project_id = %(project_id)s and f.file_errors = 0 and q.qc_status = 0"),
                         {'project_id': project_id})[0]
     project_qc_failed = run_query((
                                   "SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
                                   "WHERE f.project_id = %(project_id)s and q.qc_status = 1"),
                               {'project_id': project_id})[0]
     project_qc_count = run_query((
-        "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s"),
+        "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s and f.file_errors = 0"),
         {'project_id': project_id})[0]
 
     project_qc_stats['total'] = project_qc_count['no_folders']
@@ -1877,7 +1878,8 @@ def qc_process(folder_id):
                     {'file_id': file_qc['file_id']})[0]
 
                 # DZI zoomable image
-                zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id']))
+                # zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id']))
+                zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])
                 
                 if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])):
                     zoom_exists = 1
@@ -2606,8 +2608,9 @@ def file(file_id=None):
         file_details['preview_img_path'] = "na_{}.png".format("160")
 
     # DZI zoomable image
-    zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
-    
+    # zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id))
+    zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)
+
     if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)):
         zoom_exists = 1
     else:
@@ -3020,28 +3023,49 @@ def data_reports(project_alias=None, report_id=None):
     report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
     
     if project_report[0]['pregenerated'] == 1:
-        report_data = pd.DataFrame()
-        data_file = "reports/{}".format(project_report[0]['pregen_filename'])
+        # Delete old versions
+        files_todel = glob.glob("static/reports/{}_*.csv".format(project_report[0]['pregen_filename']))
+        for file in files_todel:
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                continue
+        files_todel = glob.glob("static/reports/{}_*.xlsx".format(project_report[0]['pregen_filename']))
+        for file in files_todel:
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                continue
+        rep_timestamp = localtime()
+        current_datetime = strftime("%Y%m%d_%H%M%S", rep_timestamp)
+        current_datetime_formatted = strftime("%Y-%m-%d %H:%M:%S", rep_timestamp)
+        report_data = pd.DataFrame(run_query(project_report[0]['query']))
+        # CSV
+        data_file = "reports/{}_{}.csv".format(project_report[0]['pregen_filename'], current_datetime)
+        report_data.to_csv("static/{}".format(data_file), index=False)
+        # Excel
+        data_file_e = "reports/{}_{}.xlsx".format(project_report[0]['pregen_filename'], current_datetime)
+        report_data.to_excel("static/{}".format(data_file_e))      
         pregenerated = 1
-        report_date = project_report[0]['updated_at_f']
     else:
         report_data = pd.DataFrame(run_query(project_report[0]['query']))
         data_file = ""
+        data_file_e = ""
+        current_datetime_formatted = ""
         pregenerated = 0
-        report_date = ""
     project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id})[0]
 
     return render_template('reports.html',
                            project_id=project_id, project_alias=project_alias, project_info=project_info,
-                           report=project_report,
+                           report=project_report[0],
                            tables=[report_data.to_html(table_id='report_data',
                                                        index=False,
                                                        border=0,
                                                        escape=False,
                                                        classes=["display", "compact", "table-striped"])],
-                           report_data_updated=report_data_updated, form=form,
-                           data_file=data_file, pregenerated=pregenerated, report_date=report_date, 
+                           data_file_e=data_file_e, report_data_updated=report_data_updated, form=form,
+                           data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted, 
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
 
