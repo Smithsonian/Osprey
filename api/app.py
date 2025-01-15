@@ -503,7 +503,7 @@ def api_update_project_details(project_alias=None):
                                 checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)
                                 group by c.file_id),
                                 stat_total1 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 0),
-                                stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results != 0)
+                                stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 1)
                                 update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
                         res = query_database_insert(query, {'project_id': project_id})
                     elif query_property == "raw0":
