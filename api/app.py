@@ -20,7 +20,7 @@ from logger import logger
 
 import settings
 
-site_ver = "2.8.1"
+site_ver = "2.8.2"
 site_env = "api"
 site_net = "api"
 
@@ -337,6 +337,25 @@ def api_get_project_details(project_alias=None):
     return jsonify(data[0])
 
 
+@app.route('/projects/<project_alias>/files', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+def api_get_project_files(project_alias=None):
+    """Get the list of files of a project by specifying the project_alias."""
+    # Check api_key
+    api_key = request.form.get("api_key")
+    if api_key is None or api_key == "":
+        return jsonify({'error': 'api_key is missing'}), 400
+    valid_api_key, is_admin = validate_api_key(api_key, url='/projects/files', params="project_alias={}".format(project_alias))
+    if valid_api_key == False:
+        return jsonify({'error': 'Forbidden'}), 403
+    data = run_query(("SELECT f.file_id, f.uid, f.file_name, f.folder_id FROM files f WHERE f.folder_id in "
+                               " (SELECT folder_id FROM folders WHERE project_id in (SELECT project_id from projects WHERE project_alias = %(project_alias)s)) ORDER BY f.file_name"),
+                              {'project_alias': project_alias})
+    if len(data) == 0:
+        return jsonify({'error': 'Project was not found'}), 404
+    else:
+        return jsonify(data)
+
+
 @app.route('/update/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
@@ -581,9 +600,6 @@ def api_update_project_details(project_alias=None):
                 folder_id = request.form.get("folder_id")
                 if query_property == "unique":
                     # Check if file is unique
-                    query = ("SELECT f.file_id, fol.project_folder FROM files f, folders fol "
-                                " WHERE f.folder_id = fol.folder_id AND f.file_id = %(file_id)s AND f.folder_id != %(folder_id)s"
-                                " AND f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s)")
                     query = ("with fileinfo as (select * from files where file_id = %(file_id)s) "
                                 " SELECT f.file_id, fol.project_folder "
                                 " FROM files f, folders fol, fileinfo finfo " 
@@ -610,6 +626,39 @@ def api_update_project_details(project_alias=None):
                     query = ("INSERT INTO files_checks "
                         " (file_id, folder_id, file_check, check_results, check_info, updated_at) "
                         "VALUES (%(file_id)s, %(folder_id)s, 'unique_file', %(check_results)s, %(check_info)s, CURRENT_TIME)"
+                        " ON DUPLICATE KEY UPDATE"
+                        " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
+                    res = query_database_insert(query, {'file_id': file_id, 
+                                                 'folder_id': folder_id, 'check_results': check_results, 
+                                                 'check_info': check_info})
+                elif query_property == "unique_other":
+                    # Check if file is unique across projects
+                    query = ("with fileinfo as (select * from files where file_id = %(file_id)s) "
+                                " SELECT f.file_id, fol.project_folder, fol.project_id "
+                                " FROM files f, folders fol, fileinfo finfo " 
+                                " WHERE f.folder_id = fol.folder_id AND "
+                                " f.file_id != %(file_id)s AND f.folder_id != %(folder_id)s AND "
+                                " f.folder_id NOT IN (SELECT folder_id from folders where project_id = %(project_id)s) and "
+                                "  f.file_name = finfo.file_name")
+                    res = run_query(query, {'file_id': file_id, 
+                                     'folder_id': folder_id, 'project_id': project_id})
+                    if len(res) == 0:
+                        check_results = 0
+                        check_info = "File not found in the project"
+                    elif len(res) == 1:
+                        check_results = 1
+                        conflict_folder = "{} ({})".format(res[0]['project_folder'], res[0]['project_id'])
+                        check_info = "File with the same name in folder: {}".format(conflict_folder)
+                    else:
+                        check_results = 1
+                        conflict_folder = []
+                        for row in res:
+                            conflict_folder.append("{} ({})".format(row['project_folder'], row['project_id']))
+                        conflict_folder = ', '.join(conflict_folder)
+                        check_info = "Files with the same name in another project in: {}".format(conflict_folder)
+                    query = ("INSERT INTO files_checks "
+                        " (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                        "VALUES (%(file_id)s, %(folder_id)s, 'unique_other', %(check_results)s, %(check_info)s, CURRENT_TIME)"
                         " ON DUPLICATE KEY UPDATE"
                         " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
                     res = query_database_insert(query, {'file_id': file_id, 

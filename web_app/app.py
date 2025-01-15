@@ -49,7 +49,7 @@ from wtforms.validators import DataRequired
 
 import settings
 
-site_ver = "2.8.1"
+site_ver = "2.8.2"
 site_env = settings.env
 site_net = settings.site_net
 
