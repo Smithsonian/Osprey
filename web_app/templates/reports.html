@@ -23,7 +23,8 @@
     {% else %}
 
         <p>Report generated on: {{ report_date }}</p>
-        <p><a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file }}</a></p>
+        <p>Excel: <a href="{{ url_for('static', filename=data_file_e) }}" title="Download Data File (Excel)">{{ data_file_e | replace("reports/", "") }}</a></p>
+        <p>CSV: <a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file | replace("reports/", "") }}</a></p>
 
     {% endif %}
 {% endblock %}

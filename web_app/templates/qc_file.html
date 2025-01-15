@@ -226,7 +226,7 @@
     <script type="text/javascript">
         var viewer = OpenSeadragon({
             id: "openseadragon",
-            prefixUrl: "{{ url_for('static', filename='images/') }}",
+            prefixUrl: "../../static/images/",
             tileSources: "{{ zoom_filename }}",
             timeout: 60000,
             tileRetryMax: 2,
