@@ -68,7 +68,7 @@ The top of the individual project dashboard displays project information, releva
 
 <img src="./media/image7.png" style="width:5.664in;height:1.58241in" alt="A screenshot of a computer screen Description automatically generated" />A selection of key summary statistics is available at the upper right part of the screen:
 
-*  The blue box lists the total number of images
+*  The blue box lists the total number of TIFF/RAW image pairs
 
 - The gray box lists the total number of specimens/objects
 
