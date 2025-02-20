@@ -182,11 +182,10 @@ def query_database_insert(query, parameters, return_res=False):
     except Exception as error:
         logger.error("Error: {}".format(error))
         return False
-    data = cur.fetchall()
-    logger.info("No of results: ".format(len(data)))
-    if len(data) == 0:
-        data = False
-    return data
+    if return_res:
+        insert_id = cur.lastrowid
+        return(insert_id)
+    return True
 
 
 @cache.memoize()
@@ -2208,7 +2207,7 @@ def create_new_project():
     p_storage = request.values.get('p_storage')
     p_start = request.values.get('p_start')
     p_unitstaff = request.values.get('p_unitstaff')
-    project = query_database_insert(("INSERT INTO projects  "
+    project_id = query_database_insert(("INSERT INTO projects  "
                               "   (project_title, project_unit, project_alias, project_description, "
                               "    project_coordurl, project_area, project_section, project_method, "
                               "    project_manager, project_status, project_type, project_datastorage,"
@@ -2222,10 +2221,8 @@ def create_new_project():
                               'p_url': p_url, 'p_coordurl': p_coordurl, 'p_area': p_area, 'p_md': p_md,
                               'p_noobjects': p_noobjects, 'p_method': p_method, 'p_manager': p_manager,
                               'p_prod': p_prod, 'p_storage': p_storage, 'p_start': p_start
-                              })
-    project = run_query("SELECT project_id FROM projects WHERE project_title = %(p_title)s AND project_unit = %(p_unit)s",
-                             {'p_title': p_title, 'p_unit': p_unit})
-    project_id = project[0]['project_id']
+                              }, return_res = True)
+    logger.debug("PROJECT ID: {}".format(project_id))
     project = query_database_insert(("INSERT INTO projects_stats "
                               "  (project_id, collex_total, collex_to_digitize) VALUES  "
                               "   ( %(project_id)s, %(collex_total)s, %(collex_total)s)"),
@@ -3022,7 +3019,7 @@ def data_reports(project_alias=None, report_id=None):
 
     report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
     
-    if project_report[0]['pregenerated'] == 1:
+    if project_report[0]['pregenerated'] == 0:
         # Delete old versions
         files_todel = glob.glob("static/reports/{}_*.csv".format(project_report[0]['pregen_filename']))
         for file in files_todel:
@@ -3046,13 +3043,13 @@ def data_reports(project_alias=None, report_id=None):
         # Excel
         data_file_e = "reports/{}_{}.xlsx".format(project_report[0]['pregen_filename'], current_datetime)
         report_data.to_excel("static/{}".format(data_file_e))      
-        pregenerated = 1
+        pregenerated = 0
     else:
         report_data = pd.DataFrame(run_query(project_report[0]['query']))
         data_file = ""
         data_file_e = ""
         current_datetime_formatted = ""
-        pregenerated = 0
+        pregenerated = 1
     project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id})[0]
 
