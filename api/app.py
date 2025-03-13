@@ -44,17 +44,17 @@ cache.init_app(app)
 app.url_map.strict_slashes = False
 
 
-# Connect to Mysql and create a pool
+# Connect to Mysql 
 try:
-    conn = mysql.connector.connect(pool_name = "mypool",
-                            host=settings.host,
+    conn = mysql.connector.connect(host=settings.host,
                             user=settings.user,
                             password=settings.password,
                             database=settings.database,
-                            pool_size = settings.mysql_pool_size,
-                            port=settings.port, autocommit=True)
+                            port=settings.port, 
+                            autocommit=True, 
+                            connection_timeout=60)
     conn.time_zone = '-04:00'
-    # cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
     logger.error(err)
     
@@ -66,27 +66,27 @@ def run_query(query, parameters=None, return_val=True):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
     # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=1, delay=1)
-    try:
-        conn1 = mysql.connector.connect(pool_name="mypool")
-        cur1 = conn1.cursor(dictionary=True)
-    except mysql.connector.errors.PoolError:
-        logger.warning("Pool Exhausted")
-        return False
+    conn.ping(reconnect=True, attempts=3, delay=1)
+    # try:
+    #     conn1 = mysql.connector.connect(pool_name="mypool")
+    #     cur1 = conn1.cursor(dictionary=True)
+    # except mysql.connector.errors.PoolError:
+    #     logger.warning("Pool Exhausted")
+    #     return False
     # Run query
     if parameters is None:
-        results = cur1.execute(query)
+        results = cur.execute(query)
     else:
-        results = cur1.execute(query, parameters)
+        results = cur.execute(query, parameters)
     if return_val:
-        data = cur1.fetchall()
-        cur1.close()
-        conn1.close()
+        data = cur.fetchall()
+        # cur.close()
+        # conn.close()
         logger.info("No of results: ".format(len(data)))
         return data
     else:
-        cur1.close()
-        conn1.close()
+        # cur.close()
+        # conn.close()
         return True
 
 
@@ -94,27 +94,27 @@ def query_database_insert(query, parameters, return_res=False):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
     # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=1, delay=1)
-    try:
-        conn1 = mysql.connector.connect(pool_name="mypool")
-        cur1 = conn1.cursor(dictionary=True)
-    except mysql.connector.errors.PoolError:
-        logger.warning("Pool Exhausted")
-        return False
+    conn.ping(reconnect=True, attempts=3, delay=1)
+    # try:
+    #     conn1 = mysql.connector.connect(pool_name="mypool")
+    #     cur1 = conn1.cursor(dictionary=True)
+    # except mysql.connector.errors.PoolError:
+    #     logger.warning("Pool Exhausted")
+    #     return False
     # Run query
     data = False
     try:
-        results = cur1.execute(query, parameters)
+        results = cur.execute(query, parameters)
     except Exception as error:
         logger.error(error)
         return jsonify({'error': 'API Error'}), 500
-    if return_res == True:
-        data = cur1.fetchall()
+    if return_res:
+        data = cur.fetchall()
         logger.info("No of results: ".format(len(data)))
         if len(data) == 0:
             data = False
-    cur1.close()
-    conn1.close()
+    # cur.close()
+    # conn.close()
     return data
 
 
