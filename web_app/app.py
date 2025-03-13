@@ -49,7 +49,7 @@ from wtforms.validators import DataRequired
 
 import settings
 
-site_ver = "2.8.2"
+site_ver = "2.8.3"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -97,7 +97,7 @@ cache.init_app(app)
 app.url_map.strict_slashes = True
 
 
-# Connect to Mysql and create a pool
+# Connect to Mysql
 try:
     conn = mysql.connector.connect(host=settings.host,
                             user=settings.user,
@@ -105,7 +105,7 @@ try:
                             database=settings.database,
                             port=settings.port, 
                             autocommit=True, 
-                            connection_timeout=600)
+                            connection_timeout=60)
     conn.time_zone = '-05:00'
     cur = conn.cursor(dictionary=True)
 except mysql.connector.Error as err:
@@ -3019,7 +3019,7 @@ def data_reports(project_alias=None, report_id=None):
 
     report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
     
-    if project_report[0]['pregenerated'] == 0:
+    if project_report[0]['pregenerated'] == 1:
         # Delete old versions
         files_todel = glob.glob("static/reports/{}_*.csv".format(project_report[0]['pregen_filename']))
         for file in files_todel:
