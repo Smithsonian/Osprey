@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="./" title="Collections Digitization Dashboard">Osprey - User Home</a>
+{% endblock %}
+
+
+{% block head_blocks %}
+    <style>
+        .btn-sm {
+            font-size: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-8">
+            
+            <h1>Invoice Reconciliation:</h1>
+        </div>
+        <div class="col">
+            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="row">
+        <div class="col-4">
+            <p>Project: {{ project_info.project_title}} ({{ project_info.project_alias }})</p>
+            <p>Reconciliation date: {{ now }}</p>
+            <ul>
+                <li>{{ no_files }} - files total</li>
+                <li>{{ no_files_osprey }} - files in Osprey</li>
+                <li>{{ no_files_dams }} - files in DAMS</li>
+            </ul>
+            <br><br>
+            <div class="text-bg-{{ count_msg_css }} p-3">{{ count_msg }}</div>
+            
+            <br><br>
+        </div>
+        <div class="col">&nbsp;</div>
+    </div>
+
+
+{% endblock %}
+
+
+{% block javascripts %}
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            $('#files').DataTable({
+                dom: 'Bfrtip',
+                buttons: [
+                    'csvHtml5',
+                    'excelHtml5'
+                ]
+            });
+        });
+    </script>
+
+{% endblock %}

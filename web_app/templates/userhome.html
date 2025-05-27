@@ -22,14 +22,14 @@
     <div class="row">
         <div class="col-8">
             {% if is_admin %}
-                <h3>Admin options:</h3>
+                <h2>Admin options:</h2>
                 <p>
                     <a class="btn btn-info" href="{{ url_for('new_project') }}" role="button"><i class="fa-solid fa-folder-plus"></i> Create New Project</a>
-                    <a class="btn btn-info disabled" href="" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a> <em>(coming soon)</em>
+                    <a class="btn btn-info" href="{{ url_for('invoice') }}" role="button"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Reconciliation</a>
                 </p>
             {% endif %}
 
-            <h1>My Projects:</h1>
+            <h2>My Projects:</h2>
         </div>
         <div class="col">
             <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">

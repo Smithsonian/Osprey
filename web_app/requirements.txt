@@ -15,4 +15,5 @@ Flask-Minify
 pymysql-pooling
 mysql-connector-python
 openpyxl
+plotnine
 mod-wsgi

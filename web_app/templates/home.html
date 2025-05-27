@@ -365,7 +365,7 @@
 
         $('#list_projects_md').append('<caption style="caption-side: top;"><h2>Mass Digitization Projects</h2></caption>');
 
-        {% if subset is not none %}
+        {% if subset != "" %}
             $('#list_projects_is').append('<caption style="caption-side: top;"><h2>Imaging Services Projects (SAWHM projects only)</h2></caption>');
         {% else %}
             $('#list_projects_is').append('<caption style="caption-side: top;"><h2>Imaging Services Projects</h2></caption>');

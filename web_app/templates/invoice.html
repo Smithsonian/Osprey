@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="./" title="Collections Digitization Dashboard">Osprey - User Home</a>
+{% endblock %}
+
+
+{% block head_blocks %}
+    <style>
+        .btn-sm {
+            font-size: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-8">
+            
+            <h1>Invoice Reconciliation:</h1>
+        </div>
+        <div class="col">
+            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="row">
+        <div class="col-8">
+            <p>To submit an invoice, the file needs to be a CSV file, with a single column of the file names. Do not include a row with the column name.</p>
+            <form action="{{ url_for('invoice_recon') }}" method="POST" enctype="multipart/form-data">
+                <label for="project_id" class="form-label">Select a project:</label>
+                <select class="form-control form-control form-select" aria-label="Choose a project" id="project_id" name="project_id">
+                    {% for project in project_list %}
+                            <option value="{{ project.project_id }}">{{ project.project_title }} ({{ project.project_alias }})</option>
+                    {% endfor %}
+                </select><br><br>
+                <!-- <label for="files" class="form-label">Enter the list of files, one per line:</label><br>
+                <textarea class="form-control form-control form-select" id="files" name="files" aria-label="Enter the list of file names" rows="12" cols="50"></textarea>
+                <br><br> -->
+                <label for="file" class="form-label">Select the csv file:</label>
+                <input type="file" id="file" name="file" accept=".csv">
+
+                <button type="submit" class="btn btn-primary form-control form-control">Submit list</button>    
+            </form><br><br><br><br>
+        </div>
+        <div class="col">&nbsp;</div>
+    </div>
+
+
+{% endblock %}

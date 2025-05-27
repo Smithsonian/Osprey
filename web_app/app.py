@@ -22,6 +22,7 @@ import os
 import locale
 import math
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from PIL import Image
 from PIL import ImageFilter
@@ -30,6 +31,10 @@ from pathlib import Path
 from time import strftime
 from time import localtime
 import glob
+import random
+from plotnine import ggplot
+from plotnine import aes
+from plotnine import geom_bar
 
 # MySQL
 import mysql.connector
@@ -46,10 +51,11 @@ from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms import PasswordField
 from wtforms.validators import DataRequired
+from werkzeug.utils import secure_filename
 
 import settings
 
-site_ver = "2.8.3"
+site_ver = "2.9.0"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -1428,6 +1434,68 @@ def proj_statistics_dl(project_id=None, step_id=None):
 
 
 @cache.memoize()
+@app.route('/dashboard/<project_alias>/statistics2/', methods=['POST', 'GET'], provide_automatic_options=False)
+def proj_statistics_plotnine(project_alias=None):
+    """Figures with statistics for a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
+    user_exists = False
+    username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    # Check if project exists
+    if project_alias_exists(project_alias) is False:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+
+    project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
+                                      {'project_alias': project_alias})
+    if len(project_id_check) == 0:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+    else:
+        project_id = project_id_check[0]['project_id']
+
+    project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s", {'project_id': project_id})[0]
+
+    daily_stats = run_query("SELECT DATE_FORMAT(f.file_timestamp, '%Y-%m-%d') as date, count(f.*) as no_files FROM files f, folders fol WHERE f.folder_id = fol.folder_id and fol.project_id = %(project_id)s GROUP BY date", {'project_id': project_info['proj_id']})
+
+    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']})
+
+    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']})
+
+    # Stats
+    project_stats = {}
+    project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"),
+                                    {'project_id': project_id})[0]
+    project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
+    project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
+    project_stats['errors'] = format(int(project_statistics['project_err']), ',d')
+    project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
+
+    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
+    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
+
+    return render_template('statistics.html',
+                           project_alias=project_alias,
+                           project_info=project_info,
+                           proj_stats_steps=proj_stats_steps,
+                           proj_stats_vals1=proj_stats_vals1,
+                           proj_stats_vals2=proj_stats_vals2,
+                           project_stats=project_stats,
+                           project_stats_other=project_stats_other)
+
+
+@cache.memoize()
 @app.route('/about/', methods=['GET'], provide_automatic_options=False)
 def about():
     """About page for the system"""
@@ -1619,6 +1687,8 @@ def qc(project_alias=None):
                                      " WHERE f.project_id = p.project_id AND f.file_errors = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
+                                     "  and folder_id not in (SELECT folder_id from folder_badges where badge_type = 'folder_error') "
+                                     "  and folder_id not in (SELECT folder_id from folder_badges where badge_type = 'verification') "
                                      "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
                                     {'project_id': project_id})
     folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
@@ -2179,6 +2249,134 @@ def new_project(msg=None):
                                analytics_code=settings.analytics_code)
 
 
+@app.route('/invoice/', methods=['GET'], provide_automatic_options=False)
+@login_required
+def invoice(msg=None):
+    """Invoice Reconciliation"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    username = current_user.name
+    full_name = current_user.full_name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin is False:
+        # Not allowed
+        return redirect(url_for('home'))
+    else:
+        project_list = run_query(("select p.project_title, p.project_id, p.project_alias, date_format(p.project_start, '%b-%Y') as project_start, "
+                               "     date_format(p.project_end, '%b-%Y') as project_end, p.qc_status, p.project_unit "
+                               " FROM qc_projects qp, "
+                               "       users u, projects p "
+                               " WHERE qp.project_id = p.project_id AND qp.user_id = u.user_id AND u.username = %(username)s "
+                               "     AND p.project_alias IS NOT NULL AND p.project_status != 'Completed' "
+                               " GROUP BY p.project_title, p.project_id, p.project_alias, "
+                               "     p.project_start, p.project_end, p.qc_status, p.project_unit "
+                               " ORDER BY p.projects_order DESC"),
+                              {'username': username})
+        msg = ""
+        return render_template('invoice.html',
+                               username=username, project_list=project_list,
+                               is_admin=is_admin, msg=msg,
+                               today_date=datetime.today().strftime('%Y-%m-%d'),
+                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                               analytics_code=settings.analytics_code)
+
+
+@app.route('/invoice_recon/', methods=['POST'], provide_automatic_options=False)
+@login_required
+def invoice_recon(msg=None):
+    """Invoice Reconciliation"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    username = current_user.name
+    full_name = current_user.full_name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin is False:
+        # Not allowed
+        return redirect(url_for('home'))
+    else:
+        def checkval(query, file_name):
+            res = run_query(query, {'file_name': file_name})
+            return res 
+        project_id = request.values.get('project_id')
+        f = request.files.get('file')
+        # data_filename = secure_filename(f.filename)
+        # f.save(os.path.join(app.config['UPLOAD_FOLDER'],data_filename))
+        # session['uploaded_data_file_path']=os.path.join(app.config['UPLOAD_FOLDER'],data_filename)
+        # data_file_path = session.get('uploaded_data_file_path',None)
+        files = pd.read_csv(f) # read csv
+        # files = request.values.get('files').split('\r\n')
+        print(type(files))
+        files = files.set_axis(['files'], axis=1)
+        # files = pd.DataFrame(files, columns=['files'])
+        files['files'] = files['files'].str.replace('.tif','')
+        randomval = random.randint(1000, 9999)
+        files['randomval'] = randomval
+        files.dropna(inplace = True)
+        files = files[files['files'] != '']
+        res = [tuple(x) for x in files.to_numpy()]
+        results = cur.executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
+        # Update table
+        res = run_query(("with data as (select f.file_id, f.file_name from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.file_id = d.file_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+        res = run_query(("with data as (select f.file_id, f.file_name, f.dams_uan from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+        # query = ("SELECT file_name, CASE WHEN file_id IS NULL THEN 'Not Found' ELSE 'Found' END as Osprey, CASE WHEN file_id IS NULL THEN 'Not Found' ELSE 'Found' END as DAMS FROM invoice_recon WHERE randomint = %(randomint)s")
+        no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
+        no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+        no_files_dams = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+        msg = ""
+        if int(no_files_osprey) < int(no_files):
+            count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
+            count_msg_css = "danger"
+        elif int(no_files_dams) < int(no_files):
+            count_msg = "Reconciliation failed: {:,} files not in DAMS".format(int(no_files) - int(no_files_dams))
+            count_msg_css = "danger"
+        elif (int(no_files_osprey) == int(no_files)) and (int(no_files_dams) == int(no_files)):
+            count_msg = "Reconciliation passed: all files accounted for."
+            count_msg_css = "success"
+        else:
+            count_msg = "Reconciliation failed: SYSTEM ERROR"
+            count_msg_css = "danger"
+        project_info = run_query(("SELECT * FROM projects WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
+        now = datetime.now()
+        return render_template('invoice_recon.html',
+                               username=username, 
+                               no_files="{:,}".format(no_files),
+                               no_files_osprey="{:,}".format(no_files_osprey),
+                               no_files_dams="{:,}".format(no_files_dams),
+                               is_admin=is_admin, msg=msg,
+                               now=now,
+                               project_info=project_info,
+                               count_msg=count_msg, count_msg_css=count_msg_css,
+                               today_date=datetime.today().strftime('%Y-%m-%d'),
+                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                               analytics_code=settings.analytics_code)
+
+
 @app.route('/create_new_project/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def create_new_project():
@@ -2265,10 +2463,10 @@ def create_new_project():
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'})
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'})
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5'})
-    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5_raw'})
     file_check = request.values.get('raw_pair')
     if file_check == "1":
         fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'raw_pair'})
+        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5_raw'})
     file_check = request.values.get('tif_compression')
     if file_check == "1":
         fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tif_compression'})
