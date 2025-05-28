@@ -1687,8 +1687,8 @@ def qc(project_alias=None):
                                      " WHERE f.project_id = p.project_id AND f.file_errors = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
-                                     "  and folder_id not in (SELECT folder_id from folder_badges where badge_type = 'folder_error') "
-                                     "  and folder_id not in (SELECT folder_id from folder_badges where badge_type = 'verification') "
+                                     "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error') "
+                                     "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'verification') "
                                      "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
                                     {'project_id': project_id})
     folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
