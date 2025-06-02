@@ -2127,7 +2127,7 @@ def home():
 
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
-    logger.info(is_admin)
+    logger.info("is_admin:{}".format(is_admin))
     ip_addr = request.environ['REMOTE_ADDR']
     projects = run_query(("select p.project_title, p.project_id, p.project_alias, date_format(p.project_start, '%b-%Y') as project_start, "
                                "     date_format(p.project_end, '%b-%Y') as project_end, p.qc_status, p.project_unit "
