@@ -66,27 +66,29 @@ def run_query(query, parameters=None, return_val=True):
     logger.info("parameters: {}".format(parameters))
     logger.info("query: {}".format(query))
     # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=3, delay=1)
-    # try:
-    #     conn1 = mysql.connector.connect(pool_name="mypool")
-    #     cur1 = conn1.cursor(dictionary=True)
-    # except mysql.connector.errors.PoolError:
-    #     logger.warning("Pool Exhausted")
-    #     return False
+    try:
+        conn.ping(reconnect=True, attempts=3, delay=1)
+    except mysql.connector.InterfaceError as error:
+        logger.error("mysql connection error: {}".format(error))
+        return False
     # Run query
     if parameters is None:
-        results = cur.execute(query)
+        try:
+            results = cur.execute(query)
+        except mysql.connector.Error  as err:
+            logger.error("mysql error: {} (err_no: {}|query: {})".format(err, err.errno, query))
+            return False
     else:
-        results = cur.execute(query, parameters)
+        try:
+            results = cur.execute(query, parameters)
+        except mysql.connector.Error  as err:
+            logger.error("mysql error: {} (err_no: {}|query: {})".format(err, err.errno, query))
+            return False
     if return_val:
         data = cur.fetchall()
-        # cur.close()
-        # conn.close()
         logger.info("No of results: ".format(len(data)))
         return data
     else:
-        # cur.close()
-        # conn.close()
         return True
 
 
@@ -94,15 +96,13 @@ def query_database_insert(query, parameters, return_res=False):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))
     # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=3, delay=1)
-    # try:
-    #     conn1 = mysql.connector.connect(pool_name="mypool")
-    #     cur1 = conn1.cursor(dictionary=True)
-    # except mysql.connector.errors.PoolError:
-    #     logger.warning("Pool Exhausted")
-    #     return False
+    try:
+        conn.ping(reconnect=True, attempts=3, delay=1)
+    except mysql.connector.InterfaceError as error:
+        logger.error("mysql connection error: {}".format(error))
+        return False
     # Run query
-    data = False
+    data = True
     try:
         results = cur.execute(query, parameters)
     except Exception as error:
@@ -113,8 +113,6 @@ def query_database_insert(query, parameters, return_res=False):
         logger.info("No of results: ".format(len(data)))
         if len(data) == 0:
             data = False
-    # cur.close()
-    # conn.close()
     return data
 
 
@@ -266,6 +264,7 @@ def api_get_projects():
     return jsonify(data)
 
 
+# ok
 @app.route('/projects/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
@@ -294,9 +293,7 @@ def api_get_project_details(project_alias=None):
                                "FROM projects "
                                " WHERE project_alias = %(project_alias)s"),
                               {'project_alias': project_alias})
-    if len(data) == 0:
-        return jsonify({'error': 'Project was not found'}), 404
-    else:
+    if len(data) == 1:
         folders = run_query(("SELECT "
                                       "f.folder_id, f.project_id, f.project_folder as folder, "
                                       "f.folder_path, f.status, f.notes, "
@@ -334,6 +331,8 @@ def api_get_project_details(project_alias=None):
             "SELECT report_id, report_title FROM data_reports WHERE project_id = %(project_id)s",
             {'project_id': data[0]['project_id']})
         data[0]['reports'] = reports
+    else:
+        return jsonify({'error': 'Project was not found'}), 404
     return jsonify(data[0])
 
 
@@ -429,6 +428,8 @@ def api_update_project_details(project_alias=None):
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'verification', 'bg-secondary', 'Folder under verification...', CURRENT_TIMESTAMP)")
+                        res = query_database_insert(query, {'folder_id': folder_id})
+                        query = ("UPDATE folders SET previews = 1 WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
                     elif query_property == "stats":
                         # Clear badges
@@ -733,6 +734,7 @@ def api_update_project_details(project_alias=None):
                     filetype = request.form.get("filetype")
                     data_json = json.loads(query_value)
                     # exif_data = []
+                    res = run_query("delete from files_exif where file_id = %(file_id)s;", {'file_id': file_id}, return_val=False)
                     query = ("INSERT INTO files_exif (file_id, filetype, taggroup, tag, tagid, value) "
                                 " VALUES (%s, %s, %s, %s, %s, %s) "
                                 " ON DUPLICATE KEY UPDATE value = %s")
@@ -767,6 +769,7 @@ def api_update_project_details(project_alias=None):
 
 
 
+# ok
 @app.route('/new/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_new_folder(project_alias=None):
     """Update a project properties."""
@@ -794,11 +797,10 @@ def api_new_folder(project_alias=None):
                     project_id = request.form.get("project_id")
                     folder_date = request.form.get("folder_date")
                     if folder is not None and folder_path is not None:
-                        query = ("INSERT INTO folders (project_folder, folder_path, status, project_id, date) "
-                                 " VALUES (%(folder)s, %(folder_path)s, 0, %(project_id)s, %(folder_date)s)")
+                        query = ("INSERT INTO folders (project_folder, folder_path, status, project_id, date, previews) "
+                                 " VALUES (%(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1)")
                         data = query_database_insert(query, {'folder': folder, 'folder_path': folder_path,
-                                                             'project_id': project_id, 'folder_date': folder_date},
-                                                     return_res=True)
+                                                             'project_id': project_id, 'folder_date': folder_date})
                         data = run_query("SELECT * FROM folders WHERE project_folder = %(project_folder)s AND folder_path = %(folder_path)s AND project_id = %(project_id)s",
                                               {'project_folder': folder, 'folder_path': folder_path, 'project_id': project_id})
                         return jsonify({"result": data})

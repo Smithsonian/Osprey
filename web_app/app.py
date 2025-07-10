@@ -359,6 +359,8 @@ def homepage(team=None, subset=None):
     # Last update
     last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats")
 
+    mass_digi_total = 0
+
     if team is None:
         team = "summary"
         team_heading = "Collections Digitization - Highlights"
@@ -403,6 +405,8 @@ def homepage(team=None, subset=None):
                       " FROM projects_stats WHERE project_id IN (SELECT project_id "
                       " FROM projects WHERE skip_project IS NOT True AND project_section = 'MD')"))[0]['total'])
         }
+        no_items = run_query(("SELECT SUM(objects_digitized) as total from projects_stats where project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"))[0]['total']
+        mass_digi_total = math.floor((int(no_items)*1.0)/100000)/10
 
     elif team == "is":
         team_heading = "Summary of Imaging Services Team Projects"
@@ -429,8 +433,6 @@ def homepage(team=None, subset=None):
                           " FROM projects_stats WHERE project_id IN "
                           "   (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')"))[0]['total'])
         }
-
-        
 
     elif team == "inf":
         team_heading = "Summary of Informatics Team Projects"
@@ -505,7 +507,6 @@ def homepage(team=None, subset=None):
         "images_taken": "Images Captured"
     })
 
-    
     # Informatics Table
     inf_section_query = (" SELECT "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
@@ -571,7 +572,7 @@ def homepage(team=None, subset=None):
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
                            asklogin=asklogin, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           last_update=last_update[0]['updated_at'],
+                           last_update=last_update[0]['updated_at'], mass_digi_total=mass_digi_total,
                            kiosk=kiosk, user_address=user_address, team_heading=team_heading,
                            html_title=html_title, analytics_code=settings.analytics_code,
                            app_root=settings.app_root,
@@ -730,7 +731,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
                                       "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
                                       "          'QC Pending') as qc_status,"
-                                      "   b.badge_text "
+                                      "   b.badge_text, "
+                                      " f.previews "
                                       "FROM folders f "
                                       "     LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
                                       "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id AND b.badge_type = 'verification') "
@@ -846,27 +848,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 folder_files_df = folder_files_df.sort_values(by=['file_name'])
                 folder_files_df = folder_files_df.sort_values(by=filechecks_list)
                 folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
-                # New direct image links
-                # for f in folder_files_df:
-                #     preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(f['folder_id'], "600", f['file_id'])
-                #     if os.path.isfile("static/{}".format(preview_img_path)):
-                #         f['preview_image'] = preview_img_path
-                #     else:
-                #         f['preview_image'] = "na_{}.png".format("600")
-                # if site_net == "internal":
-                #     folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
-                #                                + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
-                #                                + folder_files_df['file_name'].astype(str) \
-                #                                + '</a> ' \
-                #                                + '<button type="button" class="btn btn-light btn-sm" ' \
-                #                                + 'data-bs-toggle="modal" data-bs-target="#previewmodal1" ' \
-                #                                + 'data-bs-info="{}'.format(settings.app_root) + folder_files_df['preview_image'] \
-                #                                + '&max=600" data-bs-link = "{}/file/'.format(settings.app_root) + folder_files_df['file_id'].astype(str) \
-                #                                + '" data-bs-text = "Details of the file ' + folder_files_df[
-                #                                    'file_name'].astype(str) \
-                #                                + '" title="Image Preview of ' + folder_files_df['file_name'].astype(str) + '">' \
-                #                                + '<i class="fa-regular fa-image"></i></button>'
-                # else:
                 folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
                                                + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
                                                + folder_files_df['file_name'].astype(str) \
@@ -1078,6 +1059,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         if 'Failed' in folder_files_df.iloc[:, i].values:
             files_table_sort = "[{}, 'asc']".format(i)
         i += 1
+    
+    recent_images = []
 
     return render_template('dashboard.html',
                            fol_last_update=fol_last_update,
@@ -1091,6 +1074,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
+                           recent_images=recent_images,
                            tables=[folder_files_df.to_html(table_id='files_table',
                                                        index=False,
                                                        border=0,
@@ -1199,17 +1183,11 @@ def dashboard(project_alias=None, folder_id=None):
         project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
     elif project_info['project_manager'] == "Erin M. Mazzei":
         project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
+    elif project_info['project_manager'] == "Laura Whitfield":
+        project_manager_link = "<a href=\"https://dpo.si.edu/laura-whitfield\" class=\"bg-white\" title=\"Link to Laura Whitfield's staff page\">Erin M. Mazzei</a>"
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                {'project_id': project_info['project_id']})
-
-    try:
-        filechecks_list = project_info['project_checks'].split(',')
-    except:
-        error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
 
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"),
                                    {'project_id': project_id})[0]
@@ -1226,7 +1204,8 @@ def dashboard(project_alias=None, folder_id=None):
                                       " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
                                       "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
                                       "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
-                                      "          'QC Pending') as qc_status "
+                                      "          'QC Pending') as qc_status, "
+                                      " f.previews "
                                       "FROM folders f "
                                       " LEFT JOIN folders_md5 mt ON (f.folder_id = mt.folder_id and mt.md5_type = 'tif') "
                                       " LEFT JOIN folders_md5 mr ON (f.folder_id = mr.folder_id and mr.md5_type = 'raw') "
@@ -1304,6 +1283,14 @@ def dashboard(project_alias=None, folder_id=None):
             project_disk = "{}: {}".format(disk['filetype'], disk['filesize'])
         i += 1
 
+    # Recent images
+    recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100", {'project_id': project_info['project_id']})
+    recent_images = []
+    for img in recent_images_pool:
+        if os.path.exists("static/{}".format(img['preview'])):
+            recent_images.append(img)
+    random.shuffle(recent_images)
+
     return render_template('dashboard.html',
                            page_no="",
                            project_id=project_id, project_info=project_info,
@@ -1312,6 +1299,7 @@ def dashboard(project_alias=None, folder_id=None):
                            project_folders_indams=project_folders_indams,
                            files_df=files_df, folder_id=folder_id, folder_name=folder_name,
                            folder_qc=folder_qc,
+                           recent_images=recent_images[:20],
                            tables=[folder_files_df.to_html(table_id='files_table',
                                                            index=False,
                                                            border=0,
@@ -2404,7 +2392,7 @@ def create_new_project():
     p_area = request.values.get('p_area')
     p_storage = request.values.get('p_storage')
     p_start = request.values.get('p_start')
-    p_unitstaff = request.values.get('p_unitstaff')
+    # p_unitstaff = request.values.get('p_unitstaff')
     project_id = query_database_insert(("INSERT INTO projects  "
                               "   (project_title, project_unit, project_alias, project_description, "
                               "    project_coordurl, project_area, project_section, project_method, "
@@ -2421,18 +2409,14 @@ def create_new_project():
                               'p_prod': p_prod, 'p_storage': p_storage, 'p_start': p_start
                               }, return_res = True)
     logger.debug("PROJECT ID: {}".format(project_id))
-    project = query_database_insert(("INSERT INTO projects_stats "
-                              "  (project_id, collex_total, collex_to_digitize) VALUES  "
-                              "   ( %(project_id)s, %(collex_total)s, %(collex_total)s)"),
+    project = query_database_insert(("INSERT INTO projects_stats (project_id, collex_total, collex_to_digitize) VALUES (%(project_id)s, %(collex_total)s, %(collex_total)s)"),
                              {'project_id': project_id,
                               'collex_total': int(p_noobjects)})
-    user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                     "    (%(project_id)s, %(user_id)s)"),
+    user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES (%(project_id)s, %(user_id)s)"),
                                     {'project_id': project_id,
                                      'user_id': current_user.id})
     if current_user.id != '101':
-        user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-                                         "    (%(project_id)s, %(user_id)s)"),
+        user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES (%(project_id)s, %(user_id)s)"),
                                         {'project_id': project_id,
                                          'user_id': '101'})
     # if p_unitstaff != '':
@@ -2458,8 +2442,7 @@ def create_new_project():
     #                                                  "    (%(project_id)s, %(user_id)s)"),
     #                                                 {'project_id': project_id,
     #                                                  'user_id': get_user_project[0]['user_id']})
-    fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES "
-                                          "    (%(project_id)s, 'project_checks', %(value)s)")
+    fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES (%(project_id)s, 'project_checks', %(value)s)")
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'})
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'})
     fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5'})
@@ -2533,6 +2516,203 @@ def edit_project(project_alias=None):
                            site_env=site_env,
                            site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
+
+
+
+@app.route('/infprojects/', methods=['GET'], provide_automatic_options=False)
+@login_required
+def infprojects():
+    """Home for informatics projects"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    user_name = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    logger.info("is_admin:{}".format(is_admin))
+    ip_addr = request.environ['REMOTE_ADDR']
+    inf_section_query = (" SELECT "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<strong><a href=\"/infprojects/', p.proj_id, '\">', p.project_title, '</a></strong><br>', p.summary) as project_title, "
+                     " p.project_status, "
+                     " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
+                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
+                     " CASE "
+                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
+                     "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "                     
+                     "      ELSE CONCAT(date_format(p.project_start, '%b %Y'), ' - ', date_format(p.project_end, '%b %Y')) END "
+                     "         as project_dates, "
+                     " CASE WHEN p.records = 0 THEN 'NA' ELSE "
+                     " (CASE WHEN p.records_estimated IS True THEN CONCAT(coalesce(format(p.records, 0), 0), '*') ELSE "
+                     "      coalesce(format(p.records, 0), 0) END) END as records, "
+                     " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
+                     " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
+                     " ORDER BY p.project_start DESC, p.project_end DESC")
+    list_projects_inf = pd.DataFrame(run_query(inf_section_query))
+    list_projects_inf = list_projects_inf.rename(columns={
+        "project_unit": "Unit",
+        "project_title": "Title",
+        "project_status": "Status",
+        "github_link": "Repository",
+        "info_link": "More Info",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
+        "project_dates": "Dates",
+        "records": "Records Created or Enhanced"
+    })
+    
+    return render_template('infprojects.html', 
+                           tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
+                                                               border=0, escape=False,
+                                                               classes=["display", "w-100"])],
+                           form=form,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code)
+
+
+@app.route('/infprojects/<proj_id>/', methods=['GET'], provide_automatic_options=False)
+@login_required
+def infprojects_edit(proj_id=None):
+    """Home for informatics projects"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    user_name = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    logger.info("is_admin:{}".format(is_admin))
+    ip_addr = request.environ['REMOTE_ADDR']
+    proj = ("SELECT * FROM projects_informatics WHERE proj_id = %(proj_id)s")
+    project = run_query(proj, {'proj_id': proj_id})[0]
+    # units
+    units = ("SELECT * FROM si_units")
+    si_units = run_query(units)
+    
+    return render_template('infproject.html', 
+                           project=project, si_units=si_units, form=form,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code)
+
+
+@app.route('/infprojects/new/', methods=['GET'], provide_automatic_options=False)
+@login_required
+def new_infprojects():
+    """Home for informatics projects"""
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    user_name = current_user.name
+    is_admin = user_perms('', user_type='admin')
+    logger.info("is_admin:{}".format(is_admin))
+    ip_addr = request.environ['REMOTE_ADDR']
+    # units
+    units = ("SELECT * FROM si_units")
+    si_units = run_query(units)
+    
+    return render_template('newinfproject.html', 
+                           si_units=si_units, form=form,
+                           site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code)
+
+
+@app.route('/infprojects/edit/', methods=['POST'], provide_automatic_options=False)
+@login_required
+def edit_inf_proj():
+    """Create or edit an informatics project"""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+
+    username = current_user.name
+    if username not in ['villanueval', 'dipietroc']:
+        # Not allowed
+        return redirect(url_for('home'))
+    proj_edit = request.values.get('proj_edit')
+    proj_id = request.values.get('proj_id')
+    project_title = request.values.get('project_title')
+    project_unit = request.values.get('project_unit')
+    summary = request.values.get('summary')
+    records = request.values.get('records')
+    pm = request.values.get('pm')
+    project_status = request.values.get('project_status')
+    github_link = request.values.get('github_link')
+    if github_link == "" or github_link == "None":
+        github_link = "NULL"
+    else:
+        github_link = "'{}'".format(github_link)
+    info_link = request.values.get('info_link')
+    if info_link == "" or info_link == "None":
+        info_link = "NULL"
+    else:
+        info_link = "'{}'".format(info_link)
+    project_start = request.values.get('project_start')
+    project_end = request.values.get('project_end')
+    if project_end == "":
+        project_end = "NULL"
+    else:
+        project_end = "'{}'".format(project_end)
+    if proj_edit == "0":
+        # New project
+        project_id = query_database_insert(("INSERT INTO projects_informatics "
+                              "     (proj_id, project_title, project_unit, summary, records, pm, project_status, github_link, info_link, project_start, project_end) VALUES "
+                              "     (%(proj_id)s, %(project_title)s, %(project_unit)s, %(summary)s, %(records)s, %(pm)s, %(project_status)s, {}, {}, %(project_start)s, {})".format(github_link, info_link, project_end)),
+                             {  
+                                'project_title': project_title, 
+                                'project_unit': project_unit, 
+                                'summary': summary, 
+                                'records': records, 
+                                'pm': pm, 
+                                'project_status': project_status, 
+                                'project_start': project_start,
+                                'proj_id': proj_id                                
+                              }, return_res = True)
+        return redirect(url_for('infprojects_edit', proj_id = proj_id))
+    elif proj_edit == "1":
+        # Edit existing
+        project_id = query_database_insert(("UPDATE projects_informatics SET "
+                              "     project_title = %(project_title)s, "
+                              "     project_unit = %(project_unit)s, "
+                              "     summary = %(summary)s, "
+                              "     records = %(records)s, "
+                              "     pm = %(pm)s, "
+                              "     project_status = %(project_status)s, "
+                              "     github_link = {}, "
+                              "     info_link = {}, "
+                              "     project_start = %(project_start)s, "
+                              "     project_end = {} "
+                              " WHERE proj_id = %(proj_id)s".format(github_link, info_link, project_end)),
+                             {  
+                                'project_title': project_title, 
+                                'project_unit': project_unit, 
+                                'summary': summary, 
+                                'records': records, 
+                                'pm': pm, 
+                                'project_status': project_status, 
+                                'github_link': github_link, 
+                                'info_link': info_link,
+                                'project_start': project_start,
+                                'proj_id': proj_id                                
+                              }, return_res = False)
+        print(2680)
+        return redirect(url_for('infprojects_edit', proj_id = proj_id))
 
 
 @app.route('/proj_links/<project_alias>/', methods=['GET'], provide_automatic_options=False)

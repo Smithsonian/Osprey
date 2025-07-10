@@ -9,6 +9,24 @@
 {% block content %}
 
 
+{% if recent_images|length > 10 %}
+<div class="row">
+    <div class="col">
+        <!-- Display of recent images -->
+        <div style="overflow-x: hidden; white-space: nowrap;">
+            <h4>Recent images:</h4>
+                {% for img in recent_images %}
+                    <a href="{{ url_for('file', file_id=img.file_id) }}"><img src="{{ url_for('static', filename=img.preview) }}"></a>&nbsp;
+                {% endfor %}
+              
+            
+        </div>
+        <br>
+    </div>
+</div>
+{% endif %}
+
+
 <div class="row">
     <div class="col-6">
         <div class="card">
@@ -156,40 +174,42 @@
             <div class="list-group shadow d-block overflow-y-auto" style="max-height: 700px;">
 
                 {% for folder in project_folders %}
-                    {% if folder.badge_text == "Folder under verification..." %}
-                        <a href="#" id="{{ folder.project_folder | replace(' ', '_') }}" class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
+                    {% if folder.status != 0 or folder.previews != 0 %}
+                        <div class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
+                        <br>
+                        <span class="badge text-bg-secondary">Folder not available</span>
+                        </div>
                     {% else %}
                         {% if folder.project_folder == folder_name.project_folder %}
                             <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
                         {% else %}
                             <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
                         {% endif %}
+
+                        {% if folder.no_files != "0 files" and folder.no_files != "0" %}
+                        &nbsp;&nbsp;<span class="badge text-bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
+                        {% endif %}
+
+                        {% if folder_badge is not none %}
+                            {% for folder_badge in project_folders_badges %}
+                                {% if folder_badge.folder_id == folder.folder_id %}
+                                    <br>
+                                    <span class="badge text-{{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                        </a>
                     {% endif %}
-
-                    {% if folder.no_files != "0 files" and folder.no_files != "0" %}
-                    &nbsp;&nbsp;<span class="badge bg-primary" alt="{{ folder.no_files }}">{{ folder.no_files }}</span>
-                    {% endif %}
-
-                    {% if folder_badge is not none %}
-                        {% for folder_badge in project_folders_badges %}
-                            {% if folder_badge.folder_id == folder.folder_id %}
-                                <br>
-                                <span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-
-                    </a>
-
-                    {% endfor %}
-                </p>
-            </div>
+                    
+                {% endfor %}
+            </p>
+        </div>
     {% endif %}
 
     {% if project_folders_indams|length > 0 %}
     <br>
     <hr>
-    <p style="font-size: medium;">{{ project_folders_indams|length }} folder{% if project_folders_indams|length > 1 %}s{% endif %} delivered to DAMS:</p>
+        <p style="font-size: medium;">{{ project_folders_indams|length }} folder{% if project_folders_indams|length > 1 %}s{% endif %} delivered to DAMS:</p>
         
             <form action="{{ url_for('dashboard', project_alias=project_alias) }}" method="GET">
                 
@@ -201,7 +221,7 @@
                 <button type="submit" class="btn btn-primary">Open Folder</button>
             </form>
                 
-    </p>
+        </p>
     {% endif %}
 
     </div>

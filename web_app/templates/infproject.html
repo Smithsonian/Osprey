@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('infprojects') }}" title="Collections Digitization Dashboard">Osprey - Informatics Projects</a>
+{% endblock %}
+
+
+{% block head_blocks %}
+    <style>
+        .btn-sm {
+            font-size: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-8">
+            <h2>Edit Informatics Project:</h2>
+                        
+                <form action="{{ url_for('edit_inf_proj') }}" method="POST">
+                    <input type="hidden" name="proj_edit" id="proj_edit" value="1">
+                    <table class="table">
+                        <tbody class="table-striped">
+                            <tr>
+                            <th scope="row"><label for="proj_id" class="form-label">Project Alias (lowercase, no spaces, readonly)</label></th>
+                            <td><input type="text" class="form-control" name="proj_id" id="proj_id" value="{{ project.proj_id }}" readonly></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="project_title" class="form-label">Project Title</label></th>
+                            <td><input type="text" class="form-control" name="project_title" id="project_title" value="{{ project.project_title }}"></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="project_unit" class="form-label">Project Unit</label></th>
+                            <td>
+                                <select class="form-select" id="project_unit" name="project_unit">
+                                    {% for unit in si_units %}
+                                    <option value="{{ unit.unit_id }}" {% if project.project_unit == unit.unit_id %}selected{% endif %}>{{ unit.unit_fullname }}</option>
+                                    {% endfor %}
+                                </select>
+                            
+                            </td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="summary" class="form-label">Summary</label></th>
+                            <td><textarea class="form-control" name="summary" id="summary" rows="5">{{ project.summary }}</textarea></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="records" class="form-label">Number of records (use only numbers, no commas)</label></th>
+                            <td><input type="text" class="form-control" name="records" id="records" value="{{ project.records }}"></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="pm" class="form-label">Project Manager</label></th>
+                            <td>
+                                <select class="form-select" id="pm" name="pm">
+                                    <option value="Luis J. Villanueva" {% if project.pm == 'Luis J. Villanueva' %}selected{% endif %}>Luis J. Villanueva</option>
+                                    <option value="Corey DiPietro" {% if project.pm == 'Corey DiPietro' %}selected{% endif %}>Corey DiPietro</option>
+                                </select>
+                            </td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="project_status" class="form-label">Project Status</label></th>
+                            <td>
+                                <select class="form-select" id="project_status" name="project_status">
+                                    <option value="ongoing" {% if project.project_status == 'ongoing' %}selected{% endif %}>ongoing</option>
+                                    <option value="completed" {% if project.project_status == 'completed' %}selected{% endif %}>completed</option>
+                                </select>
+                            </td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="github_link" class="form-label">Github Link</label></th>
+                            <td><input type="text" class="form-control" name="github_link" id="github_link" value="{{ project.github_link }}"></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="info_link" class="form-label">Info Link</label></th>
+                            <td><input type="text" class="form-control" name="info_link" id="info_link" value="{{ project.info_link }}"></td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="project_start" class="form-label">Start Date (MM/DD/YYYY)</label></th>
+                                <td>
+                                    <input type="date" class="form-control" name="project_start" id="project_start" value="{{ project.project_start }}">
+                                    
+                                </td>
+                            </tr>
+                            <tr>
+                            <th scope="row"><label for="project_end" class="form-label">End Date (MM/DD/YYYY)</label></th>
+                                <td>
+                                    <input type="date" class="form-control" name="project_end" id="project_end" value="{{ project.project_end }}">
+                                    
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
+        </div>
+        <div class="col">
+            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
+        </div>
+    </div>
+
+    <hr>
+
+
+<br><br>
+
+{% endblock %}
+

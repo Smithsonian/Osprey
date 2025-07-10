@@ -26,8 +26,13 @@ def namer(name):
     return name + ".gz"
 
 
+if settings.env == "prod":
+    log_level = logging.ERROR
+else:
+    log_level = logging.DEBUG
+
 logfile = '{}/ospreyapp_{}.log'.format(settings.log_folder, current_time)
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=log_level,
                     format='%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s',
                     datefmt='%y-%b-%d %H:%M:%S',
                     handlers=[RotatingFileHandler(logfile, maxBytes=10000000, backupCount=10)])

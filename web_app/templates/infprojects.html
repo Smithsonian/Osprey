@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}DPO Collection Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="./" title="Collections Digitization Dashboard">Osprey - Informatics Projects</a>
+{% endblock %}
+
+
+{% block head_blocks %}
+    <style>
+        .btn-sm {
+            font-size: 0.5em;
+        }
+    </style>
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-8">
+            <h2>Informatics Projects:</h2>
+        </div>
+        <div class="col">
+            <img src="{{ url_for('static', filename='dpo266.png') }}" style="text-align: right; float: right;">
+        </div>
+    </div>
+
+    <hr>
+
+    <a class="btn btn-info" href="{{ url_for('new_infprojects') }}" role="button"><i class="fa-solid fa-laptop-code"></i> Create New Informatics Project</a>
+
+    <!-- List of projects -->
+    {% for table in tables_inf %}
+        {{ table|safe }}
+    {% endfor %}
+
+<br><br>
+
+{% endblock %}

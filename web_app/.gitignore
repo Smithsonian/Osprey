@@ -9,3 +9,4 @@ settings.py
 .vs
 
 static/figs
+static/image_previews
