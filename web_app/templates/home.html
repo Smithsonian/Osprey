@@ -153,18 +153,19 @@
                 <!-- Project -->
                 <div class="row">
                     <div class="col">
-                        <p style="font-size: large;" class="card-title"><strong>Digitizing the American Women's History Museum</strong></p>
+                        <p style="font-size: large;" class="card-title"><strong>Digitizing 200k Pollinators</strong></p>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-4">
-                        <a href="{{ url_for('homepage', team = 'is', subset = 'sawhm') }}" title="Link to the SAWHM Projects"><img src="{{ url_for('static', filename='items/sawhm_1.jpg') }}" class="img-fluid" alt="Logo of the SAWHM" style="padding: 10px;"></a>
+                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_mdpp_ento_pollinators') }}" title="Link to the Entomology's Pollinator Dashboard"><img src="{{ url_for('static', filename='items/ento.png') }}" class="img-fluid" alt="Image of Pollinator Specimen" style="padding: 10px;"></a>
                     </div>
                     <div class="col">
-                        <p>The Imaging Services team is digitizing collections and archives for the Smithsonian American Women's History Museum.</p>
-                        <a href="{{ url_for('homepage', team = 'is', subset = 'sawhm') }}" class="btn btn-sm btn-outline-primary" title="Link to the SAWHM Projects">SAWHM Projects</a>
+                        <p>The Mass Digi team is starting the digitization of the NMNH Entomology collection of pollinators, including bees, butterflies, flies, and beetles. This conveyor system will digitize thousands of specimens per week and more than 200,000 specimens within a year.</p>
+                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_mdpp_ento_pollinators') }}" class="btn btn-sm btn-outline-primary" title="Link to the SAWHM Projects">Ento Pollinators Conveyor Dashboard</a>
                     </div>
                 </div>
+                
             </div>
         </div>
         
@@ -188,20 +189,19 @@
                 </div>
             </div>
             <div class="col-6">
-                 <!-- Project -->
-                 <div class="row">
+                <!-- Project -->
+                <div class="row">
                     <div class="col">
-                        <br><p style="font-size: large;" class="card-title"><strong>A Photoshoot with 26,000 Mussel Lots</strong></p>
+                        <p style="font-size: large;" class="card-title"><strong>Digitizing the American Women's History Museum</strong></p>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-4">
-                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" title="Link to the Unionoida Project Dashboard"><img src="{{ url_for('static', filename='items/unionoida.jpg') }}" class="img-fluid" alt="Digitized specimen of freshwater mussel shells and scalebar" style="padding: 10px;"></a>
+                        <a href="{{ url_for('homepage', team = 'is', subset = 'sawhm') }}" title="Link to the SAWHM Projects"><img src="{{ url_for('static', filename='items/sawhm_1.jpg') }}" class="img-fluid" alt="Logo of the SAWHM" style="padding: 10px;"></a>
                     </div>
                     <div class="col">
-                        <p>We digitized over 26,000 lots, with up to three individuals per lot,
-                            adding almost 140,000 images of freshwater mussels - otherwise known as the Mollusca order Unionoida.</p>
-                        <a href="{{ url_for('dashboard', project_alias = 'nmnh_unionoida') }}" class="btn btn-sm btn-outline-primary" title="Link to the Unionoida Project Dashboard">Unionoida Project Dashboard</a>
+                        <p>The Imaging Services team is digitizing collections and archives for the Smithsonian American Women's History Museum.</p>
+                        <a href="{{ url_for('homepage', team = 'is', subset = 'sawhm') }}" class="btn btn-sm btn-outline-primary" title="Link to the SAWHM Projects">SAWHM Projects</a>
                     </div>
                 </div>
             </div>

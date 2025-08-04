@@ -177,7 +177,17 @@
                     {% if folder.status != 0 or folder.previews != 0 %}
                         <div class="list-group-item list-group-item-action list-group-item-secondary">{{ folder.project_folder }}
                         <br>
-                        <span class="badge text-bg-secondary">Folder not available</span>
+                        <span class="badge text-bg-secondary" alt="Folder not yet available" style="margin-bottom: 5px;">Folder not available</span>
+
+                            {% if folder_badge is not none %}
+                                {% for folder_badge in project_folders_badges %}
+                                    {% if folder_badge.folder_id == folder.folder_id %}
+                                        <br>
+                                        <span class="badge text-{{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}" style="margin-bottom: 5px;">{{ folder_badge.badge_text }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
                         </div>
                     {% else %}
                         {% if folder.project_folder == folder_name.project_folder %}
@@ -440,7 +450,7 @@
                     ]
                 });
 
-                $('#files_table').append('<caption style="caption-side: top"><p class="fs-3">Files in the Folder {{ folder_name.project_folder }}</p></caption>');
+                $('#files_table').append('<caption style="caption-side: top"><p class="fs-4">Files in the Folder {{ folder_name.project_folder }}</p></caption>');
 
                 $('#files_table').DataTable({
                     dom: 'Bfrtip',

@@ -20,7 +20,7 @@ from logger import logger
 
 import settings
 
-site_ver = "2.8.3"
+site_ver = "2.9.0"
 site_env = "api"
 site_net = "api"
 
@@ -342,15 +342,15 @@ def api_get_project_files(project_alias=None):
     # Check api_key
     api_key = request.form.get("api_key")
     if api_key is None or api_key == "":
-        return jsonify({'error': 'api_key is missing'}), 400
+        return jsonify({'result': False}), 400
     valid_api_key, is_admin = validate_api_key(api_key, url='/projects/files', params="project_alias={}".format(project_alias))
     if valid_api_key == False:
-        return jsonify({'error': 'Forbidden'}), 403
+        return jsonify({'result': False}), 403
     data = run_query(("SELECT f.file_id, f.uid, f.file_name, f.folder_id FROM files f WHERE f.folder_id in "
                                " (SELECT folder_id FROM folders WHERE project_id in (SELECT project_id from projects WHERE project_alias = %(project_alias)s)) ORDER BY f.file_name"),
                               {'project_alias': project_alias})
     if len(data) == 0:
-        return jsonify({'error': 'Project was not found'}), 404
+        return jsonify({'result': False}), 404
     else:
         return jsonify(data)
 
@@ -390,17 +390,20 @@ def api_update_project_details(project_alias=None):
                 if folder_id is not None:
                     if query_property == "status0":
                         query = ("UPDATE folders SET status = 0, error_info = NULL WHERE folder_id = %(folder_id)s")
-                        res = query_database_insert(query, {'folder_id': folder_id})
+                        res = run_query(query, {'folder_id': folder_id})
                         clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
                             {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, clear_badges))
                     elif query_property == "status9":
                         query = (
                             "UPDATE folders SET status = 9, error_info = %(value)s WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "status1":
                         query = (
                             "UPDATE folders SET status = 1, error_info = %(value)s WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
                             {'folder_id': folder_id})
                         query = (
@@ -408,6 +411,7 @@ def api_update_project_details(project_alias=None):
                             " VALUES (%(folder_id)s, 'folder_error', 'bg-danger', %(msg)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(msg)s,"
                             " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                         res = query_database_insert(query, {'folder_id': folder_id, 'msg': query_value})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "checking_folder":
                         # Clear badges
                         clear_badges = run_query(
@@ -425,12 +429,17 @@ def api_update_project_details(project_alias=None):
                         clear_badges = run_query(
                             "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'verification'",
                             {'folder_id': folder_id})
+                        clear_badges = run_query(
+                            "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
+                            {'folder_id': folder_id})
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'verification', 'bg-secondary', 'Folder under verification...', CURRENT_TIMESTAMP)")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         query = ("UPDATE folders SET previews = 1 WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "stats":
                         # Clear badges
                         clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'no_files'", {'folder_id': folder_id})
@@ -447,14 +456,17 @@ def api_update_project_details(project_alias=None):
                                         " VALUES (%(folder_id)s, 'no_files', 'bg-primary', %(no_files)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
                                         " badge_css = 'bg-primary', updated_at = CURRENT_TIMESTAMP")
                             res = query_database_insert(query, {'folder_id': folder_id, 'no_files': no_folder_files})
+                            logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         # Badge of error files
                         query = ("UPDATE folders f SET f.file_errors = 0 where folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         query = ("WITH data AS (SELECT CASE WHEN COUNT(DISTINCT f.file_id) > 0 THEN 1 ELSE 0 END AS no_files, %(folder_id)s as folder_id FROM files_checks c, files f"
                                     " WHERE f.folder_id = %(folder_id)s AND f.file_id = c.file_id AND c.check_results = 1)"
                                     " UPDATE folders f, data d SET f.file_errors = d.no_files "
                                     "WHERE f.folder_id = d.folder_id")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         no_files = run_query("SELECT file_errors FROM folders WHERE folder_id = %(folder_id)s", {'folder_id': folder_id})
                         if no_files[0]['file_errors'] == 1:
                             query = (
@@ -462,6 +474,7 @@ def api_update_project_details(project_alias=None):
                                 " VALUES (%(folder_id)s, 'error_files', 'bg-danger', 'Files with errors', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(no_files)s,"
                                 "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                             res = query_database_insert(query, {'folder_id': folder_id, 'no_files': no_folder_files})
+                            logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         # Update project
                         ## Update count
                         query = ("with data as "
@@ -470,6 +483,7 @@ def api_update_project_details(project_alias=None):
                                     "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
                                     "UPDATE projects_stats p, data SET p.images_taken = data.no_files where p.project_id = data.project_id")
                         res = query_database_insert(query, {'project_id': project_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         ## Get query for no. of objects
                         query_obj = run_query("SELECT project_object_query FROM projects WHERE project_id = %(project_id)s",
                                                 {'project_id': project_id})[0]
@@ -479,6 +493,7 @@ def api_update_project_details(project_alias=None):
                                     "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
                                     "UPDATE projects_stats p, data SET p.objects_digitized = data.no_objects where p.project_id = data.project_id".format(query_obj['project_object_query'].replace('\\', '')))
                         res = query_database_insert(query, {'project_id': project_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         ## Get query for no. of other stat
                         query_stat_other = run_query("SELECT other_stat_calc FROM projects_stats WHERE project_id = %(project_id)s",
                                                 {'project_id': project_id})
@@ -489,9 +504,11 @@ def api_update_project_details(project_alias=None):
                                     "          where fol.project_id = %(project_id)s and fol.folder_id =f.folder_id)"
                                     "UPDATE projects_stats p, data SET p.other_stat = data.no_objects where p.project_id = data.project_id".format(query_stat_other[0]['other_stat_calc'].replace('\\', '')))
                             res = query_database_insert(query, {'project_id': project_id})
+                            logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         # Update updated_at datetime
                         query = ("UPDATE folders SET updated_at = NOW() WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         # Update project counts
                         query = ("""WITH 
                                 folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),
@@ -507,71 +524,52 @@ def api_update_project_details(project_alias=None):
                                 stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 1)
                                 update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
                         res = query_database_insert(query, {'project_id': project_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "raw0":
                         query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                     " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")
                         res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "raw1":
                         query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                     " VALUES (%(folder_id)s, %(value)s, 1) ON DUPLICATE KEY UPDATE md5 = 1")
                         res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
-                    elif query_property == "tif_md5_exists":
-                        query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                                            " VALUES (%(folder_id)s, 'tif', %(value)s) ON DUPLICATE KEY UPDATE md5 = %(value)s")
-                        res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
-                        if query_value == 1:
-                            query = (
-                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-                                " VALUES (%(folder_id)s, 'md5_files', 'bg-danger', 'MD5 files missing', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = 'MD5 files missing',"
-                                "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                            res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "tif_md5_matches_error":
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'folder_md5', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                             "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                        res = query_database_insert(query, {'folder_id': folder_id, 'value': "Main {}".format(query_value)})
+                        res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                        query = ("UPDATE folders SET status = 1 WHERE folder_id = %(folder_id)s")
+                        res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "tif_md5_matches_ok":
-                        clear_badges = run_query(
-                            "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'",
-                            {'folder_id': folder_id})
+                        query = "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_md5'"
+                        clear_badges = run_query(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, clear_badges))
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'folder_md5', 'bg-success', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                             "       badge_css = 'bg-success', updated_at = CURRENT_TIMESTAMP")
-                        res = query_database_insert(query, {'folder_id': folder_id, 'value': 'Main MD5 Valid'})
-                    elif query_property == "raw_md5_matches_error":
-                        query = (
-                            "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-                            " VALUES (%(folder_id)s, 'folder_raw_md5', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
-                            "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                        res = query_database_insert(query, {'folder_id': folder_id, 'value': "RAW {}".format(query_value)})
-                    elif query_property == "raw_md5_matches_ok":
-                        clear_badges = run_query(
-                            "DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_raw_md5'",
-                            {'folder_id': folder_id})
-                        query = (
-                            "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-                            " VALUES (%(folder_id)s, 'folder_raw_md5', 'bg-success', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
-                            "       badge_css = 'bg-success', updated_at = CURRENT_TIMESTAMP")
-                        res = query_database_insert(query, {'folder_id': folder_id, 'value': 'RAW MD5 Valid'})
-                    elif query_property == "raw_md5_exists":
-                        query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
-                                            " VALUES (%(folder_id)s, 'raw', %(value)s) ON DUPLICATE KEY UPDATE md5 = %(value)s")
-                        res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
-                        query = (
-                            "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
-                            " VALUES (%(folder_id)s, 'md5_files', 'bg-danger', 'MD5 files missing', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = 'MD5 files missing',"
-                            "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
-                        if query_value == 1:
-                            res = query_database_insert(query, {'folder_id': folder_id})
+                        res = query_database_insert(query, {'folder_id': folder_id, 'value': 'MD5 Valid'})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "filename_spaces":
                         query = (
                             "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
                             " VALUES (%(folder_id)s, 'filename_spaces', 'bg-danger', %(value)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(value)s,"
                             "       badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
                         res = query_database_insert(query, {'folder_id': folder_id, 'value': "Filenames Have Spaces"})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'verification'", {'folder_id': folder_id})
+                        query = ("UPDATE folders SET status = 1 WHERE folder_id = %(folder_id)s")
+                        res = query_database_insert(query, {'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                    elif query_property == "previews":
+                        query = ("UPDATE folders SET previews = %(value)s WHERE folder_id = %(folder_id)s")
+                        res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "qc":
                         query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                         folder_qc = query_database_insert(query, {'folder_id': folder_id})
@@ -593,6 +591,7 @@ def api_update_project_details(project_alias=None):
                             " VALUES (%(folder_id)s, 'qc_status', %(badge_css)s, %(qc_status)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(qc_status)s,"
                             "       badge_css = %(badge_css)s, updated_at = CURRENT_TIMESTAMP")
                         res = query_database_insert(query, {'qc_status': qc_status, 'badge_css': badge_css, 'folder_id': folder_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     else:
                         return jsonify({'error': 'Invalid operation'}), 401
                     return jsonify({"result": True})
@@ -608,8 +607,7 @@ def api_update_project_details(project_alias=None):
                                 " f.file_id != %(file_id)s AND f.folder_id != %(folder_id)s AND "
                                 " f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s) and "
                                 "  f.file_name = finfo.file_name")
-                    res = run_query(query, {'file_id': file_id, 
-                                     'folder_id': folder_id, 'project_id': project_id})
+                    res = run_query(query, {'file_id': file_id, 'folder_id': folder_id, 'project_id': project_id})
                     if len(res) == 0:
                         check_results = 0
                         check_info = "File not found in the project"
@@ -805,7 +803,7 @@ def api_new_folder(project_alias=None):
                                               {'project_folder': folder, 'folder_path': folder_path, 'project_id': project_id})
                         return jsonify({"result": data})
                     else:
-                        return jsonify({'error': 'Missing args'}), 400
+                        return jsonify({"result": False}), 400
                 elif query_type == "file":
                     filename = request.form.get("filename")
                     timestamp = request.form.get("timestamp")
@@ -825,8 +823,7 @@ def api_new_folder(project_alias=None):
                         query = ("SELECT f.file_id, fol.project_folder FROM files f, folders fol "
                                  " WHERE f.folder_id = fol.folder_id AND f.file_name = %(filename)s AND f.folder_id != %(folder_id)s"
                                  " AND f.folder_id IN (SELECT folder_id from folders where project_id = %(project_id)s)")
-                        res = run_query(query,
-                                             {'filename': filename, 'folder_id': folder_id, 'project_id': project_id})
+                        res = run_query(query, {'filename': filename, 'folder_id': folder_id, 'project_id': project_id})
                         if len(res) == 0:
                             check_results = 0
                             check_info = ""
@@ -865,11 +862,11 @@ def api_new_folder(project_alias=None):
                                                      {'file_id': file_id, 'filetype': filetype, 'filesize': filesize})
                         return jsonify({"result": data})
                     else:
-                        return jsonify({'error': 'Missing args'}), 400
+                        return jsonify({"result": False}), 400
                 else:
-                    return jsonify({'error': 'Invalid value for type'}), 400
+                    return jsonify({"result": False}), 400
             else:
-                return jsonify({'error': 'Missing args'}), 400
+                return jsonify({"result": False}), 400
 
 
 @app.route('/folders/<int:folder_id>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
@@ -885,7 +882,7 @@ def api_get_folder_details(folder_id=None):
     if valid_api_key == False:
         return jsonify({'error': 'Forbidden'}), 403
     data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, "
-                           "   p.project_alias, "
+                           "   p.project_alias, f.status, f.previews, "
                            "   DATE_FORMAT(f.date, '%Y-%m-%d') as folder_date, "
                            "   f.file_errors, f.error_info, "
                             " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
@@ -902,44 +899,35 @@ def api_get_folder_details(folder_id=None):
         project_id = data[0]['project_id']
         api_key = request.form.get("api_key")
         logger.info("api_key: {}".format(api_key))
-        if api_key is None:
-            query = ("SELECT f.file_id, f.file_name, "
-                 " f.dams_uan "
-                 " FROM files f WHERE f.folder_id = %(folder_id)s")
-            files = run_query(query, {'folder_id': folder_id})
-            data[0]['files'] = files
-            data[0]['no_files'] = len(files) 
-        else:
-            if validate_api_key(api_key):
-                filechecks_list_temp = run_query(
-                    ("SELECT settings_value as file_check FROM projects_settings "
-                     " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
-                    {'project_id': project_id})
-                filechecks_list = []
-                for fcheck in filechecks_list_temp:
-                    filechecks_list.append(fcheck['file_check'])
-                query = (
-                    "SELECT f.file_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
-                    " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at, "
-                    " DATE_FORMAT(f.created_at, '%Y-%m-%d %H:%i:%S') AS created_at, m.md5 as tif_md5 "
-                    " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
-                files_list = run_query(query, {'folder_id': folder_id})
-                folder_files_df = pd.DataFrame(files_list)
-                for fcheck in filechecks_list:
-                    logger.info("fcheck: {}".format(fcheck))
-                    list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                         "   CASE WHEN check_results = 0 THEN 'OK' "
-                                                         "       WHEN check_results = 9 THEN 'Pending' "
-                                                         "       WHEN check_results = 1 THEN 'Failed' "
-                                                         "       ELSE 'Pending' END as {fcheck} "
-                                                         " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
-                                                         "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
-                                                        {'file_check': fcheck, 'folder_id': folder_id}))
-                    logger.info("list_files.size: {}".format(list_files.shape[0]))
-                    if list_files.shape[0] > 0:
-                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
-                files = folder_files_df
-                data[0]['files'] = files.to_dict('records')
+        filechecks_list_temp = run_query(
+            ("SELECT settings_value as file_check FROM projects_settings "
+                " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
+            {'project_id': project_id})
+        filechecks_list = []
+        for fcheck in filechecks_list_temp:
+            filechecks_list.append(fcheck['file_check'])
+        query = (
+            "SELECT f.file_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%Y-%m-%d %H:%i:%S') as file_timestamp, "
+            " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at, "
+            " DATE_FORMAT(f.created_at, '%Y-%m-%d %H:%i:%S') AS created_at, m.md5 as tif_md5 "
+            " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') WHERE f.folder_id = %(folder_id)s")
+        files_list = run_query(query, {'folder_id': folder_id})
+        folder_files_df = pd.DataFrame(files_list)
+        for fcheck in filechecks_list:
+            logger.info("fcheck: {}".format(fcheck))
+            list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                    "   CASE WHEN check_results = 0 THEN 'OK' "
+                                                    "       WHEN check_results = 9 THEN 'Pending' "
+                                                    "       WHEN check_results = 1 THEN 'Failed' "
+                                                    "       ELSE 'Pending' END as {fcheck} "
+                                                    " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                                    "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
+                                                {'file_check': fcheck, 'folder_id': folder_id}))
+            logger.info("list_files.size: {}".format(list_files.shape[0]))
+            if list_files.shape[0] > 0:
+                folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+        files = folder_files_df
+        data[0]['files'] = files.to_dict('records')
         return jsonify(data[0])
     else:
         return jsonify({'error': 'Folder not found'}), 404
@@ -1027,5 +1015,5 @@ def api_get_report(report_id=None):
 
 #####################################
 if __name__ == '__main__':
-    app.run(threaded=True, debug=True)
+    app.run(threaded=False, debug=True)
     

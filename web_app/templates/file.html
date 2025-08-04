@@ -194,6 +194,8 @@
                                             Filename has the correct prefix.
                                         {% elif check.file_check == 'sequence' %}
                                             File sequence is correct.
+                                        {% elif check.file_check == 'tesseract' %}
+                                            Text orientation and OCR with Tesseract.
                                         {% else %}
                                             Checks for {{ check.file_check }}.
                                         {% endif %}

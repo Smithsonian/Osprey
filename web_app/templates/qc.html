@@ -127,9 +127,11 @@
 
 
     {% if folder_qc_done_len > 0 %}
-
-        <h4>Folders with QC Completed:</h4>
-
+        {% if folder_qc_done_len > 50 %}
+            <h4>Recent Folders with QC Completed:</h4>
+        {% else %}
+            <h4>Folders with QC Completed:</h4>
+        {% endif %}
             <table class="table table-striped border">
                   <thead>
                     <tr>

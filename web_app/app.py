@@ -23,6 +23,7 @@ import locale
 import math
 import pandas as pd
 import numpy as np
+import io
 from datetime import datetime
 from PIL import Image
 from PIL import ImageFilter
@@ -1284,7 +1285,11 @@ def dashboard(project_alias=None, folder_id=None):
         i += 1
 
     # Recent images
-    recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100", {'project_id': project_info['project_id']})
+    preview_filter = project_info['preview_filter']
+    if preview_filter is None:
+        recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100", {'project_id': project_info['project_id']})
+    else:
+        recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE {} folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100".format(preview_filter), {'project_id': project_info['project_id']})
     recent_images = []
     for img in recent_images_pool:
         if os.path.exists("static/{}".format(img['preview'])):
@@ -1566,14 +1571,14 @@ def qc(project_alias=None):
 
     project_qc_stats = {}
     project_qc_ok = run_query(("SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
-                        "WHERE f.project_id = %(project_id)s and f.file_errors = 0 and q.qc_status = 0"),
+                        "WHERE f.project_id = %(project_id)s and f.status = 0 and f.previews = 0 and f.file_errors = 0 and q.qc_status = 0"),
                         {'project_id': project_id})[0]
     project_qc_failed = run_query((
                                   "SELECT count(f.folder_id) as no_folders FROM folders f LEFT JOIN qc_folders q on (f.folder_id = q.folder_id ) "
-                                  "WHERE f.project_id = %(project_id)s and q.qc_status = 1"),
+                                  "WHERE f.project_id = %(project_id)s and f.status = 0 and f.previews = 0 and f.file_errors = 0 and q.qc_status = 1"),
                               {'project_id': project_id})[0]
     project_qc_count = run_query((
-        "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s and f.file_errors = 0"),
+        "SELECT count(f.folder_id) as no_folders FROM folders f WHERE f.project_id = %(project_id)s and f.status = 0 and f.file_errors = 0 and f.previews = 0"),
         {'project_id': project_id})[0]
 
     project_qc_stats['total'] = project_qc_count['no_folders']
@@ -1672,7 +1677,7 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error') "
@@ -1730,7 +1735,7 @@ def qc(project_alias=None):
     return render_template('qc.html', username=username,
                            project_settings=project_settings,
                            folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
-                           folder_qc_done=folder_qc_done, folder_qc_done_len=len(folder_qc_done),
+                           folder_qc_done=folder_qc_done[:50], folder_qc_done_len=len(folder_qc_done),
                            project=project, form=form, project_qc_stats=project_qc_stats,
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
@@ -2129,7 +2134,7 @@ def home():
                               {'username': user_name})
     project_list = []
     for project in projects:
-        logger.info("project: {}".format(project))
+        logger.info("project: {}".format(project).encode("utf-8"))
         project_total = run_query(("SELECT count(*) as no_files "
                                         "    FROM files "
                                         "    WHERE folder_id IN ("
@@ -2357,12 +2362,51 @@ def invoice_recon(msg=None):
                                no_files_osprey="{:,}".format(no_files_osprey),
                                no_files_dams="{:,}".format(no_files_dams),
                                is_admin=is_admin, msg=msg,
-                               now=now,
+                               now=now, randomint=randomval,
                                project_info=project_info,
                                count_msg=count_msg, count_msg_css=count_msg_css,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
                                form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
                                analytics_code=settings.analytics_code)
+
+
+@app.route('/invoice_recon_dl/', methods=['POST'], provide_automatic_options=False)
+@login_required
+def invoice_recon_dl(randomint=None):
+    """Download Invoice Reconciliation"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    username = current_user.name
+    full_name = current_user.full_name
+    is_admin = user_perms('', user_type='admin')
+    if is_admin is False:
+        # Not allowed
+        return redirect(url_for('home'))
+    else:
+        randomint = request.values.get('randomint')
+        current_time = strftime("%Y%m%d_%H%M%S", localtime())
+        # from https://stackoverflow.com/a/68136716
+        buffer = io.BytesIO()
+        data = pd.DataFrame(run_query(("SELECT i.file_id, i.file_name, i.dams_uan, i.timestamp, fol.project_folder FROM invoice_recon i, files f, folders fol, projects p WHERE i.randomint = %(randomint)s and i.file_id = f.file_id and f.folder_id = fol.folder_id and fol.project_id = p.project_id"), {'randomint': randomint})).to_excel(buffer, index=False)
+        headers = {
+            'Content-Disposition': 'attachment; filename=invoice_reconciliation_{}.xlsx'.format(current_time),
+            'Content-type': 'application/vnd.ms-excel'
+        }
+        return Response(buffer.getvalue(), mimetype='application/vnd.ms-excel', headers=headers)
+        
 
 
 @app.route('/create_new_project/', methods=['POST'], provide_automatic_options=False)
@@ -3357,7 +3401,7 @@ def data_reports_form():
     return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id))
 
 
-@cache.memoize()
+
 @app.route('/reports/<project_alias>/<report_id>/', methods=['GET'], provide_automatic_options=False)
 def data_reports(project_alias=None, report_id=None):
     """Report of a project"""
@@ -3396,7 +3440,7 @@ def data_reports(project_alias=None, report_id=None):
                            analytics_code=settings.analytics_code), 404
 
     report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
-    
+
     if project_report[0]['pregenerated'] == 1:
         # Delete old versions
         files_todel = glob.glob("static/reports/{}_*.csv".format(project_report[0]['pregen_filename']))
@@ -3421,13 +3465,18 @@ def data_reports(project_alias=None, report_id=None):
         # Excel
         data_file_e = "reports/{}_{}.xlsx".format(project_report[0]['pregen_filename'], current_datetime)
         report_data.to_excel("static/{}".format(data_file_e))      
-        pregenerated = 0
+        pregenerated = 1
     else:
         report_data = pd.DataFrame(run_query(project_report[0]['query']))
+        print("AAA")
+        print(project_report[0]['query'])
+        print(report_data)
+        print(report_data_updated)
+        print("BBB")
         data_file = ""
         data_file_e = ""
         current_datetime_formatted = ""
-        pregenerated = 1
+        pregenerated = 0
     project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id})[0]
 

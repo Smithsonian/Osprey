@@ -44,6 +44,11 @@
             <div class="text-bg-{{ count_msg_css }} p-3">{{ count_msg }}</div>
             
             <br><br>
+             <form action="{{ url_for('invoice_recon_dl') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" id="randomint" name="randomint" value="{{ randomint }}">
+
+                <button type="submit" class="btn btn-primary form-control form-control">Download List</button>    
+            </form><br><br><br><br>
         </div>
         <div class="col">&nbsp;</div>
     </div>
