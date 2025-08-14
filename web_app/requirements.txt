@@ -15,5 +15,5 @@ Flask-Minify
 pymysql-pooling
 mysql-connector-python
 plotnine
-python-ldap
+ldap3
 #mod-wsgi

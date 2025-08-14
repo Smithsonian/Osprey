@@ -271,7 +271,7 @@
 
         <form method="post" action="/" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
 
-        <p><strong>Do not</strong> use your SI credentials. This feature will be added in a future version.</p>
+        <p><strong>Use your SI credentials.</strong></p>
 
         {{ form.hidden_tag() }}
 
@@ -285,7 +285,7 @@
 
         <div class="form-floating mb-3">
             {{ form.username(class="form-control", aria_label='Username', autocomplete="off") }}
-            <label for="username">Username</label>
+            <label for="username">SI Email</label>
         </div>
         <div class="form-floating mb-3">
             {{ form.password(class="form-control", aria_label='Password', type="password", autocomplete="off") }}

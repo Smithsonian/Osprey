@@ -36,9 +36,11 @@ import random
 from plotnine import ggplot
 from plotnine import aes
 from plotnine import geom_bar
-
+from ldap3 import Server, Connection, ALL, NTLM
+from ldap3.core.exceptions import LDAPBindError as LDAPBindError
 # MySQL
 import mysql.connector
+import tarfile
 
 # Flask Login
 from flask_login import LoginManager
@@ -159,9 +161,10 @@ def sys_error(e):
                            project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 500
 
 
-def run_query(query, parameters=None, return_val=True):
-    logger.info("parameters: {}".format(parameters))
-    logger.info("query: {}".format(query))
+def run_query(query, parameters=None, return_val=True, log_vals=True):
+    if log_vals == True:
+        logger.info("parameters: {}".format(parameters))
+        logger.info("query: {}".format(query))
     # Check connection to DB and reconnect if needed
     conn.ping(reconnect=True, attempts=3, delay=1)
     # Run query
@@ -340,10 +343,23 @@ def homepage(team=None, subset=None):
         # assign form data to variables
         username = request.form.get('username', '', type=str)
         password = request.form.get('password', '', type=str)
-        query = ("SELECT user_id, username, user_active, full_name FROM users WHERE username = %(username)s AND pass = MD5(%(password)s)")
-        user = run_query(query, {'username': username.lower(), 'password': password})
+        # Login using LDAP
+        server = Server(settings.ldap_server, get_info=ALL)
+        logger.info("LDAP (server): {}".format(server))
+        logger.info("LDAP (user): {}".format(username))
+        try:
+            conn = Connection(server, user=username, password=password, auto_bind=True)
+            logger.info("LDAP (conn): {}".format(conn))
+            conn.extend.standard.who_am_i()
+            logger.info("LDAP (who_am_i): {}".format(conn.extend.standard.who_am_i()))
+        except LDAPBindError as e:
+            logger.error("LDAP: {}".format(e))
+            return redirect(url_for('not_user'))
+        query = ("SELECT user_id, username, user_active, full_name FROM users WHERE email = %(email)s")
+        user = run_query(query, {'email': username.lower()})
         logger.info(user)
         if len(user) == 1:
+            username = user[0]['username']
             logger.info(user[0]['user_active'])
             if user[0]['user_active']:
                 user_obj = User(user[0]['user_id'], user[0]['username'], 
@@ -1680,6 +1696,7 @@ def qc(project_alias=None):
                                      " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
+                                     "  and no_files > 0 "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error') "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'verification') "
                                      "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
@@ -1940,10 +1957,18 @@ def qc_process(folder_id):
                     {'file_id': file_qc['file_id']})[0]
 
                 # DZI zoomable image
-                # zoom_filename = url_for('static', filename='/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id']))
                 zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])
                 
                 if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])):
+                    tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(file_details['folder_id'], file_qc['file_id'])
+                    imgfolder = "static/image_previews/folder{}/".format(file_details['folder_id'])
+                    if os.path.isfile(tarimgfile):
+                        if os.path.isdir("static/image_previews/folder{}/{}_files".format(file_details['folder_id'], file_qc['file_id'])) is False:
+                            try:
+                                with tarfile.open(tarimgfile, "r") as tf:
+                                    tf.extractall(path=imgfolder)
+                            except: 
+                                logger.error("Couln't open {}".format(tarimgfile))
                     zoom_exists = 1
                     zoom_js = ""
                 else:
@@ -3031,6 +3056,15 @@ def file(file_id=None):
     zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)
 
     if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)):
+        tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(file_details['folder_id'], file_id)
+        imgfolder = "static/image_previews/folder{}/".format(file_details['folder_id'])
+        if os.path.isfile(tarimgfile):
+            if os.path.isdir("static/image_previews/folder{}/{}_files".format(file_details['folder_id'], file_id)) is False:
+                try:
+                    with tarfile.open(tarimgfile, "r") as tf:
+                        tf.extractall(path=imgfolder)
+                except: 
+                    logger.error("Couln't open {}".format(tarimgfile))
         zoom_exists = 1
     else:
         zoom_exists = 0
