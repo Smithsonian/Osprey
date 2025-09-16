@@ -89,54 +89,6 @@
 
 </div>
 
-{% if form %}
-<!-- Login Modal -->
-<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h1 class="modal-title" id="loginModalLabel">Log In to the System</h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-
-        <form method="post" action="{{ app_root }}/" autocomplete="off" class="p-4 p-md-4 border rounded-3 bg-light">
-
-        <p><strong>Use your SI credentials.</strong></p>
-
-        {{ form.hidden_tag() }}
-
-        <p class="fw-bold">
-            {% if msg %}
-                {{ msg | safe }}
-            {% endif %}
-        </p>
-
-        <br />
-
-        <div class="form-floating mb-3">
-            {{ form.username(class="form-control", aria_label='Username', autocomplete="off") }}
-            <label for="username">Username</label>
-        </div>
-        <div class="form-floating mb-3">
-            {{ form.password(class="form-control", aria_label='Password', type="password", autocomplete="off") }}
-            <label for="password">Password</label>
-        </div>
-        <br />
-
-        <button class="w-100 btn btn-lg btn-primary" type="submit" aria-label='Sign In'>Sign In</button>
-
-        </form>
-
-
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
 
 <footer class="page-footer font-small bg-secondary pt-2" style="background: #3F4249!important;">
   <!-- Footer Elements -->

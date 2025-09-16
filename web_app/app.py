@@ -38,6 +38,9 @@ from plotnine import aes
 from plotnine import geom_bar
 from ldap3 import Server, Connection, ALL, NTLM
 from ldap3.core.exceptions import LDAPBindError as LDAPBindError
+from ldap3 import set_config_parameter
+import time
+
 # MySQL
 import mysql.connector
 import tarfile
@@ -192,6 +195,7 @@ def query_database_insert(query, parameters, return_res=False):
     except Exception as error:
         logger.error("Error: {}".format(error))
         return False
+    logger.info("Query: {}".format(cur.statement))    
     if return_res:
         insert_id = cur.lastrowid
         return(insert_id)
@@ -338,40 +342,6 @@ def homepage(team=None, subset=None):
 
     # Flask message injected into the page, in case of any errors
     msg = None
-    # check if both http method is POST and form is valid on submit
-    if form.validate_on_submit():
-        # assign form data to variables
-        username = request.form.get('username', '', type=str)
-        password = request.form.get('password', '', type=str)
-        # Login using LDAP
-        server = Server(settings.ldap_server, get_info=ALL)
-        logger.info("LDAP (server): {}".format(server))
-        logger.info("LDAP (user): {}".format(username))
-        try:
-            conn = Connection(server, user=username, password=password, auto_bind=True)
-            logger.info("LDAP (conn): {}".format(conn))
-            conn.extend.standard.who_am_i()
-            logger.info("LDAP (who_am_i): {}".format(conn.extend.standard.who_am_i()))
-        except LDAPBindError as e:
-            logger.error("LDAP: {}".format(e))
-            return redirect(url_for('not_user'))
-        query = ("SELECT user_id, username, user_active, full_name FROM users WHERE email = %(email)s")
-        user = run_query(query, {'email': username.lower()})
-        logger.info(user)
-        if len(user) == 1:
-            username = user[0]['username']
-            logger.info(user[0]['user_active'])
-            if user[0]['user_active']:
-                user_obj = User(user[0]['user_id'], user[0]['username'], 
-                                user[0]['full_name'], user[0]['user_active'])
-                login_user(user_obj)
-                return redirect(url_for('home'))
-            else:
-                # msg = "Error, user not known or password was incorrect"
-                return redirect(url_for('not_user'))
-        else:
-            # msg = "Error, user not known or password was incorrect"
-            return redirect(url_for('not_user'))
 
     # Last update
     last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats")
@@ -594,6 +564,85 @@ def homepage(team=None, subset=None):
                            html_title=html_title, analytics_code=settings.analytics_code,
                            app_root=settings.app_root,
                            subset=subset.upper())
+
+
+@app.route('/login', methods=['POST'], provide_automatic_options=False)
+def login():
+    """Login into the system with LDAP"""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    
+    # Declare the login form
+    form = LoginForm(request.form)
+
+    # Flask message injected into the page, in case of any errors
+    msg = None
+    # check if both http method is POST and form is valid on submit
+    if form.validate_on_submit():
+        # assign form data to variables
+        username = request.form.get('username', type=str).strip().lower()
+        password = request.form.get('password', type=str)
+        if username[-7:] != "@si.edu":
+            logger.error("Login error - missing @si.edu")
+            return redirect(url_for('not_user'))
+        # Login using LDAP
+        server = Server(settings.ldap_server, port = 636, use_ssl = True, get_info=ALL)
+        logger.info("LDAP (server): {}".format(server))
+        logger.info("LDAP (user): {}".format(username))
+        query = ("SELECT user_id, username, user_active, full_name, internal FROM users WHERE email = %(email)s")
+        user = run_query(query, {'email': username})
+        logger.info("Trying to log in: {}".format(user))
+        if len(user) == 1:
+            if user[0]['internal'] == "1":
+                query = ("SELECT user_id, username, user_active, full_name, internal FROM users WHERE email = %(email)s and pass = %(password)s")
+                user = run_query(query, {'email': username, 'password': password})
+                if len(user) != 1:
+                    logger.error("Internal user failed login: {}".format(username))
+                    logger.error("Login error - Internal password error")
+                    return redirect(url_for('not_user'))
+            else:
+                try:
+                    set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
+                    conn = Connection(server, user=username, password=password, auto_bind=True)
+                    logger.info("LDAP (conn): {}".format(print(conn)))
+                    conn.extend.standard.who_am_i()
+                    logger.info("LDAP (who_am_i): {}".format(conn.extend.standard.who_am_i()))
+                except LDAPBindError as e:
+                    # Try latin-1
+                    # Pause before trying again
+                    time.sleep(3)
+                    logger.info("LDAP trying latin-1")
+                    set_config_parameter('DEFAULT_SERVER_ENCODING', 'latin-1')
+                    try:
+                        conn = Connection(server, user=username, password=password, auto_bind=True)
+                        logger.info("LDAP latin-1 (conn): {}".format(print(conn)))
+                        conn.extend.standard.who_am_i()
+                        logger.info("LDAP latin-1 (who_am_i): {}".format(conn.extend.standard.who_am_i()))
+                    except LDAPBindError as e:
+                        logger.error("LDAP: {} - {}".format(username, e))
+                        logger.error("Login error - LDAP")
+                        return redirect(url_for('not_user'))
+            #
+            username = user[0]['username']
+            logger.info(user[0]['user_active'])
+            if user[0]['user_active']:
+                user_obj = User(user[0]['user_id'], user[0]['username'], 
+                                user[0]['full_name'], user[0]['user_active'])
+                login_user(user_obj)
+                return redirect(url_for('home'))
+            else:
+                # msg = "Error, user not known or password was incorrect"
+                logger.error("Login error - user not active")
+                return redirect(url_for('not_user'))
+        else:
+            # msg = "Error, user not known or password was incorrect"
+            logger.error("Login error - user not in db")
+            return redirect(url_for('not_user'))
+    else:
+        # msg = "Error, user not known or password was incorrect"
+        logger.error("Login error - bad request")
+        return redirect(url_for('not_user'))
 
 
 @app.route('/team/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -1019,16 +1068,17 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         proj_reports = False
 
     if tab == "filechecks":
-        qc_check = run_query("SELECT * FROM qc_files WHERE folder_id = %(folder_id)s AND file_qc != 0",
+        qc_check = run_query("SELECT * FROM qc_files WHERE folder_id = %(folder_id)s",
                             {'folder_id': folder_id})
         if len(qc_check) > 0:
             qc_check = True
             qc_details = pd.DataFrame(run_query(("SELECT f.file_id, f.file_name, q.qc_info, "
                                                  "      CASE "
+                                                 "           WHEN q.file_qc = 0 THEN '<span class=\"badge bg-success\">Image OK</span>'"
                                                  "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
                                                  "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
                                                  "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
-                                                 "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s and q.file_qc != 0 AND q.file_id = f.file_id "
+                                                 "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
                                                  "ORDER BY q.file_qc DESC"),
                                 {'folder_id': folder_id}))
             qc_details['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
@@ -1693,13 +1743,13 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 AND f.previews = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  and no_files > 0 "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error') "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'verification') "
-                                     "  ORDER BY date ASC, project_folder ASC LIMIT 1"),
+                                     "  ORDER BY date ASC, project_folder ASC LIMIT 10"),
                                     {'project_id': project_id})
     folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                      " errors AS "
@@ -1743,7 +1793,7 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is not null "
                                      "  ORDER BY date ASC, project_folder ASC"),
@@ -1876,6 +1926,10 @@ def qc_process(folder_id):
                                     "       FROM folders "
                                     "       WHERE folder_id = %(folder_id)s)"),
                                    {'folder_id': folder_id})[0]
+    
+    project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
+                                    {'project_id': project_id['project_id']})[0]
+    
     if folder_qc['qc_status'] == "QC Pending" and folder_stats['no_files'] > 0:
         # Setup the files for QC
         in_qc = run_query("SELECT count(*) as no_files FROM qc_files WHERE folder_id = %(folder_id)s",
@@ -1883,15 +1937,23 @@ def qc_process(folder_id):
         if in_qc[0]['no_files'] == 0:
             q = query_database_insert("DELETE FROM qc_folders WHERE folder_id = %(folder_id)s",
                                  {'folder_id': folder_id})
-            q = query_database_insert("INSERT INTO qc_folders (folder_id, qc_status) VALUES (%(folder_id)s, 9)",
-                                 {'folder_id': folder_id})
+            q = query_database_insert("INSERT INTO qc_folders (folder_id, qc_status, qc_level) VALUES (%(folder_id)s, 9, %(qc_level)s)",
+                                 {'folder_id': folder_id, 'qc_level': project_qc_settings['qc_level']})
             no_files_for_qc = math.ceil(folder_stats['no_files'] * (float(project_settings['qc_percent']) / 100))
             if no_files_for_qc < 10:
                 if folder_stats['no_files'] > 10:
                     no_files_for_qc = 10
                 else:
                     no_files_for_qc = folder_stats['no_files']
-            q = query_database_insert(("INSERT INTO qc_files (folder_id, file_id) ("
+            if project_settings['qc_filenames'] != None:
+                q = query_database_insert(("INSERT INTO qc_files (folder_id, file_id) ("
+                                  " SELECT folder_id, file_id "
+                                  "  FROM files WHERE folder_id = %(folder_id)s "
+                                  "    AND {} "
+                                  "  ORDER BY RAND() LIMIT {})").format(project_settings['qc_filenames'], no_files_for_qc),
+                                 {'folder_id': folder_id})
+            else:
+                q = query_database_insert(("INSERT INTO qc_files (folder_id, file_id) ("
                                   " SELECT folder_id, file_id "
                                   "  FROM files WHERE folder_id = %(folder_id)s "
                                   "  ORDER BY RAND() LIMIT {})").format(no_files_for_qc),
@@ -2349,7 +2411,7 @@ def invoice_recon(msg=None):
         # data_file_path = session.get('uploaded_data_file_path',None)
         files = pd.read_csv(f) # read csv
         # files = request.values.get('files').split('\r\n')
-        print(type(files))
+        # print(type(files))
         files = files.set_axis(['files'], axis=1)
         # files = pd.DataFrame(files, columns=['files'])
         files['files'] = files['files'].str.replace('.tif','')
@@ -2780,7 +2842,6 @@ def edit_inf_proj():
                                 'project_start': project_start,
                                 'proj_id': proj_id                                
                               }, return_res = False)
-        print(2680)
         return redirect(url_for('infprojects_edit', proj_id = proj_id))
 
 
@@ -3502,11 +3563,6 @@ def data_reports(project_alias=None, report_id=None):
         pregenerated = 1
     else:
         report_data = pd.DataFrame(run_query(project_report[0]['query']))
-        print("AAA")
-        print(project_report[0]['query'])
-        print(report_data)
-        print(report_data_updated)
-        print("BBB")
         data_file = ""
         data_file_e = ""
         current_datetime_formatted = ""

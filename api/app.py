@@ -20,7 +20,7 @@ from logger import logger
 
 import settings
 
-site_ver = "2.9.0"
+site_ver = "2.9.1"
 site_env = "api"
 site_net = "api"
 

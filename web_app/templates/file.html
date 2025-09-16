@@ -301,6 +301,7 @@
                 {% for table in tables %}
                     {% if file_metadata_rows > 0 %}
                        {{ table|safe }}
+                       <p>Note: This data was extracted with <em>exiftool</em>, which may not match the data in other software. Contact the DPO project manager for any issues or discrepancies.</p>
                     {% else %}
                         <p>Image metadata is not available.</p>
                     {% endif %}
