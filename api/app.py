@@ -20,7 +20,7 @@ from logger import logger
 
 import settings
 
-site_ver = "2.9.1"
+site_ver = "2.10.0"
 site_env = "api"
 site_net = "api"
 
@@ -138,13 +138,13 @@ def validate_api_key(api_key=None, url=None, params=None):
                 query_database_insert(query, params)
             return True, data[0]['is_admin'] == 1
         else:
-            query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)")
-            params = {'api_key': api_key}
+            query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0, %(url)s, %(params)s)")
+            params = {'api_key': api_key, 'url': url, 'params': params}
             query_database_insert(query, params)
             return False, False
     else:
-        query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0)")
-        params = {'api_key': api_key}
+        query = ("INSERT INTO api_keys_usage (api_key, valid) VALUES (%(api_key)s, 0, %(url)s, %(params)s)")
+        params = {'api_key': api_key, 'url': url, 'params': params}
         query_database_insert(query, params)
         return False, False
 
@@ -202,12 +202,12 @@ def api_route_list():
 def api_get_projects():
     """Get the list of projects."""
     # Check api_key
-    api_key = request.form.get("api_key")
-    if api_key is None or api_key == "":
-        return jsonify({'error': 'api_key is missing'}), 400
-    valid_api_key, is_admin = validate_api_key(api_key, url='/projects/', params=None)
-    if valid_api_key == False:
-        return jsonify({'error': 'Forbidden'}), 403
+    # api_key = request.form.get("api_key")
+    # if api_key is None or api_key == "":
+    #     return jsonify({'error': 'api_key is missing'}), 400
+    # valid_api_key, is_admin = validate_api_key(api_key, url='/projects/', params=None)
+    # if valid_api_key == False:
+    #     return jsonify({'error': 'Forbidden'}), 403
     section = request.form.get("section")
     if section not in ['MD', 'IS']:
         query = (" SELECT "
@@ -264,17 +264,16 @@ def api_get_projects():
     return jsonify(data)
 
 
-# ok
 @app.route('/projects/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get the details of a project by specifying the project_alias."""
     # Check api_key
-    api_key = request.form.get("api_key")
-    if api_key is None or api_key == "":
-        return jsonify({'error': 'api_key is missing'}), 400
-    valid_api_key, is_admin = validate_api_key(api_key, url='/projects/', params="project_alias={}".format(project_alias))
-    if valid_api_key == False:
-        return jsonify({'error': 'Forbidden'}), 403
+    # api_key = request.form.get("api_key")
+    # if api_key is None or api_key == "":
+    #     return jsonify({'error': 'api_key is missing'}), 400
+    # valid_api_key, is_admin = validate_api_key(api_key, url='/projects/', params="project_alias={}".format(project_alias))
+    # if valid_api_key == False:
+    #     return jsonify({'error': 'Forbidden'}), 403
     data = run_query(("SELECT "
                                "project_id, "
                                "project_title, "
@@ -340,12 +339,12 @@ def api_get_project_details(project_alias=None):
 def api_get_project_files(project_alias=None):
     """Get the list of files of a project by specifying the project_alias."""
     # Check api_key
-    api_key = request.form.get("api_key")
-    if api_key is None or api_key == "":
-        return jsonify({'result': False}), 400
-    valid_api_key, is_admin = validate_api_key(api_key, url='/projects/files', params="project_alias={}".format(project_alias))
-    if valid_api_key == False:
-        return jsonify({'result': False}), 403
+    # api_key = request.form.get("api_key")
+    # if api_key is None or api_key == "":
+    #     return jsonify({'result': False}), 400
+    # valid_api_key, is_admin = validate_api_key(api_key, url='/projects/files', params="project_alias={}".format(project_alias))
+    # if valid_api_key == False:
+    #     return jsonify({'result': False}), 403
     data = run_query(("SELECT f.file_id, f.uid, f.file_name, f.folder_id FROM files f WHERE f.folder_id in "
                                " (SELECT folder_id FROM folders WHERE project_id in (SELECT project_id from projects WHERE project_alias = %(project_alias)s)) ORDER BY f.file_name"),
                               {'project_alias': project_alias})
@@ -525,6 +524,12 @@ def api_update_project_details(project_alias=None):
                                 update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
                         res = query_database_insert(query, {'project_id': project_id})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                        # Check for other error badges
+                        query_other_errors = run_query("SELECT count(*) as no_badges from folders_badges where folder_id = %(folder_id)s AND badge_css = 'bg-danger'",
+                                                {'folder_id': folder_id})[0]
+                        if query_other_errors['no_badges'] > 0:
+                            query = ("UPDATE folders f SET f.file_errors = 1 where folder_id = %(folder_id)s")
+                            res = query_database_insert(query, {'folder_id': folder_id})
                     elif query_property == "raw0":
                         query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                     " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")

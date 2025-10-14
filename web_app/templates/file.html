@@ -8,6 +8,33 @@
 
 {% block head_blocks %}
 
+
+
+<style>
+    .missing-image {
+      width: 160px;
+      height: 120px;
+      background-color: #f0f0f0;
+      border: 2px dashed #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .missing-image svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 8px;
+      fill: #999;
+    }
+  </style>
+
+
 {% endblock %}
 
 
@@ -77,8 +104,14 @@
                     {% if file_details.preview_image_ext == None %}
                         
                         {% if file_details.preview_img_path == "na_160.png" %}
-                            <p><img src="{{ url_for('static', filename=file_details.preview_img_path) }}" alt="Preview image of {{ file_details.file_name }}" class="shadow-sm p-3 mb-5 bg-body-tertiary rounded"></p>
                             
+                            <!-- Inline SVG icon for missing image -->
+                            <div class="missing-image">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                </svg>
+                            </div>
+                            <br>
                             <!-- Info on why the preview is not available -->
                             <div class="alert alert-info m-100" role="alert">
                                 {% if folder_info.delivered_to_dams == 0 %}

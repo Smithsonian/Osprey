@@ -61,7 +61,7 @@ from werkzeug.utils import secure_filename
 
 import settings
 
-site_ver = "2.9.0"
+site_ver = "2.9.1"
 site_env = settings.env
 site_net = settings.site_net
 
@@ -439,7 +439,26 @@ def homepage(team=None, subset=None):
     section_query = ((" SELECT "
                      " p.projects_order, "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CASE WHEN p.project_alias IS NULL THEN p.project_title ELSE CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') END as project_title, "
+                     "      CASE WHEN "
+                     "             p.project_alias IS NULL "
+                     "              THEN p.project_title "
+                     "      ELSE "
+                     "          (CASE WHEN "
+                     "              p.project_status = 'Ongoing' and ps.collex_to_digitize != 0 "
+                     "              THEN "
+                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a><br>"
+                     "                  <small>Estimated Progress: ', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), ' % "
+                     "                  <div class=\"progress\"> "
+                     "                      <div class=\"progress-bar bg-success\" role=\"progressbar\" style=\"width: ', "
+                     "                          ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '%\" "
+                     "                         aria-valuenow=\"', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '\" aria-valuemin=\"0\" aria-valuemax=\"100\"> "
+                     "                      </div> "
+                     "                   </div></small>"
+                     "              ') "
+                     "          ELSE "
+                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') "
+                     "          END) "
+                     "      END as project_title, "
                      " p.project_status, "
                      " p.project_manager, "
                      " CASE "

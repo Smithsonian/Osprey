@@ -6,6 +6,41 @@
     <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
 {% endblock %}
 
+
+
+{% block head_blocks %}
+
+
+
+<style>
+    .missing-image {
+      width: 160px;
+      height: 120px;
+      background-color: #f0f0f0;
+      border: 2px dashed #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .missing-image svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 8px;
+      fill: #999;
+    }
+  </style>
+
+
+{% endblock %}
+
+
+
 {% block content %}
 
 
@@ -355,7 +390,16 @@
                             href="{{ url_for('file', file_id=file.file_id) }}"
                             title="Details of the file {{ file.file_name }}">
 
-                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
+                        {% if file.preview_img_path == "na_160.png" %}
+                            <div class="missing-image">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                    <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                </svg>
+                            </div>
+                            <br>
+                        {% else %}
+                            <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
+                        {% endif %}
 
                         <small>{{ file.file_name }}</small>
                   </a>
