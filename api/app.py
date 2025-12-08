@@ -11,6 +11,8 @@ import json
 import pandas as pd
 import locale
 
+import requests
+
 # MySQL
 import mysql.connector
 
@@ -690,6 +692,38 @@ def api_update_project_details(project_alias=None):
                             # Get results for file query
                             check_results = res[0]['result']
                             check_info = res[0]['info']
+                            if str(check_results) == "1":
+                                logger.info(f"Filename check failed {file_id}. Checking if JPCA.")
+                                # Hard-coded check for RefID for JPCA from ASpace
+                                refid = res[0]['refid']
+                                query = (f"SELECT project_id from folders where folder_id in (select folder_id from files where file_id = {file_id})")
+                                proj_res = run_query(query)
+                                projid = str(proj_res[0]['project_id'])
+                                logger.info(f"Project_id: {projid}.")
+                                if projid == "220":
+                                    # JPCA
+                                    # Login to ASpace
+                                    logger.info("Special process for JPCA.")
+                                    params = {"password": settings.aspace_api_password}
+                                    r = requests.post("{}/users/{}/login".format(settings.aspace_api, settings.aspace_api_username), params=params)
+                                    logger.info(f"ASpace r.status_code: {r.status_code}")
+                                    if r.status_code == 200:
+                                        logger.info("Success! Was able to get token")
+                                        response_json = json.loads(r.content.decode('utf-8'))
+                                        session_token = response_json['session']
+                                        Headers = {"X-ArchivesSpace-Session": session_token}
+                                        r = requests.get(f"{settings.aspace_api}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects", headers=Headers)
+                                        refid_exists = json.loads(r.text.encode('utf-8'))
+                                        if len(refid_exists['archival_objects']) != 0:
+                                            if refid_exists['archival_objects'][0]['_resolved']['ref_id'] == refid:
+                                                query = ("insert into jpc_aspace_data (refid, table_id, resource_id, archive_box, archive_type, archive_folder, unit_title) with data as (select distinct SUBSTRING_INDEX(file_name, '_', 1) as refid from files where file_id = %(file_id)s) (select refid, uuid_v4s(), 'a', 'a', 'a', 'a', 'a' from data)")
+                                                logger.info(query)
+                                                res = query_database_insert(query, {'file_id': file_id})
+                                                logger.info("Inserted")
+                                                check_results = 0
+                                                check_info = refid
+                                    else:
+                                        logger.error("\n There was an error when loggin into ASpace: {}".format(r.reason))
                     query = (
                         "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
                         " VALUES (%(file_id)s, %(folder_id)s, %(file_check)s, %(check_results)s, %(check_info)s, CURRENT_TIME) "

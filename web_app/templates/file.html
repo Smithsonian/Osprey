@@ -61,7 +61,11 @@
 
     <div class="row">
         {% if zoom_exists == 1 %}
-            <div class="col-12">
+            {% if transcription == 1 %}
+                <div class="col-8">
+            {% else %}
+                <div class="col-12">
+            {% endif %}
         {% else %}
             <div class="col-6">
         {% endif %}
@@ -140,6 +144,31 @@
                 <p style="font-size: large;">Filename: {{ file_details.file_name }}</p>
                 <p>DPO File ID: {{ file_details.file_id }}<br>
                 Record created on: {{ file_details.created_at }}</p>
+
+
+                <!-- Make space for transcription data -->
+                {% if transcription == 1 %}
+                    </div><div class="col">
+                        {% if transcription_text|length > 0 %}
+                            <h3>Transcriptions:</h3>
+                            {% for t_text in transcription_text %}
+
+                                <div class="card">
+                                    <h4 class="card-header text-white bg-primary">{{ t_text.transcription_source }}</h4>
+                                    <div class="card-body">
+                                        <pre style="font-size: large;">{{ t_text.transcription_text }}</pre>
+                                    </div>
+                                    <div class="card-footer">
+                                        <p style="font-size: small;">{{ t_text.transcription_notes }}</p>
+                                    </div>
+                                </div>
+                                <br>
+
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                {% endif %}
 
             {% endif %}
 

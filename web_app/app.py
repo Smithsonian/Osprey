@@ -1821,7 +1821,7 @@ def qc(project_alias=None):
     return render_template('qc.html', username=username,
                            project_settings=project_settings,
                            folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
-                           folder_qc_done=folder_qc_done[:50], folder_qc_done_len=len(folder_qc_done),
+                           folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
                            project=project, form=form, project_qc_stats=project_qc_stats,
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
@@ -3150,6 +3150,17 @@ def file(file_id=None):
         zoom_exists = 0
         zoom_filename = None
 
+    #Transcription project?
+    transcription = run_query(("SELECT transcription FROM projects WHERE project_id = %(project_id)s"),
+                   {'project_id': folder_info['project_id']})[0]
+    transcription = int(transcription['transcription'])
+
+    if transcription == 1:
+        transcription_text = run_query(("SELECT * FROM files_transcription WHERE file_id = %(file_id)s"),
+                   {'file_id': file_details['file_id']})
+    else:
+        transcription_text = ""
+    
     return render_template('file.html',
                            zoom_exists=zoom_exists, zoom_filename=zoom_filename, folder_info=folder_info,
                            file_details=file_details, file_checks=file_checks, 
@@ -3160,6 +3171,7 @@ def file(file_id=None):
                                                          classes=["display", "compact", "table-striped"])],
                            file_metadata_rows=file_metadata.shape[0],
                            file_links=file_links, file_sensitive=str(file_sensitive),
+                           transcription_text=transcription_text, transcription=transcription,
                            sensitive_info=sensitive_info, form=form, site_env=site_env,
                            site_net=site_net, site_ver=site_ver, kiosk=kiosk, user_address=user_address,
                            analytics_code=settings.analytics_code)
