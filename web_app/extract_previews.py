@@ -2,13 +2,16 @@
 # 
 import os
 import sys
-import mysql.connector
 import tarfile
 import logging
 from time import strftime
 from time import localtime
-
+import subprocess
 import settings
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", 'mysql-connector-python'])
+import mysql.connector
+
 
 folder_id = sys.argv[1]
 
