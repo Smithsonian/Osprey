@@ -74,7 +74,7 @@
 
             <h2>Image Preview:</h2>
 
-            {% if username != "" %}
+            {% if username != "" and transcription == 0 %}
                 <div style="background-color: lightgray; padding: 10px;"><p>If image contains potentially sensitive or offensive material, please enter the details here:</p>
                 <form action="{{ url_for('update_image') }}" method="POST">
                     <input type="hidden" class="form-control form-control-md" id="file_id" name="file_id" value="{{ file_details.file_id }}">

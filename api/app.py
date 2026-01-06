@@ -510,28 +510,71 @@ def api_update_project_details(project_alias=None):
                         query = ("UPDATE folders SET updated_at = NOW() WHERE folder_id = %(folder_id)s")
                         res = query_database_insert(query, {'folder_id': folder_id})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
-                        # Update project counts
-                        query = ("""WITH 
-                                folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),
-                                files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),
-                                checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),
-                                checklist as (select c.file_check, f.file_id from checks c, files_q f),
-                                data AS (
-                                SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results
-                                FROM
-                                checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)
-                                group by c.file_id),
-                                stat_total1 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 0),
-                                stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 1)
-                                update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
-                        res = query_database_insert(query, {'project_id': project_id})
-                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                        # # Update project counts
+                        # query = ("""WITH 
+                        #         folders_q as (SELECT folder_id from folders WHERE project_id = %(project_id)s),
+                        #         files_q as (SELECT file_id FROM files f, folders_q fol WHERE f.folder_id = fol.folder_id),
+                        #         checks as (select settings_value as file_check from projects_settings where project_setting = 'project_checks' AND project_id = %(project_id)s),
+                        #         checklist as (select c.file_check, f.file_id from checks c, files_q f),
+                        #         data AS (
+                        #         SELECT c.file_id, sum(coalesce(f.check_results, 9)) as check_results
+                        #         FROM
+                        #         checklist c left join files_checks f on (c.file_id = f.file_id and c.file_check = f.file_check)
+                        #         group by c.file_id),
+                        #         stat_total1 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 0),
+                        #         stat_total2 as (SELECT count(file_id) as no_files FROM data WHERE check_results = 1)
+                        #         update projects_stats s, stat_total1 t1, stat_total2 t2 set s.project_ok = t1.no_files, s.project_err = t2.no_files WHERE s.project_id = %(project_id)s""")
+                        # res = query_database_insert(query, {'project_id': project_id})
+                        # logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                         # Check for other error badges
                         query_other_errors = run_query("SELECT count(*) as no_badges from folders_badges where folder_id = %(folder_id)s AND badge_css = 'bg-danger'",
                                                 {'folder_id': folder_id})[0]
                         if query_other_errors['no_badges'] > 0:
                             query = ("UPDATE folders f SET f.file_errors = 1 where folder_id = %(folder_id)s")
                             res = query_database_insert(query, {'folder_id': folder_id})
+                        # Calculate counts for folder
+                        no_files = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
+                                              {'folder_id': folder_id})[0]
+                        res = query_database_insert("UPDATE folders SET no_files_total = %(no_files)s WHERE folder_id= %(folder_id)s", {'folder_id': folder_id, 'no_files': no_files['no_files']})
+                        no_error_files = run_query("SELECT count(distinct f.file_id) as no_files FROM files f, files_checks fc WHERE f.folder_id = %(folder_id)s and f.file_id = fc.file_id and fc.check_results = 1",
+                                              {'folder_id': folder_id})[0]
+                        res = query_database_insert("UPDATE folders SET no_files_errors = %(no_files)s WHERE folder_id= %(folder_id)s", {'folder_id': folder_id, 'no_files': no_error_files['no_files']})
+                        no_ok_files = run_query("""
+                                            with no_checks as (SELECT count(*) as no_checks FROM projects_settings WHERE project_id = %(project_id)s and project_setting = 'project_checks'),
+                                            no_files as (
+                                            SELECT f.file_id, count(*) as no_files FROM files f, files_checks fc 
+                                            WHERE f.folder_id = %(folder_id)s and f.file_id = fc.file_id and fc.check_results = 0
+                                            group by f.file_id)
+                                            select count(no_files.file_id) as ok_files from no_files, no_checks where no_files.no_files = no_checks.no_checks
+                                                """,
+                                              {'project_id': project_id, 'folder_id': folder_id})[0]
+                        res = query_database_insert("UPDATE folders SET no_files_ok = %(no_files)s WHERE folder_id= %(folder_id)s", {'folder_id': folder_id, 'no_files': no_ok_files['ok_files']})
+                        no_checks = run_query("SELECT count(*) as no_checks FROM projects_settings WHERE project_id = %(project_id)s and project_setting = 'project_checks'",
+                                              {'project_id': project_id})[0]
+                        total_checks = int(no_checks['no_checks']) * int(no_files['no_files'])
+                        no_pending = run_query("SELECT count(*) as no_files from files_checks where file_id in (select file_id from files where folder_id = %(folder_id)s) and (check_results = 0 or check_results = 1)", {'folder_id': folder_id})[0]
+                        # Verify all checks were completed               
+                        if total_checks != no_pending['no_files']:
+                            query = ("UPDATE folders SET status = 1, error_info = %(value)s WHERE folder_id = %(folder_id)s")
+                            res = query_database_insert(query, {'value': query_value, 'folder_id': folder_id})
+                            logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                            clear_badges = run_query("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s and badge_type = 'folder_error'",
+                                {'folder_id': folder_id})
+                            query = (
+                                "INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text, updated_at) "
+                                " VALUES (%(folder_id)s, 'folder_error', 'bg-danger', %(msg)s, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE badge_text = %(msg)s,"
+                                " badge_css = 'bg-danger', updated_at = CURRENT_TIMESTAMP")
+                            res = query_database_insert(query, {'folder_id': folder_id, 'msg': "System Error"})
+                            logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                        # Update project counts
+                        query = ("""WITH 
+                                folders_q as (SELECT * from folders WHERE project_id = %(project_id)s)
+                                update projects_stats s, folders_q fol 
+                                 set s.images_taken = sum(fol.no_files_total), s.project_err = sum(fol.no_files_errors), s.project_ok = sum(fol.no_files_ok) 
+                                    WHERE s.project_id = %(project_id)s
+                                 """)
+                        res = query_database_insert(query, {'project_id': project_id})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "raw0":
                         query = ("INSERT INTO folders_md5 (folder_id, md5_type, md5) "
                                     " VALUES (%(folder_id)s, %(value)s, 0) ON DUPLICATE KEY UPDATE md5 = 0")

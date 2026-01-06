@@ -40,10 +40,11 @@ from ldap3 import Server, Connection, ALL, NTLM
 from ldap3.core.exceptions import LDAPBindError as LDAPBindError
 from ldap3 import set_config_parameter
 import time
+import tarfile
+import subprocess
 
 # MySQL
 import mysql.connector
-import tarfile
 
 # Flask Login
 from flask_login import LoginManager
@@ -1977,8 +1978,8 @@ def qc_process(folder_id):
                                   "  FROM files WHERE folder_id = %(folder_id)s "
                                   "  ORDER BY RAND() LIMIT {})").format(no_files_for_qc),
                                  {'folder_id': folder_id})
-            logger.info("1587: {}".format(no_files_for_qc))
-            return redirect(url_for('qc_process', folder_id=folder_id))
+            logger.info("no_files_for_qc: {}".format(no_files_for_qc))
+            return redirect(url_for('qc_loading1', folder_id=folder_id))
         else:
             qc_stats_q = run_query(("WITH errors AS "
                                          "         (SELECT count(file_id) as no_files "
@@ -2013,7 +2014,7 @@ def qc_process(folder_id):
             if qc_stats['no_files'] != int(qc_stats['no_errors']) + int(qc_stats['passed']):
                 file_qc = run_query(("SELECT f.* FROM qc_files q, files f "
                                           "  WHERE q.file_id = f.file_id "
-                                          "     AND f.folder_id = %(folder_id)s AND q.file_qc = 9 "
+                                          "     AND f.folder_id = %(folder_id)s AND q.file_qc = 9 order by file_id "
                                           "  LIMIT 1 "),
                                          {'folder_id': folder_id})[0]
                 file_details = run_query(("SELECT f.file_id, f.folder_id, f.file_name, COALESCE(s.sensitive_contents, 0) as sensitive_contents "
@@ -2119,6 +2120,40 @@ def qc_process(folder_id):
         return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
+
+
+@app.route('/qc_prep/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
+@login_required
+def qc_loading1(folder_id):
+    """Prepare QC for a folder"""
+    return render_template('qc_prep.html', folder_id=folder_id, 
+                               project_alias="", site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code)
+
+
+@app.route('/qc_loading/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
+@login_required
+def qc_loading2(folder_id):
+    """Prepare QC for a folder"""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api_route_list'))
+    username = current_user.name
+    # Expand the tars for the selected images
+    files_qc = run_query(("SELECT file_id FROM qc_files WHERE folder_id = %(folder_id)s ORDER BY file_id LIMIT 2 "),
+                            {'folder_id': folder_id})
+    for f in files_qc:
+        tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(folder_id, f['file_id'])
+        imgfolder = "static/image_previews/folder{}/".format(folder_id)
+        if os.path.isfile(tarimgfile):
+            if os.path.isdir("static/image_previews/folder{}/{}_files".format(folder_id, f['file_id'])) is False:
+                try:
+                    with tarfile.open(tarimgfile, "r") as tf:
+                        tf.extractall(path=imgfolder)
+                except: 
+                    logger.error("Couln't open {}".format(tarimgfile))
+    subprocess.Popen(["python3", "extract_previews.py", folder_id, "&"])
+    return redirect(url_for('qc_process', folder_id=folder_id))
 
 
 @app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
