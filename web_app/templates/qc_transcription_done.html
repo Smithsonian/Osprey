@@ -33,13 +33,15 @@
                     </li>
             </ul>
 
-            <form action="{{ url_for('qc_done', folder_id=folder.folder_id) }}" method="POST">
+            <form action="{{ url_for('qc_done', folder_id=folder.folder_transcription_id) }}" method="POST">
 
                 <div class="mb-3">
                     {% if qc_folder_result == True %}
-                        <p><strong>QC Passed</strong></p>
+                        <input type="radio" class="btn-check" name="qc_status" id="success-outlined" autocomplete="off" value="0" checked>
+                        <label class="btn btn-outline-success" for="success-outlined">QC Passed</label>
                     {% elif qc_folder_result == False %}
-                        <p><strong>QC Failed</strong></p>
+                        <input type="radio" class="btn-check" name="qc_status" id="danger-outlined" autocomplete="off" value="1" checked>
+                        <label class="btn btn-outline-danger" for="danger-outlined">QC Failed</label>
                     {% endif %}
                 </div>
 

@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Details of {{ file_details.file_name }} - DPO Collections Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <h1 class="navbar-brand navtitle">Details of {{ file_details.file_name }}</h1>
+{% endblock %}
+
+{% block head_blocks %}
+
+
+<style>
+    .missing-image {
+      width: 160px;
+      height: 120px;
+      background-color: #f0f0f0;
+      border: 2px dashed #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .missing-image svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 8px;
+      fill: #999;
+    }
+  </style>
+
+
+{% endblock %}
+
+
+{% block content %}
+
+    <div class="row">
+        <div class="col">
+             <p>
+                <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_transcription_id) }}" title="Folder {{ folder_info.folder }} page" role="button">
+                    <i class="fa-solid fa-list"></i> Back to folder {{ folder_info.folder }}
+                </a>
+            </p>
+        </div>
+        <div class="col">
+            <p style="text-align: right;">
+                <a class="btn btn-primary btn-sm{% if file_details.prev_id %}" href="{{ url_for('file_transcription', file_id=file_details.prev_id) }}{% else %} disabled" href="#{% endif %}" role="button">
+                    <i class="fa-solid fa-chevron-left"></i> Prev File</a>&nbsp; 
+                <a class="btn btn-primary btn-sm{% if file_details.next_id %}" href="{{ url_for('file_transcription', file_id=file_details.next_id) }}{% else %} disabled" href="#{% endif %}" role="button">
+                Next File <i class="fa-solid fa-chevron-right"></i></a>
+                <br><small>(by alphabetical order)</small>
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Image div, keep at 6? -->
+        <div class="col-6">
+        
+        {% if site_net == "internal" %}
+
+            <h2>Image Preview:</h2>
+
+                {% if zoom_filename == "" or zoom_filename == None %}
+                    
+                    <!-- Inline SVG icon for missing image -->
+                    <div class="missing-image">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                        </svg>
+                    </div>
+                    <br>
+                    <!-- Info on why the preview is not available -->
+                    <div class="alert alert-info m-100" role="alert">
+                        {% if folder_info.delivered_to_dams == 0 %}
+                            <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been delivered to DAMS. Please contact the Project Manager for more details.
+                        {% elif file_details.datediff > 59 %}
+                            <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been removed. Please contact the Project Manager for more details.
+                        {% else %}
+                            <i class="fa-solid fa-circle-info"></i> The preview is not available because the record was created recently. It might take up to a few hours for the images to be available. Please contact the Project Manager for more details.
+                        {% endif %}
+                    
+                    </div>
+
+                {% else %}
+                    
+                    <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div><br>
+                        
+                {% endif %}
+                
+                <p style="font-size: large;">Filename: {{ file_details.file_name }}</p>
+                <p>DPO File ID: {{ file_details.file_transcription_id }}<br>
+                Record created on: {{ file_details.created_at }}</p>
+
+
+                <!-- Make space for transcription data -->                
+                </div>
+                <div class="col">
+                    {% if tables|length > 0 %}
+                        <h3>Transcriptions:</h3>
+                        
+                            {% for data in tables %}
+                                    <div class="card">
+                                        <h4 class="card-header text-white bg-primary">{{ tables[data].name }}</h4>
+                                        <div class="card-body">
+                                            {{ tables[data].table|safe }}
+                                        </div>
+                                        <div class="card-footer">
+                                            <p style="font-size: small;">{{ tables[data].source_info }}</p>
+                                        </div>
+                                    </div>
+                                    <br>
+                        {% endfor %}
+                        
+                    {% endif %}
+                </div>
+
+        {% endif %}
+
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-4">
+
+            <!-- File checks -->
+            <div class="card">
+                <h2 class="card-header text-white bg-primary">File Technical Checks</h2>
+                <div class="card-body">
+                    <table class="table compact table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for check in file_checks %}
+                            <tr>
+                                <td style="font-size: small;">
+                                    <strong>{{ check.file_check }}</strong><br>
+                                        {% if check.file_check == 'tif_compression' %}
+                                            TIF file is compressed using the lossless compression LZW.
+                                        {% elif check.file_check == 'tifpages' %}
+                                            Check that there are no more than 1 page in the TIF, usually a thumbnail.
+                                        {% elif check.file_check == 'magick' %}
+                                            File is valid according to ImageMagick.
+                                        {% elif check.file_check == 'jhove' %}
+                                            File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>.
+                                        {% elif check.file_check == 'unique_file' %}
+                                            Filename is unique in the project.
+                                        {% elif check.file_check == 'raw_pair' %}
+                                            Raw file was found for the image.
+                                        {% elif check.file_check == 'valid_name' %}
+                                            Filename is in the list of allowed names.
+                                        {% elif check.file_check == 'old_name' %}
+                                            Filename was not found in list outside the project.
+                                        {% elif check.file_check == 'derivative' %}
+                                            Derivative file is present.
+                                        {% elif check.file_check == 'prefix' %}
+                                            Filename has the correct prefix.
+                                        {% elif check.file_check == 'sequence' %}
+                                            File sequence is correct.
+                                        {% elif check.file_check == 'tesseract' %}
+                                            Text orientation and OCR with Tesseract.
+                                        {% else %}
+                                            Checks for {{ check.file_check }}.
+                                        {% endif %}
+                                </td>
+                                <td style="font-size: small;">
+                                    {% if check.check_results == 0 %}
+                                        <button type="button" class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">OK</button>
+                                    {% elif check.check_results == 1 %}
+                                        <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Failed</button>
+                                    {% elif check.check_results == 9 %}
+                                        <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#checkmodal" data-bs-info="{{ check.check_info }}">Pending</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+    
+                    </table>
+                </div>
+            </div>
+
+
+
+            <!-- File check and post modals -->
+            <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title" id="checkmodalLabel">Check Details</h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <pre>#</pre>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+        </div>
+        <div class="col-8">
+
+
+            <!-- Image-related links and records-->
+            {% if file_links|length > 0 %}
+                <div class="card">
+                    <p class="fs-3 card-header text-white bg-primary">Links related to this image</p>
+                    <div class="card-body">
+                        <div class="list-group">
+
+                        {% for link in file_links %}
+                            <a href="{{ link.link_url }}" title="{{ link.link_aria }}" class="list-group-item">{{ link.link_name | safe }}</a>
+                        {% endfor %}
+
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+
+<br>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+
+            $('#transcription_text').DataTable({
+                "searching": false, 
+                "paging": false, 
+                "info": false,
+                "order": [],
+                    "columnDefs": [
+                        {
+                            'targets': 0,
+                            'createdCell':  function (td, cellData, rowData, row, col) {
+                                $(td).attr('scope', 'row');
+                            }
+                        }]
+            });
+
+            // file checks details
+            var exampleModal = document.getElementById('checkmodal')
+            exampleModal.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody = exampleModal.querySelector('.modal-body pre')
+
+              modalBody.textContent = checkinfo;
+            })
+        });
+    </script>
+
+
+    {% if zoom_exists == 1 %}
+        <!-- openseadragon -->
+        <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+
+        <script type="text/javascript">
+            var viewer = OpenSeadragon({
+                id: "openseadragon",
+                prefixUrl: "{{ url_for('static', filename='images/') }}",
+                tileSources: "{{ zoom_filename }}",
+                timeout: 60000,
+                tileRetryMax: 2,
+                preload: true,
+                constrainDuringPan: true,
+                showRotationControl: true,
+                showNavigator: true,
+                maxZoomPixelRatio: 1 
+            });
+        </script>
+    
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+    <h3>{{ project.project_title }}</h3>
+
+    <p>
+        <a class="btn btn-info btn-sm" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" role="button">
+            <i class="fa-solid fa-gauge-high"></i> Project Dashboard</a>
+    </p>
+
+    <h4>QC Progress</h4>
+
+
+
+<div class="row">
+    <div class="col-4">
+        <div class="card">
+            <h5 class="card-header">Total number of folders: {{ project_qc_stats.total }}</h5>
+            <div class="card-body">
+                <ul class="list-group">
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-success">QC Passed</span></h5><h5> {{ project_qc_stats.ok }} folders</h5></li>
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-danger">QC Failed</span></h5><h5> {{ project_qc_stats.failed }} folders</h5></li>
+                    <li class="list-group-item list-group-item d-flex w-100 justify-content-between"><h5><span class="badge bg-secondary">QC Pending</span></h5><h5> {{ project_qc_stats.pending }} folders</h5></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <h5 class="card-header">Folders with QC in Progress</h5>
+            <div class="card-body">
+                
+                <ul>
+
+                {% for folder in folder_qc_pending %}
+                    <li>
+                        {{ folder.folder }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
+                        {% if folder.qc_by == username %}
+                            <br><a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <br><br>
+
+    <h4>Next Folder for QC:</h4>
+
+        <table class="table table-striped border">
+              <thead>
+                <tr>
+                    <th scope="col">Folder</th>
+                    <th scope="col">No. of Files</th>
+                    <th scope="col">File Errors</th>
+                    <th scope="col">Folder Errors</th>
+                    <th scope="col">QC Level</th>
+                    <th scope="col">QC</th>
+                </tr>
+              </thead>
+            <tbody>
+                {% for folder in folder_qc_info %}
+                <tr>
+                    <td>
+                        {{ folder.project_folder }}
+                    </td>
+                    <td>
+                         <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
+                    </td>
+                    <td>
+                        {% if folder.file_errors == 1 %}
+                            <span class="badge bg-danger">File Errors</span>
+                        {% elif folder.file_errors == 0 %}
+                            <span class="badge bg-success">None</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if folder.status == 1 %}
+                            <span class="badge bg-danger">{{ folder.error_info }}</span>
+                        {% elif folder.status == 0 %}
+                            <span class="badge bg-success">None</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ project_settings.qc_level }} ({{ project_settings.qc_percent }} %)</span>
+                    </td>
+                    <td>
+                        <p>
+                        {% if folder.qc_status == "QC Pending" %}
+                            {% if folder.file_errors == 0 and folder.status == 0 %}
+                                <!-- Progress -->
+                                {% if folder.qc_stats_no_errors + folder.qc_stats_no_passed > 0 %}
+                                    <small>QC in Progress: [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}]</small><br>
+                                {% endif %}
+                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Run QC on Folder</a><br>
+                            {% endif %}
+                            <!-- <span class="badge bg-secondary">QC Pending</span> -->
+                        {% elif folder.qc_status == "QC Passed" %}
+                            <span class="badge bg-success">QC Passed</span>
+                            <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
+                        {% elif folder.qc_status == "QC Failed" %}
+                            <span class="badge bg-danger">QC Failed</span>
+                            <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+    {% if folder_qc_done_len > 0 %}
+        {% if folder_qc_done_len > 50 %}
+            <h4>Recent Folders with QC Completed:</h4>
+        {% else %}
+            <h4>Folders with QC Completed:</h4>
+        {% endif %}
+            <table class="table table-striped border">
+                  <thead>
+                    <tr>
+                        <th scope="col">Folder</th>
+                        <th scope="col">No. of Files</th>
+                        <th scope="col">File Errors</th>
+                        <th scope="col">Folder Errors</th>
+                        <th scope="col">QC Level</th>
+                        <th scope="col">QC</th>
+                    </tr>
+                  </thead>
+                <tbody>
+                    {% for folder in folder_qc_done %}
+                    <tr>
+                        <td>
+                            {{ folder.project_folder }}
+                        </td>
+                        <td>
+                             <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
+                        </td>
+                        <td>
+                            {% if folder.file_errors == 1 %}
+                                <span class="badge bg-danger">File Errors</span>
+                            {% elif folder.file_errors == 0 %}
+                                <span class="badge bg-success">None</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if folder.status == 1 %}
+                                <span class="badge bg-danger">{{ folder.error_info }}</span>
+                            {% elif folder.status == 0 %}
+                                <span class="badge bg-success">None</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                        <span class="badge bg-secondary">{{ folder.qc_level }}</span>
+                        </td>
+                        <td>
+                            <p>
+                            {% if folder.qc_status == "QC Passed" %}
+                                <span class="badge bg-success">QC Passed</span>
+                                <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
+                            {% elif folder.qc_status == "QC Failed" %}
+                                <span class="badge bg-danger">QC Failed</span>
+                                <br><small>QC by: {{ folder.qc_by }} on {{ folder.updated_at }}</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+    {% endif %}
+
+    <br><br>
+
+{% endblock %}

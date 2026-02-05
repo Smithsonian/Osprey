@@ -1,0 +1,49 @@
+
+# Database
+host = "localhost"
+database = "osprey"
+user = "osprey"
+password = "QGbIiwI6MeFeh9JUQqvr"
+port = 3306
+
+
+mysql_pool_size = 4
+
+secret_key = b'3dd13b4f2f883beccebed548b8aeddab'
+
+# dev or prod
+env = "dev"
+
+# Site is internal or external
+site_net = "internal"
+
+# log_folder = "/home/villanueval/app_log"
+log_folder = "logs"
+cache_folder = "cache"
+
+# kiosks = ["172.17.244.152", "10.228.149.133"]
+kiosks = ["172.17.244.152"]
+
+analytics_code = """
+<!-- START OF SmartSource Data Collector TAG v10.4.24 -->
+<!-- Copyright (c) 2019 Webtrends Inc.  All rights reserved. -->
+<script>
+window.webtrendsAsyncInit=function(){
+    var dcs=new Webtrends.dcs().init({
+        dcsid:"dcs63tcsg10000omxv4o2tw2j_7l5u",
+        domain:"logs1.smithsonian.museum",
+        timezone:-5,
+        i18n:true,
+        fpcdom:".si.edu",
+        plugins:{
+        }
+        }).track();
+};
+(function(){
+    var s=document.createElement("script"); s.async=true; s.src="https://www.si.edu/assets/webtrends/webtrends.min.js";    
+    var s2=document.getElementsByTagName("script")[0]; s2.parentNode.insertBefore(s,s2);
+}());
+</script>
+<noscript><img alt="dcsimg" id="dcsimg" width="1" height="1" src="https://logs1.smithsonian.museum/dcs63tcsg10000omxv4o2tw2j_7l5u/njs.gif?dcsuri=/nojavascript&amp;WT.js=No&amp;WT.tv=10.4.24&amp;dcssip=si.edu"/></noscript>
+<!-- END OF SmartSource Data Collector TAG v10.4.24 -->
+"""

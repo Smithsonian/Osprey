@@ -226,7 +226,11 @@
                         </div>
                     {% else %}
                         {% if folder.project_folder == folder_name.project_folder %}
-                            <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+                            {% if transcription == 1 %}
+                                <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+                            {% else %}
+                                <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action list-group-item-primary" id="{{ folder.project_folder | replace(' ', '_') }}" ><strong>{{ folder.project_folder }}</strong>
+                            {% endif %}
                         {% else %}
                             <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder.folder_id) }}" class="list-group-item list-group-item-action {% if folder.file_errors == 1 or folder.qc_status == "QC Failed" %}list-group-item-danger{% else %}list-group-item-light{% endif %}" id="{{ folder.project_folder | replace(' ', '_') }}" >{{ folder.project_folder }}
                         {% endif %}
@@ -386,23 +390,30 @@
                   </div>
 
                 {% for file in files_df %}
-                    <a type="button" class="btn btn-light btn-sm"
+                
+                    {% if transcription == 1 %}
+                        <a type="button" class="btn btn-light btn-sm"
+                            href="{{ url_for('file_transcription', file_id=file.file_id) }}"
+                            title="Details of the file {{ file.file_name }}">
+                    {% else %}
+                        <a type="button" class="btn btn-light btn-sm"
                             href="{{ url_for('file', file_id=file.file_id) }}"
                             title="Details of the file {{ file.file_name }}">
+                    {% endif %}
 
-                        {% if file.preview_img_path == "na_160.png" %}
-                            <div class="missing-image">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                    <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
-                                </svg>
-                            </div>
-                            <br>
-                        {% else %}
-                            <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
-                        {% endif %}
+                    {% if file.preview_img_path == "na_160.png" %}
+                        <div class="missing-image">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                            </svg>
+                        </div>
+                        <br>
+                    {% else %}
+                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
+                    {% endif %}
 
-                        <small>{{ file.file_name }}</small>
-                  </a>
+                    <small>{{ file.file_name }}</small>
+                </a>
                 {% endfor %}
 
                 <br>{{ pagination_html | safe }}

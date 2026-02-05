@@ -17,7 +17,7 @@
                         <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
             </p>
 
-            <h3>QC for folder {{ folder.project_folder }}</h3>
+            <h3>QC for folder {{ folder.folder }}</h3>
 
             <div class="progress">
                 <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="{{ qc_stats.percent_passed + qc_stats.percent_failed }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ qc_stats.percent_passed + qc_stats.percent_failed }}%"></div>
@@ -26,11 +26,26 @@
             <p>[{{ qc_stats.no_errors + qc_stats.passed }} of {{ qc_stats.no_files }}]</p>
 
             <hr>
+
+            <!-- Space for Image -->
+            <div class="card">
+                <div class="card-body text-bg-secondary p-3">
+                    <h5 class="card-title">File: {{ file_details.file_name }}</h5>
+                    <p class="card-text">
+                        {% if file_details.sensitive_contents == 1 %}
+                            <h3><em>This image may include sensitive contents.</em></h3>
+                            <br>
+                        {% endif%}
+
+                        <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>                       
+                </div>
+            </div>
+
         </div>
         <div class="col-6">
             <h4>Visual QC Results:</h4>
 
-            <form action="{{ url_for('qc_process', folder_id=folder.folder_id) }}" method="POST">
+            <form action="{{ url_for('qc_process', folder_id=folder.folder_transcription_id) }}" method="POST">
 
             <div class="mb-3">
                 <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
@@ -51,31 +66,13 @@
                 <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
               <button type="submit" class="btn btn-primary">Submit</button>
             </form>
-            <br><br>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body text-bg-secondary p-3">
-                    <h5 class="card-title">File: {{ file_details.file_name }}</h5>
-                    <p class="card-text">
-                        {% if file_details.sensitive_contents == 1 %}
-                            <h3><em>This image may include sensitive contents.</em></h3>
-                            <br>
-                        {% endif%}
-
-                        <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>                       
-                </div>
-            </div>
         </div>
     </div>
 
 <br><br>
 
 <div class="row">
-    <div class="col-4">
+    <div class="col-6">
 
         <h4>Technical Checks:</h4>
         <p><small>File ID: {{ file_details.file_id }}</small></p>
@@ -150,12 +147,26 @@
 
     </div>
     <div class="col">
-        <h4>Embedded Metadata:</h4>
-            <div style="font-size: 0.9em;">
-                {% for table in tables %}
-                    {{ table|safe }}
+        
+        <!-- Make space for transcription data -->
+        <div class="col">
+            {% if tables|length > 0 %}
+                <h3>Transcriptions:</h3>
+                
+                    {% for data in tables %}
+                            <div class="card">
+                                <h4 class="card-header text-white bg-primary">{{ tables[data].name }}</h4>
+                                <div class="card-body">
+                                    {{ tables[data].table|safe }}
+                                </div>
+                                <div class="card-footer">
+                                    <p style="font-size: small;">{{ tables[data].source_info }}</p>
+                                </div>
+                            </div>
+                            <br>
                 {% endfor %}
-            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -166,14 +177,7 @@
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
-            $('#file_metadata').DataTable({
-                "order": [],
-                lengthMenu: [
-                    [25, 50, 100, -1],
-                    [25, 50, 100, 'All'],
-                ],
-            });
-
+            
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
               // Button that triggered the modal
