@@ -926,7 +926,7 @@ def api_update_project_details(project_alias=None):
                     if transcription == 1:
                         query = (f"SELECT file_uid as file_id from file_md5 WHERE md5 = %(value)s and file_uid != %(file_id)s")
                     else:
-                        query = (f"SELECT file_id from file_md5 WHERE md5 = %(value)s and {fid} != %(file_id)s")
+                        query = (f"SELECT file_id from file_md5 WHERE md5 = %(value)s and file_id != %(file_id)s")
                     res = run_query(query, {'file_id': file_id, 'value': query_value})
                     if filetype == "tif":
                         file_check = "md5"
