@@ -936,10 +936,16 @@ def api_update_project_details(project_alias=None):
                         check_results = 0
                         check_info = "Unique MD5 hash"
                         # Check if exists
-                        query = (f"SELECT file_uid as file_id from file_md5 WHERE file_uid = %(file_id)s")
+                        if transcription == 1:
+                            query = (f"SELECT file_uid as file_id from file_md5 WHERE file_uid = %(file_id)s")
+                        else:
+                            query = (f"SELECT file_id from file_md5 WHERE file_id = %(file_id)s")
                         res = run_query(query, {'file_id': file_id})
                         if len(res) != 0:
-                            query = (f"DELETE from file_md5 WHERE file_uid = %(file_id)s")
+                            if transcription == 1:
+                                query = (f"DELETE from file_md5 WHERE file_uid = %(file_id)s")
+                            else:
+                                query = (f"DELETE from file_md5 WHERE file_id = %(file_id)s")
                             res = run_query(query, {'file_id': file_id})
                         query = (f"INSERT INTO file_md5 ({fileid}, filetype, md5) "
                             " VALUES (%(file_id)s, %(filetype)s, %(value)s)")
@@ -948,13 +954,18 @@ def api_update_project_details(project_alias=None):
                         check_results = 1
                         check_info = "MD5 hash found"
                         # Check if exists
-                        query = (f"SELECT file_uid as file_id from file_md5 WHERE file_uid = %(file_id)s")
+                        if transcription == 1:
+                            query = (f"SELECT file_uid as file_id from file_md5 WHERE file_uid = %(file_id)s")
+                        else:
+                            query = (f"SELECT file_id from file_md5 WHERE file_id = %(file_id)s")
                         res = run_query(query, {'file_id': file_id})
                         if len(res) != 0:
-                            query = (f"DELETE from file_md5 WHERE file_uid = %(file_id)s")
+                            if transcription == 1:
+                                query = (f"DELETE from file_md5 WHERE file_uid = %(file_id)s")
+                            else:
+                                query = (f"DELETE from file_md5 WHERE file_id = %(file_id)s")
                             res = run_query(query, {'file_id': file_id})
-                        query = (f"INSERT INTO file_md5 ({fileid}, filetype, md5) "
-                            " VALUES (%(file_id)s, %(filetype)s, %(value)s)")
+                        query = (f"INSERT INTO file_md5 ({fileid}, filetype, md5) VALUES (%(file_id)s, %(filetype)s, %(value)s)")
                         res = query_database_insert(query,
                                             {'file_id': file_id, 'filetype': filetype, 'value': query_value})
                     if transcription == 1:
@@ -1141,7 +1152,7 @@ def api_new_folder(project_alias=None):
                             query = ("UPDATE transcription_files SET file_size = %(filesize)s where file_transcription_id = %(file_id)s")
                             data = query_database_insert(query, {'file_id': file_id, 'filesize': filesize})
                         else:
-                            query = ("INSERT INTO files_size (file_id, file_uid, filetype, filesize) "
+                            query = ("INSERT INTO files_size (file_id, filetype, filesize) "
                                     " VALUES (%(file_id)s, %(filetype)s, %(filesize)s) ON DUPLICATE KEY UPDATE "
                                     " filesize = %(filesize)s")
                             data = query_database_insert(query,
