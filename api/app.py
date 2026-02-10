@@ -409,7 +409,7 @@ def api_update_project_details(project_alias=None):
                 files_table = "transcription_files"
                 fileid = "file_uid"
             else:
-                folder_table = "folder"
+                folder_table = "folders"
                 fid = "folder_id"
                 files_table = "files"
                 fileid = "file_id"
@@ -872,7 +872,7 @@ def api_update_project_details(project_alias=None):
                                 logger.info(f"Filename check failed {file_id}. Checking if JPCA.")
                                 # Hard-coded check for RefID for JPCA from ASpace
                                 refid = res[0]['refid']
-                                query = (f"SELECT distinct project_id from folders where file_id in (select file_id from files where file_id = {file_id})")
+                                query = (f"SELECT distinct project_id from folders where folder_id in (select folder_id from files where file_id = {file_id})")
                                 proj_res = run_query(query)
                                 projid = str(proj_res[0]['project_id'])
                                 logger.info(f"Project_id: {projid}.")
