@@ -258,6 +258,7 @@
     {% if project_folders_indams|length > 0 %}
     <br>
     <hr>
+        <!-- Folders in DAMS -->
         <p style="font-size: medium;">{{ project_folders_indams|length }} folder{% if project_folders_indams|length > 1 %}s{% endif %} delivered to DAMS:</p>
         
             <form action="{{ url_for('dashboard', project_alias=project_alias) }}" method="GET">

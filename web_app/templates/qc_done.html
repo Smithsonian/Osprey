@@ -37,8 +37,10 @@
 
                 <div class="mb-3">
                     {% if qc_folder_result == True %}
+                        <input type="hidden" class="btn-check" name="qc_status" id="success-outlined" autocomplete="off" value="0" checked>
                         <p><strong>QC Passed</strong></p>
                     {% elif qc_folder_result == False %}
+                        <input type="hidden" class="btn-check" name="qc_status" id="danger-outlined" autocomplete="off" value="1" checked>
                         <p><strong>QC Failed</strong></p>
                     {% endif %}
                 </div>

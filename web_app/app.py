@@ -860,7 +860,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       "FROM transcription_folders f "
                                       "     LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
                                       " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
-                                      " ORDER BY f.date DESC, f.folder DESC"),
+                                      " ORDER BY f.folder ASC"),
                                      {'project_id': project_id})
     else:
         transcription = 0
@@ -887,7 +887,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                       "FROM folders f "
                                       "     LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
                                       " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
-                                      " ORDER BY f.date DESC, f.project_folder DESC"),
+                                      " ORDER BY f.project_folder ASC"),
                                      {'project_id': project_id})
     # Get objects
     proj_obj = run_query(("SELECT COALESCE(objects_digitized, 0) as no_objects FROM projects_stats WHERE "
@@ -1457,7 +1457,7 @@ def dashboard(project_alias=None, folder_id=None):
                                         "FROM transcription_folders f "
                                         "     LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
                                         " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
-                                        " ORDER BY f.date DESC, f.folder DESC"),
+                                        " ORDER BY f.folder ASC"),
                                         {'project_id': project_id})
     else:
         transcription = 0
@@ -1481,7 +1481,7 @@ def dashboard(project_alias=None, folder_id=None):
                                         "FROM folders f "
                                         "     LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
                                         " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
-                                        " ORDER BY f.date DESC, f.project_folder DESC"),
+                                        " ORDER BY f.project_folder ASC"),
                                         {'project_id': project_id})
 
     folder_name = None
@@ -2849,6 +2849,8 @@ def qc_done(folder_id):
     elif qc_status == "1":
         badgecss = "bg-danger"
         qc_info = "QC Failed"
+    print(qc_status)
+    print(badgecss)
     if transcription == 1:
         query = (
             "INSERT INTO folders_badges (folder_uid, badge_type, badge_css, badge_text, updated_at) "
@@ -2864,18 +2866,17 @@ def qc_done(folder_id):
     project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
                              {'project_id': project_id})[0]
     if transcription == 1:
-        project_qc_hist = run_query(("SELECT q.* FROM qc_folders q, folders f "
-                                 " WHERE f.project_id = %(project_id)s AND q.folder_id = f.folder_id "
-                                 "    AND q.qc_status != 9 "
-                                 " ORDER BY updated_at DESC LIMIT 5"),
-                                    {'project_id': project_id})
-    else:
         project_qc_hist = run_query(("SELECT q.* FROM qc_folders q, transcription_folders f "
                                  " WHERE f.project_id = %(project_id)s AND q.folder_uid = f.folder_transcription_id "
                                  "    AND q.qc_status != 9 "
                                  " ORDER BY updated_at DESC LIMIT 5"),
                                     {'project_id': project_id})
-    
+    else:
+        project_qc_hist = run_query(("SELECT q.* FROM qc_folders q, folders f "
+                                 " WHERE f.project_id = %(project_id)s AND q.folder_id = f.folder_id "
+                                 "    AND q.qc_status != 9 "
+                                 " ORDER BY updated_at DESC LIMIT 5"),
+                                    {'project_id': project_id})
     if len(project_qc_hist) < 5:
         level = 'Tightened'
     else:
