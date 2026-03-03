@@ -7,6 +7,7 @@ import logging
 from time import strftime
 from time import localtime
 import subprocess
+from uuid import UUID
 import settings
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", 'mysql-connector-python'])
@@ -24,6 +25,24 @@ logging.basicConfig(filename='logs/extract_previews_{}.log'.format(current_time)
                     datefmt='%y-%b-%d %H:%M:%S', 
             level=logging.DEBUG)
 
+logger.info(f"folder_id: {folder_id}")
+
+try:
+    folder_id = int(folder_id)
+    folder_id = str(folder_id)
+    transcription = 0
+    folder_id = f"folder{folder_id}"
+except:
+    try:
+        # Allow for UUIDs
+        folder_id = UUID(folder_id)
+        folder_id = str(folder_id)
+        source_id = sys.argv[2]
+        source_id = UUID(source_id)
+        source_id = str(source_id)
+        transcription = 1
+    except:
+        logger.error(f"folder_id is wrong type: {folder_id}")
 
 try:
     conn = mysql.connector.connect(host=settings.host,
@@ -42,16 +61,22 @@ except mysql.connector.Error as err:
 
 # Expand the tars for the selected images
 logger.info(folder_id)
-res = cur.execute(("SELECT file_id FROM qc_files WHERE folder_id = %(folder_id)s order by file_id "),
-                        {'folder_id': folder_id})
+
+if transcription == 1:
+    res = cur.execute(("SELECT file_transcription_id as file_id FROM transcription_qc WHERE folder_transcription_id = %(folder_id)s and transcription_source_id = %(source_id)s order by file_transcription_id "),
+                            {'folder_id': folder_id, 'source_id': source_id})
+else:
+    res = cur.execute(("SELECT file_id FROM qc_files WHERE folder_id = %(folder_id)s order by file_id "),
+                            {'folder_id': folder_id})
+
 files_qc = cur.fetchall()
 logger.info("Found {} files to extract".format(len(files_qc)))
 
 for f in files_qc:
-    tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(folder_id, f['file_id'])
-    imgfolder = "static/image_previews/folder{}/".format(folder_id)
+    tarimgfile = "static/image_previews/{}/{}_files.tar".format(folder_id, f['file_id'])
+    imgfolder = "static/image_previews/{}/".format(folder_id)
     if os.path.isfile(tarimgfile):
-        if os.path.isdir("static/image_previews/folder{}/{}_files".format(folder_id, f['file_id'])) is False:
+        if os.path.isdir("static/image_previews/{}/{}_files".format(folder_id, f['file_id'])) is False:
             logger.info("Extracting {}".format(tarimgfile))
             try:
                 with tarfile.open(tarimgfile, "r") as tf:

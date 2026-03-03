@@ -27,7 +27,7 @@
             <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
         </div>
     </div>
-
+    
     <table class="table table-striped table-sm">
         <thead>
             <tr>
@@ -38,15 +38,32 @@
         </thead>
         <tbody>
 
-            {% for file in results %}
-                <tr>
-                    <td><a href="{{ url_for('file', file_id=file.file_id) }}">
-                        <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}">
-                    </a></td>
-                    <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
-                    <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
-                </tr>
-            {% endfor %}
+            {% if project_info.transcription == 1 %}
+
+                {% for file in results %}
+                    <tr>
+                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">
+                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                        </a></td>
+                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a></td>
+                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a></td>
+                    </tr>
+                {% endfor %}
+
+            {% else %}
+
+                {% for file in results %}
+                    <tr>
+                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">
+                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                        </a></td>
+                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
+                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
+                    </tr>
+                {% endfor %}
+
+            {% endif %}
+
 
         </tbody>
     </table>

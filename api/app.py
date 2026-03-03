@@ -639,12 +639,12 @@ def api_update_project_details(project_alias=None):
                             no_pending = run_query("SELECT count(*) as no_files from files_checks where file_id in (select file_id from files where folder_id = %(folder_id)s) and (check_results = 0 or check_results = 1)", {'folder_id': folder_id})[0]
                         # Verify all checks were completed
                         logger.info("641: {},{}".format(total_checks, no_pending['no_files']))
-                        if total_checks != no_pending['no_files']:
+                        if int(total_checks) != int(no_pending['no_files']):
                             if transcription == 1:
                                 query = (f"UPDATE transcription_folders SET status = 1, error_info = %(value)s WHERE folder_transcription_id = %(folder_id)s")
                             else:
                                 query = (f"UPDATE folders SET status = 1, error_info = %(value)s WHERE folder_id = %(folder_id)s")
-                            res = query_database_insert(query, {'value': "File checks totals don't match", 'folder_id': folder_id})
+                            res = query_database_insert(query, {'value': "File checks totals don't match: {}/{}/{}".format(total_checks, no_pending['no_files'], no_files['no_files']), 'folder_id': folder_id})
                             logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                             clear_badges = run_query(f"DELETE FROM folders_badges WHERE {fid} = %(folder_id)s and badge_type = 'folder_error'",
                                 {'folder_id': folder_id})
@@ -737,8 +737,12 @@ def api_update_project_details(project_alias=None):
                         res = query_database_insert(query, {'folder_id': folder_id})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "previews":
-                        query = (f"UPDATE {folder_table} SET previews = %(value)s WHERE {fid} = %(folder_id)s")
-                        res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
+                        if transcription == 1:
+                            query = ("UPDATE transcription_folders SET previews = %(value)s WHERE folder_transcription_id = %(folder_id)s")
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
+                        else:
+                            query = ("UPDATE folders SET previews = %(value)s WHERE folder_id = %(folder_id)s")
+                            res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     elif query_property == "qc":
                         query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
@@ -1128,16 +1132,14 @@ def api_new_folder(project_alias=None):
                                 "VALUES (%(file_id)s, 'unique_file', %(check_results)s, %(check_info)s, CURRENT_TIME)"
                                 " ON DUPLICATE KEY UPDATE"
                                 " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
-                            res = query_database_insert(query, {'file_id': file_id, 'check_results': check_results, 'check_info': check_info, 'uid': file_uid})
+                            # res = query_database_insert(query, {'file_id': file_id, 'check_results': check_results, 'check_info': check_info, 'uid': file_uid})
                             query = ("SELECT file_transcription_id as file_id FROM transcription_files WHERE file_transcription_id = %(file_id)s")
                         else:
                             query = ("INSERT INTO files_checks (file_id, uid, folder_id, file_check, check_results, check_info, updated_at) "
                                 "VALUES (%(file_id)s, %(uid)s, %(folder_id)s, 'unique_file', %(check_results)s, %(check_info)s, CURRENT_TIME)"
                                 " ON DUPLICATE KEY UPDATE"
                                 " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
-                            res = query_database_insert(query,
-                                                        {'file_id': file_id, 'folder_id': folder_id,
-                                                        'check_results': check_results, 'check_info': check_info, 'uid': file_uid})
+                            # res = query_database_insert(query, {'file_id': file_id, 'folder_id': folder_id, 'check_results': check_results, 'check_info': check_info, 'uid': file_uid})
                             query = ("SELECT * FROM files WHERE file_id = %(file_id)s")
                         data = run_query(query, {'file_id': file_id})
                         return jsonify({"result": data})

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-6">
+
+            <p><a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project_alias) }}" role="button">
+                        <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
+            </p>
+
+            
+        <!-- Make space for transcription data -->
+        <div class="col">
+                <h3>Transcriptions:</h3>
+                
+                    {% for source in t_sources %} 
+                        <p>
+                            <a class="btn btn-primary btn-sm" href="{{ url_for('qct_loading2', source_id=source.transcription_source_id) }}" role="button">
+                                {{ source.transcription_source_name }}</a> - {{ source.source_notes }}
+                            </p>
+                        <br>
+                {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            
+            var exampleModal = document.getElementById('checkmodal')
+            exampleModal.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody = exampleModal.querySelector('.modal-body pre')
+
+              modalBody.textContent = checkinfo
+            })
+
+            {{ zoom_js | safe}}
+        });
+    </script>
+
+
+{% if zoom_exists == 1 %}
+    <!-- openseadragon -->
+    <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+
+    <script type="text/javascript">
+        var viewer = OpenSeadragon({
+            id: "openseadragon",
+            prefixUrl: "../../static/images/",
+            tileSources: "{{ zoom_filename }}",
+            timeout: 60000,
+            tileRetryMax: 2,
+            preload: true,
+            constrainDuringPan: true,
+            showRotationControl: true,
+            showNavigator: true
+        });
+    </script>
+
+    {% else %}
+
+    <!-- Zoom -->
+        <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
+        ></script>
+    
+    {% endif %}
+
+{% endblock %}
