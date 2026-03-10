@@ -61,7 +61,7 @@
                             <a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Visual Image QC</a> &nbsp; 
                         {% endif %}
                         {% if project.transcription == 1 %}
-                            <a class="btn btn-info btn-sm" href="{{ url_for('qc_transcription', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Transcription QC</a> &nbsp; 
+                            <a class="btn btn-dark btn-sm" href="{{ url_for('qc_transcription', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-check-double"></i> Transcription QC</a> &nbsp; 
                         {% endif %}
                         {% if is_admin %}
                             <a class="btn btn-info btn-sm" href="{{ url_for('edit_project', project_alias=project.project_alias) }}" role="button"><i class="fa-solid fa-pen-to-square"></i> Edit Project</a> &nbsp; 

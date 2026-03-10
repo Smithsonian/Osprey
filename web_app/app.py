@@ -1970,7 +1970,7 @@ def qc(project_alias=None):
                                      "  and no_files > 0 "
                                      "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'folder_error' AND folder_uid IS NOT NULL) "
                                      "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'verification' AND folder_uid IS NOT NULL) "
-                                     "  ORDER BY date ASC, folder ASC LIMIT 10"),
+                                     "  ORDER BY date ASC, folder ASC"),
                                     {'project_id': project_id})
         folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_transcription_id as folder_id from transcription_folders WHERE project_id = %(project_id)s),"
                                      " errors AS "
@@ -2601,7 +2601,7 @@ def qct_loading2(source_id):
                                 {'project_id': project_id, 'transcription_source_id': source_id})
     folder_qc_pending = run_query(("select tqf.*, u.username, tf.folder from transcription_folders tf, transcription_qc_folders tqf, users u "
                                        " where tqf.qc_by is not null and tqf.folder_transcription_id = tf.folder_transcription_id and "
-                                       " tqf.qc_by = u.user_id " 
+                                       " tqf.qc_by = u.user_id AND tqf.qc_status = 9 " 
                                        " and tf.project_id = %(project_id)s and tqf.transcription_source_id = %(transcription_source_id)s"),
                                     {'project_id': project_id, 'transcription_source_id': source_id})
     
@@ -3140,7 +3140,6 @@ def qc_process_transcript(source_id, folder_id):
 
                 # DZI zoomable image
                 zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])
-                print(os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])))
                 if os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])):
                     tarimgfile = "static/image_previews/{}/{}_files.tar".format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])
                     imgfolder = "static/image_previews/{}/".format(file_details['folder_transcription_id'])
@@ -3431,8 +3430,6 @@ def qc_done(folder_id):
     elif qc_status == "1":
         badgecss = "bg-danger"
         qc_info = "QC Failed"
-    print(qc_status)
-    print(badgecss)
     if transcription == 1:
         query = (
             "INSERT INTO folders_badges (folder_uid, badge_type, badge_css, badge_text, updated_at) "
@@ -3704,27 +3701,50 @@ def invoice_recon(msg=None):
         files.dropna(inplace = True)
         files = files[files['files'] != '']
         res = [tuple(x) for x in files.to_numpy()]
-        results = cur.executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
-        # Update table
-        res = run_query(("with data as (select f.file_id, f.file_name from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.file_id = d.file_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-        res = run_query(("with data as (select f.file_id, f.file_name, f.dams_uan from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-        no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
-        no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-        no_files_dams = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-        msg = ""
-        if int(no_files_osprey) < int(no_files):
-            count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
-            count_msg_css = "danger"
-        elif int(no_files_dams) < int(no_files):
-            count_msg = "Reconciliation failed: {:,} files not in DAMS".format(int(no_files) - int(no_files_dams))
-            count_msg_css = "danger"
-        elif (int(no_files_osprey) == int(no_files)) and (int(no_files_dams) == int(no_files)):
-            count_msg = "Reconciliation passed: all files accounted for."
-            count_msg_css = "success"
-        else:
-            count_msg = "Reconciliation failed: SYSTEM ERROR"
-            count_msg_css = "danger"
         project_info = run_query(("SELECT * FROM projects WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
+        # Update table
+        if project_info['transcription'] == 1:
+            results = cur.executemany("INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, {}, %s)".format(project_info['project_id']), res)
+            # Add IDs
+            res = run_query(("with data as (select f.file_transcription_id, f.file_name from transcription_files f, transcription_folders fol where f.folder_transcription_id = fol.folder_transcription_id and fol.project_id = %(project_id)s) UPDATE invoice_recon_transcription i join data d on i.file_name = d.file_name SET i.file_transcription_id = d.file_transcription_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+            # Match the ones with transcriptions
+            res = run_query(("with data as (select f.file_transcription_id, f.file_name from transcription_files f, transcription_folders fol, transcription_files_text tft, transcription_fields fields where tft.field_id = fields.field_id AND f.folder_transcription_id = fol.folder_transcription_id AND fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+            no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
+            no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+            no_files_transcription = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+            msg = ""
+            if int(no_files_osprey) < int(no_files):
+                count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
+                count_msg_css = "danger"
+            elif int(no_files_transcription) < int(no_files):
+                count_msg = "Reconciliation failed: {:,} files do not have transcription data".format(int(no_files) - int(no_files_dams))
+                count_msg_css = "danger"
+            elif (int(no_files_osprey) == int(no_files)) and (int(no_files_transcription) == int(no_files)):
+                count_msg = "Reconciliation passed: all files accounted for."
+                count_msg_css = "success"
+            else:
+                count_msg = "Reconciliation failed: SYSTEM ERROR"
+                count_msg_css = "danger"
+        else:
+            results = cur.executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
+            res = run_query(("with data as (select f.file_id, f.file_name from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.file_id = d.file_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+            res = run_query(("with data as (select f.file_id, f.file_name, f.dams_uan from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
+            no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
+            no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+            no_files_dams = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
+            msg = ""
+            if int(no_files_osprey) < int(no_files):
+                count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
+                count_msg_css = "danger"
+            elif int(no_files_dams) < int(no_files):
+                count_msg = "Reconciliation failed: {:,} files not in DAMS".format(int(no_files) - int(no_files_dams))
+                count_msg_css = "danger"
+            elif (int(no_files_osprey) == int(no_files)) and (int(no_files_dams) == int(no_files)):
+                count_msg = "Reconciliation passed: all files accounted for."
+                count_msg_css = "success"
+            else:
+                count_msg = "Reconciliation failed: SYSTEM ERROR"
+                count_msg_css = "danger"
         now = datetime.now()
         return render_template('invoice_recon.html',
                                username=username, 
@@ -4563,7 +4583,6 @@ def file_transcription(file_id=None):
 
     # DZI zoomable image
     zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)
-    print(os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)))
     if os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)):
         tarimgfile = "static/image_previews/{}/{}_files.tar".format(file_details['folder_transcription_id'], file_id)
         imgfolder = "static/image_previews/{}/".format(file_details['folder_transcription_id'])
