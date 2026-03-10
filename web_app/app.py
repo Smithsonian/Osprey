@@ -2124,7 +2124,7 @@ def qc(project_alias=None):
                                      "  and no_files > 0 "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error' AND folder_id IS NOT NULL) "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'verification' AND folder_id IS NOT NULL) "
-                                     "  ORDER BY date ASC, project_folder ASC LIMIT 10"),
+                                     "  ORDER BY date ASC, project_folder ASC"),
                                     {'project_id': project_id})
         folder_qc_pending = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
                                      " errors AS "
