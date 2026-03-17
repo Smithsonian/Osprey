@@ -923,6 +923,23 @@ def api_update_project_details(project_alias=None):
                                             {'file_id': file_id, 'folder_id': folder_id, 'file_check': file_check,
                                                     'check_results': check_results, 'check_info': check_info})
                     logger.info(res)
+                elif query_property == "filemd5_missing_raw":
+                    if transcription == 1:
+                        query = ("INSERT INTO transcription_files_checks "
+                            " (file_transcription_id, file_check, check_results, check_info, updated_at) "
+                            "VALUES (%(file_id)s, 'md5_raw', %(check_results)s, %(check_info)s, CURRENT_TIME)"
+                            " ON DUPLICATE KEY UPDATE"
+                            " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
+                        res = query_database_insert(query, {'file_id': file_id, 'file_check': file_check, 
+                                                    'check_results': 1, 'check_info': "Missing RAW File"})
+                    else:
+                        query = ("INSERT INTO files_checks "
+                            " (file_id, file_check, check_results, check_info, updated_at) "
+                            "VALUES (%(file_id)s, 'md5_raw', %(check_results)s, %(check_info)s, CURRENT_TIME)"
+                            " ON DUPLICATE KEY UPDATE"
+                            " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
+                        res = query_database_insert(query, {'file_id': file_id, 'check_results': 1, 
+                                                    'check_info': "Missing RAW File"})
                 elif query_property == "filemd5":
                     filetype = request.form.get("filetype")
                     folder_id = request.form.get("folder_id")
