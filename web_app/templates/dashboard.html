@@ -334,17 +334,20 @@
 
                 <br>
                     {% if qc_check %}
-
+                        <br>
                         <div class="alert alert-secondary" role="alert">
                             <div class="row">
-                                <div class="col-3">
-                                    <h4>QC Issues Found:</h4>
-                                    <p>{{ qc_folder_info }}</p>
-                                </div>
-                                <div class="col-9">
-                                    {% for table in qc_details %}
-                                        {{ table|safe }}
-                                    {% endfor %}
+                                <div class="col">
+                                    <div id="qc_accordion">
+                                        <h3>Visual Image QC Details: (click to expand)</h3>
+                                        {% for table in qc_details %}
+                                            <div>
+                                                {{ table|safe }}
+                                                <hr>
+                                                <p>Notes: {{ qc_folder_info }}</p>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -460,6 +463,18 @@
 {% block javascripts %}
 
 {% if folder_id != None %}
+
+    <!-- QC Accordion -->
+    <script>
+        $( function() {
+            $( "#qc_accordion" ).accordion({
+                active: false,
+                collapsible: true,
+                heightStyle: "content"
+            });
+        } );
+    </script>
+
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {

@@ -828,7 +828,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']})
-
+    
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
