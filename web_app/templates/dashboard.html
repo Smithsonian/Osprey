@@ -344,14 +344,16 @@
                                             <div>
                                                 {{ table|safe }}
                                                 <hr>
-                                                <p>Notes: {{ qc_folder_info }}</p>
+                                                {% if qc_folder_info != "" %}
+                                                    <p>Notes: {{ qc_folder_info }}</p>
+                                                {% endif %}
                                             </div>
                                         {% endfor %}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    <br><hr>
+                    <hr>
                     {% endif %}
                 <br>
                 {% for table in tables %}
