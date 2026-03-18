@@ -42,10 +42,17 @@
 
                 {% for folder in folder_qc_pending %}
                     <li>
-                        {{ folder.project_folder }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
-                        {% if folder.qc_by == username %}
-                            <br><a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
+                        {% if folder.days_since > 7 %}
+                            <strong>
                         {% endif %}
+                            {{ folder.project_folder }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }} <small>(last updated on: {{ folder.updated_at }})</small>
+                            {% if folder.qc_by == username %}
+                                <br><a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
+                            {% endif %}
+                        {% if folder.days_since > 7 %}
+                            </strong>
+                        {% endif %}
+                        
                     </li>
                 {% endfor %}
                 

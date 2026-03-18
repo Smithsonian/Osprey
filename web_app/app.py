@@ -2170,7 +2170,7 @@ def qc(project_alias=None):
                                      "   projects p "
                                      " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                      "   AND p.project_id = %(project_id)s) "
-                                     " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is not null "
+                                     " SELECT *, DATEDIFF(NOW(), updated_at) as days_since FROM qc WHERE qc_status = 'QC Pending' and qc_by is not null "
                                      "  ORDER BY date ASC, project_folder ASC"),
                                     {'project_id': project_id})
 
