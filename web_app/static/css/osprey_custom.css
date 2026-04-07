@@ -1,0 +1,69 @@
+html {
+    position: relative;
+    min-height: 100%;
+    padding-bottom: 20px;
+    padding-top: 0px;
+  }
+  body {
+    margin-bottom: 160px;
+    font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+  }
+  footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+  }
+  .chart {
+      width: 100%;
+  }
+
+  .skipnav { text-align: left; }
+    .skipnav a { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .skipnav a:focus, .skipnav a:active { position: static; left: 0; width: auto; height: auto; overflow: visible; text-decoration: underline; 
+      background-color: #fff;
+border: 2px solid #000;
+color: #000;}
+
+  .screen-reader-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+  }
+
+  .navtitle{
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+      color: #FFFFFF;
+      font-size: 1.6rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      padding: 0.8rem 1rem;
+      text-decoration: none;
+  }
+
+  .navitems {
+      color: #FFFFFF;
+      text-decoration: none;
+      padding-left: 1rem;
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+  }
+
+  .btn, .badge, .dataTables_info {
+      font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+      font-size: 1em;
+      font-weight: 200;
+  }
+
+  p, small, strong, li, th, td {
+      font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
+  }
+
+  .footer-text {
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+  }

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Osprey{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('homepage') }}" title="Collections Digitization Dashboard">Osprey</a>
+{% endblock %}
+
+{% block content %}
+
+    <h2>Error:</h2>
+
+    <p>{{ error_msg }}</p>
+
+    {% if project_alias != None %}
+        <p><a href="{{ url_for('dashboard', project_alias = project_alias) }}">Go back</a></p>
+    {% else %}
+        <p><a href="{{ url_for('homepage') }}">Go back</a></p>
+    {% endif %}
+
+
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+{% endblock %}

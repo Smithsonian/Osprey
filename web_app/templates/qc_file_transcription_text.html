@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-6">
+
+            <p><a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project_alias) }}" role="button">
+                        <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
+            </p>
+
+            <h3>QC for folder {{ folder.folder }}</h3>
+
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="{{ qc_stats.percent_passed + qc_stats.percent_failed }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ qc_stats.percent_passed + qc_stats.percent_failed }}%"></div>
+            </div>
+
+            <p>[{{ qc_stats.no_errors + qc_stats.passed }} of {{ qc_stats.no_files }}]</p>
+
+            <hr>
+
+            <!-- Space for Image -->
+            <div class="card">
+                <div class="card-body text-bg-secondary p-3">
+                    <h5 class="card-title">File: {{ file_details.file_name }}</h5>
+                    <p class="card-text">
+                        <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>                       
+                </div>
+            </div>
+
+        </div>
+        <div class="col-6">
+            <h4>QC Results:</h4>
+
+            <form action="{{ url_for('qc_process', folder_id=folder.folder_transcription_id) }}" method="POST">
+
+            <div class="mb-3">
+                <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
+                    <label class="btn btn-outline-success" for="success-outlined">Image OK</label><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
+                    <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label> <small>- Incorrect file name</small><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
+                    <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label> <small>- Incorrect cropping of image</small><br><br>
+                <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
+              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> <small>- Noticeable soft focus</small><br><br>
+            </div>
+            <div class="mb-3">
+
+              <p class="text-danger">{{ msg | safe }}</p>
+              <label for="qc_info" class="form-label">QC details or issues:</label>
+              <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
+          </div>
+                <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </div>
+
+<br><br>
+        
+        <!-- Make space for transcription data -->
+        <div class="col">
+                <h3>Transcriptions:</h3>
+                
+                    {% for data in text_table %}
+                            <div class="card">
+                                <h4 class="card-header text-white bg-primary">{{ tables[data].name }}</h4>
+                                <div class="card-body">
+                                    {{ tables[data].table|safe }}
+                                </div>
+                                <div class="card-footer">
+                                    <p style="font-size: small;">{{ tables[data].source_info }}</p>
+                                </div>
+                            </div>
+                            <br>
+                {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            
+            var exampleModal = document.getElementById('checkmodal')
+            exampleModal.addEventListener('show.bs.modal', function (event) {
+              // Button that triggered the modal
+              var button = event.relatedTarget
+              // Extract info from data-bs-* attributes
+              var checkinfo = button.getAttribute('data-bs-info')
+              // If necessary, you could initiate an AJAX request here
+              // and then do the updating in a callback.
+              //
+              // Update the modal's content.
+              var modalBody = exampleModal.querySelector('.modal-body pre')
+
+              modalBody.textContent = checkinfo
+            })
+
+            {{ zoom_js | safe}}
+        });
+    </script>
+
+
+{% if zoom_exists == 1 %}
+    <!-- openseadragon -->
+    <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+
+    <script type="text/javascript">
+        var viewer = OpenSeadragon({
+            id: "openseadragon",
+            prefixUrl: "../../static/images/",
+            tileSources: "{{ zoom_filename }}",
+            timeout: 60000,
+            tileRetryMax: 2,
+            preload: true,
+            constrainDuringPan: true,
+            showRotationControl: true,
+            showNavigator: true
+        });
+    </script>
+
+    {% else %}
+
+    <!-- Zoom -->
+        <script
+            type="text/javascript"
+            src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
+        ></script>
+    
+    {% endif %}
+
+{% endblock %}

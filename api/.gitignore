@@ -1,0 +1,11 @@
+cache
+__pychache__
+.idea
+settings.py
+
+!static/*
+
+*.code-workspace
+.vs
+
+static/figs

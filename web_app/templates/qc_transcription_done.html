@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+    <h4>{{ folder.project_folder }}</h4>
+
+    <div class="row">
+        <div class="col-4">
+
+            <p>Number of files in sample: {{ qc_stats.no_files }} ({{ (project_settings.qc_percent) }}% of the total)</p>
+
+            <p>Folder Results:</p>
+            <ul>
+                <li class="text-success">Number of files that passed QC: {{ qc_stats.passed }} ({{ qc_stats.percent_passed }}%)</li>
+                <li><div class="text-danger">Number of files that failed QC: {{ qc_stats.no_errors }} ({{ qc_stats.percent_failed }}%)</div>
+
+                        {% if qc_stats.no_errors > 0 %}
+                            <ul>
+                                {% for file in error_files %}
+                                    <li>{{ file.file_name }}: {{ file.qc_results }} ({{ file.qc_notes }})</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                    </li>
+            </ul>
+
+            <form action="{{ url_for('qc_done', folder_id=folder.folder_transcription_id) }}" method="POST">
+
+                <div class="mb-3">
+                    {% if qc_folder_result == True %}
+                        <input type="hidden" class="btn-check" name="qc_status" id="success-outlined" autocomplete="off" value="0" checked>
+                        <p><strong>QC Passed</strong></p>
+                    {% elif qc_folder_result == False %}
+                        <input type="hidden" class="btn-check" name="qc_status" id="danger-outlined" autocomplete="off" value="1" checked>
+                        <p><strong>QC Failed</strong></p>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                      <label for="folderqc" class="form-label">Summary and notes of QC for the folder:</label>
+                      <input type="text" class="form-control" id="folderqc" name="qc_info">
+                      <input type="hidden" class="form-control" id="folder_id" name="folder_id">
+                </div>
+
+                <div class="mb-3">
+                  <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+
+            </form>
+
+        </div>
+        <div class="col">
+            &nbsp;
+        </div>
+
+    </div>
+
+{% endblock %}

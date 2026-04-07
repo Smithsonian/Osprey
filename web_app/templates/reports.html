@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Reports{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+{% endblock %}
+
+{% block content %}
+
+    <h2>Report: {{ report.report_title }}</h2>
+
+        {% if report.report_title_brief != "" %}
+            <p>{{ report.report_title_brief }}</p>
+        {% endif %}
+
+    {% if pregenerated == 0 %}
+        <p>Data last updated on: {{ report_data_updated }}</p>
+
+        {% for table in tables %}
+               {{ table|safe }}
+        {% endfor %}
+    {% else %}
+
+        <p>Report generated on: {{ report_date }}</p>
+        <p>Excel: <a href="{{ url_for('static', filename=data_file_e) }}" title="Download Data File (Excel)">{{ data_file_e | replace("reports/", "") }}</a></p>
+        <p>CSV: <a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file | replace("reports/", "") }}</a></p>
+
+    {% endif %}
+{% endblock %}
+
+
+{% block javascripts %}
+
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            $('#report_data').DataTable({
+                dom: 'Bfrtip',
+                    buttons: [
+                        'csvHtml5',
+                        'excelHtml5',
+                        'pdfHtml5'
+                    ],
+                "order": [],
+                "lengthMenu": [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, 'All'],
+                ]
+                })
+            });
+    </script>
+
+{% endblock %}

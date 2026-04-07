@@ -1,0 +1,15 @@
+cache/*
+logs/*
+venv
+__pychache__
+.idea
+settings.*
+
+!static/*
+
+*.code-workspace
+.vs
+
+static/figs
+static/image_previews
+static/reports/*

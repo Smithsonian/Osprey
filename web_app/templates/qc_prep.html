@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Project QC{% endblock %}
+
+{% block page_title %}Project QC{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <h2>QC Loading...</h2>
+
+        <div class="spinner-border" role="status" style="margin-left: 30px;">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+{% if folder_id != None %}
+    <!-- Datatables -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+
+            // Move to loading page
+            // https://stackoverflow.com/a/55144842
+            function reloadPage() {
+                clearTimeout(idleTime);
+                idleTime = setTimeout(function () {
+                    location.replace('{{ url_for('qc_loading2', folder_id=folder_id) }}');
+                }, 2000);
+            }
+
+            var idleTime;
+            reloadPage();
+            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
+                clearTimeout(idleTime);
+                reloadPage();
+            });
+        });
+
+    </script>
+
+    {% endif %}
+
+{% endblock %}

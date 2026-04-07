@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+
+{% block homelink %}
+    {% if kiosk %}
+        <p class="navbar-brand navtitle">{{ project_info.project_title }}</p>
+    {% else %}
+        <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+
+
+
+    <!-- Search -->
+    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
+    <div class="row">
+        <div class="col-6">
+            <h2>File Search Results</h2>
+        </div>
+        <div class="col-3">
+            <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" value={{ q }}>
+        </div>
+        <div class="col-3">
+            <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
+        </div>
+    </div>
+    
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th scope="col">Preview</th>
+                <th scope="col">Filename</th>
+                <th scope="col">Folder</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            {% if project_info.transcription == 1 %}
+
+                {% for file in results %}
+                    <tr>
+                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">
+                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                        </a></td>
+                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a></td>
+                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a></td>
+                    </tr>
+                {% endfor %}
+
+            {% else %}
+
+                {% for file in results %}
+                    <tr>
+                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">
+                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                        </a></td>
+                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
+                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
+                    </tr>
+                {% endfor %}
+
+            {% endif %}
+
+
+        </tbody>
+    </table>
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+
+{% endblock %}

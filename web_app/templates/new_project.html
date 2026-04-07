@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Project Dashboard{% endblock %}
+
+{% block homelink %}
+    <p class="navbar-brand navtitle">New Project</p>
+{% endblock %}
+
+{% block content %}
+
+<p class="text-danger">{{ msg }}</p>
+
+<div class="row">
+    <div class="col">
+        <form action="{{ url_for('create_new_project') }}" method="POST">
+
+            <div class="mb-3">
+                <label for="p_title" class="form-label">Project Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="p_title" name="p_title" aria-label="Project Name" placeholder="example: Paleobiology Digitization with EPICC" required>
+            </div>
+            <div class="mb-3">
+                <label for="p_alias" class="form-label">Project alias <span class="text-danger">*</span><br><small>(for use in the URL; all lowercase, no spaces, underscores OK, <24 characters)</small></label>
+                <input type="text" class="form-control" id="p_alias" name="p_alias" aria-label="Project alias (lowercase, no spaces, underscore OK, <24 characters)" placeholder="example: nmnh_paleo_epicc" required>
+            </div>
+            <div class="mb-3">
+                <label for="p_desc" class="form-label">Project description <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="p_desc" name="p_desc" aria-label="Project description" required>
+            </div>
+            <div class="mb-3">
+                <label for="p_url" class="form-label">Relevant URL for the collection<br><small>(If any, <em>e.g.</em> page in the unit's website)</small></label>
+                <input type="text" class="form-control" id="p_url" name="p_url" aria-label="Relevant URL for the collection">
+            </div>
+            <div class="mb-3">
+                <label for="p_noobjects" class="form-label">Estimated number of objects <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="p_noobjects" name="p_noobjects" aria-label="Estimated number of objects" required>
+            </div>
+            <div class="mb-3">
+                <label for="p_coordurl" class="form-label">Confluence or other coordination site for the project (if any)</label>
+                <input type="text" class="form-control" id="p_coordurl" name="p_coordurl" aria-label="Confluence or other coordination site for the project">
+            </div>
+
+            <div class="mb-3">
+                <h4>File checks:</h4>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="unique_file" name="unique_file" checked disabled>
+                            <label class="form-check-label" for="unique_file">
+                                unique_file - Filename is unique in the project
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="tifpages" name="tifpages" checked disabled>
+                            <label class="form-check-label" for="tifpages">
+                                tifpages - Check that there are no more than 1 page in the TIF, usually a thumbnail
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="raw_pair" name="raw_pair" checked>
+                            <label class="form-check-label" for="raw_pair">
+                                raw_pair - Raw file was found for the image
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="tif_compression" name="tif_compression" checked>
+                            <label class="form-check-label" for="tif_compression">
+                                tif_compression - TIF file is compressed using the lossless compression LZW
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="magick" name="magick" checked>
+                            <label class="form-check-label" for="magick">
+                                magick - File is valid according to ImageMagick
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="jhove" name="jhove" checked>
+                            <label class="form-check-label" for="jhove">
+                                jhove - File is valid according to <abbr title="JSTOR/Harvard Object Validation Environment">JHOVE</abbr>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="sequence" name="sequence">
+                            <label class="form-check-label" for="sequence">
+                                sequence - File sequence is correct
+                            </label>
+                        </div>
+
+            </div>
+    </div>
+    <div class="col">
+        <div class="mb-3">
+            <label for="p_unitstaff" class="form-label">Unit Staff<br>
+            <small>(Who will have access to QC the project? Comma-separated SI usernames, without the @si.edu part.)</small></label>
+            <input class="form-control" type="text" name="p_unitstaff" id="p_unitstaff" disabled>
+        </div>
+        <div class="mb-3">
+            <label for="p_manager" class="form-label">Project Manager</label>
+            <input class="form-control" type="text" name="p_manager" id="p_manager" readonly value="{{ full_name }}">
+        </div>
+        <div class="mb-3">
+            Project Type <span class="text-danger">*</span>
+            <input type="radio" class="btn-check" name="p_md" value="MD" id="p_md" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="p_md">Mass Digitization</label>
+            <input type="radio" class="btn-check" name="p_md" value="IS" id="p_is" autocomplete="off">
+                <label class="btn btn-outline-primary" for="p_is">Imaging Services</label>
+        </div>
+
+        <div class="mb-3">
+            Production or Pilot project <span class="text-danger">*</span>
+            <input type="radio" class="btn-check" name="p_prod" value="Production" id="p_prod" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="p_prod">Production</label>
+            <input type="radio" class="btn-check" name="p_prod" value="Pilot" id="p_pilot" autocomplete="off">
+                <label class="btn btn-outline-primary" for="p_pilot">Pilot</label>
+        </div>
+        <div class="mb-3">
+            Method <span class="text-danger">*</span>
+            <select class="custom-select mr-sm-2" id="p_method" name="p_method" required>
+                <option value="" selected>Choose...</option>
+                <option value="Copystand">Copystand</option>
+                <option value="Multiple pipelines">Multiple pipelines</option>
+                <option value="Ortery">Ortery</option>
+                <option value="Tabletop Studio">Tabletop Studio</option>
+                <option value="Conveyor Belt">Conveyor Belt</option>
+              </select>
+        </div>
+
+        <div class="mb-3">
+            Unit <span class="text-danger">*</span>
+            <select class="custom-select mr-sm-2" id="p_unit" name="p_unit" required>
+                <option value="" selected>Choose...</option>
+                <option value="ACM">Anacostia Community Museum</option>
+                <option value="AAA">Archives of American Art</option>
+                <option value="AIB">Arts and Industries</option>
+                <option value="CFCH">Center for Folklife and Cultural Heritage</option>
+                <option value="CHSDM">Cooper Hewitt, Smithsonian Design Museum</option>
+                <option value="HMSG">Hirshhorn Museum and Sculpture Garden</option>
+                <option value="NASM">National Air and Space Museum</option>
+                <option value="NMAAHC">National Museum of African American History and Culture</option>
+                <option value="NMAfA">National Museum of African Art</option>
+                <option value="NMAH">National Museum of American History</option>
+                <option value="NMAA">National Museum of Asian Art (Freer and Sackler Galleries)</option>
+                <option value="NMAL">National Museum of the American Latino</option>
+                <option value="NMNH">National Museum of Natural History</option>
+                <option value="NMAI">National Museum of the American Indian</option>
+                <option value="NPG">National Portrait Gallery</option>
+                <option value="NPM">National Postal Museum</option>
+                <option value="NZP">National Zoo</option>
+                <option value="SAAM">Smithsonian American Art Museum</option>
+                <option value="SG">Smithsonian Gardens</option>
+                <option value="SIB">Smithsonian Institution Building (The Castle)</option>
+                <option value="SAWHM">Smithsonian American Women's History Museum</option>
+              </select>
+        </div>
+        <div class="mb-3">
+            Area <span class="text-danger">*</span>
+            <select class="custom-select mr-sm-2" id="p_area" name="p_area" required>
+                <option value="" selected>Choose...</option>
+                <option value="Art">Art</option>
+                <option value="History and Culture">History and Culture</option>
+                <option value="Science">Science</option>
+              </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="p_storage" class="form-label">Location to pick the files from <span class="text-danger">*</span><br>
+                <small>(If the MassDigi Share, use /mnt/MassDigi/from_vendors/[project_alias]/; if unknown, use the default value)</small></label>
+            <input type="text" class="form-control" id="p_storage" name="p_storage" aria-label="Location to pick the files from" value="/mnt/MassDigi/from_vendors/" required>
+        </div>
+        <div class="mb-3">
+            <label for="p_start" class="form-label">Start date (YYYY-MM-DD) <span class="text-danger">*</span><br><small>(Default: today)</small></label>
+            <input type="date" class="form-control" id="p_start" name="p_start" aria-label="Start date (YYYY-MM-DD):" value="{{ today_date }}" required>
+            <span id="startDateSelected"></span>
+        </div>
+
+    </div>
+</div>
+
+    <br><br>
+    <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <br><br>
+    <p class="text-danger">* - Required</p>
+
+{% endblock %}
+
+{% block javascripts %}
+
+    <!-- Data Picker -->
+    <!-- https://stackoverflow.com/a/68683409 -->
+    <script type="text/javascript">
+        $(document).ready( function () {
+            let startDate = document.getElementById('startDate')
+
+            startDate.addEventListener('change', (e) => {
+                let startDateVal = e.target.value
+                document.getElementById('startDateSelected').innerText = startDateVal
+            })
+        })
+    </script>
+
+{% endblock %}
