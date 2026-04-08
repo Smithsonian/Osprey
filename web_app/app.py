@@ -4843,7 +4843,9 @@ def search_files(project_alias):
         if metadata is None or metadata == '0':
             if project_info['transcription'] == 1:
                 results = run_query(("SELECT "
-                                      "  f.file_transcription_id, f.folder_transcription_id, f.file_name, COALESCE(f.preview_image, CONCAT('/preview_image/', file_transcription_id)) as preview_image, fd.folder "
+                                      "  f.file_transcription_id, f.folder_transcription_id, f.file_name, " 
+                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/', f.folder_id, '/160/', file_transcription_id, '.jpg')) as preview_image, " 
+                                      " fd.folder "
                                       " FROM transcription_files f, transcription_folders fd, projects p "
                                       " WHERE f.folder_transcription_id = fd.folder_transcription_id AND "
                                       "  lower(f.file_name) LIKE lower(%(q)s) AND "
@@ -4856,7 +4858,9 @@ def search_files(project_alias):
                                       'q': '%' + q + '%'})
             else:    
                 results = run_query(("SELECT "
-                                      "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, CONCAT('/preview_image/', file_id)) as preview_image, fd.project_folder "
+                                      "  f.file_id, f.folder_id, f.file_name, " 
+                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', file_id, '.jpg')) as preview_image, "
+                                      " fd.project_folder "
                                       " FROM files f, folders fd, projects p "
                                       " WHERE f.folder_id = fd.folder_id AND "
                                       "  lower(f.file_name) LIKE lower(%(q)s) AND "
@@ -4872,7 +4876,9 @@ def search_files(project_alias):
                                       "              FROM files_exif "
                                       "              WHERE value ILIKE %(q)s)"
                                       "SELECT "
-                                      "  f.file_id, f.folder_id, f.file_name, COALESCE(f.preview_image, CONCAT('/preview_image/', file_id)) as preview_image, fd.project_folder "
+                                      "  f.file_id, f.folder_id, f.file_name, " 
+                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', file_id, '.jpg')) as preview_image, " 
+                                      " fd.project_folder "
                                       " FROM files f, m, folders fd, projects p "
                                       " WHERE f.folder_id = fd.folder_id AND "
                                       "  lower(f.file_name) LIKE lower(%(q)s) AND "

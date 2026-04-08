@@ -43,7 +43,7 @@
                 {% for file in results %}
                     <tr>
                         <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">
-                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                            <img src="{{ file.preview_images }}" style="max-width: 160px; max-height: 160px;">
                         </a></td>
                         <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a></td>
                         <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a></td>
@@ -55,7 +55,7 @@
                 {% for file in results %}
                     <tr>
                         <td><a href="{{ url_for('file', file_id=file.file_id) }}">
-                            <img src="{{ url_for('get_preview', file_id=file.file_id, max=160) }}" style="max-width: 160px; max-height: 160px;">
+                            <img src="{{ file.preview_images }}" style="max-width: 160px; max-height: 160px;">
                         </a></td>
                         <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
                         <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
