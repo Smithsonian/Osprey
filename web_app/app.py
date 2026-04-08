@@ -2641,7 +2641,7 @@ def qc_process(folder_id):
             transcription = 1
         except:
             raise InvalidUsage('invalid folder_id value', status_code=400)
-        
+    
     username = current_user.name
     if transcription == 1:
         project_admin = run_query(("SELECT count(*) as no_results FROM users u, qc_projects p, transcription_folders f "
@@ -2657,18 +2657,25 @@ def qc_process(folder_id):
                                     "        AND f.folder_id = %(folder_id)s "
                                     "        AND u.user_id = p.user_id"),
                                    {'username': username, 'folder_id': folder_id})[0]
+    
     if project_admin['no_results'] == 0:
         # Not allowed
         return redirect(url_for('home'))
     file_id_q = request.values.get('file_id')
     msg = ""
     # check if folder is owned, assigned otherwise
-
-    folder_owner = run_query(("SELECT f.*, u.username from qc_folders f, users u "
+    
+    if transcription == 1:
+        folder_owner = run_query(("SELECT f.*, u.username from qc_folders f, users u "
+                                    "    WHERE u.user_id = f.qc_by "
+                                    "        AND f.folder_uid = %(folder_id)s"),
+                                {'folder_id': folder_id})
+    else:
+        folder_owner = run_query(("SELECT f.*, u.username from qc_folders f, users u "
                                     "    WHERE u.user_id = f.qc_by "
                                     "        AND f.folder_id = %(folder_id)s"),
                                 {'folder_id': folder_id})
-
+        
     if len(folder_owner) == 1:
         if folder_owner[0]['username'] != username:
             # Not allowed
@@ -2676,6 +2683,7 @@ def qc_process(folder_id):
                                     "    WHERE f.project_id = p.project_id "
                                     "        AND f.folder_id = %(folder_id)s"),
                                 {'folder_id': folder_id})
+            
             return redirect(url_for('qc', project_alias=project_alias[0]['project_alias']))
     else:
         # Assign user
@@ -2735,7 +2743,19 @@ def qc_process(folder_id):
     project_settings = run_query("SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
                                       {'project_id': project_id['project_id']})[0]
 
-    folder_qc_check = run_query(("SELECT "
+    if transcription == 1:
+        folder_qc_check = run_query(("SELECT "
+                                        "  CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                                        "          WHEN q.qc_status = 1 THEN 'QC Failed' "
+                                        "          ELSE 'QC Pending' END AS qc_status, "
+                                        "      qc_ip, u.username AS qc_by, "
+                                        "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at"
+                                        " FROM qc_folders q, "
+                                        "      users u WHERE q.qc_by=u.user_id "
+                                        "      AND q.folder_uid = %(folder_id)s"),
+                                        {'folder_id': folder_id})
+    else:
+        folder_qc_check = run_query(("SELECT "
                                       "  CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                       "          WHEN q.qc_status = 1 THEN 'QC Failed' "
                                       "          ELSE 'QC Pending' END AS qc_status, "
@@ -2745,7 +2765,7 @@ def qc_process(folder_id):
                                       "      users u WHERE q.qc_by=u.user_id "
                                       "      AND q.folder_id = %(folder_id)s"),
                                      {'folder_id': folder_id})
-    
+        
     folder_qc = {}
     folder_qc['qc_status'] = 'QC Pending'
     folder_qc['qc_by'] = ''
@@ -2852,7 +2872,8 @@ def qc_process(folder_id):
                                   "  ORDER BY RAND() LIMIT {})").format(no_files_for_qc),
                                  {'folder_id': folder_id})
             logger.info("no_files_for_qc: {}".format(no_files_for_qc))
-            return redirect(url_for('qc_loading1', folder_id=folder_id))
+            # return redirect(url_for('qc_loading1', folder_id=folder_id))
+            return redirect(url_for('qc_loading2', folder_id=folder_id))
         else:
             if transcription == 1:
                 qc_stats_q = run_query(("WITH errors AS "

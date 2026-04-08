@@ -109,7 +109,7 @@
                                 {% if folder.qc_stats_no_errors + folder.qc_stats_no_passed > 0 %}
                                     <small>QC in Progress: [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}]</small><br>
                                 {% endif %}
-                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_loading1', folder_id=folder.folder_id) }}" role="button">Run QC on Folder</a><br>
+                                <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Run QC on Folder</a><br>
                             {% endif %}
                             <!-- <span class="badge bg-secondary">QC Pending</span> -->
                         {% elif folder.qc_status == "QC Passed" %}
