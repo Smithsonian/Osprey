@@ -902,8 +902,24 @@ def api_update_project_details(project_alias=None):
                                                 logger.info("Inserted")
                                                 check_results = 0
                                                 check_info = refid
+                                        else:
+                                            # Check if already in DB
+                                            query = ("SELECT count(*) as no_rows from jpc_aspace_data WHERE refid = %(refid)s")
+                                            res = run_query(query, {'refid': refid})
+                                            if res[0]['no_rows'] == 1:
+                                                logger.info("Found")
+                                                check_results = 0
+                                                check_info = refid
                                     else:
                                         logger.error("\n There was an error when loggin into ASpace: {}".format(r.reason))
+                        query = (
+                        "INSERT INTO files_checks (file_id, folder_id, file_check, check_results, check_info, updated_at) "
+                        " VALUES (%(file_id)s, %(folder_id)s, %(file_check)s, %(check_results)s, %(check_info)s, CURRENT_TIME) "
+                        " ON DUPLICATE KEY UPDATE "
+                        " check_results = %(check_results)s, check_info = %(check_info)s, updated_at = CURRENT_TIME")
+                        res = query_database_insert(query,
+                                            {'file_id': file_id, 'folder_id': folder_id, 'file_check': file_check,
+                                                    'check_results': check_results, 'check_info': check_info})
                     if transcription == 1:
                         query = (
                             "INSERT INTO transcription_files_checks (file_transcription_id, file_check, check_results, check_info, updated_at) "
