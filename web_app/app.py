@@ -33,9 +33,9 @@ from time import strftime
 from time import localtime
 import glob
 import random
-from plotnine import ggplot
-from plotnine import aes
-from plotnine import geom_bar
+# from plotnine import ggplot
+# from plotnine import aes
+# from plotnine import geom_bar
 from ldap3 import Server, Connection, ALL, NTLM
 from ldap3.core.exceptions import LDAPBindError as LDAPBindError
 from ldap3 import set_config_parameter
@@ -3074,9 +3074,13 @@ def qc_process(folder_id):
                         major_files += 1
                     elif file['file_qc'] == 'Minor Issue':
                         minor_files += 1
-                qc_threshold_critical_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
-                qc_threshold_major_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
-                qc_threshold_minor_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
+                # qc_stats['no_files']
+                # qc_threshold_critical_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
+                # qc_threshold_major_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
+                # qc_threshold_minor_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
+                qc_threshold_critical_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
+                qc_threshold_major_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
+                qc_threshold_minor_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
                 if crit_files > 0:
                     if qc_threshold_critical_comparison <= crit_files:
                         qc_folder_result = False
