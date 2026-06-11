@@ -416,7 +416,8 @@
                         </div>
                         <br>
                     {% else %}
-                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
+                    
+                        <img src="{{ url_for('static', filename=file.preview_img_path) }}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
                     {% endif %}
 
                     <small>{{ file.file_name }}</small>

@@ -678,26 +678,34 @@ def api_update_project_details(project_alias=None):
                                             s.images_taken = fol.images_taken,
                                             s.project_err  = fol.project_err,
                                             s.project_ok   = fol.project_ok
-                                            WHERE s.project_id = 250
+                                            WHERE s.project_id = %(project_id)s
                                     """)
                         else:
-                            query = ("""WITH folders_q AS (
-                                            SELECT project_id,
-                                                    SUM(no_files_total)  AS images_taken,
-                                                    SUM(no_files_errors) AS project_err,
-                                                    SUM(no_files_ok)     AS project_ok
-                                            FROM folders
-                                            WHERE project_id = %(project_id)s
-                                            GROUP BY project_id
-                                            )
-                                            UPDATE projects_stats AS s
-                                            JOIN folders_q AS fol
-                                            ON fol.project_id = s.project_id
-                                            SET
-                                            s.images_taken = fol.images_taken,
-                                            s.project_err  = fol.project_err,
-                                            s.project_ok   = fol.project_ok
-                                            WHERE s.project_id = 250
+                            # query = ("""WITH folders_q AS (
+                            #                 SELECT project_id,
+                            #                         SUM(no_files_total)  AS images_taken,
+                            #                         SUM(no_files_errors) AS project_err,
+                            #                         SUM(no_files_ok)     AS project_ok
+                            #                 FROM folders
+                            #                 WHERE project_id = %(project_id)s
+                            #                 GROUP BY project_id
+                            #                 )
+                            #                 UPDATE projects_stats AS s
+                            #                 JOIN folders_q AS fol
+                            #                 ON fol.project_id = s.project_id
+                            #                 SET
+                            #                 s.images_taken = fol.images_taken,
+                            #                 s.project_err  = fol.project_err,
+                            #                 s.project_ok   = fol.project_ok
+                            #                 WHERE s.project_id = %(project_id)s
+                            #      """)
+                            query = ("""
+                                     UPDATE projects_stats s
+                                        SET 
+                                        s.images_taken = (SELECT SUM(no_files_total) FROM folders WHERE project_id = %(project_id)s),
+                                        s.project_err = (SELECT SUM(no_files_errors) FROM folders WHERE project_id = %(project_id)s),
+                                        s.project_ok = (SELECT SUM(no_files_ok) FROM folders WHERE project_id = %(project_id)s)
+                                        WHERE s.project_id = %(project_id)s;
                                  """)
                         res = query_database_insert(query, {'project_id': project_id})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
