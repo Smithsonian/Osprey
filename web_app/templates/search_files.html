@@ -4,9 +4,9 @@
 
 {% block homelink %}
     {% if kiosk %}
-        <p class="navbar-brand navtitle">{{ project_info.project_title }}</p>
+    <span class="navbar-context" title="{{ project_info.project_title }}">{{ project_info.project_title }}</span>
     {% else %}
-        <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
     {% endif %}
 {% endblock %}
 

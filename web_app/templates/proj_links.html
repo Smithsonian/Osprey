@@ -3,7 +3,7 @@
 {% block title %}Project Dashboard{% endblock %}
 
 {% block homelink %}
-    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="Project Dashboard">Project Dashboard</a>
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="{{ project.project_title }}">{{ project.project_title }}</a>
 {% endblock %}
 
 {% block content %}

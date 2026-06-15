@@ -3,7 +3,7 @@
 {% block title %}Statistics of {{ project_info.project_title }} - DPO Collections Digitization Dashboard{% endblock %}
 
 {% block homelink %}
-    <h1 class="navbar-brand navtitle">Project Statistics of {{ project_info.project_title }}</h1>
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Statistics for {{ project_info.project_title }}">Statistics</a>
 {% endblock %}
 
 {% block head_blocks %}

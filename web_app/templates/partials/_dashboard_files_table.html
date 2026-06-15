@@ -1,8 +1,5 @@
 {% if files_count %}
-<div class="card dashboard-files-card border-dark mb-3"
-     id="dashboard-files-panel"
-     data-files-url="/api/folders/{{ folder_id }}"
-     data-transcription="{{ transcription }}">
+<div class="card dashboard-files-card border-dark mb-3">
     <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
             <h2 class="h5 mb-0">Files in folder {{ folder_name.project_folder }}</h2>
@@ -15,16 +12,10 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div id="files-table-loading" class="text-muted small py-3 px-3">
-            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-            Loading files…
-        </div>
-        <p id="files-table-error" class="small text-danger py-3 px-3 mb-0 d-none" role="alert"></p>
-        <div class="dashboard-files-table-wrap d-none" id="files-table-wrap">
-            <table id="files_table" class="table table-sm table-hover dashboard-files-table w-100">
-                <thead></thead>
-                <tbody></tbody>
-            </table>
+        <div class="dashboard-files-table-wrap">
+            {% for table in tables %}
+                {{ table|safe }}
+            {% endfor %}
         </div>
     </div>
 </div>

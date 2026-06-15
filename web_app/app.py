@@ -253,6 +253,46 @@ def get_project_folders_api(project_id, transcription):
                      {'project_id': project_id})
 
 
+FILE_CHECK_LABELS = {
+    'file_name': 'File name',
+    'tif_compression': 'TIF compression',
+    'tifpages': 'TIF pages',
+    'magick': 'ImageMagick',
+    'jhove': 'JHOVE',
+    'unique_file': 'Unique file',
+    'raw_pair': 'RAW pair',
+    'valid_name': 'Valid name',
+    'old_name': 'Old name',
+    'derivative': 'Derivative',
+    'prefix': 'Prefix',
+    'sequence': 'Sequence',
+    'tesseract': 'Tesseract',
+}
+
+FILES_TABLE_HTML_CLASSES = [
+    'display', 'table', 'table-sm', 'table-hover', 'dashboard-files-table', 'w-100'
+]
+
+
+def label_file_check_column(name):
+    return FILE_CHECK_LABELS.get(name, name.replace('_', ' ').title())
+
+
+def prepare_files_table_df(df):
+    if df is None or df.empty:
+        return df
+    return df.rename(columns={col: label_file_check_column(col) for col in df.columns})
+
+
+def files_table_html(df):
+    return prepare_files_table_df(df).to_html(
+        table_id='files_table',
+        index=False,
+        border=0,
+        escape=False,
+        classes=FILES_TABLE_HTML_CLASSES)
+
+
 @app.route('/dashboard/<project_alias>/folders.json', methods=['GET'], provide_automatic_options=False)
 def dashboard_folders_json(project_alias=None):
     """JSON folder list for client-side dashboard sidebar (same data as the project API)."""
@@ -265,127 +305,6 @@ def dashboard_folders_json(project_alias=None):
         {'project_id': project_id})[0]
     folders = get_project_folders_api(project_id, project_info['transcription'])
     return jsonify({'folders': folders, 'project_alias': project_alias})
-
-
-def get_folder_files_api(folder_id, transcription=0):
-    """Return folder details and files in the same shape as GET /api/folders/<folder_id>."""
-    if transcription == 1:
-        data = run_query(("SELECT f.folder_transcription_id as folder_id, f.project_id, f.folder, "
-                           "   p.project_alias, f.status, f.previews, "
-                           "   DATE_FORMAT(f.date, '%%Y-%%m-%%d') as folder_date, "
-                           "   f.file_errors, f.error_info, "
-                           " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
-                           "              WHEN f.delivered_to_dams = 1 THEN 'Ready for DAMS' "
-                           "              WHEN f.delivered_to_dams = 9 THEN 'Pending' END as delivered_to_dams, "
-                           " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
-                           "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
-                           "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
-                           "          'QC Pending') as qc_status "
-                        " FROM transcription_folders f "
-                     " LEFT JOIN qc_folders qcf ON (f.folder_transcription_id = qcf.folder_uid), projects p "
-                      " WHERE f.folder_transcription_id = %(folder_id)s and f.project_id = p.project_id"),
-                         {'folder_id': folder_id})
-        files_query = (
-            "SELECT f.file_transcription_id as file_id, f.file_name, "
-            " DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-            " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-            " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
-            " FROM transcription_files f LEFT JOIN file_md5 m ON (f.file_transcription_id = m.file_uid) "
-            " WHERE f.folder_transcription_id = %(folder_id)s")
-        checks_scope = (" FROM transcription_files f LEFT JOIN transcription_files_checks c "
-                        " ON (f.file_transcription_id=c.file_transcription_id AND c.file_check = %(file_check)s) "
-                        " WHERE f.folder_transcription_id = %(folder_id)s")
-        file_id_col = "f.file_transcription_id as file_id"
-    else:
-        data = run_query(("SELECT f.folder_id, f.project_id, f.project_folder as folder, "
-                           "   p.project_alias, f.status, f.previews, "
-                           "   DATE_FORMAT(f.date, '%%Y-%%m-%%d') as folder_date, "
-                           "   f.file_errors, f.error_info, "
-                           " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
-                           "              WHEN f.delivered_to_dams = 1 THEN 'Ready for DAMS' "
-                           "              WHEN f.delivered_to_dams = 9 THEN 'Pending' END as delivered_to_dams, "
-                           " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
-                           "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
-                           "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
-                           "          'QC Pending') as qc_status "
-                        " FROM folders f "
-                     " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id), projects p "
-                      " WHERE f.folder_id = %(folder_id)s and f.project_id = p.project_id"),
-                         {'folder_id': folder_id})
-        files_query = (
-            "SELECT f.file_id, f.file_name, DATE_FORMAT(f.file_timestamp, '%%Y-%%m-%%d %%H:%%i:%%S') as file_timestamp, "
-            " f.dams_uan, f.preview_image, DATE_FORMAT(f.updated_at, '%%Y-%%m-%%d %%H:%%i:%%S') as updated_at, "
-            " DATE_FORMAT(f.created_at, '%%Y-%%m-%%d %%H:%%i:%%S') AS created_at, m.md5 as tif_md5 "
-            " FROM files f LEFT JOIN file_md5 m ON (f.file_id = m.file_id AND lower(m.filetype)='tif') "
-            " WHERE f.folder_id = %(folder_id)s")
-        checks_scope = (" FROM files f LEFT JOIN files_checks c "
-                        " ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
-                        " WHERE f.folder_id = %(folder_id)s")
-        file_id_col = "f.file_id"
-
-    if len(data) != 1:
-        return None
-
-    project_id = data[0]['project_id']
-    filechecks_list_temp = run_query(
-        ("SELECT settings_value as file_check FROM projects_settings "
-         " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
-        {'project_id': project_id})
-    filechecks_list = [fcheck['file_check'] for fcheck in filechecks_list_temp]
-
-    files_list = run_query(files_query, {'folder_id': folder_id})
-    folder_files_df = pd.DataFrame(files_list)
-    if folder_files_df.empty:
-        result = data[0]
-        result['project_checks'] = filechecks_list
-        result['files'] = []
-        return result
-
-    for fcheck in filechecks_list:
-        list_files = pd.DataFrame(run_query(
-            ("SELECT {file_id_col}, "
-             "   CASE WHEN check_results = 0 THEN 'OK' "
-             "       WHEN check_results = 9 THEN 'Pending' "
-             "       WHEN check_results = 1 THEN 'Failed' "
-             "       ELSE 'Pending' END as {fcheck} "
-             "{checks_scope}").format(file_id_col=file_id_col, fcheck=fcheck, checks_scope=checks_scope),
-            {'file_check': fcheck, 'folder_id': folder_id}))
-        if list_files.shape[0] > 0:
-            folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
-
-    result = data[0]
-    result['project_checks'] = filechecks_list
-    result['files'] = folder_files_df.where(pd.notnull(folder_files_df), None).to_dict('records')
-    return result
-
-
-def parse_dashboard_folder_id(folder_id):
-    """Return (folder_id, transcription) for dashboard folder routes."""
-    try:
-        return int(folder_id), 0
-    except (TypeError, ValueError):
-        try:
-            return str(UUID(folder_id, version=4)), 1
-        except (TypeError, ValueError):
-            return None, None
-
-
-@app.route('/dashboard/<project_alias>/<folder_id>/files.json', methods=['GET'], provide_automatic_options=False)
-def dashboard_files_json(project_alias=None, folder_id=None):
-    """JSON folder files for client-side dashboard file checks table."""
-    project_id = project_alias_exists(project_alias)
-    if project_id is False:
-        return jsonify({'error': 'Project was not found'}), 404
-
-    parsed_folder_id, transcription = parse_dashboard_folder_id(folder_id)
-    if parsed_folder_id is None:
-        return jsonify({'error': 'folder_id value not valid'}), 400
-
-    data = get_folder_files_api(parsed_folder_id, transcription)
-    if data is None or data['project_id'] != project_id:
-        return jsonify({'error': 'Folder not found'}), 404
-
-    return jsonify(data)
 
 
 def check_file_id(file_id=None):
@@ -1075,6 +994,15 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             folder_name = folder_name[0]
             fol_last_update = folder_name['last_updated']
 
+        if transcription == 1:
+            folder_files_df = pd.DataFrame(
+                run_query("SELECT file_transcription_id as file_id, file_name FROM transcription_files WHERE folder_transcription_id = %(folder_id)s",
+                        {'folder_id': folder_id}))
+        else:
+            folder_files_df = pd.DataFrame(
+                run_query("SELECT file_id, file_name FROM files WHERE folder_id = %(folder_id)s",
+                        {'folder_id': folder_id}))
+
         no_items = 25
         if page == 1:
             offset = 0
@@ -1111,14 +1039,73 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             
         files_count = files_count['no_files']
         if tab == "filechecks":
-            page_no = "File Checks"
+            filechecks_list_temp = run_query(
+                ("SELECT settings_value as file_check FROM projects_settings "
+                " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
+                {'project_id': project_info['project_id']})
+            filechecks_list = []
+            for fcheck in filechecks_list_temp:
+                filechecks_list.append(fcheck['file_check'])
+            logger.info("filechecks_list:{}".format(filechecks_list_temp))
             project_postprocessing = []
+
+            page_no = "File Checks"
             if files_count == 0:
+                folder_files_df = pd.DataFrame()
                 pagination_html = ""
                 files_df = ""
                 files_count = ""
                 folder_stats = {'no_files': 0, 'no_errors': 0}
             else:
+                for fcheck in filechecks_list:
+                    logger.info("fcheck: {}".format(fcheck))
+                    if transcription == 1:
+                        list_files = pd.DataFrame(run_query(("SELECT f.file_transcription_id as file_id, "
+                                                              "   CASE WHEN check_results = 0 THEN 'OK' "
+                                                              "       WHEN check_results = 9 THEN 'Pending' "
+                                                              "       WHEN check_results = 1 THEN 'Failed' "
+                                                              "       ELSE 'Pending' END as {fcheck} "
+                                                              " FROM transcription_files f LEFT JOIN transcription_files_checks c ON (f.file_transcription_id=c.file_transcription_id AND c.file_check = %(file_check)s) "
+                                                              "  where f.folder_transcription_id = %(folder_id)s").format(fcheck=fcheck),
+                                                             {'file_check': fcheck, 'folder_id': folder_id}))
+                    else:
+                        list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                              "   CASE WHEN check_results = 0 THEN 'OK' "
+                                                              "       WHEN check_results = 9 THEN 'Pending' "
+                                                              "       WHEN check_results = 1 THEN 'Failed' "
+                                                              "       ELSE 'Pending' END as {fcheck} "
+                                                              " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
+                                                              "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
+                                                             {'file_check': fcheck, 'folder_id': folder_id}))
+                    logger.info("list_files.size: {}".format(list_files.shape[0]))
+                    if list_files.shape[0] > 0:
+                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
+                if transcription == 1:
+                    preview_files = pd.DataFrame(run_query(("SELECT f.file_transcription_id as file_id, "
+                                                             "  CASE WHEN f.preview_image is NULL THEN CONCAT('/preview_image/', f.file_transcription_id, '/?') ELSE f.preview_image END as preview_image "
+                                                             " FROM transcription_files f where f.folder_transcription_id = %(folder_id)s"),
+                                                            {'folder_id': folder_id}))
+                else:
+                    preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
+                                                             "  CASE WHEN f.preview_image is NULL THEN CONCAT('/preview_image/', f.file_id, '/?') ELSE f.preview_image END as preview_image "
+                                                             " FROM files f where f.folder_id = %(folder_id)s"),
+                                                            {'folder_id': folder_id}))
+                folder_files_df = folder_files_df.sort_values(by=['file_name'])
+                folder_files_df = folder_files_df.sort_values(by=filechecks_list)
+                folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
+                if transcription == 1:
+                    folder_files_df['file_name'] = '<a href="{}/file_transcription/'.format(settings.app_root) \
+                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
+                                               + folder_files_df['file_name'].astype(str) \
+                                               + '</a> '
+                else:
+                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
+                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
+                                               + folder_files_df['file_name'].astype(str) \
+                                               + '</a> '
+                folder_files_df = folder_files_df.drop(['file_id'], axis=1)
+                folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
+
                 if transcription == 1:
                     folder_stats1 = run_query(("SELECT coalesce(f.no_files, 0) as no_files "
                                                     " FROM transcription_folders f WHERE folder_transcription_id = %(folder_id)s"),
@@ -1349,6 +1336,16 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
+    # Add sort to show Failed tests at the top
+    files_table_sort = '[0, "asc"]'
+
+    no_cols = folder_files_df.shape[1]
+    i = 1
+    while i < no_cols:
+        if 'Failed' in folder_files_df.iloc[:, i].values:
+            files_table_sort = '[{}, "asc"]'.format(i)
+        i += 1
+
     recent_images = []
 
     return render_template('dashboard.html',
@@ -1364,6 +1361,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            folder_id=folder_id,
                            folder_name=folder_name,
                            recent_images=recent_images,
+                           tables=[files_table_html(folder_files_df)],
+                           titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=tab, page=page, files_count=files_count,
                            pagination_html=pagination_html, folder_stats=folder_stats,
@@ -1390,7 +1389,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            project_manager_link=project_manager_link,
                            analytics_code=settings.analytics_code,
                            project_stats_other=project_stats_other,
+                           files_table_sort=files_table_sort,
                            folder_badges=folder_badges,
+                           no_cols=no_cols,
                            transcription=transcription
                            )
 
@@ -1626,6 +1627,8 @@ def dashboard(project_alias=None, folder_id=None):
                            files_df=files_df, folder_id=folder_id, folder_name=folder_name,
                            folder_qc=folder_qc,
                            recent_images=recent_images[:20],
+                           tables=[files_table_html(folder_files_df)],
+                           titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=None, page=1,
                            files_count=files_count, pagination_html=pagination_html,
@@ -1643,7 +1646,7 @@ def dashboard(project_alias=None, folder_id=None):
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            kiosk=kiosk, user_address=user_address, project_disk=project_disk,
                            projects_links=projects_links, project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other)
+                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other, no_cols=None)
 
 
 @cache.memoize()

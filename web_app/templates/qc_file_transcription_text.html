@@ -13,7 +13,7 @@
     <div class="row">
         <div class="col-6">
 
-            <p><a class="btn btn-info btn-sm" href="{{ url_for('qct_loading2', source_id=source_id) }}" role="button">
+            <p><a class="btn btn-info btn-sm" href="{{ url_for('qc', project_alias=project_alias) }}" role="button">
                         <i class="fa-solid fa-arrow-left"></i> Go back to Project QC Page</a>
             </p>
 
@@ -32,36 +32,25 @@
                 <div class="card-body text-bg-secondary p-3">
                     <h5 class="card-title">File: {{ file_details.file_name }}</h5>
                     <p class="card-text">
-                        {% if file_details.sensitive_contents == 1 %}
-                            <h3><em>This image may include sensitive contents.</em></h3>
-                            <br>
-                        {% endif%}
-
                         <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>                       
                 </div>
             </div>
 
         </div>
         <div class="col-6">
-            <h4>Transcription QC Results:</h4>
+            <h4>QC Results:</h4>
 
-            <form action="{{ url_for('qc_process_transcript', source_id=source_id, folder_id=folder.folder_transcription_id) }}" method="POST">
+            <form action="{{ url_for('qc_process', folder_id=folder.folder_transcription_id) }}" method="POST">
 
             <div class="mb-3">
                 <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
-                    <label class="btn btn-outline-success" for="success-outlined">Text OK</label>
+                    <label class="btn btn-outline-success" for="success-outlined">Image OK</label><br><br>
                 <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
-                    <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label>
-                                         <!-- <small>- Incorrect file name</small> -->
-                                
+                    <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label> <small>- Incorrect file name</small><br><br>
                 <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
-                    <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label>
-                                         <!-- <small>- Incorrect cropping of image</small> -->
-                                
+                    <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label> <small>- Incorrect cropping of image</small><br><br>
                 <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
-              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> 
-                                        <!-- <small>- Noticeable soft focus</small> -->
-                            <br>
+              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> <small>- Noticeable soft focus</small><br><br>
             </div>
             <div class="mb-3">
 
@@ -69,37 +58,33 @@
               <label for="qc_info" class="form-label">QC details or issues:</label>
               <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
           </div>
-                <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_transcription_id }}">
-                <input type="hidden" class="form-control" id="source_id" name="source_id" value="{{ source_id }}">
+                <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_id }}">
               <button type="submit" class="btn btn-primary">Submit</button>
             </form>
-        
-        
-        
-        <!-- Make space for transcription data -->                
-            {% if tables|length > 0 %}
-            <hr>
-                <h3>Transcription Text:</h3>
-                    <div class="card">
-                        <h4 class="card-header text-white bg-primary">{{ tables.name }}</h4>
-                        <div class="card-body">
-                            {{ tables.table|safe }}
-                        </div>
-                        <div class="card-footer">
-                            <p style="font-size: small;">{{ tables.source_info }}</p>
-                        </div>
-                    </div>
-                    <br>
-            {% endif %}
-
-        
-        
         </div>
-
-
     </div>
 
 <br><br>
+        
+        <!-- Make space for transcription data -->
+        <div class="col">
+                <h3>Transcriptions:</h3>
+                
+                    {% for data in text_table %}
+                            <div class="card">
+                                <h4 class="card-header text-white bg-primary">{{ tables[data].name }}</h4>
+                                <div class="card-body">
+                                    {{ tables[data].table|safe }}
+                                </div>
+                                <div class="card-footer">
+                                    <p style="font-size: small;">{{ tables[data].source_info }}</p>
+                                </div>
+                            </div>
+                            <br>
+                {% endfor %}
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -109,22 +94,6 @@
     <script type="text/javascript">
         $(document).ready( function () {
             
-
-            $('#transcription_text').DataTable({
-                "searching": false, 
-                "paging": false, 
-                "info": false,
-                "order": [],
-                    "columnDefs": [
-                        {
-                            'targets': 0,
-                            'createdCell':  function (td, cellData, rowData, row, col) {
-                                $(td).attr('scope', 'row');
-                            }
-                        }]
-            });
-
-
             var exampleModal = document.getElementById('checkmodal')
             exampleModal.addEventListener('show.bs.modal', function (event) {
               // Button that triggered the modal
