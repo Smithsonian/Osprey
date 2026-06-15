@@ -1,4 +1,4 @@
-#!flask/bin/python
+#!/usr/bin/env python3
 #
 # DPO Osprey Dashboard
 #
@@ -212,6 +212,101 @@ def project_alias_exists(project_alias=None):
             return project_id[0]['project_id']
 
 
+def get_project_folders_api(project_id, transcription):
+    """Return folder list in the same shape as GET /api/projects/<project_alias>."""
+    if transcription == 1:
+        return run_query(("SELECT "
+                          "f.folder_transcription_id as folder_id, f.project_id, f.folder, "
+                          "f.folder_path, f.status, f.previews, "
+                          "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
+                          "f.no_files, f.file_errors, "
+                          " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
+                          " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                          "         WHEN q.qc_status = 1 THEN 'QC Failed' "
+                          "         WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
+                          " GROUP_CONCAT(b.badge_text ORDER BY b.badge_text SEPARATOR ',') as badges"
+                          " FROM transcription_folders f LEFT JOIN qc_folders q ON (f.folder_transcription_id = q.folder_uid)"
+                          "     LEFT JOIN folders_badges b ON (f.folder_transcription_id = b.folder_uid) "
+                          " WHERE project_id = %(project_id)s"
+                          " GROUP BY f.folder_transcription_id, f.project_id, f.folder, f.folder_path, "
+                          "      f.status, f.previews, f.error_info, f.date, f.no_files,"
+                          "      f.file_errors, q.qc_status"
+                          " ORDER BY f.date DESC, f.folder DESC"),
+                         {'project_id': project_id})
+    return run_query(("SELECT "
+                      "f.folder_id, f.project_id, f.project_folder as folder, "
+                      "f.folder_path, f.status, f.previews, "
+                      "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
+                      "f.no_files, f.file_errors, "
+                      " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
+                      " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+                      "         WHEN q.qc_status = 1 THEN 'QC Failed' "
+                      "         WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
+                      " GROUP_CONCAT(b.badge_text ORDER BY b.badge_text SEPARATOR ',') as badges"
+                      " FROM folders f LEFT JOIN qc_folders q ON (f.folder_id = q.folder_id)"
+                      "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id) "
+                      " WHERE project_id = %(project_id)s"
+                      " GROUP BY f.folder_id, f.project_id, f.project_folder, f.folder_path, "
+                      "      f.status, f.previews, f.error_info, f.date, f.no_files,"
+                      "      f.file_errors, q.qc_status"
+                      " ORDER BY f.date DESC, f.project_folder DESC"),
+                     {'project_id': project_id})
+
+
+FILE_CHECK_LABELS = {
+    'file_name': 'File name',
+    'tif_compression': 'TIF compression',
+    'tifpages': 'TIF pages',
+    'magick': 'ImageMagick',
+    'jhove': 'JHOVE',
+    'unique_file': 'Unique file',
+    'raw_pair': 'RAW pair',
+    'valid_name': 'Valid name',
+    'old_name': 'Old name',
+    'derivative': 'Derivative',
+    'prefix': 'Prefix',
+    'sequence': 'Sequence',
+    'tesseract': 'Tesseract',
+}
+
+FILES_TABLE_HTML_CLASSES = [
+    'display', 'table', 'table-sm', 'table-hover', 'dashboard-files-table', 'w-100'
+]
+
+
+def label_file_check_column(name):
+    return FILE_CHECK_LABELS.get(name, name.replace('_', ' ').title())
+
+
+def prepare_files_table_df(df):
+    if df is None or df.empty:
+        return df
+    return df.rename(columns={col: label_file_check_column(col) for col in df.columns})
+
+
+def files_table_html(df):
+    return prepare_files_table_df(df).to_html(
+        table_id='files_table',
+        index=False,
+        border=0,
+        escape=False,
+        classes=FILES_TABLE_HTML_CLASSES)
+
+
+@app.route('/dashboard/<project_alias>/folders.json', methods=['GET'], provide_automatic_options=False)
+def dashboard_folders_json(project_alias=None):
+    """JSON folder list for client-side dashboard sidebar (same data as the project API)."""
+    project_id = project_alias_exists(project_alias)
+    if project_id is False:
+        return jsonify({'error': 'Project was not found'}), 404
+
+    project_info = run_query(
+        "SELECT transcription FROM projects WHERE project_id = %(project_id)s",
+        {'project_id': project_id})[0]
+    folders = get_project_folders_api(project_id, project_info['transcription'])
+    return jsonify({'folders': folders, 'project_alias': project_alias})
+
+
 def check_file_id(file_id=None):
     if file_id is None:
         return False, False
@@ -269,7 +364,6 @@ def user_perms(project_id, user_type='user'):
     if user_type == 'admin':
         query = "SELECT is_admin FROM users WHERE username = %(user_name)s"
         is_admin = run_query(query, {'user_name': user_name})
-        print(is_admin[0]['is_admin'])
         val = is_admin[0]['is_admin'] == 1
     return val
 
@@ -799,11 +893,55 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         no_fold = run_query(("SELECT count(folder) as folders FROM transcription_folders f WHERE f.project_id = %(project_id)s"),
                                         {'project_id': project_id})[0]
         project_stats['no_folders'] = format(int(no_fold['folders']), ',d')
+        project_folders = run_query(("SELECT f.folder as project_folder, f.folder_transcription_id as folder_id, coalesce(b1.badge_text, '0 Files') as no_files, "
+                                      "f.file_errors, f.status, f.error_info, "
+                                      "f.delivered_to_dams, "
+                                      " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                                      "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                                      "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                                      "          'QC Pending') as qc_status,"
+                                      "   b.badge_text, "
+                                      " f.previews "
+                                      "FROM transcription_folders f "
+                                      "     LEFT JOIN qc_folders qcf ON (f.folder_transcription_id = qcf.folder_uid) "
+                                      "     LEFT JOIN folders_badges b ON (f.folder_transcription_id = b.folder_uid AND b.badge_type = 'verification') "
+                                      "     LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
+                                      " WHERE f.project_id = %(project_id)s and f.delivered_to_dams != 0 "
+                                      " ORDER BY f.date DESC, f.folder DESC"),
+                                     {'project_id': project_id})
+        project_folders_indams = run_query(("SELECT f.folder as project_folder, f.folder_transcription_id as folder_id, coalesce(b1.badge_text, 0) as no_files "
+                                      "FROM transcription_folders f "
+                                      "     LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
+                                      " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
+                                      " ORDER BY f.folder ASC"),
+                                     {'project_id': project_id})
     else:
         transcription = 0
         no_fold = run_query(("SELECT count(project_folder) as folders FROM folders f WHERE f.project_id = %(project_id)s"),
                                         {'project_id': project_id})[0]
         project_stats['no_folders'] = format(int(no_fold['folders']), ',d')
+        project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, '0 Files') as no_files, "
+                                      "f.file_errors, f.status, f.error_info, "
+                                      "f.delivered_to_dams, "
+                                      " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                                      "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                                      "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                                      "          'QC Pending') as qc_status,"
+                                      "   b.badge_text, "
+                                      " f.previews "
+                                      "FROM folders f "
+                                      "     LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
+                                      "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id AND b.badge_type = 'verification') "
+                                      "     LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
+                                      " WHERE f.project_id = %(project_id)s and f.delivered_to_dams != 0 "
+                                      " ORDER BY f.date DESC, f.project_folder DESC"),
+                                     {'project_id': project_id})
+        project_folders_indams = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, 0) as no_files "
+                                      "FROM folders f "
+                                      "     LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
+                                      " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
+                                      " ORDER BY f.project_folder ASC"),
+                                     {'project_id': project_id})
     # Get objects
     proj_obj = run_query(("SELECT COALESCE(objects_digitized, 0) as no_objects FROM projects_stats WHERE "
                           " project_id = %(project_id)s"),
@@ -1200,13 +1338,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     # Add sort to show Failed tests at the top
     # Sort by filename first
-    files_table_sort = "[0, 'asc']"
-    
+    files_table_sort = '[0, "asc"]'
+
     no_cols = folder_files_df.shape[1]
     i = 1
     while i < no_cols:
         if 'Failed' in folder_files_df.iloc[:, i].values:
-            files_table_sort = "[{}, 'asc']".format(i)
+            files_table_sort = '[{}, "asc"]'.format(i)
         i += 1
     
     recent_images = []
@@ -1218,15 +1356,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            project_info=project_info,
                            project_alias=project_alias,
                            project_stats=project_stats,
+                           project_folders=project_folders,
+                           project_folders_indams=project_folders_indams,
                            files_df=files_df,
                            folder_id=folder_id,
                            folder_name=folder_name,
                            recent_images=recent_images,
-                           tables=[folder_files_df.to_html(table_id='files_table',
-                                                       index=False,
-                                                       border=0,
-                                                       escape=False,
-                                                       classes=["display", "compact", "table-striped", "w-100"])],
+                           tables=[files_table_html(folder_files_df)],
                            titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=tab, page=page, files_count=files_count,
@@ -1354,11 +1490,49 @@ def dashboard(project_alias=None, folder_id=None):
         no_fold = run_query(("SELECT count(folder) as folders FROM transcription_folders f WHERE f.project_id = %(project_id)s"),
                                      {'project_id': project_id})[0]
         project_stats['no_folders'] = format(int(no_fold['folders']), ',d')
+        project_folders = run_query(("SELECT f.folder as project_folder, f.folder_transcription_id as folder_id, coalesce(b1.badge_text, 0) as no_files, "
+                                        "f.file_errors, f.status, f.error_info, f.delivered_to_dams, "
+                                        " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                                        "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                                        "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                                        "          'QC Pending') as qc_status, "
+                                        " f.previews "
+                                        "FROM transcription_folders f "
+                                        " LEFT JOIN qc_folders qcf ON (f.folder_transcription_id = qcf.folder_uid) "
+                                        " LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
+                                        "WHERE f.project_id = %(project_id)s and f.delivered_to_dams != 0 ORDER BY "
+                                        "f.date DESC, f.folder DESC"),
+                                        {'project_id': project_id})
+        project_folders_indams = run_query(("SELECT f.folder as project_folder, f.folder_transcription_id as folder_id, coalesce(b1.badge_text, 0) as no_files "
+                                        "FROM transcription_folders f "
+                                        "     LEFT JOIN folders_badges b1 ON (f.folder_transcription_id = b1.folder_uid AND b1.badge_type = 'no_files') "
+                                        " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
+                                        " ORDER BY f.folder ASC"),
+                                        {'project_id': project_id})
     else:
         transcription = 0
         no_fold = run_query(("SELECT count(project_folder) as folders FROM folders f WHERE f.project_id = %(project_id)s"),
                                      {'project_id': project_id})[0]
         project_stats['no_folders'] = format(int(no_fold['folders']), ',d')
+        project_folders = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, 0) as no_files, "
+                                        "f.file_errors, f.status, f.error_info, f.delivered_to_dams, "
+                                        " COALESCE(CASE WHEN qcf.qc_status = 0 THEN 'QC Passed' "
+                                        "              WHEN qcf.qc_status = 1 THEN 'QC Failed' "
+                                        "              WHEN qcf.qc_status = 9 THEN 'QC Pending' END,"
+                                        "          'QC Pending') as qc_status, "
+                                        " f.previews "
+                                        "FROM folders f "
+                                        " LEFT JOIN qc_folders qcf ON (f.folder_id = qcf.folder_id) "
+                                        " LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
+                                        "WHERE f.project_id = %(project_id)s and f.delivered_to_dams != 0 ORDER BY "
+                                        "f.date DESC, f.project_folder DESC"),
+                                        {'project_id': project_id})
+        project_folders_indams = run_query(("SELECT f.project_folder, f.folder_id, coalesce(b1.badge_text, 0) as no_files "
+                                        "FROM folders f "
+                                        "     LEFT JOIN folders_badges b1 ON (f.folder_id = b1.folder_id AND b1.badge_type = 'no_files') "
+                                        " WHERE f.project_id = %(project_id)s and f.delivered_to_dams = 0 "
+                                        " ORDER BY f.project_folder ASC"),
+                                        {'project_id': project_id})
 
     folder_name = None
     folder_qc = {
@@ -1449,14 +1623,12 @@ def dashboard(project_alias=None, folder_id=None):
                            page_no="",
                            project_id=project_id, project_info=project_info,
                            project_alias=project_alias, project_stats=project_stats,
+                           project_folders=project_folders,
+                           project_folders_indams=project_folders_indams,
                            files_df=files_df, folder_id=folder_id, folder_name=folder_name,
                            folder_qc=folder_qc,
                            recent_images=recent_images[:20],
-                           tables=[folder_files_df.to_html(table_id='files_table',
-                                                           index=False,
-                                                           border=0,
-                                                           escape=False,
-                                                           classes=["display", "compact", "table-striped"])],
+                           tables=[files_table_html(folder_files_df)],
                            titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=None, page=1,
@@ -4501,16 +4673,9 @@ def file(file_id=None):
         zoom_exists = 0
         zoom_filename = None
     transcription_text = ""
-
-    # IIIF
-    if os.path.isfile(f'/data/cantaloupe/folder{folder_info["folder_id"]}/{file_details["file_name"]}.jpg'):
-        zoom_exists = 2
-        iiif_image = f"http://localhost:8182/iiif/3/folder{folder_info['folder_id']}__{file_details['file_name']}/info.json"
-    else:
-        iiif_image = None
-
+    
     return render_template('file.html',
-                           zoom_exists=zoom_exists, zoom_filename=zoom_filename, iiif_image=iiif_image, folder_info=folder_info,
+                           zoom_exists=zoom_exists, zoom_filename=zoom_filename, folder_info=folder_info,
                            file_details=file_details, file_checks=file_checks, 
                            file_postprocessing=file_postprocessing, username=user_name, image_url=image_url,
                            is_admin=is_admin, project_alias=project_alias,

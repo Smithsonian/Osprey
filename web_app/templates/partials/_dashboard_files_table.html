@@ -1,0 +1,31 @@
+{% if files_count %}
+<div class="card dashboard-files-card border-dark mb-3">
+    <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h2 class="h5 mb-0">Files in folder {{ folder_name.project_folder }}</h2>
+            <span class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
+        </div>
+        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by check status">
+            <button type="button" class="btn btn-outline-secondary active" data-files-filter="all">All</button>
+            <button type="button" class="btn btn-outline-danger" data-files-filter="failed">Failed</button>
+            <button type="button" class="btn btn-outline-secondary" data-files-filter="pending">Pending</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="dashboard-files-table-wrap">
+            {% for table in tables %}
+                {{ table|safe }}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card dashboard-files-card border-dark mb-3">
+    <div class="card-header dashboard-files-card-header">
+        <h2 class="h5 mb-0">Files in folder {{ folder_name.project_folder }}</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-0">No files in this folder.</p>
+    </div>
+</div>
+{% endif %}

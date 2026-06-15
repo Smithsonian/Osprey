@@ -3,7 +3,7 @@
 {% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
 
 {% block homelink %}
-    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
 {% endblock %}
 
 
@@ -151,9 +151,7 @@
                     <hr>
                     {% endif %}
                 <br>
-                {% for table in tables %}
-                       {{ table|safe }}
-                {% endfor %}
+                {% include 'partials/_dashboard_files_table.html' %}
 
 
               <!-- File preview modal -->
@@ -260,6 +258,7 @@
 {% block javascripts %}
 
 <script src="{{ url_for('static', filename='js/dashboard_folders.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
 
 {% if folder_id != None %}
 
@@ -320,43 +319,9 @@
                     ]
                 });
 
-                $('#files_table').append('<caption style="caption-side: top"><p class="fs-4">Files in the Folder {{ folder_name.project_folder }}</p></caption>');
-
-                $('#files_table').DataTable({
-                    dom: 'Bfrtip',
-                        buttons: [
-                            'csvHtml5',
-                            'excelHtml5'
-                        ],
-                    "order": [{{ files_table_sort | safe }}],
-                    "columnDefs": [
-                        {
-                            'targets': 0,
-                            'createdCell':  function (td, cellData, rowData, row, col) {
-                                $(td).attr('scope', 'row');
-                            }
-                        }],
-                    lengthMenu: [
-                        [25, 50, 100, -1],
-                        [25, 50, 100, 'All'],
-                    ],
-                    'rowCallback': function(row, data, index){
-
-                        {% for i in range(1, no_cols) %}
-                            if(data[{{ i }}] == 'OK'){
-                                $(row).find('td:eq({{ i }})').css('background', '#198754');
-                                $(row).find('td:eq({{ i }})').css('color', 'white');
-                            } else if(data[{{ i }}] == 'Failed'){
-                                $(row).find('td:eq({{ i }})').css('background', '#dc3545');
-                                $(row).find('td:eq({{ i }})').css('color', 'white');
-                            } else if(data[{{ i }}] == 'Pending'){
-                                $(row).find('td:eq({{ i }})').css('background', '#e2e3e5');
-                                $(row).find('td:eq({{ i }})').css('color', 'black');
-                            };
-                        {% endfor %}
-
-                    },
-                });
+                {% if files_count %}
+                OspreyDashboardFiles.init({ order: [{{ files_table_sort | safe }}] });
+                {% endif %}
 
 
         {% elif tab == "postprod" %}

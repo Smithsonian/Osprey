@@ -718,3 +718,92 @@ color: #000;}
       word-break: break-word;
       font-size: 0.875rem;
   }
+
+  .dashboard-files-card {
+      overflow: hidden;
+  }
+
+  .dashboard-files-card-header {
+      background-color: #f8f9fa;
+  }
+
+  .dashboard-files-filters .btn.active {
+      font-weight: 500;
+  }
+
+  .dashboard-files-table-wrap {
+      overflow-x: auto;
+  }
+
+  .dashboard-files-table {
+      margin-bottom: 0;
+      font-size: 0.875rem;
+  }
+
+  .dashboard-files-table thead th {
+      white-space: nowrap;
+      vertical-align: middle;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      background-color: #fff;
+      border-bottom-width: 2px;
+  }
+
+  .dashboard-files-table tbody td {
+      vertical-align: middle;
+  }
+
+  .dashboard-files-table tbody td:not(:first-child) {
+      text-align: center;
+      white-space: nowrap;
+  }
+
+  .dashboard-files-table th:first-child,
+  .dashboard-files-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background-color: #fff;
+      min-width: 12rem;
+      max-width: 24rem;
+      box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
+  }
+
+  .dashboard-files-table thead th:first-child {
+      z-index: 2;
+  }
+
+  .dashboard-files-table.table-hover tbody tr:hover td:first-child {
+      background-color: var(--bs-table-hover-bg, #f8f9fa);
+  }
+
+  .dashboard-files-row-failed {
+      background-color: #fff5f5;
+  }
+
+  .dashboard-files-row-failed td:first-child {
+      background-color: #fff5f5;
+  }
+
+  .dashboard-files-row-failed:hover td:first-child {
+      background-color: #ffe8e8;
+  }
+
+  .dashboard-files-table .file-result-badge {
+      display: inline-block;
+      cursor: default;
+  }
+
+  .dashboard-files-card .dt-buttons {
+      padding: 0.75rem 1rem 0;
+  }
+
+  .dashboard-files-card .dataTables_wrapper .dataTables_length,
+  .dashboard-files-card .dataTables_wrapper .dataTables_filter {
+      padding: 0.75rem 1rem 0;
+  }
+
+  .dashboard-files-card .dataTables_wrapper .dataTables_info,
+  .dashboard-files-card .dataTables_wrapper .dataTables_paginate {
+      padding: 0.75rem 1rem;
+  }

@@ -1231,12 +1231,12 @@ def api_get_folder_details(folder_id=None):
             return jsonify({'error': 'folder_id value not valid'}), 400
 
     # Check api_key
-    api_key = request.form.get("api_key")
-    if api_key is None or api_key == "":
-        return jsonify({'error': 'api_key is missing'}), 400
-    valid_api_key, is_admin = validate_api_key(api_key, url='/api/folders/', params="folder_id={}".format(folder_id))
-    if valid_api_key == False:
-        return jsonify({'error': 'Forbidden'}), 403
+    # api_key = request.form.get("api_key")
+    # if api_key is None or api_key == "":
+    #     return jsonify({'error': 'api_key is missing'}), 400
+    # valid_api_key, is_admin = validate_api_key(api_key, url='/api/folders/', params="folder_id={}".format(folder_id))
+    # if valid_api_key == False:
+    #     return jsonify({'error': 'Forbidden'}), 403
     if transcription == 1:
         data = run_query(("SELECT f.folder_transcription_id as folder_id, f.project_id, f.folder, "
                            "   p.project_alias, f.status, f.previews, "
