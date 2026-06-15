@@ -319,11 +319,6 @@
                     ]
                 });
 
-                {% if files_count %}
-                OspreyDashboardFiles.init({ order: [{{ files_table_sort | safe }}] });
-                {% endif %}
-
-
         {% elif tab == "postprod" %}
 
                 $('#post_processing_table').append('<caption style="caption-side: top"><p class="fs-3">Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</p></caption>');

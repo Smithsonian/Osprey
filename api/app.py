@@ -10,6 +10,7 @@ import uuid
 import json
 import pandas as pd
 import locale
+from flask_cors import CORS
 import requests
 
 # MySQL
@@ -43,6 +44,10 @@ cache.init_app(app)
 
 # Disable strict trailing slashes
 app.url_map.strict_slashes = False
+
+
+# Enable CORS in the api routes
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 # Connect to Mysql 
