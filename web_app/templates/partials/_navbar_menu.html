@@ -1,0 +1,97 @@
+      <ul class="navbar-nav ms-lg-auto align-items-lg-center">
+        {% if project_alias is defined and project_alias and request.endpoint != 'dashboard' %}
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('dashboard', project_alias=project_alias) }}"
+               title="Return to project dashboard">
+              <i class="fa-solid fa-gauge-high fa-fw" aria-hidden="true"></i>
+              This project
+            </a>
+          </li>
+        {% endif %}
+        {% if username %}
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('homepage') }}"
+               title="System homepage">
+              <i class="fa-solid fa-house fa-fw" aria-hidden="true"></i>
+              Home
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('home') }}"
+               title="My projects">
+              <i class="fa-solid fa-folder-tree fa-fw" aria-hidden="true"></i>
+              My projects
+              <span class="d-none d-xl-inline text-white-50">({{ username }})</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link{% if request.endpoint == 'about' %} active{% endif %}"
+               href="{{ url_for('about') }}"
+               {% if request.endpoint == 'about' %}aria-current="page"{% endif %}>
+              <i class="fa-solid fa-circle-info fa-fw" aria-hidden="true"></i>
+              About
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md"
+               target="_blank"
+               rel="noopener noreferrer"
+               title="Osprey user guide (opens in new tab)">
+              User guide
+              <i class="fa-solid fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i>
+              <span class="screen-reader-only">(opens in new tab)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('logout') }}"
+               title="Log out">
+              <i class="fa-solid fa-right-from-bracket fa-fw" aria-hidden="true"></i>
+              Logout
+            </a>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('homepage') }}"
+               title="System homepage">
+              <i class="fa-solid fa-house fa-fw" aria-hidden="true"></i>
+              Home
+            </a>
+          </li>
+          {% if asklogin is defined and asklogin %}
+            <li class="nav-item">
+              <a class="nav-link"
+                 href="#"
+                 data-bs-toggle="modal"
+                 data-bs-target="#loginModal">
+                <i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>
+                Login
+              </a>
+            </li>
+          {% endif %}
+          <li class="nav-item">
+            <a class="nav-link{% if request.endpoint == 'about' %} active{% endif %}"
+               href="{{ url_for('about') }}"
+               {% if request.endpoint == 'about' %}aria-current="page"{% endif %}>
+              <i class="fa-solid fa-circle-info fa-fw" aria-hidden="true"></i>
+              About
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md"
+               target="_blank"
+               rel="noopener noreferrer"
+               title="Osprey user guide (opens in new tab)">
+              User guide
+              <i class="fa-solid fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i>
+              <span class="screen-reader-only">(opens in new tab)</span>
+            </a>
+          </li>
+        {% endif %}
+      </ul>

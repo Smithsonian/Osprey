@@ -8,6 +8,12 @@ html {
     margin-bottom: 160px;
     font-family: "Basier-Circle",Helvetica,Arial,sans-serif;
   }
+  :root {
+      --osprey-bar-bg: #3F4249;
+      --osprey-bar-gradient: linear-gradient(118deg, #1e3a5f 0%, #3F4249 52%, #5c6370 100%);
+      --osprey-bar-border: rgba(255, 255, 255, 0.12);
+  }
+
   footer {
       position: absolute;
       bottom: 0;
@@ -47,6 +53,111 @@ color: #000;}
       text-decoration: none;
   }
 
+  .osprey-navbar {
+      background-color: var(--osprey-bar-bg);
+      background-image: var(--osprey-bar-gradient);
+      border-bottom: 1px solid var(--osprey-bar-border);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+  }
+
+  .osprey-main-content {
+      padding-top: 1.25rem;
+      padding-bottom: 0.75rem;
+  }
+
+  @media (min-width: 992px) {
+      .osprey-main-content {
+          padding-top: 1.5rem;
+      }
+  }
+
+  .osprey-brand {
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+      color: #FFFFFF;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding-top: 0.45rem;
+      padding-bottom: 0.45rem;
+  }
+
+  .osprey-brand:hover,
+  .osprey-brand:focus {
+      color: #f8f9fa;
+  }
+
+  .osprey-internal-badge {
+      font-size: 0.65rem;
+      font-weight: 500;
+      vertical-align: middle;
+  }
+
+  .navbar-context-wrap {
+      min-width: 0;
+  }
+
+  .navbar-context {
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+      color: #FFFFFF;
+      font-size: 1.05rem;
+      font-weight: 500;
+      letter-spacing: 0.25px;
+      text-decoration: none;
+      display: inline-block;
+      max-width: 100%;
+  }
+
+  a.navbar-context:hover,
+  a.navbar-context:focus {
+      color: #e9ecef;
+      text-decoration: underline;
+  }
+
+  span.navbar-context {
+      cursor: default;
+  }
+
+  .osprey-navbar:has(.navbar-context-wrap:empty) .navbar-context-sep {
+      display: none !important;
+  }
+
+  .osprey-navbar .nav-link {
+      color: rgba(255, 255, 255, 0.92);
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+      font-size: 0.9rem;
+      padding: 0.45rem 0.7rem;
+  }
+
+  .osprey-navbar .nav-link:hover,
+  .osprey-navbar .nav-link:focus {
+      color: #FFFFFF;
+  }
+
+  .osprey-navbar .nav-link.active {
+      font-weight: 600;
+  }
+
+  .osprey-navbar .navbar-toggler {
+      border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  @media (max-width: 991.98px) {
+      .osprey-brand {
+          font-size: 1.2rem;
+      }
+
+      .navbar-context {
+          font-size: 0.95rem;
+      }
+
+      .osprey-navbar .navbar-collapse {
+          padding-top: 0.5rem;
+          padding-bottom: 0.25rem;
+      }
+  }
+
   .navitems {
       color: #FFFFFF;
       text-decoration: none;
@@ -66,6 +177,38 @@ color: #000;}
 
   .footer-text {
       font-family: "minion-pro",Helvetica,Arial,sans-serif;
+      color: rgba(255, 255, 255, 0.92);
+      text-decoration: none;
+  }
+
+  .osprey-footer {
+      background-color: var(--osprey-bar-bg);
+      background-image: var(--osprey-bar-gradient);
+      border-top: 1px solid var(--osprey-bar-border);
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.14);
+      padding-top: 1.25rem;
+      padding-bottom: 1.25rem;
+  }
+
+  .osprey-footer .footer-text:hover,
+  .osprey-footer .footer-text:focus {
+      color: #FFFFFF;
+      text-decoration: underline;
+  }
+
+  .osprey-footer p {
+      margin-bottom: 0.4rem;
+      font-family: "minion-pro",Helvetica,Arial,sans-serif;
+  }
+
+  .osprey-footer p:last-child {
+      margin-bottom: 0;
+  }
+
+  .osprey-footer-logo img {
+      border-radius: 8px;
+      max-width: 100%;
+      height: auto;
   }
 
   /* Dashboard */

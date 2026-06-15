@@ -45,85 +45,76 @@
 
 <div class="container-fluid">
 
-    <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow text-white pt-2" style="background: #3F4249!important;">
-      <!-- Navbar content -->
-        <div class="container-fluid">
+    <nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
+      <div class="container-fluid">
+        <div class="d-flex align-items-center min-w-0 me-lg-3 flex-grow-1 overflow-hidden">
+          <a class="navbar-brand osprey-brand flex-shrink-0"
+             href="{{ url_for('homepage') }}"
+             title="Osprey home">
+            Osprey
+          </a>
+          {% if site_net == "internal" %}
+            <span class="badge text-bg-secondary osprey-internal-badge ms-2 d-none d-sm-inline">Internal</span>
+          {% endif %}
+          <span class="navbar-context-sep text-white-50 mx-2 d-none d-md-inline" aria-hidden="true">/</span>
+          <div class="navbar-context-wrap min-w-0 text-truncate">
             {% block homelink %}{% endblock %}
-            
-        <div class="row">
-            <div class="col">
-
-            {% if username %}
-
-                <div style="text-align: right; color: #FFFFFF;">
-                    <small>
-                        <a href="{{ url_for('homepage') }}" class="navitems" aria-label="System Homepage" title="System Homepage"><i class="fa-solid fa-house"></i> Home</a>
-                        <a href="{{ url_for('home') }}" class="navitems" aria-label="User Home" title="User Home"> My Projects ({{ username }})</a>
-                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
-                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
-                        <a href="{{ url_for('logout') }}" class="navitems" aria-label="Logout of the system" title="Logout of the system">Logout</a>
-                    </small>
-                </div>
-
-            {% else %}
-
-                <div style="text-align: right; color: #FFFFFF;">
-                    <small>
-                        <a href="{{ url_for('homepage') }}" class="navitems" aria-label="Homepage"><i class="fa-solid fa-house"></i> Home</a>
-                        {% if asklogin %} <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="navitems" aria-label="Login into the system"><i class="fa-solid fa-user"></i> Login</a> {% endif %}
-                        <a href="{{ url_for('about') }}" class="navitems" aria-label="Go to about page">About</a>
-                        <a href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md" class="navitems" aria-label="User Guide">User Guide</a>
-                    </small>
-                </div>
-
-            {% endif %}
-
-            </div>
-            </div>
+          </div>
         </div>
+
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#ospreyNavbar"
+                aria-controls="ospreyNavbar"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse flex-grow-0" id="ospreyNavbar">
+          {% include 'partials/_navbar_menu.html' %}
+        </div>
+      </div>
     </nav>
 
-    <br>
-
-    <a name="maincontent"></a>
-
+    <main id="maincontent" class="osprey-main-content">
     {% block content %}
     {% endblock %}
+    </main>
 
 </div>
 
 
-<footer class="page-footer font-small bg-secondary pt-2" style="background: #3F4249!important;">
+<footer class="osprey-footer">
   <!-- Footer Elements -->
   <div class="container-fluid">
-      <div class="row">
-        <div class="col">
-            <a href="https://dpo.si.edu" class="text-white footer-text"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office" alt="Logo of the Smithsonian Digitization Program Office" style="border-radius: 8px;"></a>
+      <div class="row g-3 align-items-start">
+        <div class="col-md-4 osprey-footer-logo">
+            <a href="https://dpo.si.edu" class="footer-text"><img src="{{ url_for('static', filename='logo-white-300.png') }}" aria-label="Logo of the Smithsonian Digitization Program Office" alt="Logo of the Smithsonian Digitization Program Office"></a>
         </div>
-        <div class="col">
+        <div class="col-md-4">
             {% if site_net == "internal" %}
-                <p><a href="https://sinet.sharepoint.com/sites/ODT" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Office of Digital Transformation">Office of Digital Transformation</a></p>
+                <p><a href="https://sinet.sharepoint.com/sites/ODT" class="footer-text" title="Link to the Office of Digital Transformation">Office of Digital Transformation</a></p>
             {% endif %}
-            <p><a href="{{ url_for('about') }}" class="text-white footer-text" style="background: #3F4249!important;" title="Link to page with contact information and about the system">About & Contact</a></p>
-            <p><a href="https://www.si.edu/termsofuse" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Terms of Use">Terms of Use</a></p>
-            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>
+            <p><a href="{{ url_for('about') }}" class="footer-text" title="Link to page with contact information and about the system">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="footer-text" title="Link to the Terms of Use">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="footer-text" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>
         </div>
-        <div class="col">
+        <div class="col-md-4">
             {% if site_net == "external" %}
-                <p><a href="https://si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Smithsonian Homepage">Smithsonian Home</a></p>
+                <p><a href="https://si.edu/" class="footer-text" title="Link to the Smithsonian Homepage">Smithsonian Home</a></p>
             {% else %}
-                <p><a href="https://prism.si.edu/" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the PRISM website">PRISM</a></p>
+                <p><a href="https://prism.si.edu/" class="footer-text" title="Link to the PRISM website">PRISM</a></p>
             {% endif %}
-            <p><a href="https://www.si.edu/Accessibility" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Accessibility information page">Accessibility</a></p>
-            <p><a href="https://www.si.edu/privacy" class="text-white footer-text" style="background: #3F4249!important;" title="Link to the Privacy information page">Privacy</a></p>
+            <p><a href="https://www.si.edu/Accessibility" class="footer-text" title="Link to the Accessibility information page">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="footer-text" title="Link to the Privacy information page">Privacy</a></p>
         </div>
 
     </div>
  </div>
-  <!-- Copyright -->
 
 </footer>
-<!-- Footer -->
 
     <!-- JQuery -->
     <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
