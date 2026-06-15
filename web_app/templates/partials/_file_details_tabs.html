@@ -1,0 +1,113 @@
+<div class="card border-0 shadow-sm file-details-panel" id="file-details-panel">
+  <ul class="nav nav-tabs file-details-tabs px-2 pt-2" role="tablist" aria-label="File details">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active"
+              id="file-tab-checks-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#file-tab-checks"
+              type="button"
+              role="tab"
+              aria-controls="file-tab-checks"
+              aria-selected="true">
+        Checks
+        {% if file_checks|length > 0 %}
+          <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_checks|length }}</span>
+        {% endif %}
+        {% if file_status.checks_failed > 0 %}
+          <span class="badge rounded-pill text-bg-danger ms-1">{{ file_status.checks_failed }}</span>
+        {% endif %}
+      </button>
+    </li>
+    {% if file_postprocessing|length > 0 %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link"
+                id="file-tab-post-btn"
+                data-bs-toggle="tab"
+                data-bs-target="#file-tab-post"
+                type="button"
+                role="tab"
+                aria-controls="file-tab-post"
+                aria-selected="false">
+          Post-processing
+          {% if file_status.post_failed > 0 %}
+            <span class="badge rounded-pill text-bg-danger ms-1">{{ file_status.post_failed }}</span>
+          {% endif %}
+        </button>
+      </li>
+    {% endif %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link"
+              id="file-tab-metadata-btn"
+              data-bs-toggle="tab"
+              data-bs-target="#file-tab-metadata"
+              type="button"
+              role="tab"
+              aria-controls="file-tab-metadata"
+              aria-selected="false">
+        Metadata
+        {% if file_metadata_rows > 0 %}
+          <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_metadata_rows }}</span>
+        {% endif %}
+      </button>
+    </li>
+    {% if file_links|length > 0 %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link"
+                id="file-tab-links-btn"
+                data-bs-toggle="tab"
+                data-bs-target="#file-tab-links"
+                type="button"
+                role="tab"
+                aria-controls="file-tab-links"
+                aria-selected="false">
+          Links
+          <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_links|length }}</span>
+        </button>
+      </li>
+    {% endif %}
+  </ul>
+
+  <div class="tab-content file-details-tab-content p-3">
+    <div class="tab-pane fade show active"
+         id="file-tab-checks"
+         role="tabpanel"
+         aria-labelledby="file-tab-checks-btn"
+         tabindex="0">
+      {% if file_checks|length > 0 %}
+        {% include "partials/_file_checks.html" %}
+      {% else %}
+        <p class="text-muted mb-0">No technical checks recorded for this file.</p>
+      {% endif %}
+    </div>
+
+    {% if file_postprocessing|length > 0 %}
+      <div class="tab-pane fade"
+           id="file-tab-post"
+           role="tabpanel"
+           aria-labelledby="file-tab-post-btn"
+           tabindex="0">
+        {% include "partials/_file_postprocessing.html" %}
+      </div>
+    {% endif %}
+
+    <div class="tab-pane fade"
+         id="file-tab-metadata"
+         role="tabpanel"
+         aria-labelledby="file-tab-metadata-btn"
+         tabindex="0">
+      <div class="file-metadata-wrap">
+        {% include "partials/_file_metadata.html" %}
+      </div>
+    </div>
+
+    {% if file_links|length > 0 %}
+      <div class="tab-pane fade"
+           id="file-tab-links"
+           role="tabpanel"
+           aria-labelledby="file-tab-links-btn"
+           tabindex="0">
+        {% include "partials/_file_links.html" %}
+      </div>
+    {% endif %}
+  </div>
+</div>

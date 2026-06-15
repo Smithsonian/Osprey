@@ -1,0 +1,51 @@
+<div class="row align-items-center file-toolbar-row mb-3 g-2">
+  <div class="col file-toolbar-breadcrumb">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb file-breadcrumb mb-0">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('dashboard', project_alias=project_alias) }}">{{ project_alias }}</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}">
+            Folder {{ folder_info.project_folder }}
+          </a>
+        </li>
+        <li class="breadcrumb-item active text-truncate file-breadcrumb-filename" aria-current="page" title="{{ file_details.file_name }}">
+          {{ file_details.file_name }}
+        </li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="col-auto text-end file-toolbar-nav">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Browse files in alphabetical order">
+      {% if file_details.prev_id %}
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('file', file_id=file_details.prev_id) }}"
+           title="Previous file">
+          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+          <span class="d-none d-sm-inline"> Prev</span>
+        </a>
+      {% else %}
+        <span class="btn btn-outline-primary disabled" aria-disabled="true">
+          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+          <span class="d-none d-sm-inline"> Prev</span>
+        </span>
+      {% endif %}
+      {% if file_details.next_id %}
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('file', file_id=file_details.next_id) }}"
+           title="Next file">
+          <span class="d-none d-sm-inline">Next </span>
+          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </a>
+      {% else %}
+        <span class="btn btn-outline-primary disabled" aria-disabled="true">
+          <span class="d-none d-sm-inline">Next </span>
+          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </span>
+      {% endif %}
+    </div>
+    <div class="file-nav-hint">Alphabetical order</div>
+  </div>
+</div>

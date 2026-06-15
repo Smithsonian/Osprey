@@ -1,0 +1,11 @@
+{% if file_metadata_rows > 0 %}
+  {% for table in tables %}
+    {{ table|safe }}
+  {% endfor %}
+  <p class="small text-muted mt-3 mb-0">
+    Note: This data was extracted with <em>exiftool</em>, which may not match the data in other software.
+    Contact the DPO project manager for any issues or discrepancies.
+  </p>
+{% else %}
+  <p class="text-muted mb-0">Image metadata is not available.</p>
+{% endif %}

@@ -1,0 +1,111 @@
+<div class="card border-0 shadow-sm file-summary-card h-100">
+  <div class="card-body py-3">
+    <h2 class="file-summary-filename mb-2" title="{{ file_details.file_name }}">{{ file_details.file_name }}</h2>
+
+    <div class="dashboard-fact-chips mb-2" role="list" aria-label="File details">
+      <span class="dashboard-fact-chip" role="listitem" title="DPO File ID">
+        <i class="fa-solid fa-hashtag fa-fw" aria-hidden="true"></i>
+        <span class="dashboard-fact-chip-label">ID:</span>
+        {{ file_details.file_id }}
+      </span>
+      <span class="dashboard-fact-chip" role="listitem" title="Record created">
+        <i class="fa-solid fa-calendar fa-fw" aria-hidden="true"></i>
+        {{ file_details.created_at }}
+      </span>
+      {% if file_details.dams_uan %}
+        <span class="dashboard-fact-chip" role="listitem" title="DAMS UAN">
+          <i class="fa-solid fa-barcode fa-fw" aria-hidden="true"></i>
+          {{ file_details.dams_uan }}
+        </span>
+      {% endif %}
+      {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
+        <a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}"
+           class="dashboard-fact-chip dashboard-fact-chip-link"
+           title="Open JPG in full size"
+           rel="noopener noreferrer">
+          <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
+          Full size
+        </a>
+        <a href="{{ url_for('static', filename=file_details.preview_img_path) }}"
+           class="dashboard-fact-chip dashboard-fact-chip-link"
+           title="Download JPG"
+           download
+           rel="noopener noreferrer">
+          <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
+          Download
+        </a>
+      {% endif %}
+    </div>
+
+    {% if file_checks|length > 0 or file_postprocessing|length > 0 %}
+      <div class="dashboard-fact-chips" role="list" aria-label="File status">
+        {% if file_status.checks_ok > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                  data-file-tab="checks"
+                  title="View checks">
+            <i class="fa-solid fa-circle-check fa-fw" aria-hidden="true"></i>
+            {{ file_status.checks_ok }} check{{ 's' if file_status.checks_ok != 1 else '' }} OK
+          </button>
+        {% endif %}
+        {% if file_status.checks_failed > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                  data-file-tab="checks"
+                  title="View failed checks">
+            <i class="fa-solid fa-circle-xmark fa-fw" aria-hidden="true"></i>
+            {{ file_status.checks_failed }} check{{ 's' if file_status.checks_failed != 1 else '' }} failed
+          </button>
+        {% endif %}
+        {% if file_status.checks_pending > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                  data-file-tab="checks"
+                  title="View pending checks">
+            <i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>
+            {{ file_status.checks_pending }} check{{ 's' if file_status.checks_pending != 1 else '' }} pending
+          </button>
+        {% endif %}
+        {% if file_status.post_ok > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                  data-file-tab="post"
+                  title="View post-processing">
+            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+            {{ file_status.post_ok }} step{{ 's' if file_status.post_ok != 1 else '' }} completed
+          </button>
+        {% endif %}
+        {% if file_status.post_failed > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                  data-file-tab="post"
+                  title="View failed steps">
+            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+            {{ file_status.post_failed }} step{{ 's' if file_status.post_failed != 1 else '' }} failed
+          </button>
+        {% endif %}
+        {% if file_status.post_pending > 0 %}
+          <button type="button"
+                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                  data-file-tab="post"
+                  title="View pending steps">
+            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+            {{ file_status.post_pending }} step{{ 's' if file_status.post_pending != 1 else '' }} pending
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if file_sensitive == "1" %}
+      <div class="alert alert-warning py-2 px-3 mb-0 mt-2 small" role="alert">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        This image may include sensitive contents.
+        <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}"
+           title="Open uncensored version of this image">View uncensored image</a>
+        {% if sensitive_info != "" and sensitive_info != None %}
+          <br><span class="text-muted">Staff notes:</span> {{ sensitive_info }}
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>

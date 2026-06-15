@@ -1,0 +1,63 @@
+{% set check_descriptions = {
+  'tif_compression': 'TIF file is compressed using the lossless compression LZW.',
+  'tifpages': 'Check that there are no more than 1 page in the TIF, usually a thumbnail.',
+  'magick': 'File is valid according to ImageMagick.',
+  'jhove': 'File is valid according to JHOVE (JSTOR/Harvard Object Validation Environment).',
+  'unique_file': 'Filename is unique in the project.',
+  'raw_pair': 'Raw file was found for the image.',
+  'valid_name': 'Filename is in the list of allowed names.',
+  'old_name': 'Filename was not found in list outside the project.',
+  'derivative': 'Derivative file is present.',
+  'prefix': 'Filename has the correct prefix.',
+  'sequence': 'File sequence is correct.',
+  'tesseract': 'Text orientation and OCR with Tesseract.'
+} %}
+
+<div class="table-responsive">
+  <table class="table table-sm table-hover file-checks-table mb-0">
+    <thead>
+      <tr>
+        <th scope="col">Check</th>
+        <th scope="col" class="text-end">Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for check in file_checks %}
+        <tr class="{% if check.check_results == 1 %}file-check-row-failed{% endif %}"
+            id="check-{{ check.file_check }}">
+          <td>
+            <span class="file-check-name">{{ check.file_check }}</span>
+            {% set desc = check_descriptions[check.file_check] if check.file_check in check_descriptions else ('Checks for ' ~ check.file_check ~ '.') %}
+            <button type="button"
+                    class="btn btn-link btn-sm file-check-help p-0 ms-1"
+                    title="{{ desc }}"
+                    aria-label="About {{ check.file_check }} check">
+              <i class="fa-solid fa-circle-info text-muted" aria-hidden="true"></i>
+            </button>
+          </td>
+          <td class="text-end text-nowrap">
+            {% if check.check_results == 0 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--ok"
+                      data-bs-toggle="modal"
+                      data-bs-target="#checkmodal"
+                      data-bs-info="{{ check.check_info }}">OK</button>
+            {% elif check.check_results == 1 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--failed"
+                      data-bs-toggle="modal"
+                      data-bs-target="#checkmodal"
+                      data-bs-info="{{ check.check_info }}">Failed</button>
+            {% elif check.check_results == 9 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--pending"
+                      data-bs-toggle="modal"
+                      data-bs-target="#checkmodal"
+                      data-bs-info="{{ check.check_info }}">Pending</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

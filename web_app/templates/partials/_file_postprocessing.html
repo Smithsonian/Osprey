@@ -1,0 +1,39 @@
+<div class="table-responsive">
+  <table class="table table-sm table-hover file-checks-table mb-0">
+    <thead>
+      <tr>
+        <th scope="col">Step</th>
+        <th scope="col" class="text-end">Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for step in file_postprocessing %}
+        <tr class="{% if step.post_results == 1 %}file-check-row-failed{% endif %}"
+            id="post-{{ step.post_step }}">
+          <td><span class="file-check-name">{{ step.post_step }}</span></td>
+          <td class="text-end text-nowrap">
+            {% if step.post_results == 0 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--ok"
+                      data-bs-toggle="modal"
+                      data-bs-target="#postmodal"
+                      data-bs-info2="{{ step.post_info }}">Completed</button>
+            {% elif step.post_results == 1 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--failed"
+                      data-bs-toggle="modal"
+                      data-bs-target="#postmodal"
+                      data-bs-info2="{{ step.post_info }}">Failed</button>
+            {% elif step.post_results == 9 %}
+              <button type="button"
+                      class="file-result-badge file-result-badge--pending"
+                      data-bs-toggle="modal"
+                      data-bs-target="#postmodal"
+                      data-bs-info2="{{ step.post_info }}">Pending</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

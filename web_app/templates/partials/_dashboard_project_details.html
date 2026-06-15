@@ -1,0 +1,93 @@
+<div class="card border-0 shadow-sm dashboard-project-details">
+  <div class="card-header bg-dark text-white py-2">
+    <h2 class="h6 mb-0">Project Details</h2>
+  </div>
+  <div class="card-body py-2">
+    {% if project_info.project_description %}
+      <p class="small text-muted mb-2 dashboard-description">{{ project_info.project_description }}</p>
+    {% endif %}
+
+    <div class="dashboard-fact-chips" role="list" aria-label="Project details">
+      <span class="dashboard-fact-chip" role="listitem" title="Project Manager">
+        <i class="fa-solid fa-user-gear fa-fw" aria-hidden="true"></i>
+        <span class="dashboard-fact-chip-label">Manager:</span>
+        {{ project_manager_link | safe }}
+      </span>
+
+      {% if project_info.project_section %}
+        <span class="dashboard-fact-chip" role="listitem" title="Team">
+          <i class="fa-solid fa-people-group fa-fw" aria-hidden="true"></i>
+          {% if project_info.project_section == "MD" %}Mass Digitization{% elif project_info.project_section == "IS" %}Imaging Services{% endif %}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_unit %}
+        <span class="dashboard-fact-chip" role="listitem" title="Unit">
+          <i class="fa-solid fa-building-columns fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_unit }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_type %}
+        <span class="dashboard-fact-chip" role="listitem" title="Project Type">
+          <i class="fa-solid fa-diagram-project fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_type }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_area %}
+        <span class="dashboard-fact-chip" role="listitem" title="Project Area">
+          <i class="fa-solid fa-book-open fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_area }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_status %}
+        <span class="dashboard-fact-chip dashboard-fact-chip-status" role="listitem" title="Project Status">
+          <i class="fa-solid fa-list-check fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_status }}
+        </span>
+      {% endif %}
+
+      {% if project_info.pdates %}
+        <span class="dashboard-fact-chip" role="listitem" title="Dates of the Project">
+          <i class="fa-solid fa-calendar-days fa-fw" aria-hidden="true"></i>
+          {{ project_info.pdates }}
+        </span>
+      {% endif %}
+
+      {% if project_disk %}
+        <span class="dashboard-fact-chip" role="listitem" title="Disk Space Used">
+          <i class="fa-solid fa-hard-drive fa-fw" aria-hidden="true"></i>
+          {{ project_disk }}
+        </span>
+      {% endif %}
+
+      {% for link in projects_links %}
+        <a href="{{ link.url }}"
+           role="listitem"
+           title="{{ link.link_title }} (external link)"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="dashboard-fact-chip dashboard-fact-chip-link">
+          {% if link.link_type == "yt" %}
+            <i class="fa-solid fa-video fa-fw" title="YouTube Video" aria-hidden="true"></i>
+          {% elif link.link_type == "video" %}
+            <i class="fa-solid fa-video fa-fw" title="Video" aria-hidden="true"></i>
+          {% elif link.link_type == "fb" %}
+            <i class="fa-brands fa-facebook fa-fw" title="Facebook Post" aria-hidden="true"></i>
+          {% elif link.link_type == "ig" %}
+            <i class="fa-brands fa-instagram fa-fw" title="Instagram Post" aria-hidden="true"></i>
+          {% elif link.link_type == "news" %}
+            <i class="fa-solid fa-newspaper fa-fw" title="News Item" aria-hidden="true"></i>
+          {% else %}
+            <i class="fa-solid fa-link fa-fw" title="Link" aria-hidden="true"></i>
+          {% endif %}
+          {{ link.link_title }}
+          <i class="fa-solid fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i>
+          <span class="screen-reader-only">(link is external)</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>

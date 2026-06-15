@@ -1,0 +1,54 @@
+<div class="dashboard-folder-panel"
+     id="dashboard-folder-panel"
+     data-folders-url="http://localhost:5001/projects/{{ project_alias }}"
+     data-project-alias="{{ project_alias }}"
+     data-selected-folder-id="{{ folder_id if folder_id is not none else '' }}">
+
+  <p class="small text-muted mb-2">
+    This project has <span id="folder-total-count">…</span> folders total.
+  </p>
+
+  <div id="folder-list-loading" class="text-muted small py-2">
+    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+    Loading folders…
+  </div>
+
+  <p id="folder-list-error" class="small text-danger mb-2 d-none" role="alert"></p>
+
+  <div id="folder-list-controls" class="d-none">
+    <div class="input-group input-group-sm mb-2">
+      <span class="input-group-text" id="folder-search-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+      <input type="search"
+             class="form-control"
+             id="folder-search"
+             aria-label="Search folders"
+             aria-describedby="folder-search-addon"
+             placeholder="Search folders…"
+             autocomplete="off">
+    </div>
+
+    <div class="dashboard-folder-filters mb-2">
+      <div class="dashboard-folder-filter-all mb-1">
+        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-folder-filter="all" aria-pressed="false">All</button>
+      </div>
+      <div class="dashboard-folder-filter-sub btn-group btn-group-sm flex-wrap w-100" role="group" aria-label="Filter folders by status">
+        <button type="button" class="btn btn-outline-success active" data-folder-filter="ok" aria-pressed="true">OK</button>
+        <button type="button" class="btn btn-outline-danger" data-folder-filter="errors" aria-pressed="false">Errors</button>
+        <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="qc" aria-pressed="false">QC Failed</button>
+        <button type="button" class="btn btn-outline-primary" data-folder-filter="dams" aria-pressed="false">In DAMS</button>
+        <button type="button" class="btn btn-outline-secondary" data-folder-filter="unavailable" aria-pressed="false">Unavailable</button>
+      </div>
+    </div>
+
+    <p class="small text-danger mb-2 d-none" id="folder-search-empty" role="status">No folders match your search or filters.</p>
+  </div>
+
+  <div class="d-lg-none mb-3" id="folder-list-mobile-wrap">
+    <label for="folder-select-mobile" class="form-label small mb-1">Folder</label>
+    <select class="form-select form-select-sm" id="folder-select-mobile" aria-label="Select a folder">
+      <option value="" selected disabled>Loading folders…</option>
+    </select>
+  </div>
+
+  <div class="d-none d-lg-block" id="folder-list-desktop"></div>
+</div>
