@@ -151,6 +151,12 @@ color: #000;}
       color: #052c65;
   }
 
+  .dashboard-report-chip-badge {
+      font-size: 0.65rem;
+      font-weight: 500;
+      padding: 0.15rem 0.4rem;
+  }
+
   .dashboard-tabs {
       margin-bottom: 1rem;
   }

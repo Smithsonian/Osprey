@@ -1,0 +1,21 @@
+{% if reports|length > 0 %}
+  <div class="dashboard-report-chips mt-2 pt-2 border-top">
+    <div class="small text-muted mb-1">Data reports</div>
+    <div class="dashboard-fact-chips" role="list" aria-label="Data reports">
+      {% for report in reports %}
+        <a href="{{ url_for('data_reports', project_alias=project_alias, report_id=report.report_id, rendering=False) }}"
+           role="listitem"
+           class="dashboard-fact-chip dashboard-fact-chip-link dashboard-report-chip"
+           title="{{ report.report_title }}">
+          <i class="fa-solid fa-chart-column fa-fw" aria-hidden="true"></i>
+          {{ report.report_title_brief }}
+          {% if report.pregenerated == 1 %}
+            <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Export</span>
+          {% else %}
+            <span class="badge rounded-pill text-bg-info dashboard-report-chip-badge">Live</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

@@ -1211,7 +1211,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     
     recent_images = []
 
-    return render_template('dashboard2.html',
+    return render_template('dashboard.html',
                            fol_last_update=fol_last_update,
                            page_no=page_no,
                            project_id=project_id,
@@ -1445,7 +1445,7 @@ def dashboard(project_alias=None, folder_id=None):
                 recent_images.append(img)
         random.shuffle(recent_images)
 
-    return render_template('dashboard2.html',
+    return render_template('dashboard.html',
                            page_no="",
                            project_id=project_id, project_info=project_info,
                            project_alias=project_alias, project_stats=project_stats,
