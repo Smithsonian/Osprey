@@ -4578,9 +4578,16 @@ def file(file_id=None):
         zoom_exists = 0
         zoom_filename = None
     transcription_text = ""
+
+    # IIIF
+    if os.path.isfile(f'/data/image_previews/folder{folder_info["folder_id"]}/{file_details["file_name"]}.jpg'):
+        zoom_exists = 2
+        iiif_image = f"/iiif/3/folder{folder_info['folder_id']}__{file_details['file_name']}/info.json"
+    else:
+        iiif_image = None
     
     return render_template('file.html',
-                           zoom_exists=zoom_exists, zoom_filename=zoom_filename, folder_info=folder_info,
+                           zoom_exists=zoom_exists, iiif_image=iiif_image, zoom_filename=zoom_filename, folder_info=folder_info,
                            file_details=file_details, file_checks=file_checks, 
                            file_postprocessing=file_postprocessing, username=user_name, image_url=image_url,
                            is_admin=is_admin, project_alias=project_alias,
