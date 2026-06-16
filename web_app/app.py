@@ -1727,6 +1727,7 @@ def about():
     return render_template(
         'about.html',
         form=form,
+        username=username,
         site_net=site_net,
         site_env=site_env,
         site_env_label=site_env_label,
