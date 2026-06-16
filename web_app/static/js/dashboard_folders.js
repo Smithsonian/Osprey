@@ -186,6 +186,9 @@
         if (filterMode === 'qc') {
             return folder.qc_status === 'QC Failed';
         }
+        if (filterMode === 'qc_pending') {
+            return folder.qc_status === 'QC Pending';
+        }
         if (filterMode === 'dams') {
             return folder.section === 'dams';
         }
@@ -200,6 +203,7 @@
         ok: 'OK',
         errors: 'Errors',
         qc: 'QC Failed',
+        qc_pending: 'QC Pending',
         dams: 'In DAMS',
         unavailable: 'Unavailable'
     };
@@ -297,6 +301,67 @@
             mobileSelect.innerHTML = html;
         }
 
+        function updateSelectedFolder(folderId) {
+            selectedFolderId = String(folderId);
+            panel.setAttribute('data-selected-folder-id', selectedFolderId);
+            if (desktopEl) {
+                desktopEl.querySelectorAll('.dashboard-folder-row').forEach(function (row) {
+                    var isSelected = row.getAttribute('href') &&
+                        row.getAttribute('href').endsWith('/' + selectedFolderId + '/');
+                    row.classList.toggle('selected', isSelected);
+                    if (isSelected) {
+                        row.setAttribute('aria-current', 'true');
+                    } else {
+                        row.removeAttribute('aria-current');
+                    }
+                    var dot = row.querySelector('.dashboard-folder-dot');
+                    if (dot) {
+                        dot.className = 'dashboard-folder-dot ' +
+                            dotClass(allFolders.find(function (f) {
+                                return String(f.folder_id) === selectedFolderId;
+                            }) || { folder_id: folderId }, selectedFolderId);
+                    }
+                });
+            }
+            if (mobileSelect) {
+                var href = '/dashboard/' + encodeURIComponent(projectAlias) + '/' + selectedFolderId + '/';
+                mobileSelect.value = href;
+            }
+        }
+
+        function onFolderNavigate(event, href, folderId) {
+            var filesPanel = document.getElementById('dashboard-files-panel');
+            if (!filesPanel || !window.OspreyDashboardFiles) {
+                return;
+            }
+            event.preventDefault();
+            updateSelectedFolder(folderId);
+            if (window.history && window.history.pushState) {
+                window.history.pushState({ folderId: folderId }, '', href);
+            }
+            window.OspreyDashboardFiles.loadForFolder(folderId);
+        }
+
+        var folderNavBound = false;
+
+        function bindFolderNavigation() {
+            if (!desktopEl || folderNavBound) {
+                return;
+            }
+            folderNavBound = true;
+            desktopEl.addEventListener('click', function (event) {
+                var row = event.target.closest('a.dashboard-folder-row');
+                if (!row || !row.getAttribute('href')) {
+                    return;
+                }
+                var match = row.getAttribute('href').match(/\/([^/]+)\/?$/);
+                if (!match) {
+                    return;
+                }
+                onFolderNavigate(event, row.getAttribute('href'), match[1]);
+            });
+        }
+
         function renderDesktopList(folders) {
             if (!desktopEl) {
                 return;
@@ -318,6 +383,7 @@
         function render() {
             var folders = visibleFolders();
             renderDesktopList(folders);
+            bindFolderNavigation();
             renderMobileSelect(folders);
 
             if (countEl) {
@@ -350,9 +416,22 @@
 
         if (mobileSelect) {
             mobileSelect.addEventListener('change', function () {
-                if (this.value) {
-                    window.location.href = this.value;
+                if (!this.value) {
+                    return;
                 }
+                var filesPanel = document.getElementById('dashboard-files-panel');
+                if (filesPanel && window.OspreyDashboardFiles) {
+                    var match = this.value.match(/\/([^/]+)\/?$/);
+                    if (match) {
+                        updateSelectedFolder(match[1]);
+                        if (window.history && window.history.pushState) {
+                            window.history.pushState({ folderId: match[1] }, '', this.value);
+                        }
+                        window.OspreyDashboardFiles.loadForFolder(match[1]);
+                        return;
+                    }
+                }
+                window.location.href = this.value;
             });
         }
 

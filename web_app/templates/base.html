@@ -12,20 +12,17 @@
     <!-- favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
-    <!-- Datatables -->
-    <link href="{{ url_for('static', filename='css/datatables.min.css') }}" rel="stylesheet">
-
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 
-    <!-- Font Awesome -->
-    <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet" />
+    <!-- Font Awesome 6.4.2 -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">
+
+    <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
+    <link href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/css/dataTables.dataTables.min.css" rel="stylesheet" integrity="sha384-iRTWPXZquQySBE9K96fgJXUIrnm8TpdtPAbiCNR+qjpP24qFZw9PHFA91JtWy7Ul" crossorigin="anonymous">
 
     <!-- Osprey-specific CSS -->
     <link href="{{ url_for('static', filename='css/osprey_custom.min.css') }}" rel="stylesheet" />
-
-    <!-- JQuery-UI -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery-ui.min.css') }}">
 
     {% block head_blocks %}
     {% endblock %}
@@ -43,40 +40,40 @@
 
 <div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
 
-<div class="container-fluid">
-
-    <nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
-      <div class="container-fluid">
-        <div class="d-flex align-items-center min-w-0 me-lg-3 flex-grow-1 overflow-hidden">
-          <a class="navbar-brand osprey-brand flex-shrink-0"
-             href="{{ url_for('homepage') }}"
-             title="Osprey home">
-            Osprey
-          </a>
-          {% if site_net == "internal" %}
-            <span class="badge text-bg-secondary osprey-internal-badge ms-2 d-none d-sm-inline">Internal</span>
-          {% endif %}
-          <span class="navbar-context-sep text-white-50 mx-2 d-none d-md-inline" aria-hidden="true">/</span>
-          <div class="navbar-context-wrap min-w-0 text-truncate">
-            {% block homelink %}{% endblock %}
-          </div>
-        </div>
-
-        <button class="navbar-toggler"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#ospreyNavbar"
-                aria-controls="ospreyNavbar"
-                aria-expanded="false"
-                aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse flex-grow-0" id="ospreyNavbar">
-          {% include 'partials/_navbar_menu.html' %}
-        </div>
+<nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
+  <div class="container-fluid">
+    <div class="d-flex align-items-center min-w-0 me-lg-3 flex-grow-1 overflow-hidden">
+      <a class="navbar-brand osprey-brand flex-shrink-0"
+         href="{{ url_for('homepage') }}"
+         title="Osprey home">
+        Osprey
+      </a>
+      {% if site_net == "internal" %}
+        <span class="badge text-bg-secondary osprey-internal-badge ms-2 d-none d-sm-inline">Internal</span>
+      {% endif %}
+      <span class="navbar-context-sep text-white-50 mx-2 d-none d-md-inline" aria-hidden="true">/</span>
+      <div class="navbar-context-wrap min-w-0 text-truncate">
+        {% block homelink %}{% endblock %}
       </div>
-    </nav>
+    </div>
+
+    <button class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#ospreyNavbar"
+            aria-controls="ospreyNavbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse flex-grow-0" id="ospreyNavbar">
+      {% include 'partials/_navbar_menu.html' %}
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid">
 
     <main id="maincontent" class="osprey-main-content">
     {% block content %}
@@ -116,17 +113,19 @@
 
 </footer>
 
-    <!-- JQuery -->
+    <!-- JQuery 4.0 -->
     <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
 
-    <!-- JQuery UI -->
-    <script src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>
-
-    <!-- Bootstrap -->
+    <!-- Bootstrap 5.3.8 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    
-    <!-- Datatables -->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/datatables.min.js') }}"></script> 
+
+    <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.3.7/js/dataTables.min.js" integrity="sha384-Lo2E+ASlyar6zUXt6sPEy5uaDGtDGHXo300rohaW4/AV26JdoLBT9zhcOhV8BtL8" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/js/dataTables.dataTables.min.js" integrity="sha384-RvGje9AANZHL+RqzTE91MrrBgAHP4CP/HtrBtRdKdyiiO39OALDOKkWqG4eQyHv6" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/dataTables.buttons.min.js" integrity="sha384-ygalescEL33A7N+7n2CN65lzwzfLzQNVWNhHDnAUGLiE1RyuaOQ+kI2PhRsTzEGV" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons-dt@3.2.6/js/buttons.dataTables.min.js" integrity="sha384-am9IcoOVnQUWq55iBGGD9pgIkr+HcQLfg+sSzKIeIiGZTGhhl9iww3QqdviztPLy" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/buttons.html5.min.js" integrity="sha384-OFL+acRxgxRUKgJTHEQrtuwzydyoSE/AN10JClRMQjjfnXKoF89juO7p8HyCYxxO" crossorigin="anonymous"></script>
     
     {% block javascripts %}
     {% endblock %}

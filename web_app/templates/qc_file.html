@@ -196,7 +196,7 @@
 
 {% if zoom_exists == 1 %}
     <!-- openseadragon -->
-    <script src="{{ url_for('static', filename='js/openseadragon.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.0/build/openseadragon/openseadragon.min.js" integrity="sha384-vI4FY0yb/Qw4CsGAJtqN5pc7ZMdLqt+Qg1JmrkifgV6jLXCUh4fCDm/ciC/R/+Ud" crossorigin="anonymous"></script>
 
     <script type="text/javascript">
         var viewer = OpenSeadragon({
@@ -217,7 +217,9 @@
     <!-- Zoom -->
         <script
             type="text/javascript"
-            src="{{ url_for('static', filename='js/jquery.zoom.min.js') }}"
+            src="https://cdn.jsdelivr.net/npm/jquery-zoom@1.7.21/jquery.zoom.min.js"
+            integrity="sha384-EeOf8v/Jh3rqjCmTJTb0iX4HBUzuIgi++DUOReOvjDdonsZreW3JKI9wrrycC9Ub"
+            crossorigin="anonymous"
         ></script>
     
     {% endif %}

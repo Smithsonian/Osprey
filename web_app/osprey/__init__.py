@@ -1,0 +1,1 @@
+"""Shared Osprey application modules."""

@@ -1,0 +1,113 @@
+<p class="text-muted small mb-2">Stats as of {{ last_update }}</p>
+
+{% if team == "inf" %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Records created or enhanced across informatics projects">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-primary-subtle text-primary">
+          <i class="fa-solid fa-database" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.records }}</div>
+          <div class="text-muted small">Records Created or Enhanced</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Total informatics projects">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-secondary-subtle text-secondary">
+          <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.digitization_projects }}</div>
+          <div class="text-muted small">Projects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Informatics projects currently in progress">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-success-subtle text-success">
+          <i class="fa-solid fa-spinner" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.active_projects }}</div>
+          <div class="text-muted small">Active Projects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4 col-xl">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Specimens or objects digitized">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-primary-subtle text-primary">
+          <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.objects_digitized }}</div>
+          <div class="text-muted small">Specimens/Objects Digitized</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Images captured across projects">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-info-subtle text-info">
+          <i class="fa-solid fa-image" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.images_captured }}</div>
+          <div class="text-muted small">Images Captured</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Images available to the public">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-success-subtle text-success">
+          <i class="fa-solid fa-globe" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.images_public }}</div>
+          <div class="text-muted small">Images Public</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Total digitization projects">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-secondary-subtle text-secondary">
+          <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.digitization_projects }}</div>
+          <div class="text-muted small">Digitization Projects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Projects currently in progress">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-warning-subtle text-warning-emphasis">
+          <i class="fa-solid fa-spinner" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ summary_stats.active_projects }}</div>
+          <div class="text-muted small">Active Projects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}

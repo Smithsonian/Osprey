@@ -1,80 +1,191 @@
 {% extends "base.html" %}
 
-{% block title %}{{ project_info.project_title }} - Project Dashboard{% endblock %}
+{% block title %}{% if project_info %}{{ project_info.project_title }} — {% endif %}File Search{% endblock %}
 
 {% block homelink %}
-    {% if kiosk %}
-    <span class="navbar-context" title="{{ project_info.project_title }}">{{ project_info.project_title }}</span>
+    {% if project_info %}
+        {% if kiosk %}
+        <span class="navbar-context" title="{{ project_info.project_title }}">{{ project_info.project_title }}</span>
+        {% else %}
+        <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
+        {% endif %}
     {% else %}
-    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
+        <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}">{{ project_alias }}</a>
     {% endif %}
 {% endblock %}
 
 {% block content %}
 
-
-
-    <!-- Search -->
-    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET">
-    <div class="row">
-        <div class="col-6">
-            <h2>File Search Results</h2>
+<div class="search-files-page">
+    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET" class="mb-4">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-lg">
+                <label for="search_files_q" class="form-label h4 mb-1">Search files</label>
+                <div class="input-group">
+                    <span class="input-group-text" id="search-files-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                    <input type="search"
+                           class="form-control"
+                           id="search_files_q"
+                           name="q"
+                           value="{{ q }}"
+                           aria-label="Search files by filename"
+                           aria-describedby="search-files-addon"
+                           placeholder="Search by filename"
+                           autofocus>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
         </div>
-        <div class="col-3">
-            <input type="text" class="form-control form-control-sm" id="search" name="q" aria-label="Search" value={{ q }}>
-        </div>
-        <div class="col-3">
-            <button type="submit" class="btn btn-primary btn-sm">Submit</button></form>
-        </div>
-    </div>
-    
-    <table class="table table-striped table-sm">
-        <thead>
-            <tr>
-                <th scope="col">Preview</th>
-                <th scope="col">Filename</th>
-                <th scope="col">Folder</th>
-            </tr>
-        </thead>
-        <tbody>
+    </form>
 
-            {% if project_info.transcription == 1 %}
-
-                {% for file in results %}
-                    <tr>
-                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">
-                            <img src="{{ file.preview_images }}" style="max-width: 160px; max-height: 160px;">
-                        </a></td>
-                        <td><a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a></td>
-                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a></td>
-                    </tr>
-                {% endfor %}
-
+    {% if q %}
+        <p class="text-muted mb-3">
+            {% if total == 0 %}
+                No files matched <strong>{{ q }}</strong>.
+            {% elif total == 1 %}
+                1 file matched <strong>{{ q }}</strong>.
             {% else %}
+                {{ total }} files matched <strong>{{ q }}</strong>.
+            {% endif %}
+            {% if total > page_size %}
+                Showing {{ page * page_size + 1 }}–{{ [page * page_size + results|length, total]|min }}.
+            {% endif %}
+        </p>
 
-                {% for file in results %}
-                    <tr>
-                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">
-                            <img src="{{ file.preview_images }}" style="max-width: 160px; max-height: 160px;">
-                        </a></td>
-                        <td><a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a></td>
-                        <td><a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a></td>
-                    </tr>
-                {% endfor %}
-
+        {% if results %}
+            {% if has_prev or has_next %}
+            <nav class="mb-3" aria-label="Search results pages">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if not has_prev %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}"
+                           {% if not has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
+                    </li>
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">Page {{ page + 1 }}</span>
+                    </li>
+                    <li class="page-item {% if not has_next %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}"
+                           {% if not has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
+                    </li>
+                </ul>
+            </nav>
             {% endif %}
 
+            <div class="table-responsive">
+                <table id="search_files_results" class="table table-striped table-sm table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th scope="col">Preview</th>
+                            <th scope="col">Filename</th>
+                            <th scope="col">Folder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if project_info.transcription == 1 %}
+                            {% for file in results %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}"
+                                       title="Open {{ file.file_name }}">
+                                        {% if file.preview_img_path == "na_160.png" %}
+                                        <div class="missing-image missing-image--sm" aria-hidden="true">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                            </svg>
+                                        </div>
+                                        {% else %}
+                                        <img src="{% if file.preview_image_ext %}{{ file.preview_image_ext }}&max=160{% else %}{{ url_for('static', filename=file.preview_img_path) }}{% endif %}"
+                                             alt="Preview of {{ file.file_name }}"
+                                             class="img-thumbnail search-files-preview">
+                                        {% endif %}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for file in results %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('file', file_id=file.file_id) }}"
+                                       title="Open {{ file.file_name }}">
+                                        {% if file.preview_img_path == "na_160.png" %}
+                                        <div class="missing-image missing-image--sm" aria-hidden="true">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                            </svg>
+                                        </div>
+                                        {% else %}
+                                        <img src="{% if file.preview_image_ext %}{{ file.preview_image_ext }}&max=160{% else %}{{ url_for('static', filename=file.preview_img_path) }}{% endif %}"
+                                             alt="Preview of {{ file.file_name }}"
+                                             class="img-thumbnail search-files-preview">
+                                        {% endif %}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
 
-        </tbody>
-    </table>
-
-    </div>
+            {% if has_prev or has_next %}
+            <nav class="mt-3" aria-label="Search results pages">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if not has_prev %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}">Previous</a>
+                    </li>
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">Page {{ page + 1 }}</span>
+                    </li>
+                    <li class="page-item {% if not has_next %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}">Next</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <p class="text-muted">Enter a filename to search files in this project.</p>
+    {% endif %}
 </div>
 
 {% endblock %}
 
-
 {% block javascripts %}
-
-
+{% if results %}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#search_files_results').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['csvHtml5', 'excelHtml5'],
+            order: [[1, 'asc']],
+            paging: false,
+            info: false,
+            searching: false,
+            columnDefs: [{
+                targets: 0,
+                orderable: false
+            }]
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,19 @@
+<div class="card border-0 shadow-sm homepage-table-card mb-4">
+  <div class="card-header bg-white border-bottom">
+    <h2 class="h5 mb-0">{{ table_title }}</h2>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive homepage-table-wrap">
+      {% for table in tables %}
+        {{ table|safe }}
+      {% endfor %}
+    </div>
+  </div>
+  {% if footnotes %}
+  <div class="card-footer bg-white border-top-0 pt-0">
+    {% for note in footnotes %}
+      <p class="small text-muted {{ 'mb-0' if loop.last else 'mb-1' }}">{{ note|safe }}</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

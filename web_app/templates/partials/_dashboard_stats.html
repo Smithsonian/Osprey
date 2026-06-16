@@ -1,6 +1,6 @@
-{% set total_num = project_stats.total | replace(',', '') | int %}
-{% set ok_num = project_stats.ok | replace(',', '') | int %}
-{% set errors_num = project_stats.errors | replace(',', '') | int %}
+{% set total_num = (project_stats.total | default('0') | replace(',', '')) | int %}
+{% set ok_num = (project_stats.ok | default('0') | replace(',', '')) | int %}
+{% set errors_num = (project_stats.errors | default('0') | replace(',', '')) | int %}
 {% set ok_pct = ((ok_num * 100) / total_num) | round(1) if total_num > 0 else 0 %}
 {% set error_pct = ((errors_num * 100) / total_num) | round(1) if total_num > 0 else 0 %}
 
@@ -12,7 +12,7 @@
           <i class="fa-solid fa-image" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.total }}</div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.total | default('0') }}</div>
           <div class="text-muted small">Images</div>
         </div>
       </div>
@@ -25,7 +25,7 @@
           <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.objects }}</div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.objects | default('0') }}</div>
           <div class="text-muted small">{{ project_info.obj_type }}</div>
         </div>
       </div>
@@ -38,7 +38,7 @@
           <i class="fa-solid fa-square-check" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.ok }}</div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.ok | default('0') }}</div>
           <div class="text-muted small">OK{% if total_num > 0 %} ({{ ok_pct }}%){% endif %}</div>
         </div>
       </div>
@@ -51,7 +51,7 @@
           <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.errors }}</div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.errors | default('0') }}</div>
           <div class="text-muted small">Errors{% if total_num > 0 %} ({{ error_pct }}%){% endif %}</div>
         </div>
       </div>
@@ -80,7 +80,7 @@
 
 <div class="row g-3 align-items-end mb-3">
   <div class="col-md">
-    {% if project_stats_other.other_stat != "0" %}
+    {% if project_stats_other is defined and project_stats_other.other_stat | default('0') != "0" %}
       <div class="alert alert-warning py-2 mb-md-0 small" title="{{ project_stats_other.other_name }} in this project">
         {{ project_stats_other.other_icon | safe }}
         <strong>{{ project_stats_other.other_stat }}</strong> {{ project_stats_other.other_name }}

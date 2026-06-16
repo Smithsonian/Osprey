@@ -1,0 +1,44 @@
+<div class="row g-4">
+  {% for project in featured_projects %}
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100 homepage-featured-card">
+      <div class="row g-0 h-100">
+        <div class="col-4">
+          {% if project.link_type == 'dashboard' %}
+          <a href="{{ url_for('dashboard', project_alias=project.project_alias) }}"
+             class="homepage-featured-image-link d-block h-100"
+             title="{{ project.link_title }}">
+            <img src="{{ url_for('static', filename=project.image) }}"
+                 class="img-fluid homepage-featured-image h-100 w-100"
+                 alt="{{ project.image_alt }}">
+          </a>
+          {% else %}
+          <a href="{{ url_for('homepage', team=project.homepage_team, subset=project.homepage_subset) }}"
+             class="homepage-featured-image-link d-block h-100"
+             title="{{ project.link_title }}">
+            <img src="{{ url_for('static', filename=project.image) }}"
+                 class="img-fluid homepage-featured-image h-100 w-100"
+                 alt="{{ project.image_alt }}">
+          </a>
+          {% endif %}
+        </div>
+        <div class="col-8">
+          <div class="card-body d-flex flex-column h-100">
+            <h3 class="h5 card-title">{{ project.title }}</h3>
+            <p class="card-text flex-grow-1">{{ project.body|safe }}</p>
+            {% if project.link_type == 'dashboard' %}
+            <a href="{{ url_for('dashboard', project_alias=project.project_alias) }}"
+               class="btn btn-sm btn-outline-primary align-self-start"
+               title="{{ project.link_title }}">{{ project.link_label }}</a>
+            {% else %}
+            <a href="{{ url_for('homepage', team=project.homepage_team, subset=project.homepage_subset) }}"
+               class="btn btn-sm btn-outline-primary align-self-start"
+               title="{{ project.link_title }}">{{ project.link_label }}</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

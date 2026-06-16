@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}DPO Collections Digitization Dashboard{% endblock %}
+{% block title %}About Osprey — Collections Digitization Dashboard{% endblock %}
 
 {% block homelink %}
     <span class="navbar-context">About</span>
@@ -8,51 +8,174 @@
 
 {% block content %}
 
+<h1 class="h2 mb-3">About Osprey</h1>
 
-    <div class="row">
-        <div class="col">
-            <p style="font-size: large;"><img src="{{ url_for('static', filename='osprey_logo_200.png') }}" alt="Osprey Application Logo"> <strong>Osprey - DPO Collections Digitization Dashboard</strong> - version {{ site_ver }}</p>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="badge text-bg-secondary">Version {{ site_ver }}</span>
+    {% if site_net == "internal" %}
+        <span class="badge text-bg-dark">SI Internal</span>
+        <span class="badge text-bg-light text-dark border">{{ site_env_label }}</span>
+    {% endif %}
+</div>
+
+<div class="dashboard-fact-chips mb-4" aria-label="Quick links">
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('homepage') }}">
+        <i class="fa-solid fa-house" aria-hidden="true"></i> Homepage
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link"
+       href="https://github.com/Smithsonian/Osprey"
+       target="_blank"
+       rel="noopener noreferrer"
+       title="Osprey source code (opens in new tab)">
+        <i class="fa-brands fa-github" aria-hidden="true"></i> GitHub
+        <span class="screen-reader-only">(link is external)</span>
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link"
+       href="{{ about_user_guide_url }}"
+       target="_blank"
+       rel="noopener noreferrer"
+       title="Osprey user guide (opens in new tab)">
+        <i class="fa-solid fa-book" aria-hidden="true"></i> User guide
+        <span class="screen-reader-only">(link is external)</span>
+    </a>
+    {% if site_net == "internal" %}
+    <a class="dashboard-fact-chip dashboard-fact-chip-link"
+       href="https://sinet.sharepoint.com/sites/DPO"
+       target="_blank"
+       rel="noopener noreferrer"
+       title="Digitization Program Office SharePoint (opens in new tab)">
+        <i class="fa-solid fa-building" aria-hidden="true"></i> DPO SharePoint
+        <span class="screen-reader-only">(link is external)</span>
+    </a>
+    {% else %}
+    <a class="dashboard-fact-chip dashboard-fact-chip-link"
+       href="https://dpo.si.edu/"
+       target="_blank"
+       rel="noopener noreferrer"
+       title="Digitization Program Office website (opens in new tab)">
+        <i class="fa-solid fa-building" aria-hidden="true"></i> DPO website
+        <span class="screen-reader-only">(link is external)</span>
+    </a>
+    {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm about-header-card mb-4">
+    <div class="card-body d-flex flex-column flex-md-row align-items-center gap-3">
+        <img src="{{ url_for('static', filename='osprey_logo_200.png') }}"
+             class="about-logo flex-shrink-0"
+             alt="Osprey application logo">
+        <div>
+            <p class="h5 mb-1">Osprey — DPO Collections Digitization Dashboard</p>
+            <p class="text-muted mb-0 small">Quality control and progress monitoring for Smithsonian digitization projects</p>
         </div>
     </div>
+</div>
 
-    <div class="row">
-        <div class="col">
-            
-            {% if site_net == "internal" %}<p><strong>This is the SI-Internal instance</strong></p>{% endif %}
+<div class="homepage-hero mb-4">
+    <p class="lead mb-0">Osprey checks images produced in mass digitization and imaging projects, displays results in a web dashboard, and helps vendors, project managers, and museum units monitor progress and catch problems early. It supports Mass Digitization, Imaging Services, and Informatics workflows across the Collections Digitization program.</p>
+</div>
 
-            <p>Osprey is an open-source application and the source is hosted 
-                at <a href="https://github.com/Smithsonian/Osprey" target="_blank" rel="noopener noreferrer" title="Opens in new window">https://github.com/Smithsonian/Osprey 
-                    <i class="small fa-solid fa-arrow-up-right-from-square"></i><span class="screen-reader-only">(link is external)</span></a></p>
+<div class="alert alert-warning mb-4" role="alert">
+    <strong>Important:</strong> Osprey is <strong>not</strong> a permanent system of record. It provides a convenient way to review digitization products while projects are active. Do not link to specific pages or images—they may be removed without notice.
+</div>
 
-            <p><strong>Important Note:</strong> Osprey is <strong>not</strong> a permanent system of record. This system 
-                provides a convenient way to see the products of digitization projects in a timely fashion. Do not link to specific
-                pages or images since they will go away without notice.</p>            
-            
-            {% if site_net == "internal" %}
-
-                <p>This is a project of the: <a href="https://sinet.sharepoint.com/sites/DPO" title="Link to the SharePoint site of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's <a href="https://sinet.sharepoint.com/sites/ODT" class="bg-white" title="Link to the Office of Digital Transformation
-                ">Office of Digital Transformation</a> (formerly a division of the Office of the Chief Information Officer).</p>
-            {% else %}
-                <p>This is a project of the: <a href="https://dpo.si.edu/" title="Link to the website of the Digitization Program Office">Digitization Program Office</a>, a division of the Smithsonian's Office of Digital Transformation.</p>
-            
-            {% endif %}
-        </div>
-        <div class="col">            
-            {% if site_net == "internal" %}
-                <!-- <p>There is an API available (JSON). Please contact Luis J. Villanueva, DPO, for an API key.</p> -->
-            {% endif %}
-
-            <!-- <br><br> -->
-
-            <p>Special thanks to:</p>
-            <ul>
-                <li>OCIO for hosting our servers and supporting the infrastructure we use in our projects</li>
-                <li>The DAMS team for sharing their data</li>
-                <li>The Osprey (<em>Pandion haliaetus</em>) silhouette image is from Phylopic (<a href="https://www.phylopic.org/images/8353477c-dc5d-44b6-ab3c-9d0cdf4d64f7/pandion-haliaetus">link to source</a>)</li>
-            </ul>
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 about-section-card">
+            <div class="card-header bg-white border-bottom">
+                <h2 class="h5 mb-0">Digitization Program Office</h2>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">Osprey is an open-source application developed by the Digitization Program Office. Source code is on
+                    <a href="https://github.com/Smithsonian/Osprey"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="Opens in new window">GitHub
+                        <i class="small fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        <span class="screen-reader-only">(link is external)</span></a>.</p>
+                {% if site_net == "internal" %}
+                <p class="mt-3 mb-0">This is a project of the
+                    <a href="https://sinet.sharepoint.com/sites/DPO"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="Digitization Program Office SharePoint">Digitization Program Office</a>, part of the Smithsonian's
+                    <a href="https://sinet.sharepoint.com/sites/ODT"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="Office of Digital Transformation SharePoint">Office of Digital Transformation</a> (formerly OCIO).</p>
+                {% else %}
+                <p class="mt-3 mb-0">This is a project of the
+                    <a href="https://dpo.si.edu/"
+                       title="Digitization Program Office website">Digitization Program Office</a>, part of the Smithsonian's Office of Digital Transformation.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
-    
-    <br>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 about-section-card">
+            <div class="card-header bg-white border-bottom">
+                <h2 class="h5 mb-0">System components</h2>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    {% for component in about_component_links %}
+                    <li class="{% if not loop.last %}mb-3{% endif %}">
+                        <a href="{{ component.url }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           title="{{ component.description }} (opens in new tab)">
+                            <strong>{{ component.label }}</strong>
+                            <i class="small fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                            <span class="screen-reader-only">(link is external)</span>
+                        </a>
+                        <span class="d-block small text-muted">{{ component.description }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% if site_net == "internal" %}
+                <p class="small text-muted mt-3 mb-0">The JSON API is served at <code>/api/</code> on this host. Contact DPO for an API key if you need automation access.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm about-section-card mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h2 class="h5 mb-0">Contact</h2>
+    </div>
+    <div class="card-body">
+        {% if site_net == "internal" %}
+        <p class="mb-2">For Osprey login access, API keys, or general questions about Collections Digitization:</p>
+        <p class="mb-2">
+            <strong>{{ about_contact.name }}</strong>, {{ about_contact.role }}<br>
+            <a href="mailto:{{ about_contact.email }}">{{ about_contact.email }}</a>
+        </p>
+        <p class="small text-muted mb-0">For project-specific questions, contact your Project Manager first.</p>
+        {% else %}
+        <p class="mb-2">For questions about Collections Digitization or this public dashboard, visit the
+            <a href="https://dpo.si.edu/"
+               title="Digitization Program Office website">Digitization Program Office</a> website.</p>
+        <p class="small text-muted mb-0">For project-specific progress or file issues, contact the Project Manager listed on the relevant project dashboard.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm about-section-card mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h2 class="h5 mb-0">Special thanks</h2>
+    </div>
+    <div class="card-body">
+        <ul class="mb-0">
+            <li>OCIO for hosting our servers and supporting the infrastructure we use in our projects</li>
+            <li>The DAMS team for sharing their data</li>
+            <li>The Osprey (<em>Pandion haliaetus</em>) silhouette image is from Phylopic (<a href="https://www.phylopic.org/images/8353477c-dc5d-44b6-ab3c-9d0cdf4d64f7/pandion-haliaetus" target="_blank" rel="noopener noreferrer">source</a>)</li>
+        </ul>
+    </div>
+</div>
+
+{% if asklogin %}
+    {% include 'partials/_login_modal.html' %}
+{% endif %}
 
 {% endblock %}

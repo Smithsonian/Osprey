@@ -3,229 +3,135 @@
 {% block title %}Statistics of {{ project_info.project_title }} - DPO Collections Digitization Dashboard{% endblock %}
 
 {% block homelink %}
-    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Statistics for {{ project_info.project_title }}">Statistics</a>
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
 {% endblock %}
 
 {% block head_blocks %}
-
 {% endblock %}
-
 
 {% block content %}
 
+<div class="statistics-page">
 
-
-<div class="row">
-    <div class="col">
-        <p>
-            <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Back to the Project Dashboard" role="button">
-                <i class="fa-solid fa-gauge-simple-high"></i> Back to {{ project_info.project_title }} Dashboard
-            </a>
-        </p>        
-
-    <h2>Main statistics of the project</h2>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+    <div>
+      <h1 class="h4 mb-1">Project Statistics</h1>
+      <p class="text-muted small mb-0">{{ project_info.project_title }}</p>
     </div>
-</div>
+    <a class="btn btn-outline-dark btn-sm"
+       href="{{ url_for('dashboard', project_alias=project_alias) }}"
+       title="Back to the project dashboard">
+      <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i>
+      Back to dashboard
+    </a>
+  </div>
 
+  {% include 'partials/_dashboard_stats_summary.html' %}
 
-<div class="row">
-    <div class="col-4">
-        <div class="card">
-            <h3 class="card-header text-white bg-primary" title="Total number of images in the project"><span class="badge bg-primary w-100"><i class="fa-solid fa-image fa-pull-left"></i> {{ project_stats.total }} Images</span></h3>
+  {% if project_stats_other.other_stat != "0" %}
+    <div class="alert alert-warning py-2 small mb-3" title="{{ project_stats_other.other_name }} in this project">
+      {{ project_stats_other.other_icon | safe }}
+      <strong>{{ project_stats_other.other_stat }}</strong> {{ project_stats_other.other_name }}
+    </div>
+  {% endif %}
+
+  {% if project_info.project_message %}
+    <div class="alert alert-danger mb-4" role="alert">
+      <strong>Note:</strong> {{ project_info.project_message }}
+    </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white py-2">
+      <h2 class="h6 mb-0">About these metrics</h2>
+    </div>
+    <div class="card-body small">
+      <dl class="row mb-0 statistics-metric-definitions">
+        <dt class="col-sm-3">Images</dt>
+        <dd class="col-sm-9">Number of images (usually pairs of TIF and RAW files) ingested by the system for this project.</dd>
+
+        <dt class="col-sm-3">{{ project_info.obj_type }}</dt>
+        <dd class="col-sm-9">Number of {{ project_info.obj_type | lower }} digitized in this project. The count may differ from the number of images when multiple images are taken of one {{ project_info.obj_type | lower }}, or when several {{ project_info.obj_type | lower }} are digitized together.</dd>
+
+        <dt class="col-sm-3">OK</dt>
+        <dd class="col-sm-9">Images that pass all technical checks.</dd>
+
+        <dt class="col-sm-3">Errors</dt>
+        <dd class="col-sm-9">Images with technical errors detected by the system, usually formatting issues or incorrect filenames.</dd>
+
+        {% if project_stats_other.other_stat != "0" %}
+          <dt class="col-sm-3">{{ project_stats_other.other_name }}</dt>
+          <dd class="col-sm-9">Number of {{ project_stats_other.other_name | lower }} digitized in this project.</dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+
+  {% if proj_stats_vals1 or proj_stats_vals2 %}
+    <h2 class="h5 mb-3">Production statistics</h2>
+    <div class="row g-3 mb-4">
+      {% for stat in proj_stats_vals1 %}
+        <div class="col-6 col-md-4 col-xl-3">
+          <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
             <div class="card-body">
-                <div class="row">
-                    <div class="col-10">
-                        <p>Number of images (usually pairs of TIF and RAW files) ingested by the system for this project.</p>
-                    </div>
-                </div>
+              <div class="text-muted small mb-1">{{ stat.step_info }}</div>
+              <div class="fs-4 fw-semibold lh-1">
+                {{ stat.step_value | float | round(stat.round_val) }}
+                <span class="fs-6 fw-normal text-muted">{{ stat.step_units }}</span>
+              </div>
+              {% if stat.step_notes %}
+                <p class="small text-muted mb-0 mt-2">{{ stat.step_notes }}</p>
+              {% endif %}
+              <p class="small text-muted mb-0 mt-2"><em>Updated {{ stat.step_updated_on }}</em></p>
             </div>
+          </div>
         </div>
-    </div>
-    <div class="col-4">
-        <div class="card">
-            <h3 class="card-header text-white bg-secondary" title="Total number of {{ project_info.obj_type }} digitized"><span class="badge bg-secondary w-100"><i class="fa-solid fa-box-archive fa-pull-left"></i> {{ project_stats.objects }} {{ project_info.obj_type }}</span></h3>
+      {% endfor %}
+      {% for stat in proj_stats_vals2 %}
+        <div class="col-6 col-md-4 col-xl-3">
+          <div class="card border-0 shadow-sm h-100 dashboard-stat-card">
             <div class="card-body">
-                <div class="row">
-                    <div class="col-10">
-                        <p>Number of {{ project_info.obj_type |lower }} digitized in this project. The number of {{ project_info.obj_type | lower }} may not match the number of images when taking multiple images of a single {{ project_info.obj_type | lower }} or when multiple {{ project_info.obj_type | lower }} are digitized together.</p>
-                    </div>
-                </div>
+              <div class="text-muted small mb-1">{{ stat.step_info }}</div>
+              <div class="fs-4 fw-semibold lh-1">
+                {{ stat.step_value | float | round(stat.round_val) }}
+                <span class="fs-6 fw-normal text-muted">{{ stat.step_units }}</span>
+              </div>
+              {% if stat.step_notes %}
+                <p class="small text-muted mb-0 mt-2">{{ stat.step_notes }}</p>
+              {% endif %}
+              <p class="small text-muted mb-0 mt-2"><em>Updated {{ stat.step_updated_on }}</em></p>
             </div>
+          </div>
         </div>
+      {% endfor %}
     </div>
-    <div class="col-4">
-        <div class="card">
-            <h3 class="card-header text-white bg-success" title="Images that passed all checks"><span class="badge bg-success w-100"><i class="fa-solid fa-square-check fa-pull-left"></i> {{ project_stats.ok }} OK</span></h3>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-10">
-                        <p>Number of images without any technical errors.</p>
-                    </div>
-                </div>
-            </div>
+  {% endif %}
+
+  {% if proj_stats_steps %}
+    <h2 class="h5 mb-3">Progress figures</h2>
+    {% for stat in proj_stats_steps %}
+      <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
+        <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h3 class="h6 mb-0">{{ stat.step_info }}</h3>
+          <a href="{{ url_for('proj_statistics_dl', project_id=project_info.proj_id, step_id=stat.step_id) }}"
+             class="btn btn-outline-light btn-sm"
+             role="button">
+            <i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV
+          </a>
         </div>
-    </div>
+        <div class="card-body">
+          {% if stat.step_notes %}
+            <p class="text-muted small mb-3">{{ stat.step_notes }}</p>
+          {% endif %}
+          <img class="w-100 statistics-chart-image"
+               src="{{ url_for('static', filename='figs/' ~ project_info.proj_id ~ '_' ~ stat.step ~ '.png') }}"
+               alt="{{ stat.step_info }} for {{ project_info.project_title }}">
+          <p class="small text-muted mb-0 mt-2"><em>Updated {{ stat.step_updated_on }}</em></p>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+
 </div>
-
-
-<br>
-<div class="row">
-    <div class="col-4">
-        <div class="card">
-            <h3 class="card-header text-white bg-danger" title="Images with errors"><span class="badge bg-danger w-100"><i class="fa-solid fa-triangle-exclamation fa-pull-left"></i> {{ project_stats.errors }} Errors</span></h3>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-10">
-                        <p>Number of images with technical errors detected by the system. These are usually formatting issues or incorrect filenames.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% if project_stats_other.other_stat != "0" %}
-    <div class="col-4">
-        <div class="card">
-            <h3 class="card-header text-white bg-warning" title="{{ project_stats_other.other_name }}"><span class="badge bg-warning w-100" style="color: black;">{{ project_stats_other.other_icon | safe }} {{ project_stats_other.other_stat }} {{ project_stats_other.other_name }}</span></h3>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-10">
-                        <p>Number of {{ project_stats_other.other_name }} digitized in this project.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-
-
-<div class="row">
-    <div class="col">
-        <hr>
-    </div>
-</div>
-
-
-<div class="row">
-    <div class="col">
-        <h2>Production Statistics of the Project</h2>
-    </div>
-</div>
-
-    <div class="row">
-        {% for stat in proj_stats_vals1 %}
-        <div class="col-4">
-            <div class="card">
-                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-10">
-                            <p style="font-size: larger;"><strong>
-                                {{ stat.step_value | float | round(stat.round_val)}} {{ stat.step_units }}</strong></p>
-                            {% if stat.step_notes %}
-                                <p>{{ stat.step_notes }}</p>
-                            {% endif %}
-                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-        {% endfor %}
-    
-    </div>
-    
-
-
-    <div class="row">
-        <div class="col">
-            <br>        
-        </div>
-    </div>
-
-
-    <div class="row">
-        {% for stat in proj_stats_vals2 %}
-        <div class="col-4">
-            <div class="card">
-                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-10">
-                            <p style="font-size: larger;"><strong>
-                                {{ stat.step_value | float | round(stat.round_val)}} {{ stat.step_units }}</strong></p>
-                            {% if stat.step_notes %}
-                                <p>{{ stat.step_notes }}</p>
-                            {% endif %}
-                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-        {% endfor %}
-    
-    </div>
-
-
-    <div class="row">
-        <div class="col">
-            <hr>
-        </div>
-    </div>    
-
-
-    <div class="row">
-        <div class="col">
-
-            <h2>Figures describing progress in several steps of the project</h2>
-
-            {% for stat in proj_stats_steps %}
-
-            <div class="card">
-                <h3 class="card-header text-white bg-dark">{{ stat.step_info }}</h3>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-10">
-                            {% if stat.step_notes %}
-
-                                <p>{{ stat.step_notes }}.</p>
-                                    <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
-                                alt="{{ stat.step_notes }} in the project. The link on the right allows to download the data table.">
-
-                            {% else %}
-
-                                <p>{{ stat.step_notes }}.</p>
-                                    <img class="w-100" src="/static/figs/{{ project_info.proj_id }}_{{ stat.step }}.png" 
-                                alt="{{ stat.step_info }} of the {{ project_info.project_title }} project. The figure shows {{ stat.step_units }} by date. The link on the right allows to download the data table.">
-
-                            {% endif %}
-                
-                            <p><small><em>Updated on: {{ stat.step_updated_on }}</em></small></p>
-                        </div>
-                        <div class="col-2">
-                            <a href="{{ url_for('proj_statistics_dl', project_id=project_info.proj_id, step_id=stat.step_id) }}" class="btn btn-primary text-white w-100" role="button"><i class="fa-solid fa-download"></i> Download data in CSV</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <br>
-
-            {% endfor %}
-        </div>
-        
-    </div>
-
-    <br><br>
-
-
-{% endblock %}
-
-
-{% block javascripts %}
-
 
 {% endblock %}

@@ -25,8 +25,6 @@ import pandas as pd
 import numpy as np
 import io
 from datetime import datetime
-from PIL import Image
-from PIL import ImageFilter
 from uuid import UUID
 from pathlib import Path
 from time import strftime
@@ -36,13 +34,13 @@ import random
 from plotnine import ggplot
 from plotnine import aes
 from plotnine import geom_bar
-from auth_service import auth_service, AuthBaseUser
+from auth_service import AuthBaseUser, get_auth_service
 import tarfile
 import subprocess
 
-# MySQL
-import mysql.connector
-
+# MySQL — shared connection pool
+from osprey.db import executemany, init_db, query_database_insert, run_query
+from osprey.files import attach_preview_paths, check_file_id
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -54,7 +52,6 @@ from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms import PasswordField
 from wtforms.validators import DataRequired
-from werkzeug.utils import secure_filename
 
 import settings
 
@@ -62,17 +59,17 @@ site_ver = "2.11.1"
 site_env = settings.env
 site_net = settings.site_net
 
+from api.config import config
+
+config.SITE_VER = site_ver
+config.SITE_ENV = site_env
+
 logger.info("site_ver = {}".format(site_ver))
 logger.info("site_env = {}".format(site_env))
 logger.info("site_net = {}".format(site_net))
 
 # Set locale for number format
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-
-# Remove DecompressionBombWarning due to large files
-# by using a large threshold
-# https://github.com/zimeon/iiif/issues/11
-Image.MAX_IMAGE_PIXELS = 1000000000
 
 app = Flask(__name__)
 app.secret_key = settings.secret_key
@@ -102,22 +99,14 @@ app.logger.addHandler(logger)
 # Setup cache
 cache.init_app(app)
 
-# Disable strict trailing slashes
-app.url_map.strict_slashes = True
+# API Blueprint (Worker + JSON endpoints at /api/*)
+from api import api_bp
+app.register_blueprint(api_bp, url_prefix='/api')
 
-
-# Connect to Mysql
+# Shared database pool
 try:
-    conn = mysql.connector.connect(host=settings.host,
-                            user=settings.user,
-                            password=settings.password,
-                            database=settings.database,
-                            port=settings.port, 
-                            autocommit=True, 
-                            connection_timeout=60)
-    conn.time_zone = '-05:00'
-    cur = conn.cursor(dictionary=True)
-except mysql.connector.Error as err:
+    init_db()
+except Exception as err:
     logger.error(err)
 
 
@@ -161,44 +150,11 @@ def sys_error(e):
                            project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 500
 
 
-def run_query(query, parameters=None, return_val=True, log_vals=True):
-    if log_vals == True:
-        logger.info("parameters: {}".format(parameters))
-        logger.info("query: {}".format(query))
-    # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=3, delay=1)
-    # Run query
-    if parameters is None:
-        results = cur.execute(query)
-    else:
-        results = cur.execute(query, parameters)
-    if return_val:
-        data = cur.fetchall()
-        logger.info("No of results: ".format(len(data)))
-        return data
-    else:
-        return True
+# Disable strict trailing slashes
+app.url_map.strict_slashes = True
 
 
-def query_database_insert(query, parameters, return_res=False):
-    logger.info("query: {}".format(query))
-    logger.info("parameters: {}".format(parameters))
-    # Check connection to DB and reconnect if needed
-    conn.ping(reconnect=True, attempts=3, delay=1)
-    # Run query
-    data = False
-    try:
-        results = cur.execute(query, parameters)
-    except Exception as error:
-        logger.error("Error: {}".format(error))
-        return False
-    logger.info("Query: {}".format(cur.statement))    
-    if return_res:
-        insert_id = cur.lastrowid
-        return(insert_id)
-    return True
-
-
+# From http://flask.pocoo.org/docs/1.0/patterns/apierrors/
 @cache.memoize()
 def project_alias_exists(project_alias=None):
     if project_alias is None:
@@ -210,47 +166,6 @@ def project_alias_exists(project_alias=None):
             return False
         else:
             return project_id[0]['project_id']
-
-
-def get_project_folders_api(project_id, transcription):
-    """Return folder list in the same shape as GET /api/projects/<project_alias>."""
-    if transcription == 1:
-        return run_query(("SELECT "
-                          "f.folder_transcription_id as folder_id, f.project_id, f.folder, "
-                          "f.folder_path, f.status, f.previews, "
-                          "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
-                          "f.no_files, f.file_errors, "
-                          " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
-                          " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
-                          "         WHEN q.qc_status = 1 THEN 'QC Failed' "
-                          "         WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
-                          " GROUP_CONCAT(b.badge_text ORDER BY b.badge_text SEPARATOR ',') as badges"
-                          " FROM transcription_folders f LEFT JOIN qc_folders q ON (f.folder_transcription_id = q.folder_uid)"
-                          "     LEFT JOIN folders_badges b ON (f.folder_transcription_id = b.folder_uid) "
-                          " WHERE project_id = %(project_id)s"
-                          " GROUP BY f.folder_transcription_id, f.project_id, f.folder, f.folder_path, "
-                          "      f.status, f.previews, f.error_info, f.date, f.no_files,"
-                          "      f.file_errors, q.qc_status"
-                          " ORDER BY f.date DESC, f.folder DESC"),
-                         {'project_id': project_id})
-    return run_query(("SELECT "
-                      "f.folder_id, f.project_id, f.project_folder as folder, "
-                      "f.folder_path, f.status, f.previews, "
-                      "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
-                      "f.no_files, f.file_errors, "
-                      " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
-                      " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
-                      "         WHEN q.qc_status = 1 THEN 'QC Failed' "
-                      "         WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
-                      " GROUP_CONCAT(b.badge_text ORDER BY b.badge_text SEPARATOR ',') as badges"
-                      " FROM folders f LEFT JOIN qc_folders q ON (f.folder_id = q.folder_id)"
-                      "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id) "
-                      " WHERE project_id = %(project_id)s"
-                      " GROUP BY f.folder_id, f.project_id, f.project_folder, f.folder_path, "
-                      "      f.status, f.previews, f.error_info, f.date, f.no_files,"
-                      "      f.file_errors, q.qc_status"
-                      " ORDER BY f.date DESC, f.project_folder DESC"),
-                     {'project_id': project_id})
 
 
 FILE_CHECK_LABELS = {
@@ -273,6 +188,84 @@ FILES_TABLE_HTML_CLASSES = [
     'display', 'table', 'table-sm', 'table-hover', 'dashboard-files-table', 'w-100'
 ]
 
+HOMEPAGE_TABLE_CLASSES = [
+    'display', 'table', 'table-hover', 'homepage-project-table', 'w-100'
+]
+
+HOMEPAGE_FEATURED_PROJECTS = [
+    {
+        'title': 'Digitization of the JPC Archive is Now in Production',
+        'image': 'items/Hank_Aaron.jpg',
+        'image_alt': 'Photo of Hank Aaron from the JPC Archive',
+        'body': ('After the successful <em>Pilot</em> and <em>Priority One</em> projects, we have started '
+                 'the <em>Production 1A</em> project of the digitization of the JPC Archive. This phase will '
+                 'digitize more than 328,000 reflective and transmissive photographic items.'),
+        'link_type': 'dashboard',
+        'project_alias': 'jpc_production',
+        'link_label': 'JPCA Production Project Dashboard',
+        'link_title': 'Link to the JPC Archive Production Project Dashboard',
+    },
+    {
+        'title': 'Digitizing 200k Pollinators',
+        'image': 'items/ento.png',
+        'image_alt': 'Image of pollinator specimen',
+        'body': ('The Mass Digi team is starting the digitization of the NMNH Entomology collection of '
+                 'pollinators, including bees, butterflies, flies, and beetles. This conveyor system will '
+                 'digitize thousands of specimens per week and more than 200,000 specimens within a year.'),
+        'link_type': 'dashboard',
+        'project_alias': 'nmnh_mdpp_ento_pollinators',
+        'link_label': 'Ento Pollinators Conveyor Dashboard',
+        'link_title': 'Link to the Entomology Pollinator Dashboard',
+    },
+    {
+        'title': 'Digitization of the National Herbarium Continues',
+        'image': 'items/botany_accession_sample.jpg',
+        'image_alt': 'Digitized mounted specimen from the National Herbarium Collection',
+        'body': ('We continue to digitize the Herbarium of the National Museum of Natural History. '
+                 'The project digitizes new accessions to the collection.'),
+        'link_type': 'dashboard',
+        'project_alias': 'botany_accessions',
+        'link_label': 'Botany Project Dashboard',
+        'link_title': 'Link to the Botany Annual Accessions Project Dashboard',
+    },
+]
+
+
+ABOUT_USER_GUIDE_URL = (
+    "https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md"
+)
+
+ABOUT_COMPONENT_LINKS = [
+    {
+        'label': 'Osprey Dashboard',
+        'url': 'https://github.com/Smithsonian/Osprey',
+        'description': 'This web application (dashboard and API)',
+    },
+    {
+        'label': 'Osprey Worker',
+        'url': 'https://github.com/Smithsonian/Osprey_Worker/',
+        'description': 'Runs file checks and posts results to the API',
+    },
+    {
+        'label': 'Osprey Misc',
+        'url': 'https://github.com/Smithsonian/Osprey_Misc/',
+        'description': 'Database schema and supporting scripts',
+    },
+]
+
+
+def _about_contact_info():
+    """Contact details for the about page (override via settings.py)."""
+    return {
+        'name': getattr(settings, 'about_contact_name', 'Luis J. Villanueva'),
+        'email': getattr(settings, 'about_contact_email', 'villanueval@si.edu'),
+        'role': getattr(settings, 'about_contact_role', 'Digitization Program Office'),
+    }
+
+
+def _homepage_stat_value(total):
+    return "{:,}".format(total or 0)
+
 
 def label_file_check_column(name):
     return FILE_CHECK_LABELS.get(name, name.replace('_', ' ').title())
@@ -291,47 +284,6 @@ def files_table_html(df):
         border=0,
         escape=False,
         classes=FILES_TABLE_HTML_CLASSES)
-
-
-@app.route('/dashboard/<project_alias>/folders.json', methods=['GET'], provide_automatic_options=False)
-def dashboard_folders_json(project_alias=None):
-    """JSON folder list for client-side dashboard sidebar (same data as the project API)."""
-    project_id = project_alias_exists(project_alias)
-    if project_id is False:
-        return jsonify({'error': 'Project was not found'}), 404
-
-    project_info = run_query(
-        "SELECT transcription FROM projects WHERE project_id = %(project_id)s",
-        {'project_id': project_id})[0]
-    folders = get_project_folders_api(project_id, project_info['transcription'])
-    return jsonify({'folders': folders, 'project_alias': project_alias})
-
-
-def check_file_id(file_id=None):
-    if file_id is None:
-        return False, False
-    else:
-        try:
-            file_id = int(file_id)
-            file_id_type = "int"
-        except ValueError:
-            try:
-                file_uid = UUID(file_id, version=4)
-                file_id_type = "uuid"
-            except ValueError:
-                return False, False
-    if file_id_type == "uuid":
-        file_id = run_query("SELECT file_id FROM files WHERE uid = %(uid)s", {'uid': file_uid})
-        if len(file_id) == 0:
-            return False, False
-        else:
-            return file_id[0]['file_id'], file_uid
-    else:
-        file_uid = run_query("SELECT uid FROM files WHERE file_id = %(file_id)s", {'file_id': file_id})
-        if len(file_uid) == 0:
-            return False, False
-        else:
-            return file_id, file_uid[0]['uid']
 
 
 def check_file_id_transcription(file_id=None):
@@ -418,7 +370,7 @@ def homepage(team=None, subset=None):
     """Main homepage for the system"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -445,16 +397,23 @@ def homepage(team=None, subset=None):
 
         # Summary stats
         summary_stats = {
-            'objects_digitized': "{:,}".format(run_query(("SELECT SUM(objects_digitized) as total "
-                       " from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)"))[0]['total']),
-            'images_captured': "{:,}".format(run_query(("SELECT SUM(images_taken) as total "
-                     " from projects_stats where project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)"))[0]['total']),
-            'digitization_projects': "{:,}".format(
-                     run_query(("SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True"))[0]['total']),
-            'active_projects': "{:,}".format(run_query(("SELECT COUNT(*) as total "
-                       " FROM projects WHERE skip_project IS NOT True AND project_status='Ongoing'"))[0]['total']),
-            'images_public': "{:,}".format(run_query(("SELECT SUM(images_public) as total "
-                       " FROM projects_stats WHERE project_id NOT IN (SELECT project_id FROM projects WHERE skip_project IS True)"))[0]['total'])
+            'objects_digitized': _homepage_stat_value(run_query(
+                "SELECT SUM(objects_digitized) as total "
+                "FROM projects_stats WHERE project_id NOT IN "
+                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
+            'images_captured': _homepage_stat_value(run_query(
+                "SELECT SUM(images_taken) as total "
+                "FROM projects_stats WHERE project_id NOT IN "
+                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
+            'digitization_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True")[0]['total']),
+            'active_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects "
+                "WHERE skip_project IS NOT True AND project_status='Ongoing'")[0]['total']),
+            'images_public': _homepage_stat_value(run_query(
+                "SELECT SUM(images_public) as total FROM projects_stats "
+                "WHERE project_id NOT IN "
+                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
         }
     elif team == "md":
         team_heading = "Summary of Mass Digitization Team Projects"
@@ -462,53 +421,55 @@ def homepage(team=None, subset=None):
 
         # MD stats
         summary_stats = {
-            'objects_digitized': "{:,}".format(run_query(
-                    "SELECT SUM(objects_digitized) as total "
-                    "from projects_stats where project_id IN "
-                    "   (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)")[0]['total']),
-            'images_captured': "{:,}".format(run_query(
-                "SELECT SUM(images_taken) as total "
-                "from projects_stats WHERE project_id IN "
-                "   (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)")[0]['total']),
-            'digitization_projects': "{:,}".format(run_query(
-                "SELECT COUNT(*) as total "
-                "FROM projects WHERE project_section = 'MD' AND "
-                " skip_project IS NOT True")[0]['total']),
-            'active_projects': "{:,}".format(run_query(
-                "SELECT COUNT(*) as total "
-                "FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True AND "
-                " project_status='Ongoing'")[0]['total']),
-            'images_public': "{:,}".format(run_query(("SELECT SUM(images_public) as total "
-                      " FROM projects_stats WHERE project_id IN (SELECT project_id "
-                      " FROM projects WHERE skip_project IS NOT True AND project_section = 'MD')"))[0]['total'])
+            'objects_digitized': _homepage_stat_value(run_query(
+                "SELECT SUM(objects_digitized) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
+            )[0]['total']),
+            'images_captured': _homepage_stat_value(run_query(
+                "SELECT SUM(images_taken) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
+            )[0]['total']),
+            'digitization_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True"
+            )[0]['total']),
+            'active_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'MD' AND "
+                "skip_project IS NOT True AND project_status='Ongoing'"
+            )[0]['total']),
+            'images_public': _homepage_stat_value(run_query(
+                "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'MD')"
+            )[0]['total']),
         }
         no_items = run_query(("SELECT SUM(objects_digitized) as total from projects_stats where project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"))[0]['total']
         mass_digi_total = math.floor((int(no_items)*1.0)/100000)/10
 
     elif team == "is":
-        team_heading = "Summary of Imaging Services Team Projects"
+        if subset and subset.lower() == "sawhm":
+            team_heading = "Summary of Imaging Services Team Projects (SAWHM)"
+        else:
+            team_heading = "Summary of Imaging Services Team Projects"
         html_title = "Imaging Services Team Projects, Collections Digitization"
-        # IS stats
         summary_stats = {
-            'objects_digitized': "{:,}".format(run_query(
-                    "SELECT SUM(objects_digitized) as total "
-                    "from projects_stats where project_id IN "
-                    "   (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)")[0]['total']),
-            'images_captured': "{:,}".format(run_query(
-                    "SELECT SUM(images_taken) as total "
-                    "from projects_stats where project_id IN "
-                    "   (SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)")[0]['total']),
-            'digitization_projects': "{:,}".format(
-                        run_query(
-                            "SELECT COUNT(*) as total "
-                            "FROM projects WHERE project_section = 'IS' AND "
-                            " skip_project IS NOT True")[0]['total']),
-            'active_projects': "{:,}".format(run_query(("SELECT COUNT(*) as total "
-                            "FROM projects WHERE project_section = 'IS' AND "
-                            " skip_project IS NOT True AND project_status='Ongoing'"))[0]['total']),
-            'images_public': "{:,}".format(run_query(("SELECT SUM(images_public) as total "
-                          " FROM projects_stats WHERE project_id IN "
-                          "   (SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')"))[0]['total'])
+            'objects_digitized': _homepage_stat_value(run_query(
+                "SELECT SUM(objects_digitized) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
+            )[0]['total']),
+            'images_captured': _homepage_stat_value(run_query(
+                "SELECT SUM(images_taken) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
+            )[0]['total']),
+            'digitization_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True"
+            )[0]['total']),
+            'active_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'IS' AND "
+                "skip_project IS NOT True AND project_status='Ongoing'"
+            )[0]['total']),
+            'images_public': _homepage_stat_value(run_query(
+                "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN "
+                "(SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')"
+            )[0]['total']),
         }
 
     elif team == "inf":
@@ -516,14 +477,14 @@ def homepage(team=None, subset=None):
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
         # IS stats
         summary_stats = {
-            'digitization_projects': "{:,}".format(
-                        run_query(
-                            "SELECT COUNT(*) as total "
-                            "FROM projects_informatics")[0]['total']),
-            'active_projects': "{:,}".format(run_query(("SELECT COUNT(*) as total "
-                            "FROM projects_informatics WHERE project_status='Ongoing'"))[0]['total']),
-            'records': "{:,}".format(run_query(("SELECT SUM(records) as total "
-                          " FROM projects_informatics WHERE records_redundant IS False"))[0]['total'])
+            'digitization_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects_informatics")[0]['total']),
+            'active_projects': _homepage_stat_value(run_query(
+                "SELECT COUNT(*) as total FROM projects_informatics WHERE project_status='Ongoing'"
+            )[0]['total']),
+            'records': _homepage_stat_value(run_query(
+                "SELECT SUM(records) as total FROM projects_informatics WHERE records_redundant IS False"
+            )[0]['total']),
         }
 
     section_query = ((" SELECT "
@@ -583,15 +544,16 @@ def homepage(team=None, subset=None):
         "images_taken": "Images Captured"
     })
 
-    list_projects_is = pd.DataFrame(run_query(section_query, {'section': 'IS'}))
-    list_projects_is = list_projects_is.drop("images_public", axis=1)
-
-    # Filter 
     if subset is None:
         subset = ""
-    else:
-        if subset.lower() == "sawhm":
-            list_projects_is = list_projects_is[list_projects_is.project_manager == 'Laura M. Whitfield']
+    is_section_query = section_query
+    if subset.lower() == "sawhm":
+        is_section_query = section_query.replace(
+            "WHERE p.skip_project = 0 AND p.project_section = %(section)s",
+            "WHERE p.skip_project = 0 AND p.project_section = %(section)s AND p.project_unit = 'SAWHM'",
+        )
+    list_projects_is = pd.DataFrame(run_query(is_section_query, {'section': 'IS'}))
+    list_projects_is = list_projects_is.drop("images_public", axis=1)
 
     list_projects_is = list_projects_is.rename(columns={
         "project_unit": "Unit",
@@ -652,23 +614,30 @@ def homepage(team=None, subset=None):
         asklogin = True
     else:
         asklogin = False
+    is_table_title = "Imaging Services Projects"
+    if subset.lower() == "sawhm":
+        is_table_title = "Imaging Services Projects (SAWHM projects only)"
+
     return render_template('home.html',
                            form=form, msg=msg, user_exists=user_exists,
                            username=username, summary_stats=summary_stats, team=team,
                            tables_md=[list_projects_md.to_html(table_id='list_projects_md', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "w-100"])],
+                                                               classes=HOMEPAGE_TABLE_CLASSES)],
                            tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "w-100"])],
+                                                               classes=HOMEPAGE_TABLE_CLASSES)],
                            tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "w-100"])],
+                                                               classes=HOMEPAGE_TABLE_CLASSES)],
                            tables_software=[list_software.to_html(table_id='list_software', index=False,
                                                                border=0, escape=False,
-                                                               classes=["display", "w-100"])],
+                                                               classes=HOMEPAGE_TABLE_CLASSES + ['homepage-software-table'])],
+                           featured_projects=HOMEPAGE_FEATURED_PROJECTS,
+                           is_table_title=is_table_title,
                            asklogin=asklogin, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           last_update=last_update[0]['updated_at'], mass_digi_total=mass_digi_total,
+                           last_update=last_update[0]['updated_at'] or 'unknown',
+                           mass_digi_total=mass_digi_total,
                            kiosk=kiosk, user_address=user_address, team_heading=team_heading,
                            html_title=html_title, analytics_code=settings.analytics_code,
                            app_root=settings.app_root,
@@ -677,11 +646,14 @@ def homepage(team=None, subset=None):
 
 @app.route('/login', methods=['POST'], provide_automatic_options=False)
 def login():
-    """Login into the system with LDAP"""
-    # If API, not allowed - to improve
+    """Login into the system with LDAP (internal deployments only)."""
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
-    
+        return redirect(url_for('api.api_route_list'))
+
+    if site_net == "external":
+        logger.warning("Login attempted on external site")
+        return redirect(url_for('homepage'))
+
     # Declare the login form
     form = LoginForm(request.form)
 
@@ -708,7 +680,7 @@ def login():
                     logger.error("Login error - Internal password error")
                     return redirect(url_for('not_user'))
             else:
-                if not auth_service.authenticate_user(username, password):
+                if not get_auth_service().authenticate_user(username, password):
                     logger.error("Login error - LDAP")
                     return redirect(url_for('not_user'))
             #
@@ -751,7 +723,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
 
     if current_user.is_authenticated:
         user_exists = True
@@ -881,7 +853,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']})
-    
+
     project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
     project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
     project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
@@ -994,15 +966,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             folder_name = folder_name[0]
             fol_last_update = folder_name['last_updated']
 
-        if transcription == 1:
-            folder_files_df = pd.DataFrame(
-                run_query("SELECT file_transcription_id as file_id, file_name FROM transcription_files WHERE folder_transcription_id = %(folder_id)s",
-                        {'folder_id': folder_id}))
-        else:
-            folder_files_df = pd.DataFrame(
-                run_query("SELECT file_id, file_name FROM files WHERE folder_id = %(folder_id)s",
-                        {'folder_id': folder_id}))
-
         no_items = 25
         if page == 1:
             offset = 0
@@ -1011,20 +974,22 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         
         if transcription == 1:
             files_df = run_query((
-                                 "WITH data AS (SELECT f.file_transcription_id as file_id, CONCAT('{app_root}/preview_image/', f.file_transcription_id, '/?') as preview_image, "
+                                 "WITH data AS (SELECT f.file_transcription_id as file_id, "
+                                 "         COALESCE(f.preview_image, CONCAT('static/image_previews/', f.folder_transcription_id, '/160/', f.file_transcription_id, '.jpg')) as preview_image, "
                                  "         f.preview_image as preview_image_ext, f.folder_transcription_id as folder_id, f.file_name "
                                  "           FROM transcription_files f "
                                  " WHERE f.folder_transcription_id = %(folder_id)s)"
                                  " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, 0 as sensitive_contents "
                                  " FROM data "
                                  " ORDER BY file_name "
-                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items, app_root=settings.app_root),
+                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
                              {'folder_id': folder_id})
             files_count = run_query("SELECT count(*) as no_files FROM transcription_files WHERE folder_transcription_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]
         else:
             files_df = run_query((
-                                 "WITH data AS (SELECT f.file_id, CONCAT('{app_root}/preview_image/', f.file_id, '/?') as preview_image, "
+                                 "WITH data AS (SELECT f.file_id, "
+                                 "         COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', f.file_id, '.jpg')) as preview_image, "
                                  "         f.preview_image as preview_image_ext, f.folder_id, f.file_name, "
                                  "               COALESCE(s.sensitive_contents, 0) as sensitive_contents "
                                  "           FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id "
@@ -1032,80 +997,20 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                  " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, sensitive_contents "
                                  " FROM data "
                                  " ORDER BY file_name "
-                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items, app_root=settings.app_root),
+                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
                              {'folder_id': folder_id})
             files_count = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]
             
         files_count = files_count['no_files']
         if tab == "filechecks":
-            filechecks_list_temp = run_query(
-                ("SELECT settings_value as file_check FROM projects_settings "
-                " WHERE project_setting = 'project_checks' and project_id = %(project_id)s"),
-                {'project_id': project_info['project_id']})
-            filechecks_list = []
-            for fcheck in filechecks_list_temp:
-                filechecks_list.append(fcheck['file_check'])
-            logger.info("filechecks_list:{}".format(filechecks_list_temp))
             project_postprocessing = []
-
             page_no = "File Checks"
             if files_count == 0:
-                folder_files_df = pd.DataFrame()
                 pagination_html = ""
                 files_df = ""
-                files_count = ""
                 folder_stats = {'no_files': 0, 'no_errors': 0}
             else:
-                for fcheck in filechecks_list:
-                    logger.info("fcheck: {}".format(fcheck))
-                    if transcription == 1:
-                        list_files = pd.DataFrame(run_query(("SELECT f.file_transcription_id as file_id, "
-                                                              "   CASE WHEN check_results = 0 THEN 'OK' "
-                                                              "       WHEN check_results = 9 THEN 'Pending' "
-                                                              "       WHEN check_results = 1 THEN 'Failed' "
-                                                              "       ELSE 'Pending' END as {fcheck} "
-                                                              " FROM transcription_files f LEFT JOIN transcription_files_checks c ON (f.file_transcription_id=c.file_transcription_id AND c.file_check = %(file_check)s) "
-                                                              "  where f.folder_transcription_id = %(folder_id)s").format(fcheck=fcheck),
-                                                             {'file_check': fcheck, 'folder_id': folder_id}))
-                    else:
-                        list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                              "   CASE WHEN check_results = 0 THEN 'OK' "
-                                                              "       WHEN check_results = 9 THEN 'Pending' "
-                                                              "       WHEN check_results = 1 THEN 'Failed' "
-                                                              "       ELSE 'Pending' END as {fcheck} "
-                                                              " FROM files f LEFT JOIN files_checks c ON (f.file_id=c.file_id AND c.file_check = %(file_check)s) "
-                                                              "  where f.folder_id = %(folder_id)s").format(fcheck=fcheck),
-                                                             {'file_check': fcheck, 'folder_id': folder_id}))
-                    logger.info("list_files.size: {}".format(list_files.shape[0]))
-                    if list_files.shape[0] > 0:
-                        folder_files_df = folder_files_df.merge(list_files, how='outer', on='file_id')
-                if transcription == 1:
-                    preview_files = pd.DataFrame(run_query(("SELECT f.file_transcription_id as file_id, "
-                                                             "  CASE WHEN f.preview_image is NULL THEN CONCAT('/preview_image/', f.file_transcription_id, '/?') ELSE f.preview_image END as preview_image "
-                                                             " FROM transcription_files f where f.folder_transcription_id = %(folder_id)s"),
-                                                            {'folder_id': folder_id}))
-                else:
-                    preview_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                             "  CASE WHEN f.preview_image is NULL THEN CONCAT('/preview_image/', f.file_id, '/?') ELSE f.preview_image END as preview_image "
-                                                             " FROM files f where f.folder_id = %(folder_id)s"),
-                                                            {'folder_id': folder_id}))
-                folder_files_df = folder_files_df.sort_values(by=['file_name'])
-                folder_files_df = folder_files_df.sort_values(by=filechecks_list)
-                folder_files_df = folder_files_df.merge(preview_files, how='outer', on='file_id')
-                if transcription == 1:
-                    folder_files_df['file_name'] = '<a href="{}/file_transcription/'.format(settings.app_root) \
-                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
-                                               + folder_files_df['file_name'].astype(str) \
-                                               + '</a> '
-                else:
-                    folder_files_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
-                                               + folder_files_df['file_id'].astype(str) + '/" title="Details of File ' + folder_files_df['file_name'].astype(str) + '">' \
-                                               + folder_files_df['file_name'].astype(str) \
-                                               + '</a> '
-                folder_files_df = folder_files_df.drop(['file_id'], axis=1)
-                folder_files_df = folder_files_df.drop(['preview_image'], axis=1)
-
                 if transcription == 1:
                     folder_stats1 = run_query(("SELECT coalesce(f.no_files, 0) as no_files "
                                                     " FROM transcription_folders f WHERE folder_transcription_id = %(folder_id)s"),
@@ -1126,8 +1031,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                     'no_files': folder_stats1[0]['no_files'],
                     'no_errors': folder_stats2[0]['no_errors']
                 }
-                post_processing_df = pd.DataFrame()
-                
+            post_processing_df = pd.DataFrame()
+
         elif tab == "lightbox":
             page_no = "Lightbox Page {}".format(page)
             # Pagination
@@ -1336,16 +1241,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
 
-    # Add sort to show Failed tests at the top
-    files_table_sort = '[0, "asc"]'
-
-    no_cols = folder_files_df.shape[1]
-    i = 1
-    while i < no_cols:
-        if 'Failed' in folder_files_df.iloc[:, i].values:
-            files_table_sort = '[{}, "asc"]'.format(i)
-        i += 1
-
     recent_images = []
 
     return render_template('dashboard.html',
@@ -1361,7 +1256,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            folder_id=folder_id,
                            folder_name=folder_name,
                            recent_images=recent_images,
-                           tables=[files_table_html(folder_files_df)],
+                           tables=[],
+                           file_check_labels=FILE_CHECK_LABELS,
+                           app_root=settings.app_root,
                            titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=tab, page=page, files_count=files_count,
@@ -1389,9 +1286,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            project_manager_link=project_manager_link,
                            analytics_code=settings.analytics_code,
                            project_stats_other=project_stats_other,
-                           files_table_sort=files_table_sort,
                            folder_badges=folder_badges,
-                           no_cols=no_cols,
                            transcription=transcription
                            )
 
@@ -1403,7 +1298,7 @@ def dashboard(project_alias=None, folder_id=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     folder_id = request.values.get("folder_id")
 
@@ -1656,7 +1551,7 @@ def proj_statistics(project_alias=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     user_exists = False
     username = None
@@ -1709,46 +1604,13 @@ def proj_statistics(project_alias=None):
 
 
 @cache.memoize()
-@app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
-def proj_statistics_dl(project_id=None, step_id=None):
-    """Download statistics for a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api_route_list'))
-
-    project_id_check = run_query("SELECT proj_id FROM projects WHERE proj_id = %(proj_id)s",
-                                      {'proj_id': project_id})
-    if len(project_id_check) == 0:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-
-    project_info = run_query("SELECT * FROM projects WHERE proj_id = %(proj_id)s", {'proj_id': project_id})[0]
-
-    proj_stats = run_query("SELECT e.step_info, e.step_notes, e.step_units, s.* FROM projects_detail_statistics_steps e RIGHT JOIN projects_detail_statistics s ON (e.step_id = s.step_id) WHERE e.step_id = %(step_id)s", {'step_id': step_id})
-
-    csv_data = "data_type,info,units,date,value\n"
-    for data_row in proj_stats:
-        csv_data += f"{data_row['step_info']}, {data_row['step_notes']}, {data_row['step_units']}, {data_row['date']}, {data_row['step_value']}\n"
-
-    current_time = strftime("%Y%m%d_%H%M%S", localtime())
-
-    # Create a direct download response with the CSV data and appropriate headers
-    response = Response(csv_data, content_type="text/csv")
-    response.headers["Content-Disposition"] = "attachment; filename={}_stats_{}.csv".format(project_info['project_alias'], current_time)
-    return response
-
-
-@cache.memoize()
 @app.route('/dashboard/<project_alias>/statistics2/', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics_plotnine(project_alias=None):
     """Figures with statistics for a project"""
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     user_exists = False
     username = None
@@ -1804,13 +1666,46 @@ def proj_statistics_plotnine(project_alias=None):
 
 
 @cache.memoize()
+@app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
+def proj_statistics_dl(project_id=None, step_id=None):
+    """Download statistics for a project"""
+    
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api.api_route_list'))
+
+    project_id_check = run_query("SELECT proj_id FROM projects WHERE proj_id = %(proj_id)s",
+                                      {'proj_id': project_id})
+    if len(project_id_check) == 0:
+        error_msg = "Project was not found."
+        return render_template('error.html', error_msg=error_msg,
+                               project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           analytics_code=settings.analytics_code), 404
+
+    project_info = run_query("SELECT * FROM projects WHERE proj_id = %(proj_id)s", {'proj_id': project_id})[0]
+
+    proj_stats = run_query("SELECT e.step_info, e.step_notes, e.step_units, s.* FROM projects_detail_statistics_steps e RIGHT JOIN projects_detail_statistics s ON (e.step_id = s.step_id) WHERE e.step_id = %(step_id)s", {'step_id': step_id})
+
+    csv_data = "data_type,info,units,date,value\n"
+    for data_row in proj_stats:
+        csv_data += f"{data_row['step_info']}, {data_row['step_notes']}, {data_row['step_units']}, {data_row['date']}, {data_row['step_value']}\n"
+
+    current_time = strftime("%Y%m%d_%H%M%S", localtime())
+
+    # Create a direct download response with the CSV data and appropriate headers
+    response = Response(csv_data, content_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename={}_stats_{}.csv".format(project_info['project_alias'], current_time)
+    return response
+
+
+@cache.memoize()
 @app.route('/about/', methods=['GET'], provide_automatic_options=False)
 def about():
     """About page for the system"""
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -1824,10 +1719,26 @@ def about():
 
     # Declare the login form
     form = LoginForm(request.form)
-    return render_template('about.html', form=form, 
-                           site_net=site_net, site_env=site_env, site_ver=site_ver,
-                           kiosk=kiosk, user_address=user_address,
-                           analytics_code=settings.analytics_code)
+    if settings.site_net == "internal":
+        asklogin = True
+    else:
+        asklogin = False
+    site_env_label = "Production" if site_env == "prod" else site_env.replace("_", " ").title()
+    return render_template(
+        'about.html',
+        form=form,
+        site_net=site_net,
+        site_env=site_env,
+        site_env_label=site_env_label,
+        site_ver=site_ver,
+        kiosk=kiosk,
+        user_address=user_address,
+        analytics_code=settings.analytics_code,
+        asklogin=asklogin,
+        about_contact=_about_contact_info(),
+        about_user_guide_url=ABOUT_USER_GUIDE_URL,
+        about_component_links=ABOUT_COMPONENT_LINKS,
+    )
 
 
 @app.route('/qc/<project_alias>/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -1837,7 +1748,7 @@ def qc(project_alias=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -2232,7 +2143,7 @@ def qc_transcription(project_alias=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -2462,7 +2373,7 @@ def qct_loading2(source_id):
     """Prepare QC for a folder"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     # Declare the login form
@@ -2663,7 +2574,7 @@ def qc_process(folder_id):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -3152,7 +3063,7 @@ def qc_process_transcript(source_id, folder_id):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -3482,7 +3393,7 @@ def qc_loading2(folder_id):
     """Prepare QC for a folder"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     try:
@@ -3535,7 +3446,7 @@ def qc_transcription_loading2(source_id, folder_id):
     """Prepare QC for a folder"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     try:
@@ -3570,7 +3481,7 @@ def qc_done(folder_id):
     """Run QC on a folder"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     try:
@@ -3815,7 +3726,7 @@ def new_project(msg=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -3850,7 +3761,7 @@ def invoice(msg=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -3895,7 +3806,7 @@ def invoice_recon(msg=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -3930,7 +3841,10 @@ def invoice_recon(msg=None):
         project_info = run_query(("SELECT * FROM projects WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
         # Update table
         if project_info['transcription'] == 1:
-            results = cur.executemany("INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, {}, %s)".format(project_info['project_id']), res)
+            results = executemany(
+                "INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, {}, %s)".format(project_info['project_id']),
+                res,
+            )
             # Add IDs
             res = run_query(("with data as (select f.file_transcription_id, f.file_name from transcription_files f, transcription_folders fol where f.folder_transcription_id = fol.folder_transcription_id and fol.project_id = %(project_id)s) UPDATE invoice_recon_transcription i join data d on i.file_name = d.file_name SET i.file_transcription_id = d.file_transcription_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
             # Match the ones with transcriptions
@@ -3952,7 +3866,7 @@ def invoice_recon(msg=None):
                 count_msg = "Reconciliation failed: SYSTEM ERROR"
                 count_msg_css = "danger"
         else:
-            results = cur.executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
+            results = executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
             res = run_query(("with data as (select f.file_id, f.file_name from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.file_id = d.file_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
             res = run_query(("with data as (select f.file_id, f.file_name, f.dams_uan from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
             no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
@@ -3993,7 +3907,7 @@ def invoice_recon_dl(randomint=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -4031,7 +3945,7 @@ def create_new_project():
     """Create a new project"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -4132,7 +4046,7 @@ def edit_project(project_alias=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -4299,7 +4213,7 @@ def edit_inf_proj():
     """Create or edit an informatics project"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     if username not in ['villanueval', 'dipietroc']:
@@ -4381,7 +4295,7 @@ def proj_links(project_alias=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -4434,7 +4348,7 @@ def add_links(project_alias=None):
     """Create a new project"""
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -4469,7 +4383,7 @@ def project_update(project_alias):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     username = current_user.name
     is_admin = user_perms('', user_type='admin')
@@ -4535,7 +4449,7 @@ def file(file_id=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
 
     if file_id is None:
         error_msg = "File ID is missing."
@@ -4573,31 +4487,28 @@ def file(file_id=None):
         folder_info = folder_info[0]
     file_details = run_query(("WITH data AS ("
                                 "         SELECT file_id, "
-                                "             CONCAT(%(preview)s, file_id) as preview_image, "
                                 "             preview_image as preview_image_ext, "
                                 "             folder_id, file_name, dams_uan, file_ext, "
                                 "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(NOW(), created_at) as datediff "
                                 "             FROM files "
                                 "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
                                 " UNION "
-                                "         SELECT file_id, CONCAT(%(preview)s, file_id) as preview_image, preview_image as preview_image_ext, "
+                                "         SELECT file_id, preview_image as preview_image_ext, "
                                 "                folder_id, file_name, dams_uan, file_ext, "
                                 "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(created_at, NOW()) as datediff "
                                 "             FROM files "
                                 "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
                                 "             ORDER BY file_name"
                                 "),"
-                                "data2 AS (SELECT file_id, preview_image, file_ext, preview_image_ext, folder_id, file_name, dams_uan, created_at, datediff, "
+                                "data2 AS (SELECT file_id, file_ext, preview_image_ext, folder_id, file_name, dams_uan, created_at, datediff, "
                                 "         lag(file_id,1) over (order by file_name) prev_id,"
                                 "         lead(file_id,1) over (order by file_name) next_id "
                                 " FROM data)"
                                 " SELECT "
                                 " file_id, "
-                                "     CASE WHEN position('?' in preview_image)>0 THEN preview_image ELSE CONCAT(preview_image, '?') END AS preview_image, "
                                 " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext, created_at, datediff "
                                 " FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
-                                {'folder_id': folder_info['folder_id'], 'file_id': file_id,
-                                'preview': '/preview_image/'})
+                                {'folder_id': folder_info['folder_id'], 'file_id': file_id})
 
     file_details = file_details[0]
     project_alias = run_query(("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
@@ -4615,7 +4526,8 @@ def file(file_id=None):
                                 " FROM file_postprocessing WHERE file_id = %(file_id)s"),
                                 {'file_id': file_id})
 
-    image_url = '/preview_image/' + str(file_id)
+    attach_preview_paths(file_details, file_id)
+    image_url = url_for('static', filename=file_details['fullsize_img_path'])
     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                  " FROM files_exif "
                                                  " WHERE file_id = %(file_id)s AND "
@@ -4646,13 +4558,6 @@ def file(file_id=None):
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
-    # New direct link to image
-    preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(file_details['folder_id'], "600", file_id)
-    if os.path.isfile("static/{}".format(preview_img_path)):
-        file_details['preview_img_path'] = preview_img_path
-    else:
-        file_details['preview_img_path'] = "na_{}.png".format("160")
 
     # DZI zoomable image
     zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)
@@ -4696,7 +4601,7 @@ def file_transcription(file_id=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -4772,8 +4677,7 @@ def file_transcription(file_id=None):
                                 " file_transcription_id as file_id, "
                                 "     folder_transcription_id, file_name, dams_uan, prev_id, next_id, created_at, datediff "
                                 " FROM data2 WHERE file_transcription_id = %(file_id)s LIMIT 1"),
-                                {'folder_id': folder_info['folder_transcription_id'], 'file_id': file_id,
-                                'preview': '/preview_image/'})[0]
+                                {'folder_id': folder_info['folder_transcription_id'], 'file_id': file_id})[0]
     
     project_alias = run_query(("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
                     " WHERE project_id = %(project_id)s"),
@@ -4784,7 +4688,8 @@ def file_transcription(file_id=None):
                                   " ELSE check_info END AS check_info "
                                   " FROM transcription_files_checks WHERE file_transcription_id = %(file_id)s"),
                                  {'file_id': file_id})
-    image_url = '/preview_image/' + str(file_id)
+    attach_preview_paths(file_details, file_id, transcription=True)
+    image_url = url_for('static', filename=file_details['fullsize_img_path'])
     
     file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
                                 {'file_id': file_id})
@@ -4799,13 +4704,6 @@ def file_transcription(file_id=None):
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
-    # New direct link to image
-    preview_img_path = "image_previews/{}/{}/{}.jpg".format(file_details['folder_transcription_id'], "160", file_id)
-    if os.path.isfile("static/{}".format(preview_img_path)):
-        file_details['preview_img_path'] = preview_img_path
-    else:
-        file_details['preview_img_path'] = "na_{}.png".format("160")
 
     # DZI zoomable image
     zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)
@@ -4846,200 +4744,80 @@ def file_t_empty():
 @cache.memoize()
 @app.route('/dashboard/<project_alias>/search_files', methods=['GET'], provide_automatic_options=False)
 def search_files(project_alias):
-    """Search files"""
-    
-    # If API, not allowed - to improve
+    """Search files by filename."""
+    from osprey.services import file_search as file_search_service
+
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
+        return redirect(url_for('api.api_route_list'))
 
-    # Declare the login form
     form = LoginForm(request.form)
-
-    q = request.values.get('q')
-    metadata = request.values.get('metadata')
+    q = (request.values.get('q') or '').strip()
     page = request.values.get('page')
-    if page is None:
-        page = 0
     try:
-        page = int(page)
-    except:
+        page = max(0, int(page or 0))
+    except (TypeError, ValueError):
         page = 0
-    offset = page * 50
-    project_info = run_query("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
-                                  {'project_alias': project_alias})[0]
-    if q is None:
-        error_msg = "No search query was submitted."
-        # cur.close()
-        # conn.close()
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 400
-    else:
-        logger.info("q: {}".format(q))
-        logger.info("metadata: {}".format(metadata))
-        logger.info("offset: {}".format(offset))
-        if metadata is None or metadata == '0':
-            if project_info['transcription'] == 1:
-                results = run_query(("SELECT "
-                                      "  f.file_transcription_id, f.folder_transcription_id, f.file_name, " 
-                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/', f.folder_id, '/160/', file_transcription_id, '.jpg')) as preview_image, " 
-                                      " fd.folder "
-                                      " FROM transcription_files f, transcription_folders fd, projects p "
-                                      " WHERE f.folder_transcription_id = fd.folder_transcription_id AND "
-                                      "  lower(f.file_name) LIKE lower(%(q)s) AND "
-                                      "  fd.project_id = p.project_id AND "
-                                      "  p.project_alias = %(project_alias)s "
-                                      " ORDER BY f.file_name"
-                                      " LIMIT 50 "
-                                      " OFFSET {offset} ").format(offset=offset),
-                                     {'project_alias': project_alias,
-                                      'q': '%' + q + '%'})
-            else:    
-                results = run_query(("SELECT "
-                                      "  f.file_id, f.folder_id, f.file_name, " 
-                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', file_id, '.jpg')) as preview_image, "
-                                      " fd.project_folder "
-                                      " FROM files f, folders fd, projects p "
-                                      " WHERE f.folder_id = fd.folder_id AND "
-                                      "  lower(f.file_name) LIKE lower(%(q)s) AND "
-                                      "  fd.project_id = p.project_id AND "
-                                      "  p.project_alias = %(project_alias)s "
-                                      " ORDER BY f.file_name"
-                                      " LIMIT 50 "
-                                      " OFFSET {offset} ").format(offset=offset),
-                                     {'project_alias': project_alias,
-                                      'q': '%' + q + '%'})
-        else:
-            results = run_query(("WITH m AS (SELECT file_id, tag, value, tagid, taggroup "
-                                      "              FROM files_exif "
-                                      "              WHERE value ILIKE %(q)s)"
-                                      "SELECT "
-                                      "  f.file_id, f.folder_id, f.file_name, " 
-                                      " COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', file_id, '.jpg')) as preview_image, " 
-                                      " fd.project_folder "
-                                      " FROM files f, m, folders fd, projects p "
-                                      " WHERE f.folder_id = fd.folder_id AND "
-                                      "  lower(f.file_name) LIKE lower(%(q)s) AND "
-                                      "  f.file_id = m.file_id AND "
-                                      "  fd.project_id = p.project_id AND "
-                                      "  p.project_alias = %(project_alias)s "
-                                      "  GROUP BY f.file_id, f.folder_id, f.file_name, f.preview_image, fd.project_folder "
-                                      " ORDER BY f.file_name"
-                                      " LIMIT 50 "
-                                      " OFFSET {offset} ").format(offset=offset),
-                                     {'project_alias': project_alias,
-                                      'q': '%' + q + '%'})
 
-    # kiosk mode
+    if not q:
+        kiosk, user_address = kiosk_mode(request, settings.kiosks)
+        return render_template(
+            'search_files.html',
+            results=[],
+            project_info=None,
+            project_alias=project_alias,
+            q='',
+            total=0,
+            page=0,
+            page_size=file_search_service.PAGE_SIZE,
+            has_prev=False,
+            has_next=False,
+            form=form,
+            site_env=site_env,
+            site_net=site_net,
+            site_ver=site_ver,
+            kiosk=kiosk,
+            user_address=user_address,
+            analytics_code=settings.analytics_code,
+        )
+
+    project_info, results, total, page, page_size = file_search_service.search_files(
+        project_alias, q, page=page,
+    )
+    if project_info is None:
+        error_msg = "Project was not found."
+        return render_template(
+            'error.html',
+            error_msg=error_msg,
+            project_alias=project_alias,
+            site_env=site_env,
+            site_net=site_net,
+            site_ver=site_ver,
+            analytics_code=settings.analytics_code,
+        ), 404
+
+    logger.info("search_files q=%r page=%s total=%s", q, page, total)
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
-    
-    return render_template('search_files.html',
-                           results=results, project_info=project_info, project_alias=project_alias,
-                           q=q, form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           kiosk=kiosk, user_address=user_address, analytics_code=settings.analytics_code)
+    offset = page * page_size
 
-
-@cache.memoize()
-@app.route('/dashboard/<project_alias>/search_folders', methods=['GET'], provide_automatic_options=False)
-def search_folders(project_alias):
-    """Search files"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-    
-    q = request.values.get('q')
-    page = request.values.get('page')
-    if page is None:
-        page = 0
-    offset = page * 50
-    project_info = run_query("SELECT * FROM projects WHERE project_alias = %(project_alias)s",
-                                  {'project_alias': project_alias})[0]
-    if q is None:
-        error_msg = "No search query was submitted."
-        # cur.close()
-        # conn.close()
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                                site_net=site_net, site_env=site_env, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 400
-    else:
-        logger.info("q: {}".format(q))
-        logger.info("offset: {}".format(offset))
-        results = run_query((
-                                     "WITH pfolders AS (SELECT folder_id from folders WHERE project_id in (SELECT project_id FROM projects WHERE project_alias = %(project_alias)s)),"
-                                     " errors AS "
-                                     "         (SELECT folder_id, count(file_id) as no_files "
-                                     "             FROM qc_files "
-                                     "             WHERE folder_id IN (SELECT folder_id from pfolders) "
-                                     "                 AND file_qc = 1 "
-                                     "               GROUP BY folder_id),"
-                                     "passed AS "
-                                     "         (SELECT folder_id, count(file_id) as no_files "
-                                     "             FROM qc_files "
-                                     "             WHERE folder_id IN (SELECT folder_id from pfolders) "
-                                     "                 AND file_qc = 0 "
-                                     "               GROUP BY folder_id),"
-                                     "total AS (SELECT folder_id, count(file_id) as no_files FROM qc_files "
-                                     "             WHERE folder_id IN (SELECT folder_id from pfolders)"
-                                     "                GROUP BY folder_id) "
-                                     " SELECT f.folder_id, f.project_folder, f.delivered_to_dams, "
-                                     "       f.no_files, f.file_errors "
-                                     " FROM folders f LEFT JOIN qc_folders q ON "
-                                     "       (f.folder_id = q.folder_id)"
-                                     "       LEFT JOIN users u ON "
-                                     "           (q.qc_by = u.user_id)"
-                                     "       LEFT JOIN errors ON "
-                                     "           (f.folder_id = errors.folder_id)"
-                                     "       LEFT JOIN passed ON "
-                                     "           (f.folder_id = passed.folder_id)"
-                                     "       LEFT JOIN total ON "
-                                     "           (f.folder_id = total.folder_id),"
-                                     "   projects p "
-                                     " WHERE f.project_id = p.project_id "
-                                     "   AND p.project_alias = %(project_alias)s "
-                                     "   AND lower(f.project_folder) LIKE lower(%(q)s) "
-                                     "  ORDER BY f.project_folder ASC"
-                                     "  LIMIT 50 OFFSET {offset}").format(offset=offset),
-                                 {'project_alias': project_alias,
-                                  'q': '%' + q + '%'})
-    results_df = pd.DataFrame({'folder': [], 'no_files': []})
-    for row in results:
-        results_df.loc[len(results_df.index)] = ['<a href="{}/dashboard/'.format(settings.app_root) + project_alias \
-                                                 + '/' \
-                                                 + str(row['folder_id']) \
-                                                 + '/" title="Folder Details">' \
-                                                 + row['project_folder'] \
-                                                 + '</a> ', str(row['no_files'])]
-
-    # kiosk mode
-    kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
-    return render_template('search_folders.html',
-                           tables=[results_df.to_html(table_id='results',
-                                                      index=False,
-                                                      border=0,
-                                                      escape=False,
-                                                      classes=["display", "compact", "table-striped"])],
-                           project_info=project_info, project_alias=project_alias, q=q,
-                           form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           kiosk=kiosk, user_address=user_address, analytics_code=settings.analytics_code)
+    return render_template(
+        'search_files.html',
+        results=results,
+        project_info=project_info,
+        project_alias=project_alias,
+        q=q,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_prev=page > 0,
+        has_next=(offset + len(results)) < total,
+        form=form,
+        site_env=site_env,
+        site_net=site_net,
+        site_ver=site_ver,
+        kiosk=kiosk,
+        user_address=user_address,
+        analytics_code=settings.analytics_code,
+    )
 
 
 @app.route('/folder_update/<project_alias>/<folder_id>', methods=['GET'], provide_automatic_options=False)
@@ -5048,7 +4826,7 @@ def update_folder_dams(project_alias=None, folder_id=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if folder_id is None or project_alias is None:
         return redirect(url_for('home'))
@@ -5154,7 +4932,7 @@ def update_image():
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -5194,7 +4972,7 @@ def data_reports_form():
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     # Declare the login form
     form = LoginForm(request.form)
@@ -5215,7 +4993,7 @@ def data_reports(project_alias=None, report_id=None, rendering=None):
     
     # If API, not allowed - to improve
     if site_net == "api":
-        return redirect(url_for('api_route_list'))
+        return redirect(url_for('api.api_route_list'))
     
     # Declare the login form
     # form = LoginForm(request.form)
@@ -5300,256 +5078,6 @@ def data_reports(project_alias=None, report_id=None, rendering=None):
                            data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted, 
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code)
-
-
-# @cache.memoize()
-# @app.route('/preview_image/<file_id>', methods=['GET'], provide_automatic_options=False)
-# @app.route('/preview_image/<file_id>/<max>', methods=['GET'], provide_automatic_options=False)
-# def get_preview(file_id=None, max=None, sensitive=None):
-#     """Return image previews"""
-#     if file_id is None:
-#         raise InvalidUsage('file_id missing', status_code=400)
-#     try:
-#         file_id = int(file_id)
-#     except:
-#         try:
-#             # Allow for UUIDs
-#             file_id = UUID(file_id)
-#         except:
-#             raise InvalidUsage('invalid file_id value', status_code=400)
-    
-#     data = run_query("SELECT folder_id, file_name FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
-#     logger.info(data)
-#     if max is None:
-#         max = request.args.get('max')
-#     dl = request.args.get('dl')
-    
-#     if len(data) == 0:
-#         if max in ["160", "200", "600", "1200"]:
-#             filename = "static/na_{}.png".format(max)
-#         else:
-#             filename = "static/na.jpg"
-#         return send_file(filename, mimetype='image/jpeg')
-#     else:
-#         if max == "160":
-#             folder_id = data[0]['folder_id']
-#             filename = "static/image_previews/folder{}/160/{}.jpg".format(folder_id, file_id)
-#             if os.path.isfile(filename):
-#                 logger.info("preview_160: {}".format(filename))
-#                 if dl == "1":
-#                     dl_filename = Path(filename).stem
-#                     return send_file(filename, mimetype='image/jpeg', download_name=dl_filename, as_attachment=True)
-#                 else:
-#                     try:
-#                         return send_file(filename, mimetype='image/jpeg')
-#                     except:
-#                         return send_file("static/na_160.jpg", mimetype='image/jpeg')
-#         try:
-#             folder_id = data[0]['folder_id']
-#             if max is not None:
-#                 width = max
-#             else:
-#                 width = None
-#             filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
-#             img = Image.open(filename)
-#             wsize, hsize = img.size
-#             if width is not None:
-#                 if os.path.isfile(filename):
-#                     img_resized = "static/image_previews/folder{}/{}/{}.jpg".format(folder_id, width, file_id)
-#                     if os.path.isfile(img_resized):
-#                         filename = img_resized
-#                     else:
-#                         logger.info(filename)
-#                         # img = Image.open(filename)
-#                         wpercent = (int(width) / float(img.size[0]))
-#                         hsize = int((float(img.size[1]) * float(wpercent)))
-#                         img = img.resize((int(width), hsize), Image.LANCZOS)
-#                         filename = "/tmp/{}_{}.jpg".format(file_id, width)
-#                         img.save(filename, icc_profile=img.info.get('icc_profile'))
-#                 else:
-#                     logger.info(filename)
-#                     if width in ["160", "200", "600", "1200"]:
-#                         filename = "static/na_{}.png".format(width)
-#                     else:
-#                         filename = "static/na.jpg"
-#         except:
-#             if max in ["160", "200", "600", "1200"]:
-#                 filename = "static/na_{}.png".format(max)
-#             else:
-#                 filename = "static/na.jpg"
-#     if not os.path.isfile(filename):
-#         if max in ["160", "200", "600", "1200"]:
-#             filename = "static/na_{}.png".format(max)
-#         else:
-#             filename = "static/na.jpg"
-#     logger.debug("preview_request: {} - {}".format(file_id, filename))
-    
-#     # Check for sensitive contents
-#     img = run_query("SELECT * FROM sensitive_contents WHERE file_id = %(file_id)s", {'file_id': file_id})
-#     if len(img) == 0:
-#         img_sen = 0
-#     else:
-#         try:
-#             img_sen = img[0]['sensitive_contents']
-#         except:
-#             img_sen = 0
-#     logger.debug("sensitive_contents: {} - {}".format(file_id, img_sen))
-#     sensitive = request.args.get('sensitive')
-    
-#     if str(img_sen) == "1" and filename != "static/na.jpg" and sensitive != "ok":
-#         filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
-#         try:
-#             img = Image.open(filename)
-#             if width is not None:
-#                 wpercent = (int(width) / float(img.size[0]))
-#                 hsize = int((float(img.size[1]) * float(wpercent)))
-#                 img = img.resize((int(width), hsize), Image.LANCZOS)
-#                 img_blurred = img.filter(ImageFilter.GaussianBlur(radius = (hsize/100)))
-#             else:
-#                 width = "000"
-#                 img_blurred = img.filter(ImageFilter.GaussianBlur(radius = (img.size[1]/100)))
-#             filename = "/tmp/{}_{}.jpg".format(file_id, width)
-#             img_blurred.save(filename, icc_profile=img.info.get('icc_profile'))
-#             logger.info("Img blurred {} {}".format(file_id, filename))
-#         except:
-#             logger.error("Sensitive {} {}".format(file_id, filename))
-#             if max in ["160", "200", "600", "1200"]:
-#                 filename = "static/na_{}.png".format(max)
-#             else:
-#                 filename = "static/na.jpg"
-#     if dl == "1":
-#         dl_filename = "{}.jpg".format(Path(data[0]['file_name']).stem)
-#         return send_file(filename, mimetype='image/jpeg', download_name=dl_filename, as_attachment=True)
-#     else:
-#         try:
-#             return send_file(filename, mimetype='image/jpeg')
-#         except:
-#             return send_file("static/na.jpg", mimetype='image/jpeg')
-
-
-# @cache.memoize()
-# @app.route('/fullsize/<file_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
-# def get_fullsize(file_id=None):
-#     """Return the fullsize image, adjusted to 100%"""
-#     # If API, not allowed - to improve
-#     if site_net == "api":
-#         return redirect(url_for('api_route_list'))
-#     if file_id is None:
-#         raise InvalidUsage('file_id missing', status_code=400)
-#     try:
-#         file_id = int(file_id)
-#     except:
-#         try:
-#             # Allow for UUIDs
-#             file_id = UUID(file_id)
-#         except:
-#             raise InvalidUsage('invalid file_id value', status_code=400)
-#     # Get DPR - https://github.com/Smithsonian/Osprey/issues/64
-#     try:
-#         dpr = request.headers.get('Sec-CH-DPR')
-#         logger.info("DPR: {}".format(dpr))
-#     except:
-#         dpr = None
-#         logger.warning("DPR could not be determined")
-#     # Hard code fix for Firefox/Safari, assume 1.5
-#     if dpr is None:
-#         dpr = 1.5
-
-#     data = run_query("SELECT file_name, folder_id FROM files WHERE file_id = %(file_id)s LIMIT 1", {'file_id': file_id})
-#     logger.info(data)
-#     if len(data) == 0:
-#         filename = "static/na.jpg"
-#     else:
-#         try:
-#             folder_id = data[0]['folder_id']
-#             file_name = data[0]['file_name']
-#             filename = "static/image_previews/folder{}/{}.jpg".format(folder_id, file_id)
-#             img = Image.open(filename)
-#             wsize, hsize = img.size
-#             wsize_o = wsize
-#             hsize_o = hsize
-#         except:
-#             filename = "static/na.jpg"
-#             file_name = "NA"
-#             img = Image.open(filename)
-#             wsize, hsize = img.size 
-#             wsize_o = wsize
-#             hsize_o = hsize
-#     if dpr is not None:
-#         wsize = int((wsize*1.0)/float(dpr))
-#         hsize = int((hsize*1.0)/float(dpr))
-#     if not os.path.isfile(filename):
-#         filename = "static/na.jpg"
-#         file_name = "NA"
-#         img = Image.open(filename)
-#         wsize, hsize = img.size 
-#         wsize_o = wsize
-#         hsize_o = hsize
-#     logger.debug("fullsize_request: {} - {}".format(file_id, filename))
-#     return render_template('fullsize.html',
-#                            file_id=file_id, filename=filename, file_title=file_name,
-#                            wsize=wsize, hsize=hsize, wsize_o=wsize_o, hsize_o=hsize_o)
-
-
-# @cache.memoize()
-# @app.route('/barcode_image/<barcode>/', methods=['GET', 'POST'], provide_automatic_options=False)
-# def get_barcodeimage(barcode=None):
-#     """Return image previews using a barcode that has a collex prefix in format: prefix:barcode"""
-    
-#     # If API, not allowed - to improve
-#     if site_net == "api":
-#         return redirect(url_for('api_route_list'))
-    
-#     if barcode is None:
-#         raise InvalidUsage('barcode value missing', status_code=400)
-#     #
-#     barcode_split = barcode.split(":")
-#     if len(barcode_split) != 2:
-#         raise InvalidUsage('Invalid barcode', status_code=400)
-
-#     if barcode_split[0] == 'nmnhbot':
-#         query = ("SELECT file_id, folder_id, preview_image FROM files "
-#                  "WHERE file_name = %(file_name)s AND folder_id IN "
-#                  "(SELECT folder_id FROM folders WHERE project_id in(100,131)) LIMIT 1")
-#         data = run_query(query, {'file_name': barcode_split[1]})
-#         if data is True:
-#             filename = "static/na.jpg"
-#             return send_file(filename, mimetype='image/jpeg')
-#         else:
-#             data = data[0]
-#             file_id = data['file_id']
-#             folder_id = data['folder_id']
-#             preview_image = data['preview_image']
-#             logger.info("data: {}".format(data))
-#             if preview_image is not None:
-#                 redirect(preview_image, code=302)
-#             else:
-#                 max = request.args.get('max')
-#                 if max is not None:
-#                     width = max
-#                 else:
-#                     width = request.args.get('size')
-#                 if width is None:
-#                     filename = "image_previews/folder{}/{}.jpg".format(folder_id, file_id)
-#                 else:
-#                     filename = "image_previews/folder{}/{}.jpg".format(folder_id, file_id)
-#                     if os.path.isfile(filename):
-#                         img = Image.open(filename)
-#                         wpercent = (int(width) / float(img.size[0]))
-#                         hsize = int((float(img.size[1]) * float(wpercent)))
-#                         img = img.resize((int(width), hsize), Image.LANCZOS)
-#                         filename = "/tmp/{}_{}.jpg".format(file_id, width)
-#                         img.save(filename, icc_profile=img.info.get('icc_profile'))
-#                     else:
-#                         filename = "static/na.jpg"
-#         if not os.path.isfile(filename):
-#             logger.info(filename)
-#             filename = "static/na.jpg"
-#     logger.debug("barcode_request: {} - {}".format(barcode, filename))
-#     try:
-#         return send_file(filename, mimetype='image/jpeg')
-#     except:
-#         return send_file("static/na.jpg", mimetype='image/jpeg')
 
 
 #####################################

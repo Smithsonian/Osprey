@@ -1,0 +1,77 @@
+"""File ID validation and static preview path helpers."""
+
+import os
+from uuid import UUID
+
+from osprey.db import run_query
+
+
+def check_file_id(file_id=None):
+    """Return (file_id, uid) or (False, False) for int or UUID file identifiers."""
+    if file_id is None:
+        return False, False
+    try:
+        file_id = int(file_id)
+        file_id_type = "int"
+    except ValueError:
+        try:
+            file_uid = UUID(file_id, version=4)
+            file_id_type = "uuid"
+        except ValueError:
+            return False, False
+    if file_id_type == "uuid":
+        rows = run_query("SELECT file_id FROM files WHERE uid = %(uid)s", {'uid': file_uid})
+        if len(rows) == 0:
+            return False, False
+        return rows[0]['file_id'], file_uid
+    rows = run_query("SELECT uid FROM files WHERE file_id = %(file_id)s", {'file_id': file_id})
+    if len(rows) == 0:
+        return False, False
+    return file_id, rows[0]['uid']
+
+
+def _preview_base_path(folder_id, file_id, transcription=False):
+    if transcription:
+        return f"image_previews/{folder_id}"
+    return f"image_previews/folder{folder_id}"
+
+
+def static_preview_path(folder_id, file_id, size="160", transcription=False):
+    """Return a static/ relative path for a sized preview, or na_{size}.png fallback."""
+    path = f"{_preview_base_path(folder_id, file_id, transcription)}/{size}/{file_id}.jpg"
+    if os.path.isfile(f"static/{path}"):
+        return path
+    if size in ("160", "200", "600", "1200"):
+        return f"na_{size}.png"
+    return "na_160.png"
+
+
+def static_fullsize_path(folder_id, file_id, transcription=False):
+    """Return the best available static path for a full-size JPG preview."""
+    base = _preview_base_path(folder_id, file_id, transcription)
+    for candidate in (
+        f"{base}/{file_id}.jpg",
+        f"{base}/600/{file_id}.jpg",
+        f"{base}/160/{file_id}.jpg",
+    ):
+        if os.path.isfile(f"static/{candidate}"):
+            return candidate
+    return static_preview_path(folder_id, file_id, size="600", transcription=transcription)
+
+
+def attach_preview_paths(file_details, file_id, transcription=False):
+    """Add preview_img_path, preview_img_path_600, and fullsize_img_path to file_details."""
+    if transcription:
+        folder_id = file_details['folder_transcription_id']
+    else:
+        folder_id = file_details['folder_id']
+    file_details['preview_img_path'] = static_preview_path(
+        folder_id, file_id, size="160", transcription=transcription
+    )
+    file_details['preview_img_path_600'] = static_preview_path(
+        folder_id, file_id, size="600", transcription=transcription
+    )
+    file_details['fullsize_img_path'] = static_fullsize_path(
+        folder_id, file_id, transcription=transcription
+    )
+    return file_details

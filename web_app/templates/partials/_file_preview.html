@@ -22,7 +22,7 @@
 
         {% if kiosk  %}
 
-            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('get_preview', file_id=file_details.file_id, max=600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
+            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('static', filename=file_details.preview_img_path_600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
 
         {% else %}
 
@@ -53,7 +53,7 @@
                             {% endif %}
                         </div>
                     {% else %}
-                        <a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}"
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
                            rel="noopener noreferrer"
                            title="Open JPG in full size of {{ file_details.file_name }}">
                             <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
@@ -61,13 +61,13 @@
                                  class="file-preview-image">
                         </a>
                         <div class="file-preview-actions">
-                            <a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}"
+                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
                                rel="noopener noreferrer"
                                title="Open JPG in full size of {{ file_details.file_name }}">
                                 <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open JPG in full size
                             </a>
                             &nbsp;·&nbsp;
-                            <a href="{{ url_for('static', filename=file_details.preview_img_path) }}"
+                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
                                rel="noopener noreferrer"
                                download
                                title="Download JPG in full size of {{ file_details.file_name }}">

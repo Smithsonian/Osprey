@@ -19,14 +19,14 @@
         </span>
       {% endif %}
       {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
-        <a href="{{ url_for('get_fullsize', file_id=file_details.file_id) }}"
+        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
            class="dashboard-fact-chip dashboard-fact-chip-link"
            title="Open JPG in full size"
            rel="noopener noreferrer">
           <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
           Full size
         </a>
-        <a href="{{ url_for('static', filename=file_details.preview_img_path) }}"
+        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
            class="dashboard-fact-chip dashboard-fact-chip-link"
            title="Download JPG"
            download
@@ -100,7 +100,7 @@
       <div class="alert alert-warning py-2 px-3 mb-0 mt-2 small" role="alert">
         <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
         This image may include sensitive contents.
-        <a href="{{ url_for('get_preview', file_id=file_details.file_id, sensitive='ok') }}"
+        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
            title="Open uncensored version of this image">View uncensored image</a>
         {% if sensitive_info != "" and sensitive_info != None %}
           <br><span class="text-muted">Staff notes:</span> {{ sensitive_info }}

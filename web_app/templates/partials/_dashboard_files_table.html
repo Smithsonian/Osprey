@@ -1,9 +1,15 @@
-{% if files_count %}
-<div class="card dashboard-files-card border-dark mb-3">
+<div id="dashboard-files-panel"
+     class="card dashboard-files-card border-dark mb-3 mt-0"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}"
+     data-check-labels='{{ file_check_labels | tojson }}'>
     <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-            <h2 class="h5 mb-0">Files in folder {{ folder_name.project_folder }}</h2>
-            <span class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
+            <h2 class="h5 mb-0">Files in folder <span id="dashboard-files-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <span id="dashboard-files-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
         </div>
         <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by check status">
             <button type="button" class="btn btn-outline-secondary active" data-files-filter="all">All</button>
@@ -12,20 +18,11 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div class="dashboard-files-table-wrap">
-            {% for table in tables %}
-                {{ table|safe }}
-            {% endfor %}
+        <div id="dashboard-files-loading" class="p-3 text-muted">Loading files…</div>
+        <div id="dashboard-files-error" class="p-3 text-danger d-none" role="alert"></div>
+        <div id="dashboard-files-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+        <div id="dashboard-files-table-wrap" class="dashboard-files-table-wrap d-none">
+            <table id="files_table" class="display table table-sm table-hover dashboard-files-table w-100"></table>
         </div>
     </div>
 </div>
-{% else %}
-<div class="card dashboard-files-card border-dark mb-3">
-    <div class="card-header dashboard-files-card-header">
-        <h2 class="h5 mb-0">Files in folder {{ folder_name.project_folder }}</h2>
-    </div>
-    <div class="card-body">
-        <p class="text-muted mb-0">No files in this folder.</p>
-    </div>
-</div>
-{% endif %}

@@ -54,6 +54,7 @@ color: #000;}
   }
 
   .osprey-navbar {
+      width: 100%;
       background-color: var(--osprey-bar-bg);
       background-image: var(--osprey-bar-gradient);
       border-bottom: 1px solid var(--osprey-bar-border);
@@ -301,7 +302,15 @@ color: #000;}
   }
 
   .dashboard-tabs {
-      margin-bottom: 1rem;
+      margin-bottom: 0.35rem;
+  }
+
+  .dashboard-tab-panel {
+      margin-top: 0.35rem;
+  }
+
+  .dashboard-qc-block {
+      margin-bottom: 0.5rem;
   }
 
   .dashboard-sidebar {
@@ -443,6 +452,25 @@ color: #000;}
       border-color: #7a4100;
   }
 
+  .dashboard-folder-filter-sub .btn-filter-qc-pending {
+      color: #664d03;
+      border: 1px solid #ffc107;
+      background-color: #fff;
+  }
+
+  .dashboard-folder-filter-sub .btn-filter-qc-pending:hover,
+  .dashboard-folder-filter-sub .btn-filter-qc-pending:focus {
+      color: #000;
+      background-color: #ffc107;
+      border-color: #ffc107;
+  }
+
+  .dashboard-folder-filter-sub .btn-filter-qc-pending.active {
+      color: #000;
+      background-color: #ffc107;
+      border-color: #ffc107;
+  }
+
   .dashboard-folder-filters .btn {
       font-size: 0.75rem;
   }
@@ -488,6 +516,39 @@ color: #000;}
       height: 40px;
       margin-bottom: 8px;
       fill: #999;
+  }
+
+  .missing-image--sm {
+      width: 80px;
+      height: 60px;
+  }
+
+  .missing-image--sm svg {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 0;
+  }
+
+  .search-files-preview {
+      max-width: 80px;
+      max-height: 80px;
+      object-fit: contain;
+  }
+
+  .statistics-chart-image {
+      border-radius: 0.25rem;
+  }
+
+  .statistics-metric-definitions dt {
+      font-weight: 600;
+  }
+
+  .statistics-metric-definitions dd {
+      margin-bottom: 0.75rem;
+  }
+
+  .statistics-metric-definitions dd:last-child {
+      margin-bottom: 0;
   }
 
   /* File detail page */
@@ -805,5 +866,70 @@ color: #000;}
 
   .dashboard-files-card .dataTables_wrapper .dataTables_info,
   .dashboard-files-card .dataTables_wrapper .dataTables_paginate {
+      padding: 0.75rem 1rem;
+  }
+
+  /* Homepage */
+  .homepage-tabs .nav-link {
+      white-space: nowrap;
+  }
+
+  .homepage-hero,
+  .homepage-intro {
+      padding: 1.25rem 1.5rem;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+  }
+
+  .homepage-featured-card {
+      overflow: hidden;
+  }
+
+  .homepage-featured-image-link {
+      background-color: #f8f9fa;
+  }
+
+  .homepage-featured-image {
+      object-fit: cover;
+      min-height: 10rem;
+  }
+
+  .homepage-table-card .card-header {
+      padding: 0.75rem 1rem;
+  }
+
+  .homepage-table-wrap {
+      padding: 0;
+  }
+
+  .homepage-table-card .homepage-project-table {
+      margin-bottom: 0;
+  }
+
+  .homepage-table-card .homepage-project-table thead th {
+      white-space: nowrap;
+      font-size: 0.875rem;
+  }
+
+  .homepage-table-card .dataTables_wrapper .dataTables_filter {
+      padding: 0.75rem 1rem 0;
+  }
+
+  .homepage-table-card .dataTables_wrapper .dataTables_filter input {
+      margin-left: 0.5rem;
+  }
+
+  .homepage-software-table img {
+      vertical-align: middle;
+  }
+
+  /* About page */
+  .about-header-card .about-logo {
+      width: 5rem;
+      height: auto;
+  }
+
+  .about-section-card .card-header {
       padding: 0.75rem 1rem;
   }

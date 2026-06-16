@@ -3,7 +3,7 @@
 {% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
 
 {% block homelink %}
-    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
+    <a class="navbar-brand navtitle" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project Dashboard">{{ project_info.project_title }}</a>
 {% endblock %}
 
 
@@ -102,6 +102,8 @@
                 {% endif %}
             </ul>
 
+        <div class="dashboard-tab-panel">
+
         {% if tab == "filechecks" %}
 
             <!-- {% if is_admin %}
@@ -127,30 +129,42 @@
 
                 {% endif %}
 
-                <br>
                     {% if qc_check %}
-                        <br>
-                        <div class="alert alert-secondary" role="alert">
+                        <div class="alert alert-secondary dashboard-qc-block py-2" role="alert">
                             <div class="row">
                                 <div class="col">
-                                    <div id="qc_accordion">
-                                        <h3>Visual Image QC Details: (click to expand)</h3>
+                                    <div class="accordion" id="qc_accordion">
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="qc_accordion_heading">
+                                                <button class="accordion-button collapsed"
+                                                        type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#qc_accordion_panel"
+                                                        aria-expanded="false"
+                                                        aria-controls="qc_accordion_panel">
+                                                    Visual Image QC Details (click to expand)
+                                                </button>
+                                            </h2>
+                                            <div id="qc_accordion_panel"
+                                                 class="accordion-collapse collapse"
+                                                 aria-labelledby="qc_accordion_heading"
+                                                 data-bs-parent="#qc_accordion">
+                                                <div class="accordion-body">
                                         {% for table in qc_details %}
-                                            <div>
-                                                {{ table|safe }}
-                                                <hr>
-                                                {% if qc_folder_info != "" %}
-                                                    <p>Notes: {{ qc_folder_info }}</p>
-                                                {% endif %}
-                                            </div>
+                                            {{ table|safe }}
+                                            <hr>
+                                            {% if qc_folder_info != "" %}
+                                                <p>Notes: {{ qc_folder_info }}</p>
+                                            {% endif %}
                                         {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    <hr>
                     {% endif %}
-                <br>
                 {% include 'partials/_dashboard_files_table.html' %}
 
 
@@ -235,6 +249,8 @@
             &nbsp;
         {% endif %}
 
+        </div>
+
         <br><p>Folder last updated on {{ fol_last_update }}.</p>
 
     {% else %}
@@ -261,17 +277,6 @@
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
 
 {% if folder_id != None %}
-
-    <!-- QC Accordion -->
-    <script>
-        $( function() {
-            $( "#qc_accordion" ).accordion({
-                active: false,
-                collapsible: true,
-                heightStyle: "content"
-            });
-        } );
-    </script>
 
     <!-- Datatables -->
     <script type="text/javascript">
@@ -319,9 +324,14 @@
                     ]
                 });
 
-                {% if files_count %}
-                OspreyDashboardFiles.init({ order: [{{ files_table_sort | safe }}] });
-                {% endif %}
+                var qcAccordionPanel = document.getElementById('qc_accordion_panel');
+                if (qcAccordionPanel) {
+                    qcAccordionPanel.addEventListener('shown.bs.collapse', function () {
+                        $('#qc_details_table').DataTable().columns.adjust().draw(false);
+                    });
+                }
+
+                OspreyDashboardFiles.loadFromPanel();
 
 
         {% elif tab == "postprod" %}

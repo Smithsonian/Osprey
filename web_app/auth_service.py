@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 #
 # Dedicated Auth Service Module for Osprey.
-# This module is responsible for all external authentication protocols (e.g., LDAP, AD).
-# The goal is to encapsulate all external credentials checks and user lookups in one place.
+# LDAP authentication is only used on internal deployments (site_net="internal").
 
 import time
-from ldap3 import Server, Connection, ALL
-from ldap3.core.exceptions import LDAPBindError
-from ldap3 import set_config_parameter
+
 from flask_login import UserMixin
 
 import settings
@@ -33,15 +30,17 @@ class AuthBaseUser(UserMixin):
 
 
 class AuthService:
-    """Service layer handling all complex user authentication and lookups."""
+    """LDAP authentication for internal Osprey deployments."""
 
     def __init__(self):
+        from ldap3 import Server, ALL
         self.server = Server(settings.ldap_server, port=636, use_ssl=True, get_info=ALL)
         self.conn = None
         self.bound = False
 
     def connect(self):
         """Establishes and returns a fresh LDAP connection (without binding)."""
+        from ldap3 import Connection
         if self.conn is None:
             self.conn = Connection(self.server, auto_bind=False)
         return self.conn
@@ -62,6 +61,9 @@ class AuthService:
         Authenticates a user against LDAP with encoding fallback (utf-8 -> latin-1).
         Returns True on success, False on failure.
         """
+        from ldap3 import Connection, set_config_parameter
+        from ldap3.core.exceptions import LDAPBindError
+
         try:
             set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
             conn = Connection(self.server, user=username, password=password, auto_bind=True)
@@ -84,5 +86,12 @@ class AuthService:
                 return False
 
 
-# Expose a simple instance for external use
-auth_service = AuthService()
+_ldap_service = None
+
+
+def get_auth_service():
+    """Return the LDAP auth service singleton (internal deployments only)."""
+    global _ldap_service
+    if _ldap_service is None:
+        _ldap_service = AuthService()
+    return _ldap_service
