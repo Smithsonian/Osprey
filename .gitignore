@@ -224,3 +224,5 @@ edan.py
 send_to_*.sh
 
 *.code-workspace
+/web_app/api/__pycache__
+/web_app/api/routes/__pycache__

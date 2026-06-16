@@ -4996,9 +4996,20 @@ def data_reports(project_alias=None, report_id=None, rendering=None):
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))
     
+    if current_user.is_authenticated:
+        user_exists = True
+        username = current_user.name
+    else:
+        user_exists = False
+        username = None
+
     # Declare the login form
-    # form = LoginForm(request.form)
-    form = None
+    form = LoginForm(request.form)
+    if settings.site_net == "internal":
+        asklogin = True
+    else:
+        asklogin = False
+    site_env_label = "Production" if site_env == "prod" else site_env.replace("_", " ").title()
 
     if project_alias is None:
         error_msg = "Project is not available."
@@ -5078,7 +5089,8 @@ def data_reports(project_alias=None, report_id=None, rendering=None):
                            data_file_e=data_file_e, report_data_updated=report_data_updated, form=form,
                            data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted, 
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           analytics_code=settings.analytics_code,
+                           username=username,asklogin=asklogin)
 
 
 #####################################
