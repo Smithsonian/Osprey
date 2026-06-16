@@ -4580,12 +4580,15 @@ def file(file_id=None):
     transcription_text = ""
 
     # IIIF
-    if os.path.isfile(f'/data/image_previews/folder{folder_info["folder_id"]}/{file_details["file_name"]}.jpg'):
-        zoom_exists = 2
-        iiif_image = f"/iiif/3/folder{folder_info['folder_id']}__{file_details['file_name']}/info.json"
+    if settings.iiif_enabled:
+        if os.path.isfile(f'{settings.iiif_path}/folder{folder_info["folder_id"]}/{file_details["file_name"]}.jpg'):
+            zoom_exists = 2
+            iiif_image = f"/iiif/3/folder{folder_info['folder_id']}__{file_details['file_name']}/info.json"
+        else:
+            iiif_image = None
     else:
         iiif_image = None
-    
+        
     return render_template('file.html',
                            zoom_exists=zoom_exists, iiif_image=iiif_image, zoom_filename=zoom_filename, folder_info=folder_info,
                            file_details=file_details, file_checks=file_checks, 
