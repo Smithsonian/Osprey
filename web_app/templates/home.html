@@ -3,86 +3,119 @@
 {% block title %}{{ html_title }}{% endblock %}
 
 {% block homelink %}
-    <span class="navbar-context">{{ team_heading }}</span>
+    <span class="navbar-context">Collections Digitization</span>
 {% endblock %}
 
 {% block content %}
 
-<div class="row g-3 align-items-start mb-2">
-    <div class="col-12">
-        <h1 class="h2 mb-0">{{ team_heading }}</h1>
-    </div>
+<div class="homepage-page">
+
+  <div class="mb-3">
+    <h1 class="h2 mb-1">{{ team_heading }}</h1>
+    <p class="text-muted small mb-0">Stats as of {{ last_update }}</p>
+  </div>
+
+  <ul class="nav nav-tabs dashboard-tabs homepage-tabs flex-wrap" role="tablist" aria-label="Select team">
+    <li class="nav-item" role="presentation">
+      <a class="nav-link {% if team == 'summary' %}active{% endif %}"
+         href="{{ url_for('homepage') }}"
+         {% if team == 'summary' %}aria-current="page"{% endif %}>
+        <i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Summary</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link {% if team == 'md' %}active{% endif %}"
+         href="{{ url_for('homepage', team='md') }}"
+         {% if team == 'md' %}aria-current="page"{% endif %}>
+        <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i> Mass Digitization</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link {% if team == 'is' %}active{% endif %}"
+         href="{{ url_for('homepage', team='is') }}"
+         {% if team == 'is' %}aria-current="page"{% endif %}>
+        <i class="fa-solid fa-camera" aria-hidden="true"></i> Imaging Services</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link {% if team == 'inf' %}active{% endif %}"
+         href="{{ url_for('homepage', team='inf') }}"
+         {% if team == 'inf' %}aria-current="page"{% endif %}>
+        <i class="fa-solid fa-laptop-code" aria-hidden="true"></i> Informatics</a>
+    </li>
+  </ul>
+
+  <div class="dashboard-tab-panel">
+
+    {% include 'partials/_homepage_stats.html' %}
+
+    {% if team == "summary" %}
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+          <h2 class="h5 mb-0">Collections Digitization</h2>
+        </div>
+        <div class="card-body">
+          <p class="lead mb-0">The <strong>Collections Digitization</strong> program of the Digitization Program Office supports Smithsonian museums in their efforts to digitize collections as comprehensively, quickly, and cost-effectively as possible by building end-to-end workflows, creating high speed, high quality digitization processes, and by pairing up the digital surrogates we create with the collections records stored in the Smithsonian's various databases.</p>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header osprey-card-header py-2">
+          <h2 class="h6 mb-0">Some of our projects</h2>
+        </div>
+        <div class="card-body">
+          {% include 'partials/_homepage_featured.html' %}
+        </div>
+      </div>
+
+    {% elif team == "md" %}
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+        </div>
+        <div class="card-body">
+          <p class="mb-0">Mass Digitization aims to digitize large museum collections efficiently without sacrificing image quality or object care. This method employs three major workflows: physical, imaging, and virtual, designed to handle objects safely, optimize capture throughputs, and automate image delivery. Guiding principles include comprehensive end-to-end processes, high-volume work for economies of scale, relentless pursuit of efficiency, and robust project management. Our innovative Item Driven Image Fidelity (IDIF) wherein we determine the optimal resolvable resolution for a project, and institution-wide infrastructure, create sustainable, repeatable results. To date, over {{ mass_digi_total }} million items have been successfully digitized.</p>
+        </div>
+      </div>
+
+      {% with table_title='Mass Digitization Projects', tables=tables_md, footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.'] %}
+        {% include 'partials/_homepage_projects_table.html' %}
+      {% endwith %}
+
+    {% elif team == "is" %}
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+        </div>
+        <div class="card-body">
+          <p class="mb-0">Imaging Services acts as a focal point in the Smithsonian Institution for photographic support. Addressing a crucial need within the Smithsonian Institution by providing digital imaging support for annually accessioned objects (referred to as "keep-up" digitization) and for small-scale collections, particularly in smaller museums and departments lacking staff photographers. These projects may be executed by the unit under the supervision and training of Imaging Services, or directly undertaken by Imaging Services' in-house imaging staff, without the involvement of external vendors.</p>
+        </div>
+      </div>
+
+      {% with table_title=is_table_title, tables=tables_is, footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.'] %}
+        {% include 'partials/_homepage_projects_table.html' %}
+      {% endwith %}
+
+    {% elif team == "inf" %}
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom">
+        </div>
+        <div class="card-body">
+          <p class="mb-0">In the Informatics team, we provide essential support for informatics projects that involve enriching or creating digital records, supported by guidance, funding, and in-kind resources from the DPO. Our approach focuses on scalability, automation, interconnectivity, innovation, machine learning, open-source software, and reusable solutions. We prioritize workflows capable of handling large volumes of records, automating tedious tasks, and establishing seamless data transfer between systems. Research into cutting-edge tools and technologies, including AI, allows us to enhance images and records. We promote transparency through open-source software and develop adaptable solutions for broader applications across projects and institutions.</p>
+        </div>
+      </div>
+
+      {% with table_title='Informatics Projects (under construction)', tables=tables_inf, footnotes=['* Value was estimated', 'Some projects may touch the same records, so the total above will be less than the sum of all projects.', 'Small projects (<em>e.g.</em> simple file edits, data transfer, small data fixes) are not included in the table above.'] %}
+        {% include 'partials/_homepage_projects_table.html' %}
+      {% endwith %}
+
+      {% with table_title='Software We Have Published', tables=tables_software %}
+        {% include 'partials/_homepage_projects_table.html' %}
+      {% endwith %}
+
+    {% endif %}
+
+  </div>
 </div>
-
-<ul class="nav nav-tabs dashboard-tabs homepage-tabs flex-wrap" role="tablist" aria-label="Select team">
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if team == 'summary' %}active{% endif %}"
-           href="{{ url_for('homepage') }}"
-           {% if team == 'summary' %}aria-current="page"{% endif %}>Summary</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if team == 'md' %}active{% endif %}"
-           href="{{ url_for('homepage', team='md') }}"
-           {% if team == 'md' %}aria-current="page"{% endif %}>Mass Digitization</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if team == 'is' %}active{% endif %}"
-           href="{{ url_for('homepage', team='is') }}"
-           {% if team == 'is' %}aria-current="page"{% endif %}>Imaging Services</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if team == 'inf' %}active{% endif %}"
-           href="{{ url_for('homepage', team='inf') }}"
-           {% if team == 'inf' %}aria-current="page"{% endif %}>Informatics</a>
-    </li>
-</ul>
-
-{% include 'partials/_homepage_stats.html' %}
-
-{% if team == "summary" %}
-
-    <div class="homepage-hero mb-4">
-        <p class="lead mb-0">The <strong>Collections Digitization</strong> program of the Digitization Program Office supports Smithsonian museums in their efforts to digitize collections as comprehensively, quickly, and cost-effectively as possible by building end-to-end workflows, creating high speed, high quality digitization processes, and by pairing up the digital surrogates we create with the collections records stored in the Smithsonian's various databases.</p>
-    </div>
-
-    <h2 class="h4 mb-3">Some of our projects</h2>
-    {% include 'partials/_homepage_featured.html' %}
-
-{% elif team == "md" %}
-
-    <div class="homepage-intro mb-4">
-        <p class="mb-0"><strong>Mass Digitization</strong> aims to digitize large museum collections efficiently without sacrificing image quality or object care. This method employs three major workflows: physical, imaging, and virtual, designed to handle objects safely, optimize capture throughputs, and automate image delivery. Guiding principles include comprehensive end-to-end processes, high-volume work for economies of scale, relentless pursuit of efficiency, and robust project management. Our innovative Item Driven Image Fidelity (IDIF) wherein we determine the optimal resolvable resolution for a project, and institution-wide infrastructure, create sustainable, repeatable results. To date, over {{ mass_digi_total }} million items have been successfully digitized.</p>
-    </div>
-
-    {% with table_title='Mass Digitization Projects', tables=tables_md, footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.'] %}
-        {% include 'partials/_homepage_projects_table.html' %}
-    {% endwith %}
-
-{% elif team == "is" %}
-
-    <div class="homepage-intro mb-4">
-        <p class="mb-0"><strong>Imaging Services</strong> acts as a focal point in the Smithsonian Institution for photographic support. Addressing a crucial need within the Smithsonian Institution by providing digital imaging support for annually accessioned objects (referred to as "keep-up" digitization) and for small-scale collections, particularly in smaller museums and departments lacking staff photographers. These projects may be executed by the unit under the supervision and training of Imaging Services, or directly undertaken by Imaging Services' in-house imaging staff, without the involvement of external vendors.</p>
-    </div>
-
-    {% with table_title=is_table_title, tables=tables_is, footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.'] %}
-        {% include 'partials/_homepage_projects_table.html' %}
-    {% endwith %}
-
-{% elif team == "inf" %}
-
-    <div class="homepage-intro mb-4">
-        <p class="mb-0">In the <strong>Informatics</strong> team, we provide essential support for informatics projects that involve enriching or creating digital records, supported by guidance, funding, and in-kind resources from the DPO. Our approach focuses on scalability, automation, interconnectivity, innovation, machine learning, open-source software, and reusable solutions. We prioritize workflows capable of handling large volumes of records, automating tedious tasks, and establishing seamless data transfer between systems. Research into cutting-edge tools and technologies, including AI, allows us to enhance images and records. We promote transparency through open-source software and develop adaptable solutions for broader applications across projects and institutions.</p>
-    </div>
-
-    {% with table_title='Informatics Projects (under construction)', tables=tables_inf, footnotes=['* Value was estimated', 'Some projects may touch the same records, so the total above will be less than the sum of all projects.', 'Small projects (<em>e.g.</em> simple file edits, data transfer, small data fixes) are not included in the table above.'] %}
-        {% include 'partials/_homepage_projects_table.html' %}
-    {% endwith %}
-
-    {% with table_title='Software We Have Published', tables=tables_software %}
-        {% include 'partials/_homepage_projects_table.html' %}
-    {% endwith %}
-
-{% endif %}
 
 {% if asklogin %}
     {% include 'partials/_login_modal.html' %}
@@ -95,7 +128,7 @@
 <script src="{{ url_for('static', filename='js/homepage.js') }}"></script>
 <script type="text/javascript">
     $(document).ready(function () {
-        OspreyHomepage.init();
+        OspreyHomepage.init({{ team | tojson }});
     });
 </script>
 {% endblock %}

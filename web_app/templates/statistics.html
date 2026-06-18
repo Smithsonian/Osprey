@@ -26,8 +26,6 @@
     </a>
   </div>
 
-  {% include 'partials/_dashboard_stats_summary.html' %}
-
   {% if project_stats_other.other_stat != "0" %}
     <div class="alert alert-warning py-2 small mb-3" title="{{ project_stats_other.other_name }} in this project">
       {{ project_stats_other.other_icon | safe }}

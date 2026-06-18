@@ -1,9 +1,14 @@
 """File ID validation and static preview path helpers."""
 
+import logging
 import os
+import tarfile
 from uuid import UUID
 
+import settings
 from osprey.db import run_query
+
+logger = logging.getLogger(__name__)
 
 
 def check_file_id(file_id=None):
@@ -75,3 +80,61 @@ def attach_preview_paths(file_details, file_id, transcription=False):
         folder_id, file_id, transcription=transcription
     )
     return file_details
+
+
+def _iiif_disk_dir(folder_id, transcription=False):
+    if transcription:
+        return str(folder_id)
+    return f"folder{folder_id}"
+
+
+def _iiif_manifest_id(folder_id, file_name, transcription=False):
+    prefix = _iiif_disk_dir(folder_id, transcription)
+    return f"{prefix}__{file_name}"
+
+
+def _ensure_dzi_tiles(preview_base, file_id):
+    """Extract DZI tile tar archive if present and not yet unpacked."""
+    dzi_path = f"static/{preview_base}/{file_id}.dzi"
+    if not os.path.isfile(dzi_path):
+        return False
+
+    tarimgfile = f"static/{preview_base}/{file_id}_files.tar"
+    imgfolder = f"static/{preview_base}/"
+    tiles_dir = f"static/{preview_base}/{file_id}_files"
+    if os.path.isfile(tarimgfile) and not os.path.isdir(tiles_dir):
+        try:
+            with tarfile.open(tarimgfile, "r") as tf:
+                tf.extractall(path=imgfolder)
+        except OSError:
+            logger.error("Couldn't open %s", tarimgfile)
+    return True
+
+
+def resolve_image_viewer(folder_id, file_id, file_name, *, transcription=False):
+    """Resolve DZI or IIIF OpenSeadragon source for a file preview.
+
+    Returns zoom_exists (0=none, 1=DZI, 2=IIIF), zoom_filename, and iiif_image.
+    """
+    preview_base = _preview_base_path(folder_id, file_id, transcription)
+    zoom_exists = 0
+    zoom_filename = None
+    iiif_image = None
+
+    if _ensure_dzi_tiles(preview_base, file_id):
+        zoom_exists = 1
+        zoom_filename = f"../../static/{preview_base}/{file_id}.dzi"
+
+    if settings.iiif_enabled:
+        iiif_dir = _iiif_disk_dir(folder_id, transcription)
+        jpg_path = f"{settings.iiif_path}/{iiif_dir}/{file_name}.jpg"
+        if os.path.isfile(jpg_path):
+            zoom_exists = 2
+            manifest_id = _iiif_manifest_id(folder_id, file_name, transcription)
+            iiif_image = f"/iiif/3/{manifest_id}/info.json"
+
+    return {
+        "zoom_exists": zoom_exists,
+        "zoom_filename": zoom_filename,
+        "iiif_image": iiif_image,
+    }

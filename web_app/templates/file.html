@@ -33,32 +33,690 @@
 {% endfor %}
 
 <div id="file-page"
-     data-prev-url="{% if file_details.prev_id %}{{ url_for('file', file_id=file_details.prev_id) }}{% endif %}"
-     data-next-url="{% if file_details.next_id %}{{ url_for('file', file_id=file_details.next_id) }}{% endif %}"
+     data-prev-url="{% if file_details.prev_id %}{{ url_for('files.file', file_id=file_details.prev_id) }}{% endif %}"
+     data-next-url="{% if file_details.next_id %}{{ url_for('files.file', file_id=file_details.next_id) }}{% endif %}"
      data-has-check-failures="{% if file_status.checks_failed > 0 %}1{% else %}0{% endif %}"
      data-has-post-failures="{% if file_status.post_failed > 0 %}1{% else %}0{% endif %}">
 
-    {% include "partials/_file_toolbar.html" %}
+    <div class="row align-items-center file-toolbar-row mb-3 g-2">
+      <div class="col file-toolbar-breadcrumb">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb file-breadcrumb mb-0">
+            <li class="breadcrumb-item">
+              <a href="{{ url_for('dashboard', project_alias=project_alias) }}">{{ project_alias }}</a>
+            </li>
+            <li class="breadcrumb-item">
+              <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_info.folder_id) }}">
+                Folder {{ folder_info.project_folder }}
+              </a>
+            </li>
+            <li class="breadcrumb-item active text-truncate file-breadcrumb-filename" aria-current="page" title="{{ file_details.file_name }}">
+              {{ file_details.file_name }}
+            </li>
+          </ol>
+        </nav>
+      </div>
+
+      <div class="col-auto text-end file-toolbar-nav">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Browse files in alphabetical order">
+          {% if file_details.prev_id %}
+            <a class="btn btn-outline-primary"
+               href="{{ url_for('files.file', file_id=file_details.prev_id) }}"
+               title="Previous file">
+              <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+              <span class="d-none d-sm-inline"> Prev</span>
+            </a>
+          {% else %}
+            <span class="btn btn-outline-primary disabled" aria-disabled="true">
+              <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+              <span class="d-none d-sm-inline"> Prev</span>
+            </span>
+          {% endif %}
+          {% if file_details.next_id %}
+            <a class="btn btn-outline-primary"
+               href="{{ url_for('files.file', file_id=file_details.next_id) }}"
+               title="Next file">
+              <span class="d-none d-sm-inline">Next </span>
+              <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </a>
+          {% else %}
+            <span class="btn btn-outline-primary disabled" aria-disabled="true">
+              <span class="d-none d-sm-inline">Next </span>
+              <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </span>
+          {% endif %}
+        </div>
+        <div class="file-nav-hint">Alphabetical order</div>
+      </div>
+    </div>
 
     <div class="row file-hero g-3 mb-3">
         {% if site_net == "internal" or file_details.preview_image_ext != None %}
             <div class="col-lg-8 file-hero-preview">
-                {% include "partials/_file_preview.html" %}
+                {% if site_net == "internal" %}
+
+                    <div class="card file-preview-card h-100">
+                        <div class="card-header bg-dark text-white py-2">
+                            <h2 class="h6 mb-0">Image Preview</h2>
+                        </div>
+                        <div class="card-body">
+
+                        {% if username != "" and transcription == 0 %}
+                            <div class="alert alert-warning file-sensitive-form mb-3" role="region" aria-label="Flag sensitive content">
+                                <p class="mb-2 small">If this image contains potentially sensitive or offensive material, enter details below:</p>
+                                <form action="{{ url_for('files.update_image') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end">
+                                    <input type="hidden" id="file_id" name="file_id" value="{{ file_details.file_id }}">
+                                    <div class="flex-grow-1">
+                                        <label for="sensitive_info" class="form-label visually-hidden">Reason for sensitive flag</label>
+                                        <input type="text" class="form-control form-control-sm" id="sensitive_info" name="sensitive_info" placeholder="Enter reason">
+                                    </div>
+                                    <button type="submit" class="btn btn-warning btn-sm">Submit</button>
+                                </form>
+                            </div>
+                        {% endif %}
+
+                        {% if kiosk  %}
+
+                            <img src="{% if file_details.preview_image_ext == None %}{{ url_for('static', filename=file_details.preview_img_path_600) }}{% else %}{{ file_details.preview_image_ext }}&max=600{% endif %}" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
+
+                        {% else %}
+
+                            {% if zoom_exists > 0 %}
+                                {% if transcription == 1 %}
+                                    <div id="openseadragon" class="file-openseadragon file-openseadragon--tall" role="img" aria-label="Preview image of {{ file_details.file_name }}"></div>
+                                {% else %}
+                                    <div id="openseadragon" class="file-openseadragon" role="img" aria-label="Preview image of {{ file_details.file_name }}"></div>
+                                {% endif %}
+                            {% else %}
+
+                                {% if file_details.preview_image_ext == None %}
+
+                                    {% if file_details.preview_img_path == "na_160.png" %}
+
+                                        <div class="missing-image">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                            <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="alert alert-info mt-3 mb-0" role="alert">
+                                            {% if folder_info.delivered_to_dams == 0 %}
+                                                <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been delivered to DAMS. Please contact the Project Manager for more details.
+                                            {% elif file_details.datediff > 59 %}
+                                                <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been removed. Please contact the Project Manager for more details.
+                                            {% else %}
+                                                <i class="fa-solid fa-circle-info"></i> The preview is not available because the record was created recently. It might take up to a few hours for the images to be available. Please contact the Project Manager for more details.
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                           rel="noopener noreferrer"
+                                           title="Open JPG in full size of {{ file_details.file_name }}">
+                                            <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
+                                                 alt="Preview image of {{ file_details.file_name }}"
+                                                 class="file-preview-image">
+                                        </a>
+                                        <div class="file-preview-actions">
+                                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                               rel="noopener noreferrer"
+                                               title="Open JPG in full size of {{ file_details.file_name }}">
+                                                <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open JPG in full size
+                                            </a>
+                                            &nbsp;·&nbsp;
+                                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                               rel="noopener noreferrer"
+                                               download
+                                               title="Download JPG in full size of {{ file_details.file_name }}">
+                                                <i class="fa-solid fa-download" aria-hidden="true"></i> Download JPG
+                                            </a>
+                                        </div>
+                                    {% endif %}
+
+                                {% else %}
+
+                                    <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
+
+                                {% endif %}
+
+                            {% endif %}
+
+                        {% endif %}
+
+                        </div>
+                    </div>
+
+                {% elif file_details.preview_image_ext != None %}
+
+                    <div class="card file-preview-card h-100">
+                        <div class="card-header bg-dark text-white py-2">
+                            <h2 class="h6 mb-0">Image Preview</h2>
+                        </div>
+                        <div class="card-body">
+                            <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
+                        </div>
+                    </div>
+
+                {% endif %}
             </div>
             <div class="col-lg-4 file-hero-summary">
-                {% include "partials/_file_summary.html" %}
+                <div class="card border-0 shadow-sm file-summary-card h-100">
+                  <div class="card-body py-3">
+                    <h2 class="file-summary-filename mb-2" title="{{ file_details.file_name }}">{{ file_details.file_name }}</h2>
+
+                    <div class="dashboard-fact-chips mb-2" role="list" aria-label="File details">
+                      <span class="dashboard-fact-chip" role="listitem" title="DPO File ID">
+                        <i class="fa-solid fa-hashtag fa-fw" aria-hidden="true"></i>
+                        <span class="dashboard-fact-chip-label">ID:</span>
+                        {{ file_details.file_id }}
+                      </span>
+                      <span class="dashboard-fact-chip" role="listitem" title="Record created">
+                        <i class="fa-solid fa-calendar fa-fw" aria-hidden="true"></i>
+                        {{ file_details.created_at }}
+                      </span>
+                      {% if file_details.dams_uan %}
+                        <span class="dashboard-fact-chip" role="listitem" title="DAMS UAN">
+                          <i class="fa-solid fa-barcode fa-fw" aria-hidden="true"></i>
+                          {{ file_details.dams_uan }}
+                        </span>
+                      {% endif %}
+                      {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           class="dashboard-fact-chip dashboard-fact-chip-link"
+                           title="Open JPG in full size"
+                           rel="noopener noreferrer">
+                          <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
+                          Full size
+                        </a>
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           class="dashboard-fact-chip dashboard-fact-chip-link"
+                           title="Download JPG"
+                           download
+                           rel="noopener noreferrer">
+                          <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
+                          Download
+                        </a>
+                      {% endif %}
+                    </div>
+
+                    {% if file_checks|length > 0 or file_postprocessing|length > 0 %}
+                      <div class="dashboard-fact-chips" role="list" aria-label="File status">
+                        {% if file_status.checks_ok > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View checks">
+                            <i class="fa-solid fa-circle-check fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_ok }} check{{ 's' if file_status.checks_ok != 1 else '' }} OK
+                          </button>
+                        {% endif %}
+                        {% if file_status.checks_failed > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View failed checks">
+                            <i class="fa-solid fa-circle-xmark fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_failed }} check{{ 's' if file_status.checks_failed != 1 else '' }} failed
+                          </button>
+                        {% endif %}
+                        {% if file_status.checks_pending > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View pending checks">
+                            <i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_pending }} check{{ 's' if file_status.checks_pending != 1 else '' }} pending
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_ok > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View post-processing">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_ok }} step{{ 's' if file_status.post_ok != 1 else '' }} completed
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_failed > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View failed steps">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_failed }} step{{ 's' if file_status.post_failed != 1 else '' }} failed
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_pending > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View pending steps">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_pending }} step{{ 's' if file_status.post_pending != 1 else '' }} pending
+                          </button>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+
+                    {% if file_sensitive == "1" %}
+                      <div class="alert alert-warning py-2 px-3 mb-0 mt-2 small" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        This image may include sensitive contents.
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           title="Open uncensored version of this image">View uncensored image</a>
+                        {% if sensitive_info != "" and sensitive_info != None %}
+                          <br><span class="text-muted">Staff notes:</span> {{ sensitive_info }}
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
             </div>
         {% else %}
             <div class="col-12 file-hero-summary">
-                {% include "partials/_file_summary.html" %}
+                <div class="card border-0 shadow-sm file-summary-card h-100">
+                  <div class="card-body py-3">
+                    <h2 class="file-summary-filename mb-2" title="{{ file_details.file_name }}">{{ file_details.file_name }}</h2>
+
+                    <div class="dashboard-fact-chips mb-2" role="list" aria-label="File details">
+                      <span class="dashboard-fact-chip" role="listitem" title="DPO File ID">
+                        <i class="fa-solid fa-hashtag fa-fw" aria-hidden="true"></i>
+                        <span class="dashboard-fact-chip-label">ID:</span>
+                        {{ file_details.file_id }}
+                      </span>
+                      <span class="dashboard-fact-chip" role="listitem" title="Record created">
+                        <i class="fa-solid fa-calendar fa-fw" aria-hidden="true"></i>
+                        {{ file_details.created_at }}
+                      </span>
+                      {% if file_details.dams_uan %}
+                        <span class="dashboard-fact-chip" role="listitem" title="DAMS UAN">
+                          <i class="fa-solid fa-barcode fa-fw" aria-hidden="true"></i>
+                          {{ file_details.dams_uan }}
+                        </span>
+                      {% endif %}
+                      {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           class="dashboard-fact-chip dashboard-fact-chip-link"
+                           title="Open JPG in full size"
+                           rel="noopener noreferrer">
+                          <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
+                          Full size
+                        </a>
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           class="dashboard-fact-chip dashboard-fact-chip-link"
+                           title="Download JPG"
+                           download
+                           rel="noopener noreferrer">
+                          <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
+                          Download
+                        </a>
+                      {% endif %}
+                    </div>
+
+                    {% if file_checks|length > 0 or file_postprocessing|length > 0 %}
+                      <div class="dashboard-fact-chips" role="list" aria-label="File status">
+                        {% if file_status.checks_ok > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View checks">
+                            <i class="fa-solid fa-circle-check fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_ok }} check{{ 's' if file_status.checks_ok != 1 else '' }} OK
+                          </button>
+                        {% endif %}
+                        {% if file_status.checks_failed > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View failed checks">
+                            <i class="fa-solid fa-circle-xmark fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_failed }} check{{ 's' if file_status.checks_failed != 1 else '' }} failed
+                          </button>
+                        {% endif %}
+                        {% if file_status.checks_pending > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                                  data-file-tab="checks"
+                                  title="View pending checks">
+                            <i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>
+                            {{ file_status.checks_pending }} check{{ 's' if file_status.checks_pending != 1 else '' }} pending
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_ok > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-ok file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View post-processing">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_ok }} step{{ 's' if file_status.post_ok != 1 else '' }} completed
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_failed > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-failed file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View failed steps">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_failed }} step{{ 's' if file_status.post_failed != 1 else '' }} failed
+                          </button>
+                        {% endif %}
+                        {% if file_status.post_pending > 0 %}
+                          <button type="button"
+                                  class="dashboard-fact-chip file-status-chip-pending file-status-chip-btn border-0"
+                                  data-file-tab="post"
+                                  title="View pending steps">
+                            <i class="fa-solid fa-gears fa-fw" aria-hidden="true"></i>
+                            {{ file_status.post_pending }} step{{ 's' if file_status.post_pending != 1 else '' }} pending
+                          </button>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+
+                    {% if file_sensitive == "1" %}
+                      <div class="alert alert-warning py-2 px-3 mb-0 mt-2 small" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        This image may include sensitive contents.
+                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                           title="Open uncensored version of this image">View uncensored image</a>
+                        {% if sensitive_info != "" and sensitive_info != None %}
+                          <br><span class="text-muted">Staff notes:</span> {{ sensitive_info }}
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
             </div>
         {% endif %}
     </div>
 
-    {% include "partials/_file_transcriptions.html" %}
+    {% if transcription == 1 and transcription_text|length > 0 %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <h3 class="h5">Transcriptions</h3>
+            {% for t_text in transcription_text %}
+                <div class="card mb-3">
+                    <h4 class="card-header text-white bg-primary h6 mb-0">{{ t_text.transcription_source }}</h4>
+                    <div class="card-body">
+                        <pre class="file-transcription-text mb-0">{{ t_text.transcription_text | safe }}</pre>
+                    </div>
+                    {% if t_text.transcription_notes %}
+                        <div class="card-footer">
+                            <p class="small mb-0">{{ t_text.transcription_notes }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
-    {% include "partials/_file_details_tabs.html" %}
-    {% include "partials/_file_modals.html" %}
+    <div class="card border-0 shadow-sm file-details-panel" id="file-details-panel">
+      <ul class="nav nav-tabs file-details-tabs px-2 pt-2" role="tablist" aria-label="File details">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active"
+                  id="file-tab-checks-btn"
+                  data-bs-toggle="tab"
+                  data-bs-target="#file-tab-checks"
+                  type="button"
+                  role="tab"
+                  aria-controls="file-tab-checks"
+                  aria-selected="true">
+            Checks
+            {% if file_checks|length > 0 %}
+              <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_checks|length }}</span>
+            {% endif %}
+            {% if file_status.checks_failed > 0 %}
+              <span class="badge rounded-pill text-bg-danger ms-1">{{ file_status.checks_failed }}</span>
+            {% endif %}
+          </button>
+        </li>
+        {% if file_postprocessing|length > 0 %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="file-tab-post-btn"
+                    data-bs-toggle="tab"
+                    data-bs-target="#file-tab-post"
+                    type="button"
+                    role="tab"
+                    aria-controls="file-tab-post"
+                    aria-selected="false">
+              Post-processing
+              {% if file_status.post_failed > 0 %}
+                <span class="badge rounded-pill text-bg-danger ms-1">{{ file_status.post_failed }}</span>
+              {% endif %}
+            </button>
+          </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link"
+                  id="file-tab-metadata-btn"
+                  data-bs-toggle="tab"
+                  data-bs-target="#file-tab-metadata"
+                  type="button"
+                  role="tab"
+                  aria-controls="file-tab-metadata"
+                  aria-selected="false">
+            Metadata
+            {% if file_metadata_rows > 0 %}
+              <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_metadata_rows }}</span>
+            {% endif %}
+          </button>
+        </li>
+        {% if file_links|length > 0 %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="file-tab-links-btn"
+                    data-bs-toggle="tab"
+                    data-bs-target="#file-tab-links"
+                    type="button"
+                    role="tab"
+                    aria-controls="file-tab-links"
+                    aria-selected="false">
+              Links
+              <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_links|length }}</span>
+            </button>
+          </li>
+        {% endif %}
+      </ul>
+
+      <div class="tab-content file-details-tab-content p-3">
+        <div class="tab-pane fade show active"
+             id="file-tab-checks"
+             role="tabpanel"
+             aria-labelledby="file-tab-checks-btn"
+             tabindex="0">
+          {% if file_checks|length > 0 %}
+            {% set check_descriptions = {
+              'tif_compression': 'TIF file is compressed using the lossless compression LZW.',
+              'tifpages': 'Check that there are no more than 1 page in the TIF, usually a thumbnail.',
+              'magick': 'File is valid according to ImageMagick.',
+              'jhove': 'File is valid according to JHOVE (JSTOR/Harvard Object Validation Environment).',
+              'unique_file': 'Filename is unique in the project.',
+              'raw_pair': 'Raw file was found for the image.',
+              'valid_name': 'Filename is in the list of allowed names.',
+              'old_name': 'Filename was not found in list outside the project.',
+              'derivative': 'Derivative file is present.',
+              'prefix': 'Filename has the correct prefix.',
+              'sequence': 'File sequence is correct.',
+              'tesseract': 'Text orientation and OCR with Tesseract.'
+            } %}
+
+            <div class="table-responsive">
+              <table class="table table-sm table-hover file-checks-table mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col">Check</th>
+                    <th scope="col" class="text-end">Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for check in file_checks %}
+                    <tr class="{% if check.check_results == 1 %}file-check-row-failed{% endif %}"
+                        id="check-{{ check.file_check }}">
+                      <td>
+                        <span class="file-check-name">{{ check.file_check }}</span>
+                        {% set desc = check_descriptions[check.file_check] if check.file_check in check_descriptions else ('Checks for ' ~ check.file_check ~ '.') %}
+                        <button type="button"
+                                class="btn btn-link btn-sm file-check-help p-0 ms-1"
+                                title="{{ desc }}"
+                                aria-label="About {{ check.file_check }} check">
+                          <i class="fa-solid fa-circle-info text-muted" aria-hidden="true"></i>
+                        </button>
+                      </td>
+                      <td class="text-end text-nowrap">
+                        {% if check.check_results == 0 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--ok"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#checkmodal"
+                                  data-bs-info="{{ check.check_info }}">OK</button>
+                        {% elif check.check_results == 1 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--failed"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#checkmodal"
+                                  data-bs-info="{{ check.check_info }}">Failed</button>
+                        {% elif check.check_results == 9 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--pending"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#checkmodal"
+                                  data-bs-info="{{ check.check_info }}">Pending</button>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">No technical checks recorded for this file.</p>
+          {% endif %}
+        </div>
+
+        {% if file_postprocessing|length > 0 %}
+          <div class="tab-pane fade"
+               id="file-tab-post"
+               role="tabpanel"
+               aria-labelledby="file-tab-post-btn"
+               tabindex="0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover file-checks-table mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col">Step</th>
+                    <th scope="col" class="text-end">Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for step in file_postprocessing %}
+                    <tr class="{% if step.post_results == 1 %}file-check-row-failed{% endif %}"
+                        id="post-{{ step.post_step }}">
+                      <td><span class="file-check-name">{{ step.post_step }}</span></td>
+                      <td class="text-end text-nowrap">
+                        {% if step.post_results == 0 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--ok"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#postmodal"
+                                  data-bs-info2="{{ step.post_info }}">Completed</button>
+                        {% elif step.post_results == 1 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--failed"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#postmodal"
+                                  data-bs-info2="{{ step.post_info }}">Failed</button>
+                        {% elif step.post_results == 9 %}
+                          <button type="button"
+                                  class="file-result-badge file-result-badge--pending"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#postmodal"
+                                  data-bs-info2="{{ step.post_info }}">Pending</button>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="tab-pane fade"
+             id="file-tab-metadata"
+             role="tabpanel"
+             aria-labelledby="file-tab-metadata-btn"
+             tabindex="0">
+          <div class="file-metadata-wrap">
+            {% if file_metadata_rows > 0 %}
+              {% for table in tables %}
+                {{ table|safe }}
+              {% endfor %}
+              <p class="small text-muted mt-3 mb-0">
+                Note: This data was extracted with <em>exiftool</em>, which may not match the data in other software.
+                Contact the DPO project manager for any issues or discrepancies.
+              </p>
+            {% else %}
+              <p class="text-muted mb-0">Image metadata is not available.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if file_links|length > 0 %}
+          <div class="tab-pane fade"
+               id="file-tab-links"
+               role="tabpanel"
+               aria-labelledby="file-tab-links-btn"
+               tabindex="0">
+            <div class="list-group">
+              {% for link in file_links %}
+                <a href="{{ link.link_url }}"
+                   title="{{ link.link_aria }}"
+                   class="list-group-item list-group-item-action"
+                   {% if link.link_url[0:4] == 'http' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                  {{ link.link_name | safe }}
+                  {% if link.link_url[0:4] == 'http' %}
+                    <i class="fa-solid fa-arrow-up-right-from-square fa-xs float-end text-muted" aria-hidden="true"></i>
+                  {% endif %}
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="checkmodalLabel">Check Details</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="file-modal-pre mb-0"></pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="postmodal" tabindex="-1" aria-labelledby="postmodalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="postmodalLabel">Postprocessing Details</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="file-modal-pre mb-0"></pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
 </div>
 
@@ -69,36 +727,8 @@
 
     <script src="{{ url_for('static', filename='js/file.js') }}"></script>
 
-    {% if zoom_exists == 1 %}
-        <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.0/build/openseadragon/openseadragon.min.js" integrity="sha384-vI4FY0yb/Qw4CsGAJtqN5pc7ZMdLqt+Qg1JmrkifgV6jLXCUh4fCDm/ciC/R/+Ud" crossorigin="anonymous"></script>
-        <script type="text/javascript">
-            var viewer = OpenSeadragon({
-                id: "openseadragon",
-                prefixUrl: "{{ url_for('static', filename='images/') }}",
-                tileSources: "{{ zoom_filename }}",
-                timeout: 60000,
-                tileRetryMax: 2,
-                preload: true,
-                constrainDuringPan: true,
-                showRotationControl: true,
-                showNavigator: true,
-                maxZoomPixelRatio: 1
-            });
-        </script>
-    {% elif zoom_exists == 2 %}
-        <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.0/build/openseadragon/openseadragon.min.js" integrity="sha384-vI4FY0yb/Qw4CsGAJtqN5pc7ZMdLqt+Qg1JmrkifgV6jLXCUh4fCDm/ciC/R/+Ud" crossorigin="anonymous"></script>
-        <script type="text/javascript">
-            const viewer = OpenSeadragon({
-                element: document.getElementById('openseadragon'),
-                tileSources: "{{ iiif_image }}",
-                prefixUrl: "{{ url_for('static', filename='images/') }}",
-                preload: true,
-                constrainDuringPan: true,
-                showRotationControl: true,
-                showNavigator: true,
-                maxZoomPixelRatio: 1
-            });
-        </script>
-    {% endif %}
+    {% with prefix_url=url_for('static', filename='images/') %}
+        {% include 'partials/_openseadragon_init.html' %}
+    {% endwith %}
 
 {% endblock %}

@@ -3,6 +3,7 @@
 from flask import current_app, jsonify
 
 from cache import cache
+from logger import api_logger as logger
 
 from api import api_bp
 from api.config import config
@@ -12,6 +13,7 @@ from api.config import config
 @api_bp.route('/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_route_list():
     """Print available routes in JSON"""
+    logger.info("api_route_list called")
     func_list = {}
     for rule in current_app.url_map.iter_rules():
         if not rule.rule.startswith('/api'):

@@ -19,12 +19,18 @@ class AuthBaseUser(UserMixin):
         self.full_name = full_name
         self.active = active
 
+    def get_id(self):
+        return self.name
+
+    @property
     def is_active(self):
         return self.active
 
+    @property
     def is_anonymous(self):
         return False
 
+    @property
     def is_authenticated(self):
         return True
 

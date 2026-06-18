@@ -330,8 +330,9 @@
         }
 
         function onFolderNavigate(event, href, folderId) {
-            var filesPanel = document.getElementById('dashboard-files-panel');
-            if (!filesPanel || !window.OspreyDashboardFiles) {
+            var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
+            var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
+            if (!hasFilesLoader && !hasLightboxLoader) {
                 return;
             }
             event.preventDefault();
@@ -339,7 +340,12 @@
             if (window.history && window.history.pushState) {
                 window.history.pushState({ folderId: folderId }, '', href);
             }
-            window.OspreyDashboardFiles.loadForFolder(folderId);
+            if (hasFilesLoader) {
+                window.OspreyDashboardFiles.loadForFolder(folderId);
+            }
+            if (hasLightboxLoader) {
+                window.OspreyDashboardLightbox.loadForFolder(folderId);
+            }
         }
 
         var folderNavBound = false;
@@ -419,15 +425,21 @@
                 if (!this.value) {
                     return;
                 }
-                var filesPanel = document.getElementById('dashboard-files-panel');
-                if (filesPanel && window.OspreyDashboardFiles) {
+                var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
+                var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
+                if (hasFilesLoader || hasLightboxLoader) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
                         updateSelectedFolder(match[1]);
                         if (window.history && window.history.pushState) {
                             window.history.pushState({ folderId: match[1] }, '', this.value);
                         }
-                        window.OspreyDashboardFiles.loadForFolder(match[1]);
+                        if (hasFilesLoader) {
+                            window.OspreyDashboardFiles.loadForFolder(match[1]);
+                        }
+                        if (hasLightboxLoader) {
+                            window.OspreyDashboardLightbox.loadForFolder(match[1]);
+                        }
                         return;
                     }
                 }

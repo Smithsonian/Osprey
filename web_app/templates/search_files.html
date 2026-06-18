@@ -17,7 +17,7 @@
 {% block content %}
 
 <div class="search-files-page">
-    <form action="{{ url_for('search_files', project_alias=project_alias) }}" method="GET" class="mb-4">
+    <form action="{{ url_for('files.search_files', project_alias=project_alias) }}" method="GET" class="mb-4">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-lg">
                 <label for="search_files_q" class="form-label h4 mb-1">Search files</label>
@@ -60,7 +60,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item {% if not has_prev %}disabled{% endif %}">
                         <a class="page-link"
-                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}"
+                           href="{{ url_for('files.search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}"
                            {% if not has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
                     </li>
                     <li class="page-item active" aria-current="page">
@@ -68,7 +68,7 @@
                     </li>
                     <li class="page-item {% if not has_next %}disabled{% endif %}">
                         <a class="page-link"
-                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}"
+                           href="{{ url_for('files.search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}"
                            {% if not has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
                     </li>
                 </ul>
@@ -89,7 +89,7 @@
                             {% for file in results %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}"
+                                    <a href="{{ url_for('files.file_transcription', file_id=file.file_transcription_id) }}"
                                        title="Open {{ file.file_name }}">
                                         {% if file.preview_img_path == "na_160.png" %}
                                         <div class="missing-image missing-image--sm" aria-hidden="true">
@@ -105,7 +105,7 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a>
+                                    <a href="{{ url_for('files.file_transcription', file_id=file.file_transcription_id) }}">{{ file.file_name }}</a>
                                 </td>
                                 <td>
                                     <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_transcription_id) }}">{{ file.folder }}</a>
@@ -116,7 +116,7 @@
                             {% for file in results %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('file', file_id=file.file_id) }}"
+                                    <a href="{{ url_for('files.file', file_id=file.file_id) }}"
                                        title="Open {{ file.file_name }}">
                                         {% if file.preview_img_path == "na_160.png" %}
                                         <div class="missing-image missing-image--sm" aria-hidden="true">
@@ -132,7 +132,7 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('file', file_id=file.file_id) }}">{{ file.file_name }}</a>
+                                    <a href="{{ url_for('files.file', file_id=file.file_id) }}">{{ file.file_name }}</a>
                                 </td>
                                 <td>
                                     <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=file.folder_id) }}">{{ file.project_folder }}</a>
@@ -149,14 +149,14 @@
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item {% if not has_prev %}disabled{% endif %}">
                         <a class="page-link"
-                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}">Previous</a>
+                           href="{{ url_for('files.search_files', project_alias=project_alias, q=q, page=page - 1) if has_prev else '#' }}">Previous</a>
                     </li>
                     <li class="page-item active" aria-current="page">
                         <span class="page-link">Page {{ page + 1 }}</span>
                     </li>
                     <li class="page-item {% if not has_next %}disabled{% endif %}">
                         <a class="page-link"
-                           href="{{ url_for('search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}">Next</a>
+                           href="{{ url_for('files.search_files', project_alias=project_alias, q=q, page=page + 1) if has_next else '#' }}">Next</a>
                     </li>
                 </ul>
             </nav>

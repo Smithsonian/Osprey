@@ -28,12 +28,16 @@
             <p class="card-text flex-grow-1">{{ project.body|safe }}</p>
             {% if project.link_type == 'dashboard' %}
             <a href="{{ url_for('dashboard', project_alias=project.project_alias) }}"
-               class="btn btn-sm btn-outline-primary align-self-start"
-               title="{{ project.link_title }}">{{ project.link_label }}</a>
+               class="btn btn-osprey btn-sm align-self-start"
+               title="{{ project.link_title }}">
+              <i class="fa-solid fa-gauge-high" aria-hidden="true"></i> {{ project.link_label }}
+            </a>
             {% else %}
             <a href="{{ url_for('homepage', team=project.homepage_team, subset=project.homepage_subset) }}"
-               class="btn btn-sm btn-outline-primary align-self-start"
-               title="{{ project.link_title }}">{{ project.link_label }}</a>
+               class="btn btn-osprey btn-sm align-self-start"
+               title="{{ project.link_title }}">
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i> {{ project.link_label }}
+            </a>
             {% endif %}
           </div>
         </div>

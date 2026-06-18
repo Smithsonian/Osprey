@@ -3,7 +3,7 @@
     <div class="small text-muted mb-1">Data reports</div>
     <div class="dashboard-fact-chips" role="list" aria-label="Data reports">
       {% for report in reports %}
-        <a href="{{ url_for('data_reports', project_alias=project_alias, report_id=report.report_id, rendering=False) }}"
+        <a href="{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id, rendering=False) }}"
            role="listitem"
            class="dashboard-fact-chip dashboard-fact-chip-link dashboard-report-chip"
            title="{{ report.report_title }}">

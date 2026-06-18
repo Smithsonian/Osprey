@@ -1,0 +1,24 @@
+<div id="dashboard-lightbox-panel"
+     class="dashboard-lightbox-panel"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+    <div id="dashboard-lightbox-loading" class="p-3 text-muted">Loading previews…</div>
+    <div id="dashboard-lightbox-error" class="p-3 text-danger d-none" role="alert"></div>
+    <div id="dashboard-lightbox-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+    <div id="dashboard-lightbox-content" class="d-none">
+        <div class="row">
+            <div class="col">
+                <p><small><em>Sorted by file_name</em></small></p>
+            </div>
+            <div class="col">
+                <nav id="dashboard-lightbox-pagination-top" aria-label="pages"></nav>
+            </div>
+        </div>
+        <div id="lightbox-grid" class="dashboard-lightbox-grid"></div>
+        <br>
+        <nav id="dashboard-lightbox-pagination-bottom" aria-label="pages"></nav>
+    </div>
+</div>

@@ -2,7 +2,7 @@
 
 import uuid
 
-from logger import logger
+from logger import api_logger as logger
 from osprey.db import query_database_insert, run_query
 from osprey.files import check_file_id
 

@@ -5,7 +5,7 @@ from flask import jsonify, request
 
 from api import api_bp
 from api.auth import validate_api_key
-from logger import logger
+from logger import api_logger as logger
 from osprey.services import folder_details as folder_service
 
 

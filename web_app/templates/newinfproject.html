@@ -3,7 +3,7 @@
 {% block title %}DPO Collection Digitization Dashboard{% endblock %}
 
 {% block homelink %}
-    <a class="navbar-context" href="{{ url_for('infprojects') }}" title="Informatics projects">Informatics projects</a>
+    <a class="navbar-context" href="{{ url_for('projects.infprojects') }}" title="Informatics projects">Informatics projects</a>
 {% endblock %}
 
 
@@ -23,7 +23,7 @@
         <div class="col-8">
             <h2>New Informatics Project:</h2>
                         
-                <form action="{{ url_for('edit_inf_proj') }}" method="POST">
+                <form action="{{ url_for('projects.edit_inf_proj') }}" method="POST">
                     <input type="hidden" name="proj_edit" id="proj_edit" value="0">
                     <table class="table">
                         <tbody class="table-striped">

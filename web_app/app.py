@@ -10,7 +10,6 @@ from flask import request
 from flask import jsonify
 from flask import redirect
 from flask import url_for
-from flask import send_file
 from flask import Response
 from flask import send_from_directory
 
@@ -22,36 +21,23 @@ import os
 import locale
 import math
 import pandas as pd
-import numpy as np
-import io
-from datetime import datetime
 from uuid import UUID
-from pathlib import Path
 from time import strftime
 from time import localtime
-import glob
 import random
-from plotnine import ggplot
-from plotnine import aes
-from plotnine import geom_bar
 from auth_service import AuthBaseUser, get_auth_service
 import tarfile
 import subprocess
 
 # MySQL — shared connection pool
-from osprey.db import executemany, init_db, query_database_insert, run_query
-from osprey.files import attach_preview_paths, check_file_id
+from osprey.db import init_db, query_database_insert, run_query
+from osprey.files import resolve_image_viewer
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
-
-from flask_wtf import FlaskForm
-from wtforms import StringField
-from wtforms import PasswordField
-from wtforms.validators import DataRequired
 
 import settings
 
@@ -102,6 +88,16 @@ cache.init_app(app)
 # API Blueprint (Worker + JSON endpoints at /api/*)
 from api import api_bp
 app.register_blueprint(api_bp, url_prefix='/api')
+
+# Web Blueprints
+from web.reports import reports_bp
+from web.invoices import invoices_bp
+from web.files import files_bp
+from web.projects import projects_bp
+app.register_blueprint(reports_bp)
+app.register_blueprint(invoices_bp)
+app.register_blueprint(files_bp)
+app.register_blueprint(projects_bp)
 
 # Shared database pool
 try:
@@ -286,43 +282,8 @@ def files_table_html(df):
         classes=FILES_TABLE_HTML_CLASSES)
 
 
-def check_file_id_transcription(file_id=None):
-    if file_id is None:
-        return False
-    else:
-        try:
-            file_uid = UUID(file_id, version=4)
-        except ValueError:
-            return False
-    file_id = run_query("SELECT file_transcription_id as file_id FROM transcription_files WHERE file_transcription_id = %(uid)s", {'uid': str(file_uid)})
-    if len(file_id) == 0:
-        return False
-    else:
-        return file_id[0]['file_id']
-    
-
-@cache.memoize()
-def user_perms(project_id, user_type='user'):
-    try:
-        user_name = current_user.name
-    except:
-        return False
-    val = False
-    if user_type == 'user':
-        query = ("SELECT COUNT(*) as is_user FROM qc_projects p, users u "
-                 " WHERE p.user_id = u.user_id AND p.project_id = %(project_id)s AND u.username = %(user_name)s")
-        is_user = run_query(query, {'project_id': project_id, 'user_name': user_name})
-        val = is_user[0]['is_user'] == 1
-    if user_type == 'admin':
-        query = "SELECT is_admin FROM users WHERE username = %(user_name)s"
-        is_admin = run_query(query, {'user_name': user_name})
-        val = is_admin[0]['is_admin'] == 1
-    return val
-
-
-class LoginForm(FlaskForm):
-    username = StringField(u'Username', validators=[DataRequired()])
-    password = PasswordField(u'Password', validators=[DataRequired()])
+from osprey.services.permissions import kiosk_mode, user_perms
+from web.forms import LoginForm
 
 
 login_manager = LoginManager()
@@ -340,16 +301,6 @@ def load_user(username):
         return AuthBaseUser(u[0]['username'], u[0]['user_id'], u[0]['full_name'], u[0]['user_active'])
     else:
         return AuthBaseUser(None, None, None, False)
-
-
-@cache.memoize()
-def kiosk_mode(request, kiosks):
-    # User IP, for kiosk mode
-    request_address = request.remote_addr
-    if request_address in kiosks:
-        return True, request_address
-    else:
-        return False, request_address
 
 
 ###################################
@@ -489,7 +440,7 @@ def homepage(team=None, subset=None):
 
     section_query = ((" SELECT "
                      " p.projects_order, "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\" class=\"bg-white\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
                      "      CASE WHEN "
                      "             p.project_alias IS NULL "
                      "              THEN p.project_title "
@@ -497,9 +448,9 @@ def homepage(team=None, subset=None):
                      "          (CASE WHEN "
                      "              p.project_status = 'Ongoing' and ps.collex_to_digitize != 0 "
                      "              THEN "
-                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a><br>"
+                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\">', p.project_title, '</a><br>"
                      "                  <small>Estimated Progress: ', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), ' % "
-                     "                  <div class=\"progress\"> "
+                     "                  <div class=\"progress dashboard-progress\"> "
                      "                      <div class=\"progress-bar bg-success\" role=\"progressbar\" style=\"width: ', "
                      "                          ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '%\" "
                      "                         aria-valuenow=\"', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '\" aria-valuemin=\"0\" aria-valuemax=\"100\"> "
@@ -507,7 +458,7 @@ def homepage(team=None, subset=None):
                      "                   </div></small>"
                      "              ') "
                      "          ELSE "
-                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\" class=\"bg-white\">', p.project_title, '</a>') "
+                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\">', p.project_title, '</a>') "
                      "          END) "
                      "      END as project_title, "
                      " p.project_status, "
@@ -538,7 +489,7 @@ def homepage(team=None, subset=None):
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
         "project_dates": "Dates",
         "objects_digitized": "Specimens/Objects Digitized",
         "images_taken": "Images Captured"
@@ -559,7 +510,7 @@ def homepage(team=None, subset=None):
         "project_unit": "Unit",
         "project_title": "Title",
         "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\" class=\"bg-white\">PM</abbr>",
+        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
         "project_dates": "Dates",
         "objects_digitized": "Specimens/Objects Digitized",
         "images_taken": "Images Captured"
@@ -687,7 +638,7 @@ def login():
             username = user[0]['username']
             logger.info(user[0]['user_active'])
             if user[0]['user_active']:
-                user_obj = AuthBaseUser(user[0]['user_id'], user[0]['username'],
+                user_obj = AuthBaseUser(user[0]['username'], user[0]['user_id'],
                                 user[0]['full_name'], user[0]['user_active'])
                 login_user(user_obj)
                 return redirect(url_for('home'))
@@ -966,42 +917,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             folder_name = folder_name[0]
             fol_last_update = folder_name['last_updated']
 
-        no_items = 25
-        if page == 1:
-            offset = 0
-        else:
-            offset = (page - 1) * no_items
-        
         if transcription == 1:
-            files_df = run_query((
-                                 "WITH data AS (SELECT f.file_transcription_id as file_id, "
-                                 "         COALESCE(f.preview_image, CONCAT('static/image_previews/', f.folder_transcription_id, '/160/', f.file_transcription_id, '.jpg')) as preview_image, "
-                                 "         f.preview_image as preview_image_ext, f.folder_transcription_id as folder_id, f.file_name "
-                                 "           FROM transcription_files f "
-                                 " WHERE f.folder_transcription_id = %(folder_id)s)"
-                                 " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, 0 as sensitive_contents "
-                                 " FROM data "
-                                 " ORDER BY file_name "
-                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
-                             {'folder_id': folder_id})
             files_count = run_query("SELECT count(*) as no_files FROM transcription_files WHERE folder_transcription_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]
         else:
-            files_df = run_query((
-                                 "WITH data AS (SELECT f.file_id, "
-                                 "         COALESCE(f.preview_image, CONCAT('static/image_previews/folder', f.folder_id, '/160/', f.file_id, '.jpg')) as preview_image, "
-                                 "         f.preview_image as preview_image_ext, f.folder_id, f.file_name, "
-                                 "               COALESCE(s.sensitive_contents, 0) as sensitive_contents "
-                                 "           FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id "
-                                 " WHERE f.folder_id = %(folder_id)s)"
-                                 " SELECT file_id, preview_image, preview_image_ext, folder_id, file_name, sensitive_contents "
-                                 " FROM data "
-                                 " ORDER BY file_name "
-                                 "LIMIT {no_items} OFFSET {offset}").format(offset=offset, no_items=no_items),
-                             {'folder_id': folder_id})
             files_count = run_query("SELECT count(*) as no_files FROM files WHERE folder_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]
-            
+
         files_count = files_count['no_files']
         if tab == "filechecks":
             project_postprocessing = []
@@ -1034,71 +956,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             post_processing_df = pd.DataFrame()
 
         elif tab == "lightbox":
-            page_no = "Lightbox Page {}".format(page)
-            # Pagination
-            pagination_html = "<nav aria-label=\"pages\"><ul class=\"pagination float-end\">"
-            no_pages = math.ceil(files_count / no_items)
-            logger.info("no_pages: {}".format(no_pages))
-            if page == 1:
-                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" href=\"#\" " \
-                                                    "tabindex=\"-1\">Previous</a></li>"
-            else:
-                pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                                    "href=\"" + url_for('dashboard_f', project_alias=project_alias,
-                                                                        folder_id=folder_id, tab="lightbox",
-                                                                        page="{}".format(page - 1)) \
-                                  + "\">Previous</a></li>"
-            # Ellipsis for first pages
-            if page > 5:
-                pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
-                                                        tab="lightbox", page="1") \
-                                  + "\">1</a></li>"
-                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
-                                                    "href=\"#\">...</a></li>"
-            for i in range(1, no_pages + 1):
-                if ((page - i) < 4) and ((i - page) < 4):
-                    if i == page:
-                        pagination_html = pagination_html + "<li class=\"page-item active\">"
-                    else:
-                        pagination_html = pagination_html + "<li class=\"page-item\">"
-                    pagination_html = pagination_html + "<a class=\"page-link\" " \
-                                      + "href=\"" \
-                                      + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
-                                                tab="lightbox", page="{}".format(i)) \
-                                      + "\">{}</a>".format(i) \
-                                      + "</li>"
-            if (no_pages - page) > 4:
-                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
-                                                    "href=\"#\">...</a></li>"
-                pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                  + "href=\"" + url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id,
-                                                        tab="lightbox", page="{last}".format(last=no_pages)) \
-                                  + "\">{last}</a></li>".format(last=no_pages)
-            if page == no_pages:
-                pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
-                                                    "href=\"#\">Next</a></li>"
-            else:
-                if no_pages == 0:
-                    pagination_html = pagination_html + "<li class=\"page-item disabled\"><a class=\"page-link\" " \
-                                                        "href=\"#\">Next</a></li>"
-                else:
-                    pagination_html = pagination_html + "<li class=\"page-item\"><a class=\"page-link\" " \
-                                      + "href=\"" + url_for('dashboard_f', project_alias=project_alias,
-                                                            folder_id=folder_id, tab="lightbox",
-                                                            page="{}".format(page + 1)) \
-                                      + "\">" \
-                                      + "Next</a></li>"
-            pagination_html = pagination_html + "</ul></nav>"
-            for f in files_df:
-                if transcription == 1:
-                    preview_img_path = "image_previews/{}/{}/{}.jpg".format(f['folder_id'], "160", f['file_id'])
-                else:
-                    preview_img_path = "image_previews/folder{}/{}/{}.jpg".format(f['folder_id'], "160", f['file_id'])
-                if os.path.isfile("static/{}".format(preview_img_path)):
-                    f['preview_img_path'] = preview_img_path
-                else:
-                    f['preview_img_path'] = "na_{}.png".format("160")
+            page_no = "Lightbox"
         elif tab == "postprod":
             project_postprocessing_temp = run_query(
                 ("SELECT settings_value as file_check FROM projects_settings "
@@ -1774,8 +1632,8 @@ def qc(project_alias=None):
                                     "        AND p.project_alias = %(project_alias)s "
                                     "        AND qp.project_id = p.project_id "
                                     "        AND u.user_id = qp.user_id"),
-                                   {'username': username, 'project_alias': project_alias})
-    if project_admin is None:
+                                   {'username': username, 'project_alias': project_alias})[0]
+    if project_admin['no_results'] == 0:
         # Not allowed
         return redirect(url_for('home'))
 
@@ -2169,8 +2027,8 @@ def qc_transcription(project_alias=None):
                                     "        AND p.project_alias = %(project_alias)s "
                                     "        AND qp.project_id = p.project_id "
                                     "        AND u.user_id = qp.user_id"),
-                                   {'username': username, 'project_alias': project_alias})
-    if project_admin is None:
+                                   {'username': username, 'project_alias': project_alias})[0]
+    if project_admin['no_results'] == 0:
         # Not allowed
         return redirect(url_for('home'))
 
@@ -2395,7 +2253,7 @@ def qct_loading2(source_id):
                                     "        AND ts.project_id = qcp.project_id "
                                     "        AND u.user_id = qcp.user_id"),
                                    {'username': username, 'source_id': source_id})
-    if project_admin is None:
+    if len(project_admin) == 0:
         # Not allowed
         return redirect(url_for('home'))
     else:
@@ -2910,24 +2768,18 @@ def qc_process(folder_id):
                         "  WHERE folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_files WHERE file_transcription_id = %(file_id)s)"),
                         {'file_id': file_qc['file_id']})[0]
 
-                    # DZI zoomable image
-                    zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])
-                    
-                    if os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])):
-                        tarimgfile = "static/image_previews/{}/{}_files.tar".format(file_details['folder_id'], file_qc['file_id'])
-                        imgfolder = "static/image_previews/{}/".format(file_details['folder_id'])
-                        if os.path.isfile(tarimgfile):
-                            if os.path.isdir("static/image_previews/{}/{}_files".format(file_details['folder_id'], file_qc['file_id'])) is False:
-                                try:
-                                    with tarfile.open(tarimgfile, "r") as tf:
-                                        tf.extractall(path=imgfolder)
-                                except: 
-                                    logger.error("Couldn't open {}".format(tarimgfile))
-                        zoom_exists = 1
+                    viewer = resolve_image_viewer(
+                        file_details['folder_id'],
+                        file_qc['file_id'],
+                        file_details['file_name'],
+                        transcription=True,
+                    )
+                    zoom_exists = viewer['zoom_exists']
+                    zoom_filename = viewer['zoom_filename']
+                    iiif_image = viewer['iiif_image']
+                    if zoom_exists > 0:
                         zoom_js = ""
                     else:
-                        zoom_exists = 0
-                        zoom_filename = None
                         zoom_js = """
                                 $('#previmg')
                                 .wrap('<span style="display:inline-block"></span>')
@@ -2960,24 +2812,18 @@ def qc_process(folder_id):
                         "  WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)"),
                         {'file_id': file_qc['file_id']})[0]
 
-                    # DZI zoomable image
-                    zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])
-                    
-                    if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_qc['file_id'])):
-                        tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(file_details['folder_id'], file_qc['file_id'])
-                        imgfolder = "static/image_previews/folder{}/".format(file_details['folder_id'])
-                        if os.path.isfile(tarimgfile):
-                            if os.path.isdir("static/image_previews/folder{}/{}_files".format(file_details['folder_id'], file_qc['file_id'])) is False:
-                                try:
-                                    with tarfile.open(tarimgfile, "r") as tf:
-                                        tf.extractall(path=imgfolder)
-                                except: 
-                                    logger.error("Couldn't open {}".format(tarimgfile))
-                        zoom_exists = 1
+                    viewer = resolve_image_viewer(
+                        file_details['folder_id'],
+                        file_qc['file_id'],
+                        file_details['file_name'],
+                        transcription=False,
+                    )
+                    zoom_exists = viewer['zoom_exists']
+                    zoom_filename = viewer['zoom_filename']
+                    iiif_image = viewer['iiif_image']
+                    if zoom_exists > 0:
                         zoom_js = ""
                     else:
-                        zoom_exists = 0
-                        zoom_filename = None
                         zoom_js = """
                                 $('#previmg')
                                 .wrap('<span style="display:inline-block"></span>')
@@ -2987,6 +2833,7 @@ def qc_process(folder_id):
                                 """
                 return render_template("qc_file.html",
                                         zoom_exists=zoom_exists, zoom_filename=zoom_filename,
+                                        iiif_image=iiif_image,
                                         zoom_js=zoom_js, folder=folder, qc_stats=qc_stats,
                                         folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
                                         file_details=file_details, file_checks=file_checks, username=username,
@@ -3031,9 +2878,9 @@ def qc_process(folder_id):
                         major_files += 1
                     elif file['file_qc'] == 'Minor Issue':
                         minor_files += 1
-                qc_threshold_critical_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
-                qc_threshold_major_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
-                qc_threshold_minor_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
+                qc_threshold_critical_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
+                qc_threshold_major_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
+                qc_threshold_minor_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
                 if crit_files > 0:
                     if qc_threshold_critical_comparison <= crit_files:
                         qc_folder_result = False
@@ -3275,23 +3122,18 @@ def qc_process_transcript(source_id, folder_id):
                     ("SELECT fol.* FROM transcription_folders fol, transcription_files f where f.folder_transcription_id = fol.folder_transcription_id and f.file_transcription_id = %(file_id)s"),
                         {'file_id': file_qc['file_transcription_id']})[0]
 
-                # DZI zoomable image
-                zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])
-                if os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])):
-                    tarimgfile = "static/image_previews/{}/{}_files.tar".format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])
-                    imgfolder = "static/image_previews/{}/".format(file_details['folder_transcription_id'])
-                    if os.path.isfile(tarimgfile):
-                        if os.path.isdir("static/image_previews/{}/{}_files".format(file_details['folder_transcription_id'], file_qc['file_transcription_id'])) is False:
-                            try:
-                                with tarfile.open(tarimgfile, "r") as tf:
-                                    tf.extractall(path=imgfolder)
-                            except: 
-                                logger.error("Couldn't open {}".format(tarimgfile))
-                    zoom_exists = 1
+                viewer = resolve_image_viewer(
+                    file_details['folder_transcription_id'],
+                    file_qc['file_transcription_id'],
+                    file_details['file_name'],
+                    transcription=True,
+                )
+                zoom_exists = viewer['zoom_exists']
+                zoom_filename = viewer['zoom_filename']
+                iiif_image = viewer['iiif_image']
+                if zoom_exists > 0:
                     zoom_js = ""
                 else:
-                    zoom_exists = 0
-                    zoom_filename = None
                     zoom_js = """
                             $('#previmg')
                             .wrap('<span style="display:inline-block"></span>')
@@ -3317,6 +3159,7 @@ def qc_process_transcript(source_id, folder_id):
                 return render_template("qc_file_transcription.html",
                                     transcription=transcription_text,
                                     zoom_exists=zoom_exists, zoom_filename=zoom_filename,
+                                    iiif_image=iiif_image,
                                     zoom_js=zoom_js, folder=folder, qc_stats=qc_stats,
                                     folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
                                     file_details=file_details, file_checks=file_checks, username=username,
@@ -3344,9 +3187,9 @@ def qc_process_transcript(source_id, folder_id):
                         major_files += 1
                     elif file['qc_results'] == 'Minor Issue':
                         minor_files += 1
-                qc_threshold_critical_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
-                qc_threshold_major_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
-                qc_threshold_minor_comparison = math.floor(folder_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
+                qc_threshold_critical_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
+                qc_threshold_major_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
+                qc_threshold_minor_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
                 if crit_files > 0:
                     if qc_threshold_critical_comparison <= crit_files:
                         qc_folder_result = False
@@ -3634,79 +3477,30 @@ def home():
     is_admin = user_perms('', user_type='admin')
     logger.info("is_admin:{}".format(is_admin))
     ip_addr = request.environ['REMOTE_ADDR']
-    projects = run_query(("select p.project_title, p.project_id, p.project_alias, date_format(p.project_start, '%b-%Y') as project_start, "
-                               "     date_format(p.project_end, '%b-%Y') as project_end, p.qc_status, p.project_unit, p.transcription "
-                               " FROM qc_projects qp, "
-                               "       users u, projects p "
-                               " WHERE qp.project_id = p.project_id AND qp.user_id = u.user_id AND u.username = %(username)s "
-                               "     AND p.project_alias IS NOT NULL AND p.project_status != 'Completed' "
-                               " GROUP BY p.project_title, p.project_id, p.project_alias, "
-                               "     p.project_start, p.project_end, p.qc_status, p.project_unit "
-                               " ORDER BY p.projects_order DESC"),
-                              {'username': user_name})
+    projects = run_query(
+        "select p.project_title, p.project_id, p.project_alias, "
+        "date_format(p.project_start, '%b-%Y') as project_start, "
+        "date_format(p.project_end, '%b-%Y') as project_end, "
+        "p.qc_status, p.project_unit, p.transcription "
+        " FROM qc_projects qp, users u, projects p "
+        " WHERE qp.project_id = p.project_id AND qp.user_id = u.user_id "
+        "     AND u.username = %(username)s "
+        "     AND p.project_alias IS NOT NULL AND p.project_status != 'Completed' "
+        " GROUP BY p.project_title, p.project_id, p.project_alias, "
+        "     p.project_start, p.project_end, p.qc_status, p.project_unit, p.transcription "
+        " ORDER BY p.projects_order DESC",
+        {'username': user_name},
+    )
+    if not projects or projects is False:
+        projects = []
     project_list = []
     for project in projects:
         logger.info("project: {}".format(project).encode("utf-8"))
-        # project_total = run_query(("SELECT count(*) as no_files "
-        #                                 "    FROM files "
-        #                                 "    WHERE folder_id IN ("
-        #                                 "        SELECT folder_id FROM folders WHERE project_id = %(project_id)s)"),
-        #                                {'project_id': project['project_id']})
-        # project_ok = run_query(("WITH a AS ("
-        #                              "   SELECT file_id FROM files WHERE folder_id IN "
-        #                              "       (SELECT folder_id from folders WHERE project_id = %(project_id)s)"
-        #                              "  ),"
-        #                              "   data AS ("
-        #                              "   SELECT c.file_id, sum(check_results) as check_results "
-        #                              "   FROM files_checks c, a "
-        #                              "   WHERE c.file_id = a.file_id "
-        #                              "   GROUP BY c.file_id) "
-        #                              " SELECT count(file_id) as no_files FROM data WHERE check_results = 0"),
-        #                             {'project_id': project['project_id']})
-        # project_err = run_query(
-        #     ("SELECT count(distinct file_id) as no_files FROM files_checks WHERE check_results "
-        #      "= 1 AND "
-        #      "file_id in (SELECT file_id from files where folder_id IN (SELECT folder_id from folders WHERE project_id = %(project_id)s))"),
-        #     {'project_id': project['project_id']})
-        # project_public = run_query(("SELECT COALESCE(images_public, 0) as no_files FROM projects_stats WHERE "
-        #                                  " project_id = %(project_id)s"),
-        #                                 {'project_id': project['project_id']})
-        # project_running = run_query(("SELECT count(distinct file_id) as no_files FROM files_checks WHERE "
-        #                                   "check_results "
-        #                                   "= 9 AND "
-        #                                   "file_id in ("
-        #                                   "SELECT file_id FROM files WHERE folder_id IN (SELECT folder_id FROM folders "
-        #                                   "WHERE project_id = %(project_id)s))"),
-        #                                  {'project_id': project['project_id']})
-        # if int(project_ok[0]['no_files']) == 0:
-        #     ok_percent = 0
-        # else:
-        #     ok_percent = round((int(project_ok[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-        # if int(project_err[0]['no_files']) == 0:
-        #     error_percent = 0
-        # else:
-        #     error_percent = round((int(project_err[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-        # if int(project_running[0]['no_files']) == 0:
-        #     running_percent = 0
-        # else:
-        #     running_percent = round((int(project_running[0]['no_files']) / int(project_total[0]['no_files'])) * 100, 5)
-        # if project['project_alias'] is None:
-        #     project_alias = project['project_id']
-        # else:
-        #     project_alias = project['project_alias']
         logger.info("project_alias: {}".format(project['project_alias']))
         project_list.append({
             'project_title': project['project_title'],
             'project_id': project['project_id'],
             'filecheck_link': None,
-            # 'total': format(int(project_total[0]['no_files']), ',d'),
-            # 'errors': format(int(project_err[0]['no_files']), ',d'),
-            # 'ok': format(int(project_ok[0]['no_files']), ',d'),
-            # 'running': format(int(project_running[0]['no_files']), ',d'),
-            # 'public': format(int(project_public[0]['no_files']), ',d'),
-            # 'ok_percent': ok_percent,
-            # 'error_percent': error_percent,
-            # 'running_percent': running_percent,
             'project_alias': project['project_alias'],
             'project_start': project['project_start'],
             'project_end': project['project_end'],
@@ -3717,1250 +3511,9 @@ def home():
     return render_template('userhome.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr, form=form,
                            site_env=site_env, site_net=site_net, site_ver=site_ver,
+                           about_user_guide_url=ABOUT_USER_GUIDE_URL,
                            analytics_code=settings.analytics_code)
 
-
-@app.route('/new_project/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def new_project(msg=None):
-    """Create a new project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    username = current_user.name
-    full_name = current_user.full_name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    else:
-        msg = ""
-        return render_template('new_project.html',
-                               username=username, full_name=full_name,
-                               is_admin=is_admin, msg=msg,
-                               today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
-
-
-@app.route('/invoice/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def invoice(msg=None):
-    """Invoice Reconciliation"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    username = current_user.name
-    full_name = current_user.full_name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    else:
-        project_list = run_query(("select p.project_title, p.project_id, p.project_alias, date_format(p.project_start, '%b-%Y') as project_start, "
-                               "     date_format(p.project_end, '%b-%Y') as project_end, p.qc_status, p.project_unit "
-                               " FROM qc_projects qp, "
-                               "       users u, projects p "
-                               " WHERE qp.project_id = p.project_id AND qp.user_id = u.user_id AND u.username = %(username)s "
-                               "     AND p.project_alias IS NOT NULL AND p.project_status != 'Completed' "
-                               " GROUP BY p.project_title, p.project_id, p.project_alias, "
-                               "     p.project_start, p.project_end, p.qc_status, p.project_unit "
-                               " ORDER BY p.projects_order DESC"),
-                              {'username': username})
-        msg = ""
-        return render_template('invoice.html',
-                               username=username, project_list=project_list,
-                               is_admin=is_admin, msg=msg,
-                               today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
-
-
-@app.route('/invoice_recon/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def invoice_recon(msg=None):
-    """Invoice Reconciliation"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    username = current_user.name
-    full_name = current_user.full_name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    else:
-        def checkval(query, file_name):
-            res = run_query(query, {'file_name': file_name})
-            return res 
-        project_id = request.values.get('project_id')
-        f = request.files.get('file')
-        files = pd.read_csv(f) # read csv
-        files = files.set_axis(['files'], axis=1)
-        files['files'] = files['files'].str.replace('.tif','')
-        randomval = random.randint(1000, 9999)
-        files['randomval'] = randomval
-        files.dropna(inplace = True)
-        files = files[files['files'] != '']
-        res = [tuple(x) for x in files.to_numpy()]
-        project_info = run_query(("SELECT * FROM projects WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
-        # Update table
-        if project_info['transcription'] == 1:
-            results = executemany(
-                "INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, {}, %s)".format(project_info['project_id']),
-                res,
-            )
-            # Add IDs
-            res = run_query(("with data as (select f.file_transcription_id, f.file_name from transcription_files f, transcription_folders fol where f.folder_transcription_id = fol.folder_transcription_id and fol.project_id = %(project_id)s) UPDATE invoice_recon_transcription i join data d on i.file_name = d.file_name SET i.file_transcription_id = d.file_transcription_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-            # Match the ones with transcriptions
-            res = run_query(("with data as (select f.file_transcription_id, f.file_name from transcription_files f, transcription_folders fol, transcription_files_text tft, transcription_fields fields where tft.field_id = fields.field_id AND f.folder_transcription_id = fol.folder_transcription_id AND fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-            no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
-            no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-            no_files_transcription = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-            msg = ""
-            if int(no_files_osprey) < int(no_files):
-                count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
-                count_msg_css = "danger"
-            elif int(no_files_transcription) < int(no_files):
-                count_msg = "Reconciliation failed: {:,} files do not have transcription data".format(int(no_files) - int(no_files_dams))
-                count_msg_css = "danger"
-            elif (int(no_files_osprey) == int(no_files)) and (int(no_files_transcription) == int(no_files)):
-                count_msg = "Reconciliation passed: all files accounted for."
-                count_msg_css = "success"
-            else:
-                count_msg = "Reconciliation failed: SYSTEM ERROR"
-                count_msg_css = "danger"
-        else:
-            results = executemany("INSERT INTO invoice_recon (file_name, randomint) VALUES (%s, %s)", res)
-            res = run_query(("with data as (select f.file_id, f.file_name from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.file_id = d.file_id where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-            res = run_query(("with data as (select f.file_id, f.file_name, f.dams_uan from files f, folders fol where f.folder_id = fol.folder_id and fol.project_id = %(project_id)s) UPDATE invoice_recon i join data d on i.file_name = d.file_name SET i.dams_uan = d.dams_uan where randomint = %(randomint)s"), {'randomint': randomval, 'project_id': project_id})
-            no_files = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s"), {'randomint': randomval})[0]['no_files']
-            no_files_osprey = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s and file_id IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-            no_files_dams = run_query(("SELECT count(*) as no_files FROM invoice_recon WHERE randomint = %(randomint)s AND dams_uan IS NOT NULL"), {'randomint': randomval})[0]['no_files']
-            msg = ""
-            if int(no_files_osprey) < int(no_files):
-                count_msg = "Reconciliation failed: {:,} files not in Osprey".format(int(no_files) - int(no_files_osprey))
-                count_msg_css = "danger"
-            elif int(no_files_dams) < int(no_files):
-                count_msg = "Reconciliation failed: {:,} files not in DAMS".format(int(no_files) - int(no_files_dams))
-                count_msg_css = "danger"
-            elif (int(no_files_osprey) == int(no_files)) and (int(no_files_dams) == int(no_files)):
-                count_msg = "Reconciliation passed: all files accounted for."
-                count_msg_css = "success"
-            else:
-                count_msg = "Reconciliation failed: SYSTEM ERROR"
-                count_msg_css = "danger"
-        now = datetime.now()
-        return render_template('invoice_recon.html',
-                               username=username, 
-                               no_files="{:,}".format(no_files),
-                               no_files_osprey="{:,}".format(no_files_osprey),
-                               no_files_dams="{:,}".format(no_files_dams),
-                               is_admin=is_admin, msg=msg,
-                               now=now, randomint=randomval,
-                               project_info=project_info,
-                               count_msg=count_msg, count_msg_css=count_msg_css,
-                               today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
-
-
-@app.route('/invoice_recon_dl/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def invoice_recon_dl(randomint=None):
-    """Download Invoice Reconciliation"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    username = current_user.name
-    full_name = current_user.full_name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    else:
-        randomint = request.values.get('randomint')
-        current_time = strftime("%Y%m%d_%H%M%S", localtime())
-        # from https://stackoverflow.com/a/68136716
-        buffer = io.BytesIO()
-        data = pd.DataFrame(run_query(("SELECT i.file_name, i.file_id, i.dams_uan, fol.project_folder FROM invoice_recon i left join files f on (i.file_id = f.file_id) left join folders fol on (f.folder_id = fol.folder_id) WHERE i.randomint = %(randomint)s"), {'randomint': randomint})).to_excel(buffer, index=False)
-        headers = {
-            'Content-Disposition': 'attachment; filename=invoice_reconciliation_{}.xlsx'.format(current_time),
-            'Content-type': 'application/vnd.ms-excel'
-        }
-        return Response(buffer.getvalue(), mimetype='application/vnd.ms-excel', headers=headers)
-        
-
-
-@app.route('/create_new_project/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def create_new_project():
-    """Create a new project"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-
-    username = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    p_title = request.values.get('p_title')
-    p_alias = request.values.get('p_alias')
-    p_desc = request.values.get('p_desc')
-    p_url = request.values.get('p_url')
-    p_coordurl = request.values.get('p_coordurl')
-    p_noobjects = request.values.get('p_noobjects')
-    p_manager = current_user.full_name
-    p_md = request.values.get('p_md')
-    p_prod = request.values.get('p_prod')
-    p_method = request.values.get('p_method')
-    p_unit = request.values.get('p_unit')
-    p_area = request.values.get('p_area')
-    p_storage = request.values.get('p_storage')
-    p_start = request.values.get('p_start')
-    # p_unitstaff = request.values.get('p_unitstaff')
-    project_id = query_database_insert(("INSERT INTO projects  "
-                              "   (project_title, project_unit, project_alias, project_description, "
-                              "    project_coordurl, project_area, project_section, project_method, "
-                              "    project_manager, project_status, project_type, project_datastorage,"
-                              "    project_start, projects_order, stats_estimated) "
-                              "  (SELECT "
-                              "            %(p_title)s, %(p_unit)s, %(p_alias)s, %(p_desc)s, "
-                              "            %(p_coordurl)s, %(p_area)s, %(p_md)s, %(p_method)s, "
-                              "            %(p_manager)s, 'Ongoing', %(p_prod)s, %(p_storage)s, "
-                              "            %(p_start)s, max(projects_order) + 1, 0 FROM projects)"),
-                             {'p_title': p_title, 'p_unit': p_unit, 'p_alias': p_alias, 'p_desc': p_desc,
-                              'p_url': p_url, 'p_coordurl': p_coordurl, 'p_area': p_area, 'p_md': p_md,
-                              'p_noobjects': p_noobjects, 'p_method': p_method, 'p_manager': p_manager,
-                              'p_prod': p_prod, 'p_storage': p_storage, 'p_start': p_start
-                              }, return_res = True)
-    logger.debug("PROJECT ID: {}".format(project_id))
-    project = query_database_insert(("INSERT INTO projects_stats (project_id, collex_total, collex_to_digitize) VALUES (%(project_id)s, %(collex_total)s, %(collex_total)s)"),
-                             {'project_id': project_id,
-                              'collex_total': int(p_noobjects)})
-    user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES (%(project_id)s, %(user_id)s)"),
-                                    {'project_id': project_id,
-                                     'user_id': current_user.id})
-    if current_user.id != '101':
-        user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES (%(project_id)s, %(user_id)s)"),
-                                        {'project_id': project_id,
-                                         'user_id': '101'})
-    # if p_unitstaff != '':
-    #     unitstaff = p_unitstaff.split(',')
-    #     logger.info("unitstaff: {}".format(p_unitstaff))
-    #     logger.info("len_unitstaff: {}".format(len(unitstaff)))
-    #     if len(unitstaff) > 0:
-    #         for staff in unitstaff:
-    #             staff_user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
-    #                                            {'username': staff.strip()})
-    #             if len(staff_user_id) == 1:
-    #                 user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-    #                                                  "    (%(project_id)s, %(user_id)s)"),
-    #                                                 {'project_id': project_id,
-    #                                                  'user_id': staff_user_id[0]['user_id']})
-    #             else:
-    #                 user_project = query_database_insert(("INSERT INTO users (username, user_active, is_admin) VALUES "
-    #                                                "    (%(username)s, 'T', 'F')"),
-    #                                               {'username': staff.strip()})
-    #                 get_user_project = run_query(("SELECT user_id FROM users WHERE username = %(username)s"),
-    #                                                      {'username': staff.strip()})
-    #                 user_project = query_database_insert(("INSERT INTO qc_projects (project_id, user_id) VALUES "
-    #                                                  "    (%(project_id)s, %(user_id)s)"),
-    #                                                 {'project_id': project_id,
-    #                                                  'user_id': get_user_project[0]['user_id']})
-    fcheck_query = ("INSERT INTO projects_settings (project_id, project_setting, settings_value) VALUES (%(project_id)s, 'project_checks', %(value)s)")
-    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'unique_file'})
-    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tifpages'})
-    fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5'})
-    file_check = request.values.get('raw_pair')
-    if file_check == "1":
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'raw_pair'})
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'md5_raw'})
-    file_check = request.values.get('tif_compression')
-    if file_check == "1":
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'tif_compression'})
-    file_check = request.values.get('magick')
-    if file_check == "1":
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'magick'})
-    file_check = request.values.get('jhove')
-    if file_check == "1":
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'jhove'})
-    file_check = request.values.get('sequence')
-    if file_check == "1":
-        fcheck_insert = query_database_insert(fcheck_query, {'project_id': project_id, 'value': 'sequence'})
-    return redirect(url_for('home', _anchor=p_alias))
-
-
-@app.route('/edit_project/<project_alias>/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def edit_project(project_alias=None):
-    """Edit a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    username = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    project_admin = run_query(("SELECT count(*) as no_results "
-                                    "    FROM users u, qc_projects qp, projects p "
-                                    "    WHERE u.username = %(username)s "
-                                    "        AND p.project_alias = %(project_alias)s "
-                                    "        AND qp.project_id = p.project_id "
-                                    "        AND u.user_id = qp.user_id"),
-                                   {'username': username, 'project_alias': project_alias})
-    if len(project_admin) == 0:
-        # Not allowed
-        return redirect(url_for('home'))
-    project = run_query(("SELECT p.project_id, p.project_alias, "
-                              " p.project_title, p.project_alias, p.project_start, p.project_end, "
-                              " p.project_unit, p.project_section, p.project_status, NULL as project_url, "
-                              " COALESCE(p.project_description, '') as project_description, "
-                              " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
-                              " FROM projects p LEFT JOIN projects_stats s "
-                              "     ON (p.project_id = s.project_id) "
-                              " WHERE p.project_alias = %(project_alias)s"),
-                             {'project_alias': project_alias})[0]
-    return render_template('edit_project.html',
-                           username=username,
-                           is_admin=is_admin,
-                           project=project,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-
-
-
-@app.route('/infprojects/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def infprojects():
-    """Home for informatics projects"""
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    user_name = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    logger.info("is_admin:{}".format(is_admin))
-    ip_addr = request.environ['REMOTE_ADDR']
-    inf_section_query = (" SELECT "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CONCAT('<strong><a href=\"/infprojects/', p.proj_id, '\">', p.project_title, '</a></strong><br>', p.summary) as project_title, "
-                     " p.project_status, "
-                     " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
-                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
-                     " CASE "
-                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
-                     "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "                     
-                     "      ELSE CONCAT(date_format(p.project_start, '%b %Y'), ' - ', date_format(p.project_end, '%b %Y')) END "
-                     "         as project_dates, "
-                     " CASE WHEN p.records = 0 THEN 'NA' ELSE "
-                     " (CASE WHEN p.records_estimated IS True THEN CONCAT(coalesce(format(p.records, 0), 0), '*') ELSE "
-                     "      coalesce(format(p.records, 0), 0) END) END as records, "
-                     " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
-                     " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
-                     " ORDER BY p.project_start DESC, p.project_end DESC")
-    list_projects_inf = pd.DataFrame(run_query(inf_section_query))
-    list_projects_inf = list_projects_inf.rename(columns={
-        "project_unit": "Unit",
-        "project_title": "Title",
-        "project_status": "Status",
-        "github_link": "Repository",
-        "info_link": "More Info",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
-        "project_dates": "Dates",
-        "records": "Records Created or Enhanced"
-    })
-    
-    return render_template('infprojects.html', 
-                           tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
-                                                               border=0, escape=False,
-                                                               classes=["display", "w-100"])],
-                           form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-
-
-@app.route('/infprojects/<proj_id>/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def infprojects_edit(proj_id=None):
-    """Home for informatics projects"""
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    user_name = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    logger.info("is_admin:{}".format(is_admin))
-    ip_addr = request.environ['REMOTE_ADDR']
-    proj = ("SELECT * FROM projects_informatics WHERE proj_id = %(proj_id)s")
-    project = run_query(proj, {'proj_id': proj_id})[0]
-    # units
-    units = ("SELECT * FROM si_units")
-    si_units = run_query(units)
-    
-    return render_template('infproject.html', 
-                           project=project, si_units=si_units, form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-
-
-@app.route('/infprojects/new/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def new_infprojects():
-    """Home for informatics projects"""
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    user_name = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    logger.info("is_admin:{}".format(is_admin))
-    ip_addr = request.environ['REMOTE_ADDR']
-    # units
-    units = ("SELECT * FROM si_units")
-    si_units = run_query(units)
-    
-    return render_template('newinfproject.html', 
-                           si_units=si_units, form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-
-
-@app.route('/infprojects/edit/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def edit_inf_proj():
-    """Create or edit an informatics project"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-
-    username = current_user.name
-    if username not in ['villanueval', 'dipietroc']:
-        # Not allowed
-        return redirect(url_for('home'))
-    proj_edit = request.values.get('proj_edit')
-    proj_id = request.values.get('proj_id')
-    project_title = request.values.get('project_title')
-    project_unit = request.values.get('project_unit')
-    summary = request.values.get('summary')
-    records = request.values.get('records')
-    pm = request.values.get('pm')
-    project_status = request.values.get('project_status')
-    github_link = request.values.get('github_link')
-    if github_link == "" or github_link == "None":
-        github_link = "NULL"
-    else:
-        github_link = "'{}'".format(github_link)
-    info_link = request.values.get('info_link')
-    if info_link == "" or info_link == "None":
-        info_link = "NULL"
-    else:
-        info_link = "'{}'".format(info_link)
-    project_start = request.values.get('project_start')
-    project_end = request.values.get('project_end')
-    if project_end == "":
-        project_end = "NULL"
-    else:
-        project_end = "'{}'".format(project_end)
-    if proj_edit == "0":
-        # New project
-        project_id = query_database_insert(("INSERT INTO projects_informatics "
-                              "     (proj_id, project_title, project_unit, summary, records, pm, project_status, github_link, info_link, project_start, project_end) VALUES "
-                              "     (%(proj_id)s, %(project_title)s, %(project_unit)s, %(summary)s, %(records)s, %(pm)s, %(project_status)s, {}, {}, %(project_start)s, {})".format(github_link, info_link, project_end)),
-                             {  
-                                'project_title': project_title, 
-                                'project_unit': project_unit, 
-                                'summary': summary, 
-                                'records': records, 
-                                'pm': pm, 
-                                'project_status': project_status, 
-                                'project_start': project_start,
-                                'proj_id': proj_id                                
-                              }, return_res = True)
-        return redirect(url_for('infprojects_edit', proj_id = proj_id))
-    elif proj_edit == "1":
-        # Edit existing
-        project_id = query_database_insert(("UPDATE projects_informatics SET "
-                              "     project_title = %(project_title)s, "
-                              "     project_unit = %(project_unit)s, "
-                              "     summary = %(summary)s, "
-                              "     records = %(records)s, "
-                              "     pm = %(pm)s, "
-                              "     project_status = %(project_status)s, "
-                              "     github_link = {}, "
-                              "     info_link = {}, "
-                              "     project_start = %(project_start)s, "
-                              "     project_end = {} "
-                              " WHERE proj_id = %(proj_id)s".format(github_link, info_link, project_end)),
-                             {  
-                                'project_title': project_title, 
-                                'project_unit': project_unit, 
-                                'summary': summary, 
-                                'records': records, 
-                                'pm': pm, 
-                                'project_status': project_status, 
-                                'github_link': github_link, 
-                                'info_link': info_link,
-                                'project_start': project_start,
-                                'proj_id': proj_id                                
-                              }, return_res = False)
-        return redirect(url_for('infprojects_edit', proj_id = proj_id))
-
-
-@app.route('/proj_links/<project_alias>/', methods=['GET'], provide_automatic_options=False)
-@login_required
-def proj_links(project_alias=None):
-    """Add / edit links associated with a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-    
-    username = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    project_admin = run_query(("SELECT count(*) as no_results "
-                                    "    FROM users u, qc_projects qp, projects p "
-                                    "    WHERE u.username = %(username)s "
-                                    "        AND p.project_alias = %(project_alias)s "
-                                    "        AND qp.project_id = p.project_id "
-                                    "        AND u.user_id = qp.user_id"),
-                                   {'username': username, 'project_alias': project_alias})
-    if len(project_admin) == 0:
-        # Not allowed
-        return redirect(url_for('home'))
-    project = run_query(("SELECT p.project_id, p.project_alias, "
-                              " p.project_title, p.project_alias, p.project_start, p.project_end, "
-                              " p.project_unit, p.project_section, p.project_status, NULL as project_url, "
-                              " COALESCE(p.project_description, '') as project_description, "
-                              " COALESCE(s.collex_to_digitize, 0) AS collex_to_digitize "
-                              " FROM projects p LEFT JOIN projects_stats s "
-                              "     ON (p.project_id = s.project_id) "
-                              " WHERE p.project_alias = %(project_alias)s"),
-                             {'project_alias': project_alias})[0]
-
-    projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
-                               {'project_id': project['project_id']})
-
-    return render_template('proj_links.html',
-                           username=username, is_admin=is_admin, project=project,
-                           form=form, projects_links=projects_links, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-
-
-@app.route('/add_links/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def add_links(project_alias=None):
-    """Create a new project"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    username = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    project_alias = request.values.get('project_alias')
-
-    project = run_query(("SELECT project_id "
-                         " FROM projects  "
-                         " WHERE project_alias = %(project_alias)s"),
-                        {'project_alias': project_alias})[0]
-
-    link_title = request.values.get('link_title')
-    link_type = request.values.get('link_type')
-    link_url = request.values.get('link_url')
-    new_link = query_database_insert(("INSERT INTO projects_links "
-                              "   (project_id, link_type, link_title, url) "
-                              "  (SELECT %(project_id)s, %(link_type)s, %(link_title)s, %(url)s)"),
-                             {'project_id': project['project_id'],
-                              'link_type': link_type,
-                              'link_title': link_title,
-                              'url': link_url
-                              })
-    return redirect(url_for('proj_links', project_alias=project_alias))
-
-
-@app.route('/project_update/<project_alias>', methods=['POST'], provide_automatic_options=False)
-@login_required
-def project_update(project_alias):
-    """Save edits to a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    username = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    if is_admin is False:
-        # Not allowed
-        return redirect(url_for('home'))
-    project_id = run_query(("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s"),
-                                   {'project_alias': project_alias})
-    project_id = project_id[0]['project_id']
-    project_admin = run_query(("SELECT count(*) as no_results "
-                                    "    FROM users u, qc_projects qp, projects p "
-                                    "    WHERE u.username = %(username)s "
-                                    "        AND p.project_alias = %(project_alias)s "
-                                    "        AND qp.project_id = p.project_id "
-                                    "        AND u.user_id = qp.user_id"),
-                                   {'username': username, 'project_alias': project_alias})
-    if len(project_admin) == 0:
-        # Not allowed
-        return redirect(url_for('home'))
-    p_title = request.values.get('p_title')
-    p_desc = request.values.get('p_desc')
-    p_url = request.values.get('p_url')
-    p_status = request.values.get('p_status')
-    p_start = request.values.get('p_start')
-    p_end = request.values.get('p_end')
-    p_noobjects = request.values.get('p_noobjects')
-    project = query_database_insert(("UPDATE projects SET "
-                              "   project_title = %(p_title)s, "
-                              "   project_status = %(p_status)s, "
-                              "   project_start = CAST(%(p_start)s AS date) "
-                              " WHERE project_alias = %(project_alias)s"),
-                             {'p_title': p_title,
-                              'p_status': p_status,
-                              'p_start': p_start,
-                              'project_alias': project_alias})
-    if p_desc != '':
-        project = query_database_insert(("UPDATE projects SET "
-                                  "   project_description = %(p_desc)s "
-                                  " WHERE project_alias = %(project_alias)s"),
-                                 {'p_desc': p_desc,
-                                  'project_alias': project_alias})
-    if p_end != 'None':
-        project = query_database_insert(("UPDATE projects SET "
-                                  "   project_end = CAST(%(p_end)s AS date) "
-                                  " WHERE project_alias = %(project_alias)s "),
-                                 {'p_end': p_end,
-                                  'project_alias': project_alias})
-
-    if p_noobjects != '0':
-        project = query_database_insert(("UPDATE projects_stats SET "
-                                  "   collex_to_digitize = %(p_noobjects)s, "
-                                  "   collex_ready = %(p_noobjects)s "
-                                  " WHERE project_id = %(project_id)s "),
-                                 {'project_id': project_id,
-                                  'p_noobjects': p_noobjects})
-
-    return redirect(url_for('home'))
-
-
-@app.route('/file/<file_id>/', methods=['GET'], provide_automatic_options=False)
-def file(file_id=None):
-    """File details"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-
-    if file_id is None:
-        error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-    try:
-        file_id = int(file_id)
-    except:
-        error_msg = "File ID is not valid."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-            
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    file_id_check = check_file_id(file_id)
-    
-    if file_id_check is False:
-        error_msg = "File ID not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-    
-    # Folder info
-    folder_info = run_query(
-        "SELECT * FROM folders WHERE folder_id IN (SELECT folder_id FROM files WHERE file_id = %(file_id)s)",
-        {'file_id': file_id})
-    if len(folder_info) == 0:
-        error_msg = "Invalid File ID."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-    else:
-        folder_info = folder_info[0]
-    file_details = run_query(("WITH data AS ("
-                                "         SELECT file_id, "
-                                "             preview_image as preview_image_ext, "
-                                "             folder_id, file_name, dams_uan, file_ext, "
-                                "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(NOW(), created_at) as datediff "
-                                "             FROM files "
-                                "                 WHERE folder_id = %(folder_id)s AND folder_id IN (SELECT folder_id FROM folders)"
-                                " UNION "
-                                "         SELECT file_id, preview_image as preview_image_ext, "
-                                "                folder_id, file_name, dams_uan, file_ext, "
-                                "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(created_at, NOW()) as datediff "
-                                "             FROM files "
-                                "                 WHERE folder_id = %(folder_id)s AND folder_id NOT IN (SELECT folder_id FROM folders)"
-                                "             ORDER BY file_name"
-                                "),"
-                                "data2 AS (SELECT file_id, file_ext, preview_image_ext, folder_id, file_name, dams_uan, created_at, datediff, "
-                                "         lag(file_id,1) over (order by file_name) prev_id,"
-                                "         lead(file_id,1) over (order by file_name) next_id "
-                                " FROM data)"
-                                " SELECT "
-                                " file_id, "
-                                " preview_image_ext, folder_id, file_name, dams_uan, prev_id, next_id, file_ext, created_at, datediff "
-                                " FROM data2 WHERE file_id = %(file_id)s LIMIT 1"),
-                                {'folder_id': folder_info['folder_id'], 'file_id': file_id})
-
-    file_details = file_details[0]
-    project_alias = run_query(("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
-                    " WHERE project_id = %(project_id)s"),
-                   {'project_id': folder_info['project_id']})[0]
-    project_alias = project_alias['project_id']
-
-    file_checks = run_query(("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
-                                " ELSE check_info END AS check_info "
-                                " FROM files_checks WHERE file_id = %(file_id)s"),
-                                {'file_id': file_id})
-    file_postprocessing = run_query(("SELECT post_step, post_results, CASE WHEN post_info = '' THEN 'Step completed.' "
-                                    " WHEN post_info IS NULL THEN 'Step completed.' "
-                                " ELSE post_info END AS post_info "
-                                " FROM file_postprocessing WHERE file_id = %(file_id)s"),
-                                {'file_id': file_id})
-
-    attach_preview_paths(file_details, file_id)
-    image_url = url_for('static', filename=file_details['fullsize_img_path'])
-    file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
-                                                 " FROM files_exif "
-                                                 " WHERE file_id = %(file_id)s AND "
-                                                 "       lower(filetype) = %(file_ext)s AND "
-                                                 "       lower(taggroup) != 'system' "
-                                                 " ORDER BY taggroup, tag "),
-                                                {'file_id': str(file_id), 'file_ext': file_details['file_ext']}))
-    
-    file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
-                                {'file_id': file_id})
-        
-    file_sensitive = []
-    if len(file_sensitive) == 0:
-        file_sensitive = 0
-        sensitive_info = ""
-    else:
-        file_data = file_sensitive[0]
-        file_sensitive = file_data['sensitive_contents']
-        sensitive_info = file_data['sensitive_info']
-    
-    if current_user.is_authenticated:
-        user_name = current_user.name
-        is_admin = user_perms('', user_type='admin')
-    else:
-        user_name = ""
-        is_admin = False
-    logger.info("project_alias: {}".format(project_alias))
-
-    # kiosk mode
-    kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
-    # DZI zoomable image
-    zoom_filename = '../../static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)
-
-    if os.path.isfile('static/image_previews/folder{}/{}.dzi'.format(file_details['folder_id'], file_id)):
-        tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(file_details['folder_id'], file_id)
-        imgfolder = "static/image_previews/folder{}/".format(file_details['folder_id'])
-        if os.path.isfile(tarimgfile):
-            if os.path.isdir("static/image_previews/folder{}/{}_files".format(file_details['folder_id'], file_id)) is False:
-                try:
-                    with tarfile.open(tarimgfile, "r") as tf:
-                        tf.extractall(path=imgfolder)
-                except: 
-                    logger.error("Couldn't open {}".format(tarimgfile))
-        zoom_exists = 1
-    else:
-        zoom_exists = 0
-        zoom_filename = None
-    transcription_text = ""
-
-    # IIIF
-    if settings.iiif_enabled:
-        if os.path.isfile(f'{settings.iiif_path}/folder{folder_info["folder_id"]}/{file_details["file_name"]}.jpg'):
-            zoom_exists = 2
-            iiif_image = f"/iiif/3/folder{folder_info['folder_id']}__{file_details['file_name']}/info.json"
-        else:
-            iiif_image = None
-    else:
-        iiif_image = None
-        
-    return render_template('file.html',
-                           zoom_exists=zoom_exists, iiif_image=iiif_image, zoom_filename=zoom_filename, folder_info=folder_info,
-                           file_details=file_details, file_checks=file_checks, 
-                           file_postprocessing=file_postprocessing, username=user_name, image_url=image_url,
-                           is_admin=is_admin, project_alias=project_alias,
-                           tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
-                                                         escape=False,
-                                                         classes=["display", "compact", "table-striped"])],
-                           file_metadata_rows=file_metadata.shape[0],
-                           file_links=file_links, file_sensitive=str(file_sensitive),
-                           
-                           sensitive_info=sensitive_info, form=form, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver, kiosk=kiosk, user_address=user_address,
-                           analytics_code=settings.analytics_code)
-
-
-
-@app.route('/file_transcription/<file_id>/', methods=['GET'], provide_automatic_options=False)
-def file_transcription(file_id=None):
-    """File details from a transcription project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    file_id_check = check_file_id_transcription(file_id)
-    if file_id_check is None:
-        error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-
-    folder_info = run_query("""SELECT * FROM transcription_folders WHERE folder_transcription_id IN 
-                                    (SELECT folder_transcription_id as folder_id FROM transcription_files WHERE file_transcription_id = %(file_id)s)""",
-                            {'file_id': file_id})
-    if len(folder_info) == 0:
-        error_msg = "Invalid File ID."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-    else:
-        folder_info = folder_info[0]
-
-    #Transcription project?
-    transcription = run_query(("SELECT transcription FROM projects WHERE project_id = %(project_id)s"), {'project_id': folder_info['project_id']})[0]
-    transcription = int(transcription['transcription'])
-
-    if transcription != 1:
-        error_msg = "File ID error."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
-    
-    tables = {}
-    i = 0
-    t_sources = run_query("SELECT transcription_source_id, transcription_source_name, CONCAT(transcription_source_notes, ' ', transcription_source_date) as source_notes FROM transcription_sources WHERE project_id = %(project_id)s", {'project_id': folder_info['project_id']})
-    for t_source in t_sources:
-        transcription_text = pd.DataFrame(run_query(("""
-                                    SELECT fields.field_name as field, COALESCE(t.transcription_text, '') as value 
-                                        FROM transcription_fields fields LEFT JOIN transcription_files_text t 
-                                                     ON (fields.field_id = t.field_id and t.file_transcription_id = %(file_id)s) 
-                                        WHERE fields.transcription_source_id = %(source_id)s
-                                                ORDER BY fields.sort_by
-                                        """), {'source_id': t_source['transcription_source_id'], 'file_id': file_id}))
-        tables[i] = {'name': t_source['transcription_source_name'],
-                        'table': transcription_text.to_html(table_id='transcription_text', index=False, border=0,
-                                                            escape=True,
-                                                            classes=["display", "compact", "table-striped"]),
-                        'source_info': t_source['source_notes']}
-        i += 1
-        
-    # file_details = run_query(("SELECT *, DATEDIFF(created_at, NOW()) as datediff FROM transcription_files WHERE file_transcription_id = %(file_id)s"),
-    #                {'file_id': file_id})[0]
-    file_details = run_query(("WITH data AS ("
-                                "         SELECT file_transcription_id, "
-                                "             folder_transcription_id, file_name, dams_uan, "
-                                "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(NOW(), created_at) as datediff "
-                                "             FROM transcription_files "
-                                "                 WHERE folder_transcription_id = %(folder_id)s AND folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders)"
-                                " UNION "
-                                "         SELECT file_transcription_id,  "
-                                "                folder_transcription_id, file_name, dams_uan, "
-                                "             date_format(created_at, '%Y-%b-%d %T') as created_at, DATEDIFF(created_at, NOW()) as datediff "
-                                "             FROM transcription_files "
-                                "                 WHERE folder_transcription_id = %(folder_id)s AND folder_transcription_id NOT IN (SELECT folder_transcription_id FROM transcription_folders)"
-                                "             ORDER BY file_name"
-                                "),"
-                                "data2 AS (SELECT file_transcription_id, folder_transcription_id, file_name, dams_uan, created_at, datediff, "
-                                "         lag(file_transcription_id,1) over (order by file_name) prev_id,"
-                                "         lead(file_transcription_id,1) over (order by file_name) next_id "
-                                " FROM data)"
-                                " SELECT "
-                                " file_transcription_id as file_id, "
-                                "     folder_transcription_id, file_name, dams_uan, prev_id, next_id, created_at, datediff "
-                                " FROM data2 WHERE file_transcription_id = %(file_id)s LIMIT 1"),
-                                {'folder_id': folder_info['folder_transcription_id'], 'file_id': file_id})[0]
-    
-    project_alias = run_query(("SELECT COALESCE(project_alias, CAST(project_id AS char)) as project_id FROM projects "
-                    " WHERE project_id = %(project_id)s"),
-                   {'project_id': folder_info['project_id']})[0]
-    project_alias = project_alias['project_id']
-
-    file_checks = run_query(("SELECT file_check, check_results, CASE WHEN check_info = '' THEN 'Check passed.' "
-                                  " ELSE check_info END AS check_info "
-                                  " FROM transcription_files_checks WHERE file_transcription_id = %(file_id)s"),
-                                 {'file_id': file_id})
-    attach_preview_paths(file_details, file_id, transcription=True)
-    image_url = url_for('static', filename=file_details['fullsize_img_path'])
-    
-    file_links = run_query("SELECT link_name, link_url, link_aria FROM files_links WHERE file_id = %(file_id)s ",
-                                {'file_id': file_id})
-    
-    if current_user.is_authenticated:
-        user_name = current_user.name
-        is_admin = user_perms('', user_type='admin')
-    else:
-        user_name = ""
-        is_admin = False
-    logger.info("project_alias: {}".format(project_alias))
-
-    # kiosk mode
-    kiosk, user_address = kiosk_mode(request, settings.kiosks)
-
-    # DZI zoomable image
-    zoom_filename = '../../static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)
-    if os.path.isfile('static/image_previews/{}/{}.dzi'.format(file_details['folder_transcription_id'], file_id)):
-        tarimgfile = "static/image_previews/{}/{}_files.tar".format(file_details['folder_transcription_id'], file_id)
-        imgfolder = "static/image_previews/{}/".format(file_details['folder_transcription_id'])
-        if os.path.isfile(tarimgfile):
-            if os.path.isdir("static/image_previews/{}/{}_files".format(file_details['folder_transcription_id'], file_id)) is False:
-                try:
-                    with tarfile.open(tarimgfile, "r") as tf:
-                        tf.extractall(path=imgfolder)
-                except: 
-                    logger.error("Couldn't open {}".format(tarimgfile))
-        zoom_exists = 1
-    else:
-        zoom_exists = 0
-        zoom_filename = None
-    
-    return render_template('file_transcription.html',
-                           folder_info=folder_info, zoom_exists=zoom_exists, zoom_filename=zoom_filename,
-                           file_details=file_details, file_checks=file_checks, username=user_name, image_url=image_url,                            
-                           is_admin=is_admin, project_alias=project_alias, file_links=file_links, 
-                           transcription=transcription, tables=tables,
-                           form=form, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver, kiosk=kiosk, analytics_code=settings.analytics_code)
-
-
-@app.route('/file/', methods=['GET'], provide_automatic_options=False)
-def file_empty():
-    return redirect(url_for('homepage'))
-
-
-@app.route('/file_transcription/', methods=['GET'], provide_automatic_options=False)
-def file_t_empty():
-    return redirect(url_for('homepage'))
-
-
-@cache.memoize()
-@app.route('/dashboard/<project_alias>/search_files', methods=['GET'], provide_automatic_options=False)
-def search_files(project_alias):
-    """Search files by filename."""
-    from osprey.services import file_search as file_search_service
-
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-
-    form = LoginForm(request.form)
-    q = (request.values.get('q') or '').strip()
-    page = request.values.get('page')
-    try:
-        page = max(0, int(page or 0))
-    except (TypeError, ValueError):
-        page = 0
-
-    if not q:
-        kiosk, user_address = kiosk_mode(request, settings.kiosks)
-        return render_template(
-            'search_files.html',
-            results=[],
-            project_info=None,
-            project_alias=project_alias,
-            q='',
-            total=0,
-            page=0,
-            page_size=file_search_service.PAGE_SIZE,
-            has_prev=False,
-            has_next=False,
-            form=form,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
-            kiosk=kiosk,
-            user_address=user_address,
-            analytics_code=settings.analytics_code,
-        )
-
-    project_info, results, total, page, page_size = file_search_service.search_files(
-        project_alias, q, page=page,
-    )
-    if project_info is None:
-        error_msg = "Project was not found."
-        return render_template(
-            'error.html',
-            error_msg=error_msg,
-            project_alias=project_alias,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
-            analytics_code=settings.analytics_code,
-        ), 404
-
-    logger.info("search_files q=%r page=%s total=%s", q, page, total)
-    kiosk, user_address = kiosk_mode(request, settings.kiosks)
-    offset = page * page_size
-
-    return render_template(
-        'search_files.html',
-        results=results,
-        project_info=project_info,
-        project_alias=project_alias,
-        q=q,
-        total=total,
-        page=page,
-        page_size=page_size,
-        has_prev=page > 0,
-        has_next=(offset + len(results)) < total,
-        form=form,
-        site_env=site_env,
-        site_net=site_net,
-        site_ver=site_ver,
-        kiosk=kiosk,
-        user_address=user_address,
-        analytics_code=settings.analytics_code,
-    )
-
-
-@app.route('/folder_update/<project_alias>/<folder_id>', methods=['GET'], provide_automatic_options=False)
-@login_required
-def update_folder_dams(project_alias=None, folder_id=None):
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if folder_id is None or project_alias is None:
-        return redirect(url_for('home'))
-
-    """Update folder when sending to DAMS"""
-    
-    # Set as in the way to DAMS
-    damsupdate = query_database_insert(
-        ("UPDATE folders SET delivered_to_dams = 1 WHERE folder_id = %(folder_id)s"),
-        {'folder_id': folder_id})
-        
-    # Del DAMS status badge, if exists
-    delbadge = query_database_insert(
-            ("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'dams_status'"),
-                {'folder_id': folder_id})
-
-    # Set as Ready for DAMS
-    delbadge = query_database_insert(
-            ("INSERT INTO folders_badges (folder_id, badge_type, badge_css, badge_text) "
-             " VALUES (%(folder_id)s, 'dams_status', 'bg-secondary', 'Ready for DAMS')"),
-                {'folder_id': folder_id})
-
-    # Update post-proc
-    delbadge = query_database_insert(
-            ("""
-                INSERT INTO file_postprocessing
-                    (file_id, post_results, post_step)
-                (
-                    SELECT file_id, 0 as post_results, 'ready_for_dams' as post_step
-                    FROM (SELECT file_id FROM files WHERE folder_id = %(folder_id)s) a
-                ) ON
-                DUPLICATE KEY UPDATE
-                post_results = 0
-            """),
-                {'folder_id': folder_id})
-
-    # Update DAMS UAN
-    delbadge = query_database_insert(
-            ("""
-                UPDATE files f,
-                (
-                    SELECT f.file_id, d.dams_uan
-                    FROM
-                        dams_cdis_file_status_view_dpo d, files f, folders fold, projects p
-                    WHERE
-                        fold.folder_id = f.folder_id AND
-                        fold.project_id = p.project_id AND
-                        d.project_cd = p.dams_project_cd AND
-                        d.file_name = CONCAT(f.file_name, '.tif') AND
-                        f.folder_id =   %(folder_id)s
-                ) d
-                SET f.dams_uan = d.dams_uan WHERE f.file_id = d.file_id
-            """),
-                {'folder_id': folder_id})
-
-    # Update in DAMS
-    damsupdate = query_database_insert(
-            ("""
-                INSERT INTO file_postprocessing
-                    (file_id, post_results, post_step)
-                (
-                    SELECT
-                         file_id, 0 as post_results, 'in_dams' as post_step
-                    FROM
-                     (
-                     SELECT file_id FROM files
-                     WHERE folder_id = %(folder_id)s AND 
-                        dams_uan != '' AND dams_uan IS NOT NULL
-                     ) a
-                ) ON DUPLICATE KEY UPDATE post_results = 0
-            """),
-                {'folder_id': folder_id})
-
-    no_files_ready = run_query(
-        ("SELECT COUNT(*) as no_files FROM files WHERE folder_id = %(folder_id)s AND dams_uan != '' AND dams_uan IS NOT NULL"),
-        {'folder_id': folder_id})
-
-    no_files_pending = run_query(
-        ("SELECT COUNT(*) as no_files FROM files WHERE folder_id = %(folder_id)s AND (dams_uan = '' OR dams_uan IS NULL)"),
-        {'folder_id': folder_id})
-
-    if no_files_ready[0]['no_files'] > 0 and no_files_pending[0]['no_files'] == 0:
-        # Update in DAMS
-        damsupdate = query_database_insert(
-            ("UPDATE folders SET delivered_to_dams = 0 WHERE folder_id = %(folder_id)s"),
-            {'folder_id': folder_id})
-        damsupdate = query_database_insert(
-            ("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'dams_status'"),
-            {'folder_id': folder_id})
-        damsupdate = query_database_insert(
-            ("""
-                INSERT INTO folders_badges 
-                    (folder_id, badge_type, badge_css, badge_text) VALUES 
-                    (%(folder_id)s, 'dams_status', 'bg-success', 'Delivered to DAMS')
-            """), {'folder_id': folder_id})
-    return redirect(url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id))
-
-
-@app.route('/update_image/', methods=['POST'], provide_automatic_options=False)
-@login_required
-def update_image():
-    """Update image as having sensitive contents"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-        user_id = current_user.id
-    else:
-        return redirect(url_for('homepage'))
-
-    file_id = int(request.form['file_id'])
-    sensitive_info = request.form['sensitive_info']
-
-    update = query_database_insert(
-        ("INSERT INTO sensitive_contents (file_id, sensitive_contents, sensitive_info, user_id) VALUES (%(file_id)s, 1, %(sensitive_info)s, %(user_id)s) ON DUPLICATE KEY UPDATE sensitive_contents = 1"),
-            {'file_id': file_id, 'sensitive_info': sensitive_info, 'user_id': current_user.id})
-
-    return redirect(url_for('file', file_id=file_id))
-    
 
 @app.route("/logout", methods=['GET'], provide_automatic_options=False)
 def logout():
@@ -4975,132 +3528,6 @@ def not_user():
     logout_user()
     return render_template('notuser.html', form=form, site_env=site_env)
 
-
-@cache.memoize()
-@app.route('/reports/', methods=['GET'], provide_automatic_options=False)
-def data_reports_form():
-    """Report of a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    project_alias = request.values.get("project_alias")
-    report_id = request.values.get("report_id")
-    if project_alias is None or report_id is None:
-        error_msg = "Report is not available."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, 
-                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
-    return redirect(url_for('data_reports', project_alias=project_alias, report_id=report_id, rendering=False))
-
-
-
-@app.route('/reports/<project_alias>/<report_id>/<rendering>', methods=['GET'], provide_automatic_options=False)
-def data_reports(project_alias=None, report_id=None, rendering=None):
-    """Report of a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    if current_user.is_authenticated:
-        user_exists = True
-        username = current_user.name
-    else:
-        user_exists = False
-        username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-    if settings.site_net == "internal":
-        asklogin = True
-    else:
-        asklogin = False
-    site_env_label = "Production" if site_env == "prod" else site_env.replace("_", " ").title()
-
-    if project_alias is None:
-        error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net), 404
-
-    project_id = run_query(("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s"),
-                                {'project_alias': project_alias})
-
-    if len(project_id) == 0:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_id,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-
-    project_id = project_id[0]['project_id']
-    project_report = run_query(("SELECT *, date_format(updated_at, '%Y-%b-%d %T') as updated_at_f FROM data_reports WHERE "
-                                     " project_id = %(project_id)s AND report_id = %(report_id)s"),
-                                    {'project_id': project_id, 'report_id': report_id})
-    if len(project_report) == 0:
-        error_msg = "Report was not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-
-    report_data_updated = run_query(project_report[0]['query_updated'])[0]['updated_at']
-    project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s",
-                                  {'project_id': project_id})[0]
-    
-    if project_report[0]['pregenerated'] == 1:
-        if rendering != "1":
-            return render_template('reports_loading.html',
-                           project_alias=project_alias, project_info=project_info,
-                           report=project_report[0],
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
-        else:
-            # Delete old versions
-            files_todel = glob.glob("static/reports/{}_*.csv".format(project_report[0]['pregen_filename']))
-            for file in files_todel:
-                try:
-                    os.remove(file)
-                except FileNotFoundError:
-                    continue
-            files_todel = glob.glob("static/reports/{}_*.xlsx".format(project_report[0]['pregen_filename']))
-            for file in files_todel:
-                try:
-                    os.remove(file)
-                except FileNotFoundError:
-                    continue
-            Path("static/reports").mkdir(parents=True, exist_ok=True)
-            rep_timestamp = localtime()
-            current_datetime = strftime("%Y%m%d_%H%M%S", rep_timestamp)
-            current_datetime_formatted = strftime("%Y-%m-%d %H:%M:%S", rep_timestamp)
-            report_data = pd.DataFrame(run_query(project_report[0]['query']))
-            # CSV
-            data_file = "reports/{}_{}.csv".format(project_report[0]['pregen_filename'], current_datetime)
-            report_data.to_csv("static/{}".format(data_file), index=False)
-            # Excel
-            data_file_e = "reports/{}_{}.xlsx".format(project_report[0]['pregen_filename'], current_datetime)
-            report_data.to_excel("static/{}".format(data_file_e), index=False)
-            pregenerated = 1
-    else:
-        report_data = pd.DataFrame(run_query(project_report[0]['query']))
-        data_file = ""
-        data_file_e = ""
-        current_datetime_formatted = ""
-        pregenerated = 0
-    
-    return render_template('reports.html',
-                           project_id=project_id, project_alias=project_alias, project_info=project_info,
-                           report=project_report[0],
-                           tables=[report_data.to_html(table_id='report_data',
-                                                       index=False,
-                                                       border=0,
-                                                       escape=False,
-                                                       classes=["display", "compact", "table-striped"])],
-                           data_file_e=data_file_e, report_data_updated=report_data_updated, form=form,
-                           data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted, 
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code,
-                           username=username,asklogin=asklogin)
 
 
 #####################################

@@ -4,7 +4,7 @@ from flask import jsonify
 
 from api import api_bp
 from api.exceptions import AppError, DatabaseConnectionError, InputValidationError, SecurityError
-from logger import logger
+from logger import api_logger as logger
 
 
 @api_bp.errorhandler(AppError)

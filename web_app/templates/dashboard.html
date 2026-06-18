@@ -22,7 +22,7 @@
         <div class="dashboard-recent-images">
             <h4>Recent images:</h4>
                 {% for img in recent_images %}
-                    <a href="{{ url_for('file', file_id=img.file_id) }}"><img src="{{ url_for('static', filename=img.preview) }}" alt=""></a>
+                    <a href="{{ url_for('files.file', file_id=img.file_id) }}"><img src="{{ url_for('static', filename=img.preview) }}" alt=""></a>
                 {% endfor %}
         </div>
         <br>
@@ -107,7 +107,7 @@
         {% if tab == "filechecks" %}
 
             <!-- {% if is_admin %}
-                <div style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></div>
+                <div style="text-align: right;"><a class="btn btn-primary btn-sm" href="{{ url_for('files.update_folder_dams', project_alias=project_alias, folder_id=folder_id) }}" role="button">Update DAMS Status</a></div>
             {% endif %} -->
 
                 {% if folder_links | length > 0 %}
@@ -193,44 +193,7 @@
             {% if site_net == "internal" %}
               <br><br>
                 <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
-                  <div class="row">
-                      <div class="col">
-                          <p><small><em>Sorted by file_name</em></small></p>
-                      </div>
-                      <div class="col">
-                          {{ pagination_html | safe }}
-                      </div>
-                  </div>
-
-                {% for file in files_df %}
-                
-                    {% if transcription == 1 %}
-                        <a type="button" class="btn btn-light btn-sm"
-                            href="{{ url_for('file_transcription', file_id=file.file_id) }}"
-                            title="Details of the file {{ file.file_name }}">
-                    {% else %}
-                        <a type="button" class="btn btn-light btn-sm"
-                            href="{{ url_for('file', file_id=file.file_id) }}"
-                            title="Details of the file {{ file.file_name }}">
-                    {% endif %}
-
-                    {% if file.preview_img_path == "na_160.png" %}
-                        <div class="missing-image">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
-                            </svg>
-                        </div>
-                        <br>
-                    {% else %}
-                        <img src="{% if file.preview_image_ext == None %}{{ url_for('static', filename=file.preview_img_path) }}{% else %}{{ file.preview_image_ext }}&max=160{% endif %}" alt="Preview image of {{ file.file_name }}" style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>
-                    {% endif %}
-
-                    <small>{{ file.file_name }}</small>
-                </a>
-                {% endfor %}
-
-                <br>{{ pagination_html | safe }}
-
+                {% include 'partials/_dashboard_lightbox.html' %}
             {% endif %}
 
         {% elif tab == "postprod" %}
@@ -275,6 +238,7 @@
 
 <script src="{{ url_for('static', filename='js/dashboard_folders.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
 
 {% if folder_id != None %}
 
@@ -333,6 +297,10 @@
 
                 OspreyDashboardFiles.loadFromPanel();
 
+
+        {% elif tab == "lightbox" %}
+
+                OspreyDashboardLightbox.loadFromPanel();
 
         {% elif tab == "postprod" %}
 

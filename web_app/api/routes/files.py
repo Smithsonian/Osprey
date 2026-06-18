@@ -4,11 +4,10 @@ import re
 import uuid
 
 import pandas as pd
-import requests
 from flask import current_app, jsonify, request
 
 from cache import cache
-from logger import logger
+from logger import api_logger as logger
 
 from api import api_bp
 from api.auth import check_file_id, validate_api_key
@@ -17,6 +16,7 @@ from osprey.db import run_query
 @api_bp.route('/files/<int:file_id>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_file_details(file_id=None):
     """Get the details of a file."""
+    logger.info("api_get_file_details called | file_id={}".format(file_id))
     if file_id is None:
         return jsonify({'error': 'file_id is missing'}), 400
     # Check api_key
@@ -25,9 +25,11 @@ def api_get_file_details(file_id=None):
         return jsonify({'error': 'api_key is missing'}), 400
     valid_api_key, is_admin = validate_api_key(api_key, url='/files/', params="file_id={}".format(file_id))
     if valid_api_key == False:
+        logger.warning("api_get_file_details: invalid api_key | file_id={}".format(file_id))
         return jsonify({'error': 'Forbidden'}), 403
     file_id, file_uid = check_file_id(file_id)
     if file_id is None:
+        logger.warning("api_get_file_details: file not found | file_id={}".format(file_id))
         return jsonify({'error': 'File not found'}), 404
     else:
         data = run_query(("SELECT file_id, folder_id, file_name, "

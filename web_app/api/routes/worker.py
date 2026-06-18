@@ -1,14 +1,16 @@
 """API routes (auto-split from legacy app.py)."""
 import json
 import re
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 
 import pandas as pd
-import requests
 from flask import current_app, jsonify, request
 
 from cache import cache
-from logger import logger
+from logger import api_logger as logger
 
 from api import api_bp
 from api.auth import validate_api_key
@@ -521,16 +523,29 @@ def api_update_project_details(project_alias=None):
                                     # JPCA
                                     # Login to ASpace
                                     logger.info("Special process for JPCA.")
-                                    params = {"password": config.ASPACE_API_PASSWORD}
-                                    r = requests.post("{}/users/{}/login".format(config.ASPACE_API_ENDPOINT, config.ASPACE_API_ENDPOINT_username), params=params)
-                                    logger.info(f"ASpace r.status_code: {r.status_code}")
-                                    if r.status_code == 200:
+                                    login_params = {"password": config.ASPACE_API_PASSWORD}
+                                    login_url = "{}/users/{}/login?{}".format(
+                                        config.ASPACE_API_ENDPOINT,
+                                        config.ASPACE_API_ENDPOINT_username,
+                                        urllib.parse.urlencode(login_params),
+                                    )
+                                    try:
+                                        with urllib.request.urlopen(urllib.request.Request(login_url, method="POST")) as resp:
+                                            status_code = resp.status
+                                            reason = resp.reason
+                                            response_json = json.loads(resp.read().decode('utf-8'))
+                                    except urllib.error.HTTPError as err:
+                                        status_code = err.code
+                                        reason = err.reason
+                                        response_json = None
+                                    logger.info(f"ASpace r.status_code: {status_code}")
+                                    if status_code == 200:
                                         logger.info("Success! Was able to get token")
-                                        response_json = json.loads(r.content.decode('utf-8'))
                                         session_token = response_json['session']
                                         Headers = {"X-ArchivesSpace-Session": session_token}
-                                        r = requests.get(f"{config.ASPACE_API_ENDPOINT}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects", headers=Headers)
-                                        refid_exists = json.loads(r.text.encode('utf-8'))
+                                        lookup_url = f"{config.ASPACE_API_ENDPOINT}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects"
+                                        with urllib.request.urlopen(urllib.request.Request(lookup_url, headers=Headers)) as resp:
+                                            refid_exists = json.loads(resp.read().decode('utf-8'))
                                         if len(refid_exists['archival_objects']) != 0:
                                             if refid_exists['archival_objects'][0]['_resolved']['ref_id'] == refid:
                                                 query = ("insert into jpc_aspace_data (refid, table_id, resource_id, archive_box, archive_type, archive_folder, unit_title) with data as (select distinct SUBSTRING_INDEX(file_name, '_', 1) as refid from files where file_id = %(file_id)s) (select refid, uuid_v4s(), 'a', 'a', 'a', 'a', 'a' from data)")
@@ -540,7 +555,7 @@ def api_update_project_details(project_alias=None):
                                                 check_results = 0
                                                 check_info = refid
                                     else:
-                                        logger.error("\n There was an error when loggin into ASpace: {}".format(r.reason))
+                                        logger.error("\n There was an error when loggin into ASpace: {}".format(reason))
                     if transcription == 1:
                         query = (
                             "INSERT INTO transcription_files_checks (file_transcription_id, file_check, check_results, check_info, updated_at) "

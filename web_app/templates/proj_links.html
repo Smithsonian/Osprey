@@ -38,7 +38,7 @@
     </div>
     <div class="col">
         <h4>Add New Links:</h4>
-        <form action="{{ url_for('add_links', project_alias=project.project_alias) }}" method="POST">
+        <form action="{{ url_for('projects.add_links', project_alias=project.project_alias) }}" method="POST">
 
         <div class="mb-3">
             <label for="link_type" class="form-label">Link Type:</label>

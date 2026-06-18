@@ -1,0 +1,18 @@
+<div class="card border-0 shadow-sm mb-4 userhome-admin-card">
+  <div class="card-header osprey-card-header py-2">
+    <h2 class="h6 mb-0">Admin options</h2>
+  </div>
+  <div class="card-body d-flex flex-wrap gap-2">
+    <a class="btn btn-osprey btn-sm" href="{{ url_for('projects.new_project') }}" role="button">
+      <i class="fa-solid fa-folder-plus" aria-hidden="true"></i> Create New Project
+    </a>
+    <a class="btn btn-outline-osprey btn-sm" href="{{ url_for('invoices.invoice') }}" role="button">
+      <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i> Invoice Reconciliation
+    </a>
+    {% if username == 'villanueval' or username == 'dipietroc' %}
+    <a class="btn btn-outline-osprey btn-sm" href="{{ url_for('projects.infprojects') }}" role="button">
+      <i class="fa-solid fa-laptop-code" aria-hidden="true"></i> Informatics Projects
+    </a>
+    {% endif %}
+  </div>
+</div>

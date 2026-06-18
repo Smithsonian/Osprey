@@ -1,0 +1,16 @@
+<div class="dashboard-fact-chips mb-4" aria-label="Quick links">
+  <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('homepage') }}">
+    <i class="fa-solid fa-house" aria-hidden="true"></i> Homepage
+  </a>
+  <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('about') }}">
+    <i class="fa-solid fa-circle-info" aria-hidden="true"></i> About
+  </a>
+  <a class="dashboard-fact-chip dashboard-fact-chip-link"
+     href="{{ about_user_guide_url }}"
+     target="_blank"
+     rel="noopener noreferrer"
+     title="Osprey user guide (opens in new tab)">
+    <i class="fa-solid fa-book" aria-hidden="true"></i> User guide
+    <span class="screen-reader-only">(link is external)</span>
+  </a>
+</div>

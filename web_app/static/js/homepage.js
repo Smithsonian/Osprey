@@ -30,11 +30,15 @@
   }
 
   window.OspreyHomepage = {
-    init: function () {
-      initSortableTable('#list_projects_md');
-      initSortableTable('#list_projects_is');
-      initPlainTable('#list_projects_inf');
-      initPlainTable('#list_software');
+    init: function (team) {
+      if (team === 'md') {
+        initSortableTable('#list_projects_md');
+      } else if (team === 'is') {
+        initSortableTable('#list_projects_is');
+      } else if (team === 'inf') {
+        initPlainTable('#list_projects_inf');
+        initPlainTable('#list_software');
+      }
     },
   };
 }(window));
