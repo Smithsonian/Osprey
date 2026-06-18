@@ -1,0 +1,9 @@
+flask
+flask-login
+flask_wtf
+pandas
+Flask-Caching
+Flask-Minify
+mysql-connector-python
+ldap3
+openpyxl
