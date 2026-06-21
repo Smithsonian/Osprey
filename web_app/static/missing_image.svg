@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="Preview image not available">
+  <rect x="1" y="1" width="158" height="118" fill="#f0f0f0" stroke="#cccccc" stroke-width="2" stroke-dasharray="6,4"/>
+  <g transform="translate(60,40) scale(1.6667)" fill="#999999">
+    <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+  </g>
+</svg>

@@ -332,7 +332,8 @@
         function onFolderNavigate(event, href, folderId) {
             var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
             var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
-            if (!hasFilesLoader && !hasLightboxLoader) {
+            var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
+            if (!hasFilesLoader && !hasLightboxLoader && !hasPostprodLoader) {
                 return;
             }
             event.preventDefault();
@@ -345,6 +346,9 @@
             }
             if (hasLightboxLoader) {
                 window.OspreyDashboardLightbox.loadForFolder(folderId);
+            }
+            if (hasPostprodLoader) {
+                window.OspreyDashboardPostprocessing.loadForFolder(folderId);
             }
         }
 
@@ -427,7 +431,8 @@
                 }
                 var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
                 var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
-                if (hasFilesLoader || hasLightboxLoader) {
+                var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
+                if (hasFilesLoader || hasLightboxLoader || hasPostprodLoader) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
                         updateSelectedFolder(match[1]);
@@ -439,6 +444,9 @@
                         }
                         if (hasLightboxLoader) {
                             window.OspreyDashboardLightbox.loadForFolder(match[1]);
+                        }
+                        if (hasPostprodLoader) {
+                            window.OspreyDashboardPostprocessing.loadForFolder(match[1]);
                         }
                         return;
                     }

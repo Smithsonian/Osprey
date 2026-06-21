@@ -199,14 +199,8 @@
         {% elif tab == "postprod" %}
 
             <br><br>
-
-                {% for table in post_processing %}
-                    {% if post_processing_rows == 0 %}
-                        <br><p>No data available.</p>
-                    {% else %}
-                       {{ table|safe }}
-                    {% endif %}
-                {% endfor %}
+                <p class="fs-3">Post-Production Steps for the Folder {{ folder_name.project_folder }}</p>
+                {% include 'partials/_dashboard_postprocessing_table.html' %}
 
         {% else %}
             &nbsp;
@@ -239,6 +233,7 @@
 <script src="{{ url_for('static', filename='js/dashboard_folders.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_postprocessing.js') }}"></script>
 
 {% if folder_id != None %}
 
@@ -304,119 +299,7 @@
 
         {% elif tab == "postprod" %}
 
-                $('#post_processing_table').append('<caption style="caption-side: top"><p class="fs-3">Post-production Steps on the Files in the Folder {{ folder_name.project_folder }}</p></caption>');
-
-                $('#post_processing_table').DataTable({
-                    dom: 'Bfrtip',
-                        buttons: [
-                            'csvHtml5',
-                            'excelHtml5'
-                        ],
-                    "order": [],
-                    "columnDefs": [
-                        {
-                            'targets': 0,
-                            'createdCell':  function (td, cellData, rowData, row, col) {
-                                $(td).attr('scope', 'row');
-                            }
-                        }],
-                    lengthMenu: [
-                        [25, 50, 100, -1],
-                        [25, 50, 100, 'All'],
-                    ],
-                    'rowCallback': function(row, data, index){
-                        if(data[1] == 'Completed'){
-                            $(row).find('td:eq(1)').css('background', '#198754');
-                            $(row).find('td:eq(1)').css('color', 'white');
-                        } else if(data[1] == 'Failed'){
-                            $(row).find('td:eq(1)').css('background', '#dc3545');
-                            $(row).find('td:eq(1)').css('color', 'white');
-                        } else if(data[1] == 'Pending'){
-                            $(row).find('td:eq(1)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(1)').css('color', 'black');
-                        };
-                        if(data[3] == 'Completed'){
-                            $(row).find('td:eq(3)').css('background', '#198754');
-                            $(row).find('td:eq(3)').css('color', 'white');
-                        } else if(data[3] == 'Failed'){
-                            $(row).find('td:eq(3)').css('background', '#dc3545');
-                            $(row).find('td:eq(3)').css('color', 'white');
-                        } else if(data[3] == 'Pending'){
-                            $(row).find('td:eq(3)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(3)').css('color', 'black');
-                        };
-                        if(data[2] == 'Completed'){
-                            $(row).find('td:eq(2)').css('background', '#198754');
-                            $(row).find('td:eq(2)').css('color', 'white');
-                        } else if(data[2] == 'Failed'){
-                            $(row).find('td:eq(2)').css('background', '#dc3545');
-                            $(row).find('td:eq(2)').css('color', 'white');
-                        } else if(data[2] == 'Pending'){
-                            $(row).find('td:eq(2)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(2)').css('color', 'black');
-                        };
-                        if(data[4] == 'Completed'){
-                            $(row).find('td:eq(4)').css('background', '#198754');
-                            $(row).find('td:eq(4)').css('color', 'white');
-                        } else if(data[4] == 'Failed'){
-                            $(row).find('td:eq(4)').css('background', '#dc3545');
-                            $(row).find('td:eq(4)').css('color', 'white');
-                        } else if(data[4] == 'Pending'){
-                            $(row).find('td:eq(4)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(4)').css('color', 'black');
-                        };
-                        if(data[5] == 'Completed'){
-                            $(row).find('td:eq(5)').css('background', '#198754');
-                            $(row).find('td:eq(5)').css('color', 'white');
-                        } else if(data[5] == 'Failed'){
-                            $(row).find('td:eq(5)').css('background', '#dc3545');
-                            $(row).find('td:eq(5)').css('color', 'white');
-                        } else if(data[5] == 'Pending'){
-                            $(row).find('td:eq(5)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(5)').css('color', 'black');
-                        };
-                        if(data[6] == 'Completed'){
-                            $(row).find('td:eq(6)').css('background', '#198754');
-                            $(row).find('td:eq(6)').css('color', 'white');
-                        } else if(data[6] == 'Failed'){
-                            $(row).find('td:eq(6)').css('background', '#dc3545');
-                            $(row).find('td:eq(6)').css('color', 'white');
-                        } else if(data[6] == 'Pending'){
-                            $(row).find('td:eq(6)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(6)').css('color', 'black');
-                        };
-                        if(data[7] == 'Completed'){
-                            $(row).find('td:eq(7)').css('background', '#198754');
-                            $(row).find('td:eq(7)').css('color', 'white');
-                        } else if(data[7] == 'Failed'){
-                            $(row).find('td:eq(7)').css('background', '#dc3545');
-                            $(row).find('td:eq(7)').css('color', 'white');
-                        } else if(data[7] == 'Pending'){
-                            $(row).find('td:eq(7)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(7)').css('color', 'black');
-                        };
-                        if(data[8] == 'Completed'){
-                            $(row).find('td:eq(8)').css('background', '#198754');
-                            $(row).find('td:eq(8)').css('color', 'white');
-                        } else if(data[8] == 'Failed'){
-                            $(row).find('td:eq(8)').css('background', '#dc3545');
-                            $(row).find('td:eq(8)').css('color', 'white');
-                        } else if(data[8] == 'Pending'){
-                            $(row).find('td:eq(8)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(8)').css('color', 'black');
-                        };
-                        if(data[9] == 'Completed'){
-                            $(row).find('td:eq(9)').css('background', '#198754');
-                            $(row).find('td:eq(9)').css('color', 'white');
-                        } else if(data[9] == 'Failed'){
-                            $(row).find('td:eq(9)').css('background', '#dc3545');
-                            $(row).find('td:eq(9)').css('color', 'white');
-                        } else if(data[9] == 'Pending'){
-                            $(row).find('td:eq(9)').css('background', '#e2e3e5');
-                            $(row).find('td:eq(9)').css('color', 'black');
-                        };
-                    },
-                });
+                OspreyDashboardPostprocessing.loadFromPanel();
 
         {% endif %}
 

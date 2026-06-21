@@ -13,6 +13,13 @@ CHECK_RESULTS_SQL = (
     "WHEN c.check_results = 1 THEN 'Failed' END"
 )
 
+POST_RESULTS_SQL = (
+    "CASE WHEN c.post_results IS NULL THEN 'Pending' "
+    "WHEN c.post_results = 9 THEN 'Pending' "
+    "WHEN c.post_results = 0 THEN 'Completed' "
+    "WHEN c.post_results = 1 THEN 'Failed' ELSE 'Pending' END"
+)
+
 
 def parse_folder_id(folder_id_raw):
     """Return (folder_id, transcription). Raises ValueError if invalid."""
@@ -81,6 +88,15 @@ def list_project_file_checks(project_id):
     return [row['file_check'] for row in rows]
 
 
+def list_project_postprocessing(project_id):
+    rows = run_query(
+        ("SELECT settings_value as post_step FROM projects_settings "
+         " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
+        {'project_id': project_id},
+    )
+    return [row['post_step'] for row in rows]
+
+
 def list_folder_files_base(folder_id, transcription):
     if transcription == 1:
         return run_query(
@@ -144,6 +160,60 @@ def list_folder_file_check_rows(folder_id, transcription, project_id):
          "   ON (ff.file_id = c.file_id AND c.file_check = d.file_check)"),
         {'folder_id': folder_id, 'project_id': project_id},
     )
+
+
+def list_folder_file_postprocessing_rows(folder_id, transcription, project_id):
+    """Cross-join of folder files x project postprocessing steps. Not supported for
+    transcription folders (file_postprocessing has no transcription-pipeline
+    counterpart) -- matches the original inline-query behavior."""
+    if transcription == 1:
+        return []
+    return run_query(
+        ("WITH steps AS ("
+         "  SELECT settings_value as post_step FROM projects_settings "
+         "  WHERE project_setting = 'project_postprocessing' AND project_id = %(project_id)s"
+         "), folder_files AS ("
+         "  SELECT file_id FROM files WHERE folder_id = %(folder_id)s"
+         ") "
+         "SELECT ff.file_id, d.post_step, "
+         f" {POST_RESULTS_SQL} as post_results, "
+         " c.post_info, DATE_FORMAT(c.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+         " FROM folder_files ff "
+         " CROSS JOIN steps d "
+         " LEFT JOIN file_postprocessing c "
+         "   ON (ff.file_id = c.file_id AND c.post_step = d.post_step)"),
+        {'folder_id': folder_id, 'project_id': project_id},
+    )
+
+
+def build_file_postprocessing_arrays(base_files, postproc_rows, project_postprocessing):
+    """Attach ordered file_postprocessing arrays to each file dict."""
+    by_file = {}
+    for row in postproc_rows:
+        file_id = row['file_id']
+        by_file.setdefault(file_id, {})[row['post_step']] = {
+            'post_step': row['post_step'],
+            'post_results': row['post_results'],
+            'post_info': row['post_info'],
+            'updated_at': row['updated_at'],
+        }
+
+    files = []
+    for file_row in base_files:
+        file_id = file_row['file_id']
+        steps_map = by_file.get(file_id, {})
+        file_postprocessing = []
+        for step_name in project_postprocessing:
+            file_postprocessing.append(steps_map.get(step_name, {
+                'post_step': step_name,
+                'post_results': 'Pending',
+                'post_info': None,
+                'updated_at': None,
+            }))
+        entry = dict(file_row)
+        entry['file_postprocessing'] = file_postprocessing
+        files.append(entry)
+    return files
 
 
 def build_file_checks_arrays(base_files, check_rows, project_checks):
@@ -224,12 +294,16 @@ def get_folder_files_payload(folder_id_raw):
 
     project_id = folder_row['project_id']
     project_checks = list_project_file_checks(project_id)
+    project_postprocessing = list_project_postprocessing(project_id)
     base_files = list_folder_files_base(folder_id, transcription)
     check_rows = list_folder_file_check_rows(folder_id, transcription, project_id)
+    postproc_rows = list_folder_file_postprocessing_rows(folder_id, transcription, project_id)
     files = build_file_checks_arrays(base_files, check_rows, project_checks)
+    files = build_file_postprocessing_arrays(files, postproc_rows, project_postprocessing)
 
     payload = dict(folder_row)
     payload.pop('transcription', None)
     payload['project_checks'] = project_checks
+    payload['project_postprocessing'] = project_postprocessing
     payload['files'] = files
     return payload, 200, None

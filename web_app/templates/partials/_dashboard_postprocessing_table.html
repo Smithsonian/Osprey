@@ -1,0 +1,27 @@
+<div id="dashboard-postprod-panel"
+     class="card dashboard-files-card border-dark mb-3 mt-0"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+    <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h2 class="h5 mb-0">Post-processing steps for folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <span id="dashboard-postprod-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
+        </div>
+        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by post-processing status">
+            <button type="button" class="btn btn-outline-secondary active" data-postprod-filter="all">All</button>
+            <button type="button" class="btn btn-outline-danger" data-postprod-filter="failed">Failed</button>
+            <button type="button" class="btn btn-outline-secondary" data-postprod-filter="pending">Pending</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="dashboard-postprod-loading" class="p-3 text-muted">Loading post-processing steps…</div>
+        <div id="dashboard-postprod-error" class="p-3 text-danger d-none" role="alert"></div>
+        <div id="dashboard-postprod-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+        <div id="dashboard-postprod-table-wrap" class="dashboard-files-table-wrap d-none">
+            <table id="post_processing_table" class="display table table-sm table-hover dashboard-files-table w-100"></table>
+        </div>
+    </div>
+</div>

@@ -958,44 +958,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         elif tab == "lightbox":
             page_no = "Lightbox"
         elif tab == "postprod":
-            project_postprocessing_temp = run_query(
-                ("SELECT settings_value as file_check FROM projects_settings "
-                " WHERE project_setting = 'project_postprocessing' and project_id = %(project_id)s ORDER BY table_id"),
-                {'project_id': project_info['project_id']})
-            project_postprocessing = []
-            if project_postprocessing_temp is not None:
-                for fcheck in project_postprocessing_temp:
-                    project_postprocessing.append(fcheck['file_check'])
-            filechecks_list = []
-
             page_no = "Post-Processing Steps"
-            folder_files_df = pd.DataFrame()
-            post_processing_df = pd.DataFrame(run_query(("SELECT file_id, file_name FROM files "
-                                                  " WHERE folder_id = %(folder_id)s ORDER BY file_name"),
-                                                 {'folder_id': folder_id}))
-            logger.info("project_postprocessing {}".format(project_postprocessing))
-            post_processing_df['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
-                                              + post_processing_df['file_id'].astype(str) + '/" title="File Details">' \
-                                              + post_processing_df['file_name'].astype(str) \
-                                              + '</a>'
-            if len(project_postprocessing) > 0:
-                for fcheck in project_postprocessing:
-                    logger.info("fcheck: {}".format(fcheck))
-                    list_files = pd.DataFrame(run_query(("SELECT f.file_id, "
-                                                              "   CASE WHEN post_results = 0 THEN 'Completed' "
-                                                              "       WHEN post_results = 9 THEN 'Pending' "
-                                                              "       WHEN post_results = 1 THEN 'Failed' "
-                                                              "       ELSE 'Pending' END as {fcheck} "
-                                                              " FROM files f LEFT JOIN file_postprocessing c ON (f.file_id=c.file_id AND c.post_step = %(file_check)s) "
-                                                              "  where f.folder_id = %(folder_id)s").format(
-                        fcheck=fcheck),
-                                                             {'file_check': fcheck, 'folder_id': folder_id}))
-                    logger.info("list_files.size: {}".format(list_files.shape[0]))
-                    if list_files.shape[0] > 0:
-                        post_processing_df = post_processing_df.merge(list_files, how='outer', on='file_id')
-                post_processing_df = post_processing_df.drop(['file_id'], axis=1)
-            else:
-                post_processing_df = pd.DataFrame()
         if transcription == 1:
             folder_badges = run_query("SELECT f.folder_transcription_id as folder_id, b.badge_type, b.badge_css, b.badge_text FROM folders_badges b, transcription_folders f WHERE b.folder_uid = f.folder_transcription_id and f.folder_transcription_id = %(folder_id)s and b.badge_type != 'no_files'", {'folder_id': folder_id})
         else:

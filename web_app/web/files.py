@@ -12,7 +12,7 @@ import settings
 from api.config import config
 from cache import cache
 from logger import logger
-from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer
+from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
 from osprey.services import file_search as file_search_service
 from osprey.services import files as files_service
 from osprey.services.permissions import kiosk_mode, user_perms
@@ -207,6 +207,16 @@ def file_empty():
 @files_bp.route('/file_transcription/', methods=['GET'], provide_automatic_options=False)
 def file_t_empty():
     return redirect(url_for('homepage'))
+
+
+@files_bp.route('/preview/<folder_id>/<file_id>/', methods=['GET'], provide_automatic_options=False)
+def preview_image(folder_id=None, file_id=None):
+    """Redirect to the 160px preview thumbnail, or the missing-image SVG placeholder if it doesn't exist on disk."""
+    transcription = request.args.get('transcription') == '1'
+    path = static_preview_path(folder_id, file_id, size="160", transcription=transcription)
+    if path == "na_160.png":
+        return redirect(url_for('static', filename='missing_image.svg'))
+    return redirect(url_for('static', filename=path))
 
 
 @cache.memoize()

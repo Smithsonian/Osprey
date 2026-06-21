@@ -7,10 +7,6 @@
     var currentConfig = {};
     var paginationBound = false;
 
-    var MISSING_IMAGE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
-        '<path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>' +
-        '</svg>';
-
     function escapeHtml(text) {
         return String(text)
             .replace(/&/g, '&amp;')
@@ -22,29 +18,28 @@
     function panelConfig(panel) {
         return {
             transcription: parseInt(panel.getAttribute('data-transcription') || '0', 10) === 1,
-            appRoot: panel.getAttribute('data-app-root') || ''
+            appRoot: panel.getAttribute('data-app-root') || '',
+            folderId: panel.getAttribute('data-folder-id') || ''
         };
     }
 
-    function previewSrc(file, transcription, appRoot) {
+    function previewSrc(file, transcription, appRoot, folderId) {
         if (file.preview_image) {
             return file.preview_image + '&max=160';
         }
-        var folderPrefix = transcription ? '' : 'folder';
-        return appRoot + '/static/image_previews/' + folderPrefix + file.folder_id + '/160/' + file.file_id + '.jpg';
+        var query = transcription ? '?transcription=1' : '';
+        return appRoot + '/preview/' + encodeURIComponent(folderId) + '/' + encodeURIComponent(file.file_id) + '/' + query;
     }
 
-    function fileCardHtml(file, transcription, appRoot) {
+    function fileCardHtml(file, transcription, appRoot, folderId) {
         var detailPath = transcription ?
             appRoot + '/file_transcription/' + file.file_id + '/' :
             appRoot + '/file/' + file.file_id + '/';
         var alt = 'Preview image of ' + escapeHtml(file.file_name);
         return '<a type="button" class="btn btn-light btn-sm dashboard-lightbox-card" href="' + detailPath + '" ' +
             'title="Details of the file ' + escapeHtml(file.file_name) + '">' +
-            '<div class="missing-image d-none">' + MISSING_IMAGE_SVG + '</div>' +
-            '<img src="' + previewSrc(file, transcription, appRoot) + '" alt="' + alt + '" ' +
-            'style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail" ' +
-            'onerror="this.classList.add(&#39;d-none&#39;);this.previousElementSibling.classList.remove(&#39;d-none&#39;);this.onerror=null;"><br>' +
+            '<img src="' + previewSrc(file, transcription, appRoot, folderId) + '" alt="' + alt + '" ' +
+            'style="padding: 10px; max-width: 160px;" class="img-fluid img-thumbnail"><br>' +
             '<small>' + escapeHtml(file.file_name) + '</small>' +
             '</a>';
     }
@@ -97,7 +92,7 @@
         var pageFiles = allFiles.slice(start, start + PAGE_SIZE);
 
         document.getElementById('lightbox-grid').innerHTML = pageFiles.map(function (file) {
-            return fileCardHtml(file, currentConfig.transcription, currentConfig.appRoot);
+            return fileCardHtml(file, currentConfig.transcription, currentConfig.appRoot, currentConfig.folderId);
         }).join('');
 
         var paginationHtml = buildPaginationHtml(currentPage, totalPages);
