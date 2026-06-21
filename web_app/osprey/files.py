@@ -128,10 +128,17 @@ def resolve_image_viewer(folder_id, file_id, file_name, *, transcription=False):
     if settings.iiif_enabled:
         iiif_dir = _iiif_disk_dir(folder_id, transcription)
         jpg_path = f"{settings.iiif_path}/{iiif_dir}/{file_name}.jpg"
-        if os.path.isfile(jpg_path):
+        iiif_found = os.path.isfile(jpg_path)
+        logger.info(
+            "IIIF lookup for file_id=%s: jpg_path=%s found=%s",
+            file_id, jpg_path, iiif_found,
+        )
+        if iiif_found:
             zoom_exists = 2
             manifest_id = _iiif_manifest_id(folder_id, file_name, transcription)
             iiif_image = f"/iiif/3/{manifest_id}/info.json"
+    else:
+        logger.info("IIIF lookup for file_id=%s: skipped (iiif_enabled=False)", file_id)
 
     return {
         "zoom_exists": zoom_exists,
