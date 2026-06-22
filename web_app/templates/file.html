@@ -161,13 +161,6 @@
                                                title="Open JPG in full size of {{ file_details.file_name }}">
                                                 <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open JPG in full size
                                             </a>
-                                            &nbsp;·&nbsp;
-                                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                                               rel="noopener noreferrer"
-                                               download
-                                               title="Download JPG in full size of {{ file_details.file_name }}">
-                                                <i class="fa-solid fa-download" aria-hidden="true"></i> Download JPG
-                                            </a>
                                         </div>
                                     {% endif %}
 
@@ -218,6 +211,12 @@
                           {{ file_details.dams_uan }}
                         </span>
                       {% endif %}
+                      {% if not kiosk and zoom_exists == 2 %}
+                        <span class="dashboard-fact-chip" role="listitem" title="Preview powered by an IIIF image manifest">
+                          <i class="fa-solid fa-magnifying-glass-plus fa-fw" aria-hidden="true"></i>
+                          IIIF
+                        </span>
+                      {% endif %}
                       {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
                         <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
                            class="dashboard-fact-chip dashboard-fact-chip-link"
@@ -225,14 +224,6 @@
                            rel="noopener noreferrer">
                           <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
                           Full size
-                        </a>
-                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                           class="dashboard-fact-chip dashboard-fact-chip-link"
-                           title="Download JPG"
-                           download
-                           rel="noopener noreferrer">
-                          <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
-                          Download
                         </a>
                       {% endif %}
                     </div>
@@ -339,14 +330,6 @@
                            rel="noopener noreferrer">
                           <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
                           Full size
-                        </a>
-                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                           class="dashboard-fact-chip dashboard-fact-chip-link"
-                           title="Download JPG"
-                           download
-                           rel="noopener noreferrer">
-                          <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
-                          Download
                         </a>
                       {% endif %}
                     </div>
