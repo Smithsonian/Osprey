@@ -9,12 +9,12 @@ import uuid
 import pandas as pd
 from flask import current_app, jsonify, request
 
+import settings
 from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
 from api.auth import validate_api_key
-from api.config import config
 from osprey.db import query_database_insert, run_query
 
 @api_bp.route('/update/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
@@ -523,10 +523,10 @@ def api_update_project_details(project_alias=None):
                                     # JPCA
                                     # Login to ASpace
                                     logger.info("Special process for JPCA.")
-                                    login_params = {"password": config.ASPACE_API_PASSWORD}
+                                    login_params = {"password": getattr(settings, 'aspace_api_password', None)}
                                     login_url = "{}/users/{}/login?{}".format(
-                                        config.ASPACE_API_ENDPOINT,
-                                        config.ASPACE_API_ENDPOINT_username,
+                                        getattr(settings, 'aspace_api', None),
+                                        getattr(settings, 'aspace_api_username', None),
                                         urllib.parse.urlencode(login_params),
                                     )
                                     try:
@@ -543,7 +543,7 @@ def api_update_project_details(project_alias=None):
                                         logger.info("Success! Was able to get token")
                                         session_token = response_json['session']
                                         Headers = {"X-ArchivesSpace-Session": session_token}
-                                        lookup_url = f"{config.ASPACE_API_ENDPOINT}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects"
+                                        lookup_url = f"{getattr(settings, 'aspace_api', None)}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects"
                                         with urllib.request.urlopen(urllib.request.Request(lookup_url, headers=Headers)) as resp:
                                             refid_exists = json.loads(resp.read().decode('utf-8'))
                                         if len(refid_exists['archival_objects']) != 0:

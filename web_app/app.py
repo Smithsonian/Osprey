@@ -41,14 +41,9 @@ from flask_login import current_user
 
 import settings
 
-site_ver = "2.11.1"
+site_ver = getattr(settings, 'site_ver', '2.11.1')
 site_env = settings.env
 site_net = settings.site_net
-
-from api.config import config
-
-config.SITE_VER = site_ver
-config.SITE_ENV = site_env
 
 logger.info("site_ver = {}".format(site_ver))
 logger.info("site_env = {}".format(site_env))

@@ -12,7 +12,6 @@ from flask_login import current_user
 from flask_login import login_required
 
 import settings
-from api.config import config
 from logger import logger
 from osprey.services import projects as project_service
 from osprey.services.permissions import user_perms
@@ -27,7 +26,7 @@ def new_project(msg=None):
     """Create a new project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -100,7 +99,7 @@ def edit_project(project_alias=None):
     """Edit a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -135,7 +134,7 @@ def infprojects():
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -169,7 +168,7 @@ def infprojects_edit(proj_id=None):
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -191,7 +190,7 @@ def new_infprojects():
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -246,7 +245,7 @@ def proj_links(project_alias=None):
     """Add / edit links associated with a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":

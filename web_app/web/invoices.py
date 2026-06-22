@@ -14,7 +14,6 @@ from flask_login import current_user
 from flask_login import login_required
 
 import settings
-from api.config import config
 from osprey.services import invoices as invoice_service
 from osprey.services.permissions import user_perms
 from web.forms import LoginForm
@@ -28,7 +27,7 @@ def invoice(msg=None):
     """Invoice Reconciliation"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -60,7 +59,7 @@ def invoice_recon(msg=None):
     """Invoice Reconciliation"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":

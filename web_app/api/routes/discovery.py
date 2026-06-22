@@ -2,11 +2,11 @@
 
 from flask import current_app, jsonify
 
+import settings
 from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
-from api.config import config
 
 
 @cache.memoize()
@@ -25,8 +25,8 @@ def api_route_list():
         func_list[rule.rule] = current_app.view_functions[rule.endpoint].__doc__
     data = {
         'routes': func_list,
-        'sys_ver': config.SITE_VER,
-        'env': config.SITE_ENV,
+        'sys_ver': getattr(settings, 'site_ver', '2.11.1'),
+        'env': settings.env,
         'net': 'api',
     }
     return jsonify(data)

@@ -9,7 +9,6 @@ from flask_login import current_user
 from flask_login import login_required
 
 import settings
-from api.config import config
 from cache import cache
 from logger import logger
 from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
@@ -26,7 +25,7 @@ def file(file_id=None):
     """File details"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -120,7 +119,7 @@ def file_transcription(file_id=None):
     """File details from a transcription project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -225,7 +224,7 @@ def search_files(project_alias):
     """Search files by filename."""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = config.SITE_VER
+    site_ver = getattr(settings, 'site_ver', '2.11.1')
 
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))
