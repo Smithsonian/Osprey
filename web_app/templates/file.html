@@ -148,20 +148,9 @@
                                             {% endif %}
                                         </div>
                                     {% else %}
-                                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                                           rel="noopener noreferrer"
-                                           title="Open JPG in full size of {{ file_details.file_name }}">
-                                            <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
-                                                 alt="Preview image of {{ file_details.file_name }}"
-                                                 class="file-preview-image">
-                                        </a>
-                                        <div class="file-preview-actions">
-                                            <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                                               rel="noopener noreferrer"
-                                               title="Open JPG in full size of {{ file_details.file_name }}">
-                                                <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open JPG in full size
-                                            </a>
-                                        </div>
+                                        <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
+                                             alt="Preview image of {{ file_details.file_name }}"
+                                             class="file-preview-image">
                                     {% endif %}
 
                                 {% else %}
@@ -216,15 +205,6 @@
                           <i class="fa-solid fa-magnifying-glass-plus fa-fw" aria-hidden="true"></i>
                           IIIF
                         </span>
-                      {% endif %}
-                      {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
-                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                           class="dashboard-fact-chip dashboard-fact-chip-link"
-                           title="Open JPG in full size"
-                           rel="noopener noreferrer">
-                          <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
-                          Full size
-                        </a>
                       {% endif %}
                     </div>
 
@@ -322,15 +302,6 @@
                           <i class="fa-solid fa-barcode fa-fw" aria-hidden="true"></i>
                           {{ file_details.dams_uan }}
                         </span>
-                      {% endif %}
-                      {% if site_net == "internal" and file_details.preview_img_path is defined and file_details.preview_img_path != "na_160.png" %}
-                        <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
-                           class="dashboard-fact-chip dashboard-fact-chip-link"
-                           title="Open JPG in full size"
-                           rel="noopener noreferrer">
-                          <i class="fa-solid fa-up-right-from-square fa-fw" aria-hidden="true"></i>
-                          Full size
-                        </a>
                       {% endif %}
                     </div>
 
