@@ -31,7 +31,7 @@ import subprocess
 
 # MySQL — shared connection pool
 from osprey.db import init_db, query_database_insert, run_query
-from osprey.files import resolve_image_viewer
+from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -2712,7 +2712,8 @@ def qc_process(folder_id):
                                             "     AND f.folder_transcription_id = %(folder_id)s AND q.file_qc = 9 order by f.file_transcription_id "
                                             "  LIMIT 1 "),
                                             {'folder_id': folder_id})[0]
-                    file_details = run_query(("SELECT f.file_transcription_id as file_id, f.folder_transcription_id as folder_id, f.file_name, NULL as sensitive_contents "
+                    file_details = run_query(("SELECT f.file_transcription_id as file_id, f.folder_transcription_id as folder_id, f.file_name, NULL as sensitive_contents, "
+                                                "       NULL as preview_image_ext, DATEDIFF(NOW(), f.created_at) as datediff "
                                                 " FROM transcription_files f WHERE f.file_transcription_id = %(file_id)s"),
                                                 {'file_id': file_qc['file_id']})[0]
                     file_checks = run_query(("SELECT file_check, check_results, "
@@ -2727,7 +2728,7 @@ def qc_process(folder_id):
                                                                 "   ORDER BY taggroup, tag "),
                                                             {'file_id': file_qc['file_id']}))
                     folder = run_query(
-                        ("SELECT folder_transcription_id as folder_id, folder as project_folder FROM transcription_folders "
+                        ("SELECT folder_transcription_id as folder_id, folder as project_folder, delivered_to_dams FROM transcription_folders "
                         "  WHERE folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_files WHERE file_transcription_id = %(file_id)s)"),
                         {'file_id': file_qc['file_id']})[0]
 
@@ -2740,23 +2741,14 @@ def qc_process(folder_id):
                     zoom_exists = viewer['zoom_exists']
                     zoom_filename = viewer['zoom_filename']
                     iiif_image = viewer['iiif_image']
-                    if zoom_exists > 0:
-                        zoom_js = ""
-                    else:
-                        zoom_js = """
-                                $('#previmg')
-                                .wrap('<span style="display:inline-block"></span>')
-                                .css('display', 'block')
-                                .parent()
-                                .zoom();
-                                """
                 else:
                     file_qc = run_query(("SELECT f.file_id FROM qc_files q, files f "
                                             "  WHERE q.file_id = f.file_id "
                                             "     AND f.folder_id = %(folder_id)s AND q.file_qc = 9 order by file_id "
                                             "  LIMIT 1 "),
                                             {'folder_id': folder_id})[0]
-                    file_details = run_query(("SELECT f.file_id, f.folder_id, f.file_name, COALESCE(s.sensitive_contents, 0) as sensitive_contents "
+                    file_details = run_query(("SELECT f.file_id, f.folder_id, f.file_name, f.preview_image as preview_image_ext, "
+                                                "       DATEDIFF(NOW(), f.created_at) as datediff, COALESCE(s.sensitive_contents, 0) as sensitive_contents "
                                                 " FROM files f LEFT JOIN sensitive_contents s ON f.file_id = s.file_id WHERE f.file_id = %(file_id)s"),
                                                 {'file_id': file_qc['file_id']})[0]
                     file_checks = run_query(("SELECT file_check, check_results, "
@@ -2784,26 +2776,22 @@ def qc_process(folder_id):
                     zoom_exists = viewer['zoom_exists']
                     zoom_filename = viewer['zoom_filename']
                     iiif_image = viewer['iiif_image']
-                    if zoom_exists > 0:
-                        zoom_js = ""
-                    else:
-                        zoom_js = """
-                                $('#previmg')
-                                .wrap('<span style="display:inline-block"></span>')
-                                .css('display', 'block')
-                                .parent()
-                                .zoom();
-                                """
+
+                file_details['preview_img_path'] = static_preview_path(file_details['folder_id'], file_qc['file_id'], size="160", transcription=(transcription == 1))
+                file_details['preview_img_path_600'] = static_preview_path(file_details['folder_id'], file_qc['file_id'], size="600", transcription=(transcription == 1))
+                file_details['fullsize_img_path'] = static_fullsize_path(file_details['folder_id'], file_qc['file_id'], transcription=(transcription == 1))
+
                 return render_template("qc_file.html",
                                         zoom_exists=zoom_exists, zoom_filename=zoom_filename,
                                         iiif_image=iiif_image,
-                                        zoom_js=zoom_js, folder=folder, qc_stats=qc_stats,
+                                        folder=folder, qc_stats=qc_stats,
                                         folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
                                         file_details=file_details, file_checks=file_checks, username=username,
                                         project_alias=project_alias['project_alias'],
                                         tables=[file_metadata.to_html(table_id='file_metadata', index=False, border=0,
                                                                         escape=False,
                                                                         classes=["display", "compact", "table-striped"])],
+                                        file_metadata_rows=file_metadata.shape[0],
                                         msg=msg, form=form,
                                         site_env=site_env, site_net=site_net, site_ver=site_ver,
                                         analytics_code=settings.analytics_code)
@@ -3072,7 +3060,8 @@ def qc_process_transcript(source_id, folder_id):
                                         "     AND q.qc_results = 9 order by file_transcription_id "
                                         "  LIMIT 1 "),
                                         {'folder_id': folder_id, 'source_id': source_id})[0]
-                file_details = run_query(("SELECT f.file_transcription_id, f.folder_transcription_id, f.file_name "
+                file_details = run_query(("SELECT f.file_transcription_id, f.folder_transcription_id, f.file_name, "
+                                            "       NULL as preview_image_ext, DATEDIFF(NOW(), f.created_at) as datediff "
                                             " FROM transcription_files f WHERE f.file_transcription_id = %(file_id)s"),
                                             {'file_id': file_qc['file_transcription_id']})[0]
                 file_checks = run_query(("SELECT file_check, check_results, "
@@ -3094,16 +3083,9 @@ def qc_process_transcript(source_id, folder_id):
                 zoom_exists = viewer['zoom_exists']
                 zoom_filename = viewer['zoom_filename']
                 iiif_image = viewer['iiif_image']
-                if zoom_exists > 0:
-                    zoom_js = ""
-                else:
-                    zoom_js = """
-                            $('#previmg')
-                            .wrap('<span style="display:inline-block"></span>')
-                            .css('display', 'block')
-                            .parent()
-                            .zoom();
-                            """
+
+                attach_preview_paths(file_details, file_qc['file_transcription_id'], transcription=True)
+
                 # Transcriptions
                 tables = {}
                 t_source = run_query("SELECT transcription_source_id, transcription_source_name, CONCAT(transcription_source_notes, ' ', transcription_source_date) as source_notes FROM transcription_sources WHERE project_id = %(project_id)s AND transcription_source_id = %(source_id)s", {'project_id': project_id['project_id'], 'source_id': source_id})[0]
@@ -3123,7 +3105,7 @@ def qc_process_transcript(source_id, folder_id):
                                     transcription=transcription_text,
                                     zoom_exists=zoom_exists, zoom_filename=zoom_filename,
                                     iiif_image=iiif_image,
-                                    zoom_js=zoom_js, folder=folder, qc_stats=qc_stats,
+                                    folder=folder, qc_stats=qc_stats,
                                     folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
                                     file_details=file_details, file_checks=file_checks, username=username,
                                     project_alias=project_alias['project_alias'],

@@ -28,16 +28,73 @@
             <hr>
 
             <!-- Space for Image -->
-            <div class="card">
-                <div class="card-body text-bg-secondary p-3">
-                    <h5 class="card-title">File: {{ file_details.file_name }}</h5>
-                    <p class="card-text">
-                        {% if file_details.sensitive_contents == 1 %}
-                            <h3><em>This image may include sensitive contents.</em></h3>
-                            <br>
-                        {% endif%}
+            <div class="card file-preview-card">
+                <div class="card-header bg-dark text-white py-2">
+                    <h2 class="h6 mb-0">File: {{ file_details.file_name }}</h2>
+                </div>
+                <div class="card-body">
+                    {% if file_details.sensitive_contents == 1 %}
+                        <div class="alert alert-warning mb-3" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> This image may include sensitive contents.
+                        </div>
+                    {% endif %}
 
-                        <div id="openseadragon" style="width: 100%; height: 900px;" alt="Preview image of {{ file_details.file_name }}"></div>                       
+                    {% if zoom_exists > 0 %}
+                        <div id="openseadragon" class="file-openseadragon file-openseadragon--tall" role="img" aria-label="Preview image of {{ file_details.file_name }}"></div>
+                    {% else %}
+
+                        {% if file_details.preview_image_ext == None %}
+
+                            {% if file_details.preview_img_path == "na_160.png" %}
+
+                                <div class="missing-image">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                    <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 5h14v14H5V5zm3 10l2.5-3 2.5 3 3.5-4.5 4 6H5l3-4.5z"/>
+                                    </svg>
+                                </div>
+                                <div class="alert alert-info mt-3 mb-0" role="alert">
+                                    {% if folder.delivered_to_dams == 0 %}
+                                        <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been delivered to DAMS. Please contact the Project Manager for more details.
+                                    {% elif file_details.datediff > 59 %}
+                                        <i class="fa-solid fa-circle-info"></i> The preview is not available because the file has been removed. Please contact the Project Manager for more details.
+                                    {% else %}
+                                        <i class="fa-solid fa-circle-info"></i> The preview is not available because the record was created recently. It might take up to a few hours for the images to be available. Please contact the Project Manager for more details.
+                                    {% endif %}
+                                </div>
+
+                            {% else %}
+
+                                <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                   rel="noopener noreferrer"
+                                   title="Open JPG in full size of {{ file_details.file_name }}">
+                                    <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
+                                         alt="Preview image of {{ file_details.file_name }}"
+                                         class="file-preview-image">
+                                </a>
+                                <div class="file-preview-actions">
+                                    <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                       rel="noopener noreferrer"
+                                       title="Open JPG in full size of {{ file_details.file_name }}">
+                                        <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open JPG in full size
+                                    </a>
+                                    &nbsp;·&nbsp;
+                                    <a href="{{ url_for('static', filename=file_details.fullsize_img_path) }}"
+                                       rel="noopener noreferrer"
+                                       download
+                                       title="Download JPG in full size of {{ file_details.file_name }}">
+                                        <i class="fa-solid fa-download" aria-hidden="true"></i> Download JPG
+                                    </a>
+                                </div>
+
+                            {% endif %}
+
+                        {% else %}
+
+                            <img src="{{ file_details.preview_image_ext }}&max=600" alt="Preview image of {{ file_details.file_name }}" class="file-preview-image">
+
+                        {% endif %}
+
+                    {% endif %}
                 </div>
             </div>
 
@@ -99,20 +156,115 @@
 
     </div>
 
+<div class="card border-0 shadow-sm file-details-panel" id="file-details-panel">
+  <div class="card-header bg-dark text-white py-2 d-flex align-items-center gap-1">
+    <h2 class="h6 mb-0">Checks</h2>
+    {% if file_checks|length > 0 %}
+      <span class="badge rounded-pill text-bg-secondary ms-1">{{ file_checks|length }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body file-details-tab-content p-3">
+    {% if file_checks|length > 0 %}
+      {% set check_descriptions = {
+        'tif_compression': 'TIF file is compressed using the lossless compression LZW.',
+        'tifpages': 'Check that there are no more than 1 page in the TIF, usually a thumbnail.',
+        'magick': 'File is valid according to ImageMagick.',
+        'jhove': 'File is valid according to JHOVE (JSTOR/Harvard Object Validation Environment).',
+        'unique_file': 'Filename is unique in the project.',
+        'raw_pair': 'Raw file was found for the image.',
+        'valid_name': 'Filename is in the list of allowed names.',
+        'old_name': 'Filename was not found in list outside the project.',
+        'derivative': 'Derivative file is present.',
+        'prefix': 'Filename has the correct prefix.',
+        'sequence': 'File sequence is correct.',
+        'tesseract': 'Text orientation and OCR with Tesseract.'
+      } %}
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover file-checks-table mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Check</th>
+              <th scope="col" class="text-end">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for check in file_checks %}
+              <tr class="{% if check.check_results == 1 %}file-check-row-failed{% endif %}"
+                  id="check-{{ check.file_check }}">
+                <td>
+                  <span class="file-check-name">{{ check.file_check }}</span>
+                  {% set desc = check_descriptions[check.file_check] if check.file_check in check_descriptions else ('Checks for ' ~ check.file_check ~ '.') %}
+                  <button type="button"
+                          class="btn btn-link btn-sm file-check-help p-0 ms-1"
+                          title="{{ desc }}"
+                          aria-label="About {{ check.file_check }} check">
+                    <i class="fa-solid fa-circle-info text-muted" aria-hidden="true"></i>
+                  </button>
+                </td>
+                <td class="text-end text-nowrap">
+                  {% if check.check_results == 0 %}
+                    <button type="button"
+                            class="file-result-badge file-result-badge--ok"
+                            data-bs-toggle="modal"
+                            data-bs-target="#checkmodal"
+                            data-bs-info="{{ check.check_info }}">OK</button>
+                  {% elif check.check_results == 1 %}
+                    <button type="button"
+                            class="file-result-badge file-result-badge--failed"
+                            data-bs-toggle="modal"
+                            data-bs-target="#checkmodal"
+                            data-bs-info="{{ check.check_info }}">Failed</button>
+                  {% elif check.check_results == 9 %}
+                    <button type="button"
+                            class="file-result-badge file-result-badge--pending"
+                            data-bs-toggle="modal"
+                            data-bs-target="#checkmodal"
+                            data-bs-info="{{ check.check_info }}">Pending</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No technical checks recorded for this file.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="checkmodal" tabindex="-1" aria-labelledby="checkmodalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="checkmodalLabel">Check Details</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <pre class="file-modal-pre mb-0"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <br><br>
 
 {% endblock %}
 
 {% block javascripts %}
 
+    <script src="{{ url_for('static', filename='js/file.js') }}"></script>
+
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
-            
-
             $('#transcription_text').DataTable({
-                "searching": false, 
-                "paging": false, 
+                "searching": false,
+                "paging": false,
                 "info": false,
                 "order": [],
                     "columnDefs": [
@@ -123,41 +275,12 @@
                             }
                         }]
             });
-
-
-            var exampleModal = document.getElementById('checkmodal')
-            exampleModal.addEventListener('show.bs.modal', function (event) {
-              // Button that triggered the modal
-              var button = event.relatedTarget
-              // Extract info from data-bs-* attributes
-              var checkinfo = button.getAttribute('data-bs-info')
-              // If necessary, you could initiate an AJAX request here
-              // and then do the updating in a callback.
-              //
-              // Update the modal's content.
-              var modalBody = exampleModal.querySelector('.modal-body pre')
-
-              modalBody.textContent = checkinfo
-            })
-
-            {{ zoom_js | safe}}
         });
     </script>
 
 
 {% if zoom_exists >= 1 %}
     {% include 'partials/_openseadragon_init.html' %}
-
-    {% else %}
-
-    <!-- Zoom -->
-        <script
-            type="text/javascript"
-            src="https://cdn.jsdelivr.net/npm/jquery-zoom@1.7.21/jquery.zoom.min.js"
-            integrity="sha384-EeOf8v/Jh3rqjCmTJTb0iX4HBUzuIgi++DUOReOvjDdonsZreW3JKI9wrrycC9Ub"
-            crossorigin="anonymous"
-        ></script>
-    
-    {% endif %}
+{% endif %}
 
 {% endblock %}
