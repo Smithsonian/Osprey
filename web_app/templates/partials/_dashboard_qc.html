@@ -1,0 +1,45 @@
+<div id="dashboard-qc-panel"
+     data-qc-url="{{ url_for('api.api_get_folder_qc', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+
+    <div id="dashboard-qc-loading" class="text-muted small py-1">
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Loading QC information…
+    </div>
+
+    <p id="dashboard-qc-error" class="small text-danger d-none" role="alert"></p>
+
+    <div id="dashboard-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+        <div class="row">
+            <div class="col">
+                <div class="accordion" id="qc_accordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="qc_accordion_heading">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#qc_accordion_panel"
+                                    aria-expanded="false"
+                                    aria-controls="qc_accordion_panel">
+                                Visual Image QC Details (click to expand)
+                            </button>
+                        </h2>
+                        <div id="qc_accordion_panel"
+                             class="accordion-collapse collapse"
+                             aria-labelledby="qc_accordion_heading"
+                             data-bs-parent="#qc_accordion">
+                            <div class="accordion-body">
+                                <table id="qc_details_table" class="display compact table-striped w-100"></table>
+                                <hr>
+                                <p id="dashboard-qc-notes" class="d-none mb-0">Notes: <span id="dashboard-qc-notes-text"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

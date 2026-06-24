@@ -331,9 +331,10 @@
 
         function onFolderNavigate(event, href, folderId) {
             var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
+            var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
             var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
             var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-            if (!hasFilesLoader && !hasLightboxLoader && !hasPostprodLoader) {
+            if (!hasFilesLoader && !hasQcLoader && !hasLightboxLoader && !hasPostprodLoader) {
                 return;
             }
             event.preventDefault();
@@ -343,6 +344,9 @@
             }
             if (hasFilesLoader) {
                 window.OspreyDashboardFiles.loadForFolder(folderId);
+            }
+            if (hasQcLoader) {
+                window.OspreyDashboardQc.loadForFolder(folderId);
             }
             if (hasLightboxLoader) {
                 window.OspreyDashboardLightbox.loadForFolder(folderId);
@@ -430,9 +434,10 @@
                     return;
                 }
                 var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
+                var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
                 var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
                 var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-                if (hasFilesLoader || hasLightboxLoader || hasPostprodLoader) {
+                if (hasFilesLoader || hasQcLoader || hasLightboxLoader || hasPostprodLoader) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
                         updateSelectedFolder(match[1]);
@@ -441,6 +446,9 @@
                         }
                         if (hasFilesLoader) {
                             window.OspreyDashboardFiles.loadForFolder(match[1]);
+                        }
+                        if (hasQcLoader) {
+                            window.OspreyDashboardQc.loadForFolder(match[1]);
                         }
                         if (hasLightboxLoader) {
                             window.OspreyDashboardLightbox.loadForFolder(match[1]);

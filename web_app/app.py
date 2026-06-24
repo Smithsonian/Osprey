@@ -889,9 +889,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         'no_files': 0,
         'no_errors': 0
     }
-    qc_check = ""
-    qc_details = pd.DataFrame()
-    qc_folder_info = ""
 
     if folder_id is not None and folder_id != '':
         if transcription == 1:
@@ -988,56 +985,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         proj_reports = False
 
-    if tab == "filechecks":
-        if transcription == 1:
-            qc_check = run_query("SELECT * FROM qc_files WHERE folder_uid = %(folder_id)s",
-                            {'folder_id': folder_id})
-        else:
-            qc_check = run_query("SELECT * FROM qc_files WHERE folder_id = %(folder_id)s",
-                            {'folder_id': folder_id})
-        if len(qc_check) > 0:
-            qc_check = True
-            if transcription == 1:
-                qc_details = pd.DataFrame(run_query(("SELECT f.file_transcription_id as file_id, f.file_name, q.qc_info, "
-                                                 "      CASE "
-                                                 "           WHEN q.file_qc = 0 THEN '<span class=\"badge bg-success\">Image OK</span>'"
-                                                 "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
-                                                 "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
-                                                 "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
-                                                 "FROM qc_files q, transcription_files f WHERE q.folder_uid = %(folder_id)s AND q.file_uid = f.file_transcription_id "
-                                                 "ORDER BY q.file_qc DESC"),
-                                {'folder_id': folder_id}))
-                qc_details['file_name'] = '<a href="{}/file_transcription/'.format(settings.app_root) \
-                                                + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
-                                                + qc_details['file_name'].astype(str) \
-                                                + '</a>'
-                qc_details = qc_details.drop(['file_id'], axis=1)
-                qc_folder_info = run_query(("SELECT qc_info from qc_folders where folder_uid = %(folder_id)s"),
-                                    {'folder_id': folder_id})
-                qc_folder_info=qc_folder_info[0]['qc_info']
-            else:
-                qc_details = pd.DataFrame(run_query(("SELECT f.file_id, f.file_name, q.qc_info, "
-                                                 "      CASE "
-                                                 "           WHEN q.file_qc = 0 THEN '<span class=\"badge bg-success\">Image OK</span>'"
-                                                 "           WHEN q.file_qc = 1 THEN '<span class=\"badge bg-danger\">Critical Issue</span>'"
-                                                 "           WHEN q.file_qc = 2 THEN '<span class=\"badge bg-warning\">Major Issue</span>'"
-                                                 "           WHEN q.file_qc = 3 THEN '<span class=\"badge bg-warning\">Minor Issue</span>' END as file_qc "
-                                                 "FROM qc_files q, files f WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
-                                                 "ORDER BY q.file_qc DESC"),
-                                {'folder_id': folder_id}))
-                qc_details['file_name'] = '<a href="{}/file/'.format(settings.app_root) \
-                                                + qc_details['file_id'].astype(str) + '/" title="File Details" target="_blank">' \
-                                                + qc_details['file_name'].astype(str) \
-                                                + '</a>'
-                qc_details = qc_details.drop(['file_id'], axis=1)
-                qc_folder_info = run_query(("SELECT qc_info from qc_folders where folder_id = %(folder_id)s"),
-                                    {'folder_id': folder_id})
-                qc_folder_info=qc_folder_info[0]['qc_info']
-        else:
-            qc_check = False
-            qc_details = pd.DataFrame()
-            qc_folder_info = ""
-
     # Disk space
     project_disks = run_query(("SELECT FORMAT_BYTES(sum(filesize)) as filesize, UPPER(filetype) as filetype "
                                "    FROM files_size "
@@ -1091,12 +1038,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            form=form, proj_reports=proj_reports,
                            reports=reports, site_env=site_env, site_net=site_net,
                            site_ver=site_ver, kiosk=kiosk, user_address=user_address,
-                           qc_check=qc_check, qc_folder_info=qc_folder_info,
-                           qc_details=[qc_details.to_html(table_id='qc_details_table',
-                                                       index=False,
-                                                       border=0,
-                                                       escape=False,
-                                                       classes=["display", "compact", "table-striped", "w-100"])],
                            project_disk=project_disk,
                            projects_links=projects_links,
                            project_manager_link=project_manager_link,

@@ -129,42 +129,7 @@
 
                 {% endif %}
 
-                    {% if qc_check %}
-                        <div class="alert alert-secondary dashboard-qc-block py-2" role="alert">
-                            <div class="row">
-                                <div class="col">
-                                    <div class="accordion" id="qc_accordion">
-                                        <div class="accordion-item">
-                                            <h2 class="accordion-header" id="qc_accordion_heading">
-                                                <button class="accordion-button collapsed"
-                                                        type="button"
-                                                        data-bs-toggle="collapse"
-                                                        data-bs-target="#qc_accordion_panel"
-                                                        aria-expanded="false"
-                                                        aria-controls="qc_accordion_panel">
-                                                    Visual Image QC Details (click to expand)
-                                                </button>
-                                            </h2>
-                                            <div id="qc_accordion_panel"
-                                                 class="accordion-collapse collapse"
-                                                 aria-labelledby="qc_accordion_heading"
-                                                 data-bs-parent="#qc_accordion">
-                                                <div class="accordion-body">
-                                        {% for table in qc_details %}
-                                            {{ table|safe }}
-                                            <hr>
-                                            {% if qc_folder_info != "" %}
-                                                <p>Notes: {{ qc_folder_info }}</p>
-                                            {% endif %}
-                                        {% endfor %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
+                {% include 'partials/_dashboard_qc.html' %}
                 {% include 'partials/_dashboard_files_table.html' %}
 
 
@@ -233,6 +198,7 @@
 <script src="{{ url_for('static', filename='js/dashboard_folders.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_table_panel.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_qc.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_postprocessing.js') }}"></script>
 
@@ -264,34 +230,8 @@
               previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
             });
 
-                $('#qc_details_table').DataTable({
-                    dom: 'Bfrtip',
-                        buttons: [
-                            'csvHtml5',
-                            'excelHtml5'
-                        ],
-                    "order": [],
-                    "columnDefs": [
-                        {
-                            'targets': 0,
-                            'createdCell':  function (td, cellData, rowData, row, col) {
-                                $(td).attr('scope', 'row');
-                            }
-                        }],
-                    lengthMenu: [
-                        [25, 50, 100, -1],
-                        [25, 50, 100, 'All'],
-                    ]
-                });
-
-                var qcAccordionPanel = document.getElementById('qc_accordion_panel');
-                if (qcAccordionPanel) {
-                    qcAccordionPanel.addEventListener('shown.bs.collapse', function () {
-                        $('#qc_details_table').DataTable().columns.adjust().draw(false);
-                    });
-                }
-
                 OspreyDashboardFiles.loadFromPanel();
+                OspreyDashboardQc.loadFromPanel();
 
 
         {% elif tab == "lightbox" %}

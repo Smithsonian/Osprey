@@ -307,3 +307,66 @@ def get_folder_files_payload(folder_id_raw):
     payload['project_postprocessing'] = project_postprocessing
     payload['files'] = files
     return payload, 200, None
+
+
+def get_folder_qc_payload(folder_id_raw):
+    """Return folder visual-QC sampling summary JSON, or (None, status_code, message)."""
+    try:
+        folder_id, transcription = parse_folder_id(folder_id_raw)
+    except ValueError as err:
+        return None, 400, str(err)
+
+    folder_row = get_folder_details_row(folder_id, transcription)
+    if folder_row is None:
+        return None, 404, 'Folder not found'
+
+    if transcription == 1:
+        qc_files = run_query(
+            "SELECT 1 FROM qc_files WHERE folder_uid = %(folder_id)s",
+            {'folder_id': folder_id},
+        )
+    else:
+        qc_files = run_query(
+            "SELECT 1 FROM qc_files WHERE folder_id = %(folder_id)s",
+            {'folder_id': folder_id},
+        )
+
+    if not qc_files:
+        return {
+            'folder_id': folder_id,
+            'qc_checked': False,
+            'qc_folder_info': None,
+            'files': [],
+        }, 200, None
+
+    if transcription == 1:
+        details = run_query(
+            ("SELECT f.file_transcription_id as file_id, f.file_name, q.file_qc, q.qc_info "
+             " FROM qc_files q, transcription_files f "
+             " WHERE q.folder_uid = %(folder_id)s AND q.file_uid = f.file_transcription_id "
+             " ORDER BY q.file_qc DESC"),
+            {'folder_id': folder_id},
+        )
+        folder_info_rows = run_query(
+            "SELECT qc_info FROM qc_folders WHERE folder_uid = %(folder_id)s",
+            {'folder_id': folder_id},
+        )
+    else:
+        details = run_query(
+            ("SELECT f.file_id, f.file_name, q.file_qc, q.qc_info "
+             " FROM qc_files q, files f "
+             " WHERE q.folder_id = %(folder_id)s AND q.file_id = f.file_id "
+             " ORDER BY q.file_qc DESC"),
+            {'folder_id': folder_id},
+        )
+        folder_info_rows = run_query(
+            "SELECT qc_info FROM qc_folders WHERE folder_id = %(folder_id)s",
+            {'folder_id': folder_id},
+        )
+
+    return {
+        'folder_id': folder_id,
+        'qc_checked': True,
+        'qc_folder_info': folder_info_rows[0]['qc_info'] if folder_info_rows else None,
+        'files': [dict(row) for row in details],
+    }, 200, None
