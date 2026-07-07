@@ -2,7 +2,6 @@
 
 import logging
 import os
-import tarfile
 from uuid import UUID
 
 import settings
@@ -93,22 +92,9 @@ def _iiif_manifest_id(folder_id, file_name, transcription=False):
     return f"{prefix}__{file_name}"
 
 
-def _ensure_dzi_tiles(preview_base, file_id):
-    """Extract DZI tile tar archive if present and not yet unpacked."""
-    dzi_path = f"static/{preview_base}/{file_id}.dzi"
-    if not os.path.isfile(dzi_path):
-        return False
-
-    tarimgfile = f"static/{preview_base}/{file_id}_files.tar"
-    imgfolder = f"static/{preview_base}/"
-    tiles_dir = f"static/{preview_base}/{file_id}_files"
-    if os.path.isfile(tarimgfile) and not os.path.isdir(tiles_dir):
-        try:
-            with tarfile.open(tarimgfile, "r") as tf:
-                tf.extractall(path=imgfolder)
-        except OSError:
-            logger.error("Couldn't open %s", tarimgfile)
-    return True
+def _dzi_available(preview_base, file_id):
+    """Return True if a DZI manifest exists for this file."""
+    return os.path.isfile(f"static/{preview_base}/{file_id}.dzi")
 
 
 def resolve_image_viewer(folder_id, file_id, file_name, *, transcription=False):
@@ -121,7 +107,7 @@ def resolve_image_viewer(folder_id, file_id, file_name, *, transcription=False):
     zoom_filename = None
     iiif_image = None
 
-    if _ensure_dzi_tiles(preview_base, file_id):
+    if _dzi_available(preview_base, file_id):
         zoom_exists = 1
         zoom_filename = f"../../static/{preview_base}/{file_id}.dzi"
 

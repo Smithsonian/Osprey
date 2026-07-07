@@ -26,8 +26,6 @@ from time import strftime
 from time import localtime
 import random
 from auth_service import AuthBaseUser, get_auth_service
-import tarfile
-import subprocess
 
 # MySQL — shared connection pool
 from osprey.db import init_db, query_database_insert, run_query
@@ -3137,49 +3135,15 @@ def qc_loading2(folder_id):
     # If API, not allowed - to improve
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))
-    username = current_user.name
 
     try:
         folder_id = int(folder_id)
-        transcription = 0
-    except:
+    except ValueError:
         try:
-            # Allow for UUIDs
             folder_id = UUID(folder_id)
-            transcription = 1
-        except:
+        except ValueError:
             raise InvalidUsage('invalid folder_id value', status_code=400)
-    folder_id = str(folder_id)
-    # Expand the tars for the selected images
-    if transcription == 1:
-        files_qc = run_query(("SELECT file_uid as file_id FROM qc_files WHERE folder_uid = %(folder_id)s ORDER BY file_uid LIMIT 2 "),
-                                {'folder_id': folder_id})
-        for f in files_qc:
-            tarimgfile = "static/image_previews/{}/{}_files.tar".format(folder_id, f['file_id'])
-            imgfolder = "static/image_previews/{}/".format(folder_id)
-            if os.path.isfile(tarimgfile):
-                if os.path.isdir("static/image_previews/{}/{}_files".format(folder_id, f['file_id'])) is False:
-                    try:
-                        with tarfile.open(tarimgfile, "r") as tf:
-                            tf.extractall(path=imgfolder)
-                    except: 
-                        logger.error("Couldn't open {}".format(tarimgfile))
-        subprocess.Popen(["python3", "extract_previews.py", folder_id, "00000000-0000-0000-0000-000000000000", "&"])
-    else:
-        files_qc = run_query(("SELECT file_id FROM qc_files WHERE folder_id = %(folder_id)s ORDER BY file_id LIMIT 2 "),
-                                {'folder_id': folder_id})
-        for f in files_qc:
-            tarimgfile = "static/image_previews/folder{}/{}_files.tar".format(folder_id, f['file_id'])
-            imgfolder = "static/image_previews/folder{}/".format(folder_id)
-            if os.path.isfile(tarimgfile):
-                if os.path.isdir("static/image_previews/folder{}/{}_files".format(folder_id, f['file_id'])) is False:
-                    try:
-                        with tarfile.open(tarimgfile, "r") as tf:
-                            tf.extractall(path=imgfolder)
-                    except: 
-                        logger.error("Couldn't open {}".format(tarimgfile))
-        subprocess.Popen(["python3", "extract_previews.py", folder_id, "&"])
-    return redirect(url_for('qc_process', folder_id=folder_id))
+    return redirect(url_for('qc_process', folder_id=str(folder_id)))
 
 
 @app.route('/qc_transcription_done/<source_id>/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -3288,31 +3252,13 @@ def qc_transcription_loading2(source_id, folder_id):
     # If API, not allowed - to improve
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))
-    username = current_user.name
 
     try:
-        # Allow for UUIDs
-        folder_id = UUID(folder_id)
-        folder_id = str(folder_id)
-        source_id = UUID(source_id)
-        source_id = str(source_id)
-    except:
+        folder_id = str(UUID(folder_id))
+        source_id = str(UUID(source_id))
+    except ValueError:
         raise InvalidUsage('invalid source_id or folder_id value', status_code=400)
-    
-    # Expand the tars for the selected images
-    files_qc = run_query(("SELECT file_transcription_id FROM transcription_qc WHERE folder_transcription_id = %(folder_id)s and transcription_source_id = %(source_id)s ORDER BY file_transcription_id LIMIT 2 "),
-                            {'folder_id': folder_id, 'source_id': source_id})
-    for f in files_qc:
-        tarimgfile = "static/image_previews/{}/{}_files.tar".format(folder_id, f['file_transcription_id'])
-        imgfolder = "static/image_previews/{}/".format(folder_id)
-        if os.path.isfile(tarimgfile):
-            if os.path.isdir("static/image_previews/{}/{}_files".format(folder_id, f['file_transcription_id'])) is False:
-                try:
-                    with tarfile.open(tarimgfile, "r") as tf:
-                        tf.extractall(path=imgfolder)
-                except: 
-                    logger.error("Couldn't open {}".format(tarimgfile))
-    subprocess.Popen(["python3", "extract_previews.py", folder_id, source_id, "&"])
+
     return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
 
 

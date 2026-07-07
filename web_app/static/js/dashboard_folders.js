@@ -168,9 +168,6 @@
             if (folder.fileCount) {
                 chips.push('<span class="badge text-bg-primary">' + escapeHtml(folder.fileCount) + '</span>');
             }
-            if (folder.file_errors === 1) {
-                chips.push('<span class="badge text-bg-danger">Errors</span>');
-            }
             if (folder.section === 'dams') {
                 chips.push('<span class="badge text-bg-success">Delivered to DAMS</span>');
             }
