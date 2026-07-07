@@ -2,6 +2,7 @@
     'use strict';
 
     var QC_BADGES = ['QC Passed', 'QC Failed', 'QC Pending'];
+    var TRANSCRIPTION_QC_BADGE_RE = /^Transcription QC /i;
     var FILE_COUNT_RE = /^\d[\d,]* files$/i;
     var SKIP_CHIP_BADGES = /^MD5 Valid$/i;
 
@@ -50,6 +51,7 @@
             folder: folder.folder,
             badges: folder.badges,
             badgeList: badgeList,
+            transcriptionQcBadges: transcriptionQcBadgesFromList(badgeList),
             file_errors: folder.file_errors,
             qc_status: folder.qc_status,
             status: folder.status,
@@ -62,8 +64,36 @@
         };
     }
 
+    function transcriptionQcBadgesFromList(badgeList) {
+        return badgeList.filter(function (badge) {
+            return TRANSCRIPTION_QC_BADGE_RE.test(badge);
+        });
+    }
+
+    function hasTranscriptionQcFailed(folder) {
+        return (folder.transcriptionQcBadges || []).some(function (badge) {
+            return /Failed/i.test(badge);
+        });
+    }
+
+    function hasTranscriptionQcPassed(folder) {
+        if (folder.unavailable || hasTranscriptionQcFailed(folder)) {
+            return false;
+        }
+        return (folder.transcriptionQcBadges || []).some(function (badge) {
+            return /Passed/i.test(badge);
+        });
+    }
+
+    function hasTranscriptionQcPending(folder) {
+        return !folder.unavailable && (folder.transcriptionQcBadges || []).length === 0;
+    }
+
     function extraBadges(badgeList) {
         return badgeList.filter(function (badge) {
+            if (TRANSCRIPTION_QC_BADGE_RE.test(badge)) {
+                return false;
+            }
             if (SKIP_CHIP_BADGES.test(badge)) {
                 return false;
             }
@@ -87,7 +117,7 @@
         if (String(folder.folder_id) === String(selectedFolderId)) {
             return 'dashboard-folder-dot-selected';
         }
-        if (folder.file_errors === 1 || folder.qc_status === 'QC Failed') {
+        if (folder.file_errors === 1 || folder.qc_status === 'QC Failed' || hasTranscriptionQcFailed(folder)) {
             return 'dashboard-folder-dot-error';
         }
         if (folder.qc_status === 'QC Pending') {
@@ -102,6 +132,16 @@
         }
         if (qcStatus === 'QC Failed') {
             return 'text-bg-danger';
+        }
+        return 'text-bg-warning';
+    }
+
+    function transcriptionQcBadgeClass(badge) {
+        if (/Failed/i.test(badge)) {
+            return 'text-bg-danger';
+        }
+        if (/Passed/i.test(badge)) {
+            return 'text-bg-success';
         }
         return 'text-bg-warning';
     }
@@ -138,6 +178,10 @@
                 chips.push('<span class="badge ' + qcBadgeClass(folder.qc_status) + '">' +
                     escapeHtml(folder.qc_status) + '</span>');
             }
+            (folder.transcriptionQcBadges || []).forEach(function (badge) {
+                chips.push('<span class="badge ' + transcriptionQcBadgeClass(badge) + '">' +
+                    escapeHtml(badge) + '</span>');
+            });
         }
 
         extraBadges(folder.badgeList).forEach(function (badge) {
@@ -178,6 +222,7 @@
             return !folder.unavailable &&
                 folder.file_errors !== 1 &&
                 folder.qc_status === 'QC Passed' &&
+                !hasTranscriptionQcFailed(folder) &&
                 folder.section !== 'dams';
         }
         if (filterMode === 'errors') {
@@ -188,6 +233,15 @@
         }
         if (filterMode === 'qc_pending') {
             return folder.qc_status === 'QC Pending';
+        }
+        if (filterMode === 'transcription_qc') {
+            return hasTranscriptionQcFailed(folder);
+        }
+        if (filterMode === 'transcription_qc_passed') {
+            return hasTranscriptionQcPassed(folder);
+        }
+        if (filterMode === 'transcription_qc_pending') {
+            return hasTranscriptionQcPending(folder);
         }
         if (filterMode === 'dams') {
             return folder.section === 'dams';
@@ -204,6 +258,9 @@
         errors: 'Errors',
         qc: 'QC Failed',
         qc_pending: 'QC Pending',
+        transcription_qc: 'Transcription QC Failed',
+        transcription_qc_passed: 'Transcription QC Passed',
+        transcription_qc_pending: 'Transcription QC Pending',
         dams: 'In DAMS',
         unavailable: 'Unavailable'
     };
@@ -334,7 +391,10 @@
             var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
             var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
             var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-            if (!hasFilesLoader && !hasQcLoader && !hasLightboxLoader && !hasPostprodLoader) {
+            var hasTranscriptionQcLoader = document.getElementById('dashboard-transcription-qc-panel') &&
+                window.OspreyDashboardTranscriptionQc;
+            if (!hasFilesLoader && !hasQcLoader && !hasLightboxLoader && !hasPostprodLoader &&
+                !hasTranscriptionQcLoader) {
                 return;
             }
             event.preventDefault();
@@ -353,6 +413,9 @@
             }
             if (hasPostprodLoader) {
                 window.OspreyDashboardPostprocessing.loadForFolder(folderId);
+            }
+            if (hasTranscriptionQcLoader) {
+                window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
             }
         }
 
@@ -437,7 +500,10 @@
                 var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
                 var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
                 var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-                if (hasFilesLoader || hasQcLoader || hasLightboxLoader || hasPostprodLoader) {
+                var hasTranscriptionQcLoader = document.getElementById('dashboard-transcription-qc-panel') &&
+                    window.OspreyDashboardTranscriptionQc;
+                if (hasFilesLoader || hasQcLoader || hasLightboxLoader || hasPostprodLoader ||
+                    hasTranscriptionQcLoader) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
                         updateSelectedFolder(match[1]);
@@ -455,6 +521,9 @@
                         }
                         if (hasPostprodLoader) {
                             window.OspreyDashboardPostprocessing.loadForFolder(match[1]);
+                        }
+                        if (hasTranscriptionQcLoader) {
+                            window.OspreyDashboardTranscriptionQc.loadForFolder(match[1]);
                         }
                         return;
                     }

@@ -2836,8 +2836,9 @@ def qc_process_transcript(source_id, folder_id):
     # check if folder is owned, assigned otherwise
     folder_owner = run_query(("SELECT f.*, u.username from transcription_qc_folders f, users u "
                                     "    WHERE u.user_id = f.qc_by "
-                                    "        AND f.folder_transcription_id = %(folder_id)s"),
-                                {'folder_id': folder_id})
+                                    "        AND f.folder_transcription_id = %(folder_id)s "
+                                    "        AND f.transcription_source_id = %(source_id)s"),
+                                {'folder_id': folder_id, 'source_id': source_id})
     
     if len(folder_owner) == 1:
         if folder_owner[0]['username'] != username:
@@ -2846,8 +2847,10 @@ def qc_process_transcript(source_id, folder_id):
     else:
         # Assign user
         q = query_database_insert(("UPDATE transcription_qc_folders SET qc_by = %(qc_by)s "
-                                " WHERE folder_transcription_id = %(folder_id)s"),
+                                " WHERE folder_transcription_id = %(folder_id)s "
+                                "   AND transcription_source_id = %(source_id)s"),
                             {'folder_id': folder_id,
+                                'source_id': source_id,
                                 'qc_by': current_user.id
                                 })
     
@@ -2887,8 +2890,9 @@ def qc_process_transcript(source_id, folder_id):
                                       "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at"
                                       " FROM transcription_qc_folders q, "
                                       "      users u WHERE q.qc_by=u.user_id "
-                                      "      AND q.folder_transcription_id = %(folder_id)s"),
-                                     {'folder_id': folder_id})
+                                      "      AND q.folder_transcription_id = %(folder_id)s "
+                                      "      AND q.transcription_source_id = %(source_id)s"),
+                                     {'folder_id': folder_id, 'source_id': source_id})
     
     folder_qc = {}
     folder_qc['qc_status'] = 'QC Pending'
@@ -2927,8 +2931,11 @@ def qc_process_transcript(source_id, folder_id):
     
     if folder_qc['qc_status'] == "QC Pending" and folder_stats['no_files'] > 0:
         # Setup the files for QC
-        in_qc = run_query("SELECT count(*) as no_files FROM transcription_qc WHERE file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s) ",
-                            {'folder_id': folder_id})
+        in_qc = run_query(
+            "SELECT count(*) as no_files FROM transcription_qc "
+            " WHERE folder_transcription_id = %(folder_id)s "
+            "   AND transcription_source_id = %(source_id)s",
+            {'folder_id': folder_id, 'source_id': source_id})
     
         if in_qc[0]['no_files'] == 0:
             q = query_database_insert("DELETE FROM transcription_qc_folders WHERE folder_transcription_id = %(folder_id)s and transcription_source_id = %(source_id)s",
@@ -2962,18 +2969,21 @@ def qc_process_transcript(source_id, folder_id):
                                          "         (SELECT count(file_transcription_id) as no_files "
                                          "             FROM transcription_qc "
                                          "             WHERE file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s) "
+                                         "                 AND transcription_source_id = %(source_id)s "
                                          "                 AND qc_results > 0 AND qc_results != 9),"
                                          "passed AS "
                                          "         (SELECT count(file_transcription_id) as no_files "
                                          "             FROM transcription_qc "
                                          "             WHERE file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s) "
+                                         "                 AND transcription_source_id = %(source_id)s "
                                          "                 AND qc_results = 0),"
                                          "total AS (SELECT count(file_transcription_id) as no_files FROM transcription_qc "
-                                         "            WHERE file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s))"
+                                         "            WHERE file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s) "
+                                         "              AND transcription_source_id = %(source_id)s)"
                                          " SELECT t.no_files, e.no_files as no_errors,"
                                          "         p.no_files as no_passed "
                                          " FROM errors e, total t, passed p "),
-                                        {'folder_id': folder_id})[0]
+                                        {'folder_id': folder_id, 'source_id': source_id})[0]
             qc_stats = {}
             qc_stats['no_files'] = int(qc_stats_q['no_files'])
             qc_stats['no_errors'] = int(qc_stats_q['no_errors'])
@@ -2986,8 +2996,13 @@ def qc_process_transcript(source_id, folder_id):
                                                    3)
                 qc_stats['percent_passed'] = round((int(qc_stats_q['no_passed']) / int(qc_stats_q['no_files'])) * 100,
                                                    3)
-            folder = run_query("SELECT * FROM transcription_qc_folders WHERE folder_transcription_id = %(folder_id)s",
-                                    {'folder_id': folder_id})[0]
+            folder = run_query(
+                "SELECT q.*, f.folder as project_folder "
+                " FROM transcription_qc_folders q, transcription_folders f "
+                " WHERE q.folder_transcription_id = f.folder_transcription_id "
+                "   AND q.folder_transcription_id = %(folder_id)s "
+                "   AND q.transcription_source_id = %(source_id)s",
+                {'folder_id': folder_id, 'source_id': source_id})[0]
             if qc_stats['no_files'] != int(qc_stats['no_errors']) + int(qc_stats['passed']):
                 file_qc = run_query(("SELECT f.file_transcription_id FROM transcription_qc q, transcription_files f "
                                         "  WHERE q.file_transcription_id = f.file_transcription_id "
@@ -3055,8 +3070,9 @@ def qc_process_transcript(source_id, folder_id):
                                          " WHEN q.qc_results = 3 THEN 'Minor Issue' END as qc_results, "
                                          " q.qc_notes FROM transcription_qc q, transcription_files f "
                                               "  WHERE q.file_transcription_id in (select file_transcription_id from transcription_files where folder_transcription_id = %(folder_id)s) "
+                                             "  AND q.transcription_source_id = %(source_id)s "
                                               "  AND q.qc_results > 0 AND q.file_transcription_id = f.file_transcription_id"),
-                                             {'folder_id': folder_id})
+                                            {'folder_id': folder_id, 'source_id': source_id})
                 qc_folder_result = True
                 crit_files = 0
                 major_files = 0
@@ -3083,6 +3099,8 @@ def qc_process_transcript(source_id, folder_id):
                 return render_template('qc_transcription_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
+                                        project_alias=project_alias['project_alias'],
+                                        source_id=source_id,
                                         error_files=error_files, qc_folder_result=qc_folder_result,
                                         form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
                                         analytics_code=settings.analytics_code)
@@ -3162,6 +3180,104 @@ def qc_loading2(folder_id):
                         logger.error("Couldn't open {}".format(tarimgfile))
         subprocess.Popen(["python3", "extract_previews.py", folder_id, "&"])
     return redirect(url_for('qc_process', folder_id=folder_id))
+
+
+@app.route('/qc_transcription_done/<source_id>/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
+@login_required
+def qc_transcription_done(source_id, folder_id):
+    """Finalize transcription QC for a source/folder pair."""
+    if site_net == "api":
+        return redirect(url_for('api.api_route_list'))
+
+    username = current_user.name
+    try:
+        folder_id = str(UUID(folder_id))
+        source_id = str(UUID(source_id))
+    except:
+        raise InvalidUsage('invalid source_id or folder_id value', status_code=400)
+
+    project_admin = run_query(
+        ("SELECT count(*) as no_results "
+         " FROM users u, qc_projects p, transcription_folders f "
+         " WHERE u.username = %(username)s "
+         "   AND p.project_id = f.project_id "
+         "   AND f.folder_transcription_id = %(folder_id)s "
+         "   AND u.user_id = p.user_id"),
+        {'username': username, 'folder_id': folder_id})[0]
+    if project_admin['no_results'] == 0:
+        return redirect(url_for('home'))
+
+    project_info = run_query(
+        ("SELECT p.project_id, p.project_alias "
+         " FROM projects p, transcription_folders f "
+         " WHERE f.folder_transcription_id = %(folder_id)s "
+         "   AND f.project_id = p.project_id"),
+        {'folder_id': folder_id})[0]
+    project_id = project_info['project_id']
+    project_alias = project_info['project_alias']
+
+    source = run_query(
+        ("SELECT transcription_source_name "
+         " FROM transcription_sources "
+         " WHERE transcription_source_id = %(source_id)s "
+         "   AND project_id = %(project_id)s"),
+        {'source_id': source_id, 'project_id': project_id})
+    if not source:
+        raise InvalidUsage('invalid source_id value', status_code=400)
+
+    qc_info = request.values.get('qc_info')
+    qc_status = request.values.get('qc_status')
+    if qc_status not in ("0", "1"):
+        raise InvalidUsage('invalid qc_status value', status_code=400)
+
+    user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
+                        {'username': username})[0]
+    project_qc_settings = run_query(
+        "SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
+        {'project_id': project_id})[0]
+
+    q = query_database_insert(
+        ("UPDATE transcription_qc_folders SET "
+         "   qc_status = %(qc_status)s, "
+         "   qc_by = %(qc_by)s, "
+         "   qc_info = %(qc_info)s, "
+         "   qc_ip = %(qc_ip)s, "
+         "   qc_level = %(qc_level)s "
+         " WHERE folder_transcription_id = %(folder_id)s "
+         "   AND transcription_source_id = %(source_id)s"),
+        {'folder_id': folder_id,
+         'source_id': source_id,
+         'qc_status': qc_status,
+         'qc_info': qc_info,
+         'qc_ip': request.environ.get('REMOTE_ADDR'),
+         'qc_by': user_id['user_id'],
+         'qc_level': project_qc_settings['qc_level']})
+
+    badgecss = "bg-success" if qc_status == "0" else "bg-danger"
+    badge_status = "Passed" if qc_status == "0" else "Failed"
+    badge_text = "Transcription QC {} - {}".format(
+        badge_status, source[0]['transcription_source_name'])
+    if len(badge_text) > 64:
+        badge_text = "{}...".format(badge_text[:61])
+
+    clear_badges = run_query(
+        ("DELETE FROM folders_badges "
+         " WHERE folder_uid = %(folder_id)s "
+         "   AND badge_type = 'transcription_qc_status' "
+         "   AND folder_transcription_id = %(source_id)s"),
+        {'folder_id': folder_id, 'source_id': source_id})
+    query = (
+        "INSERT INTO folders_badges "
+        " (folder_uid, folder_transcription_id, badge_type, badge_css, badge_text, updated_at) "
+        " VALUES (%(folder_id)s, %(source_id)s, 'transcription_qc_status', %(badgecss)s, %(msg)s, CURRENT_TIMESTAMP)")
+    res = query_database_insert(query, {
+        'folder_id': folder_id,
+        'source_id': source_id,
+        'badgecss': badgecss,
+        'msg': badge_text,
+    })
+
+    return redirect(url_for('qc_transcription', project_alias=project_alias))
 
 
 

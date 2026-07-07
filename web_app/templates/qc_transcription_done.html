@@ -33,7 +33,7 @@
                     </li>
             </ul>
 
-            <form action="{{ url_for('qc_done', folder_id=folder.folder_transcription_id) }}" method="POST">
+            <form action="{{ url_for('qc_transcription_done', source_id=source_id, folder_id=folder.folder_transcription_id) }}" method="POST">
 
                 <div class="mb-3">
                     {% if qc_folder_result == True %}
@@ -49,6 +49,7 @@
                       <label for="folderqc" class="form-label">Summary and notes of QC for the folder:</label>
                       <input type="text" class="form-control" id="folderqc" name="qc_info">
                       <input type="hidden" class="form-control" id="folder_id" name="folder_id">
+                      <input type="hidden" class="form-control" id="source_id" name="source_id" value="{{ source_id }}">
                 </div>
 
                 <div class="mb-3">

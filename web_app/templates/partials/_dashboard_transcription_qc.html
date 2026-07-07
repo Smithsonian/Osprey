@@ -1,0 +1,17 @@
+<div id="dashboard-transcription-qc-panel"
+     data-qc-url="{{ url_for('api.api_get_folder_transcription_qc', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-app-root="{{ app_root or '' }}">
+
+    <div id="dashboard-transcription-qc-loading" class="text-muted small py-1">
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Loading transcription QC information...
+    </div>
+
+    <p id="dashboard-transcription-qc-error" class="small text-danger d-none" role="alert"></p>
+
+    <div id="dashboard-transcription-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+        <div class="accordion" id="transcription_qc_accordion"></div>
+    </div>
+</div>

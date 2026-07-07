@@ -370,3 +370,90 @@ def get_folder_qc_payload(folder_id_raw):
         'qc_folder_info': folder_info_rows[0]['qc_info'] if folder_info_rows else None,
         'files': [dict(row) for row in details],
     }, 200, None
+
+
+def get_folder_transcription_qc_payload(folder_id_raw):
+    """Return per-source transcription-QC sampling summaries."""
+    try:
+        folder_id, transcription = parse_folder_id(folder_id_raw)
+    except ValueError as err:
+        return None, 400, str(err)
+
+    folder_row = get_folder_details_row(folder_id, transcription)
+    if folder_row is None:
+        return None, 404, 'Folder not found'
+
+    if transcription != 1:
+        return {
+            'folder_id': folder_id,
+            'qc_checked': False,
+            'sources': [],
+        }, 200, None
+
+    source_rows = run_query(
+        ("SELECT q.transcription_source_id as source_id, "
+         "       s.transcription_source_name as source_name, "
+         "       CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
+         "            WHEN q.qc_status = 1 THEN 'QC Failed' "
+         "            WHEN q.qc_status = 9 THEN 'QC Pending' "
+         "            ELSE 'QC Pending' END AS qc_status, "
+         "       q.qc_status as qc_status_value, q.qc_info, q.qc_ip, "
+         "       u.username as qc_by, "
+         "       DATE_FORMAT(q.updated_at, '%Y-%m-%d %H:%i:%S') as updated_at "
+         " FROM transcription_qc_folders q "
+         " JOIN transcription_sources s "
+         "   ON (q.transcription_source_id = s.transcription_source_id) "
+         " LEFT JOIN users u ON (q.qc_by = u.user_id) "
+         " WHERE q.folder_transcription_id = %(folder_id)s "
+         " ORDER BY s.transcription_source_name"),
+        {'folder_id': folder_id},
+    )
+
+    if not source_rows:
+        return {
+            'folder_id': folder_id,
+            'qc_checked': False,
+            'sources': [],
+        }, 200, None
+
+    detail_rows = run_query(
+        ("SELECT q.transcription_source_id as source_id, "
+         "       f.file_transcription_id as file_id, f.file_name, "
+         "       q.qc_results, q.qc_notes "
+         " FROM transcription_qc q "
+         " JOIN transcription_files f "
+         "   ON (q.file_transcription_id = f.file_transcription_id) "
+         " WHERE q.folder_transcription_id = %(folder_id)s "
+         " ORDER BY q.transcription_source_id, q.qc_results DESC, f.file_name"),
+        {'folder_id': folder_id},
+    )
+
+    files_by_source = {}
+    for row in detail_rows:
+        files_by_source.setdefault(row['source_id'], []).append({
+            'file_id': row['file_id'],
+            'file_name': row['file_name'],
+            'qc_results': row['qc_results'],
+            'qc_notes': row['qc_notes'],
+        })
+
+    sources = []
+    for row in source_rows:
+        source_id = row['source_id']
+        sources.append({
+            'source_id': source_id,
+            'source_name': row['source_name'],
+            'qc_status': row['qc_status'],
+            'qc_status_value': row['qc_status_value'],
+            'qc_folder_info': row['qc_info'],
+            'qc_by': row['qc_by'],
+            'qc_ip': row['qc_ip'],
+            'updated_at': row['updated_at'],
+            'files': files_by_source.get(source_id, []),
+        })
+
+    return {
+        'folder_id': folder_id,
+        'qc_checked': True,
+        'sources': sources,
+    }, 200, None

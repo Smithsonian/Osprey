@@ -31,6 +31,17 @@ def api_get_folder_qc(folder_id=None):
     return jsonify(payload)
 
 
+@api_bp.route('/folders/<folder_id>/transcription_qc', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+def api_get_folder_transcription_qc(folder_id=None):
+    """Get folder transcription-QC sampling summaries by source (no api_key required)."""
+    payload, status, message = folder_service.get_folder_transcription_qc_payload(folder_id)
+    if payload is None:
+        if status == 400:
+            return jsonify({'error': message or 'folder_id value not valid'}), 400
+        return jsonify({'error': message or 'Folder not found'}), 404
+    return jsonify(payload)
+
+
 @api_bp.route('/folders/<folder_id>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_details(folder_id=None):
     """Get the details of a folder and the list of files (flat check columns; requires api_key)."""

@@ -81,21 +81,29 @@
         <div class="col-6">
             <h4>Transcription QC Results:</h4>
 
+            {% set qc_image_unavailable = zoom_exists == 0 and file_details.preview_image_ext == None %}
+
+            {% if qc_image_unavailable %}
+                <div class="alert alert-warning" role="alert">
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> QC submission is disabled: no zoomable (DZI/IIIF) preview is available for this file, so the transcription cannot be verified against the source image.
+                </div>
+            {% endif %}
+
             <form action="{{ url_for('qc_process_transcript', source_id=source_id, folder_id=folder.folder_transcription_id) }}" method="POST">
 
             <div class="mb-3">
-                <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked>
+                <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked {% if qc_image_unavailable %}disabled{% endif %}>
                     <label class="btn btn-outline-success" for="success-outlined">Text OK</label>
-                <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off">
+                <input type="radio" class="btn-check" name="qc_val" value="1" id="critical-outlined" autocomplete="off" {% if qc_image_unavailable %}disabled{% endif %}>
                     <label class="btn btn-outline-danger" for="critical-outlined">Critical Issue</label>
                                          <!-- <small>- Incorrect file name</small> -->
-                                
-                <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off">
+
+                <input type="radio" class="btn-check" name="qc_val" value="2" id="major-outlined" autocomplete="off" {% if qc_image_unavailable %}disabled{% endif %}>
                     <label class="btn btn-outline-warning text-black" for="major-outlined">Major Issue</label>
                                          <!-- <small>- Incorrect cropping of image</small> -->
-                                
-                <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off">
-              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label> 
+
+                <input type="radio" class="btn-check" name="qc_val" value="3" id="minor-outlined" autocomplete="off" {% if qc_image_unavailable %}disabled{% endif %}>
+              <label class="btn btn-outline-warning text-black" for="minor-outlined">Minor Issue</label>
                                         <!-- <small>- Noticeable soft focus</small> -->
                             <br>
             </div>
@@ -103,11 +111,11 @@
 
               <p class="text-danger">{{ msg | safe }}</p>
               <label for="qc_info" class="form-label">QC details or issues:</label>
-              <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:">
+              <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:" {% if qc_image_unavailable %}disabled{% endif %}>
           </div>
                 <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_transcription_id }}">
                 <input type="hidden" class="form-control" id="source_id" name="source_id" value="{{ source_id }}">
-              <button type="submit" class="btn btn-primary">Submit</button>
+              <button type="submit" class="btn btn-primary" {% if qc_image_unavailable %}disabled{% endif %}>Submit</button>
             </form>
         
         

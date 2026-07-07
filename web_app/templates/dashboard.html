@@ -130,6 +130,9 @@
                 {% endif %}
 
                 {% include 'partials/_dashboard_qc.html' %}
+                {% if transcription == 1 %}
+                    {% include 'partials/_dashboard_transcription_qc.html' %}
+                {% endif %}
                 {% include 'partials/_dashboard_files_table.html' %}
 
 
@@ -199,6 +202,7 @@
 <script src="{{ url_for('static', filename='js/dashboard_table_panel.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_qc.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_transcription_qc.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_postprocessing.js') }}"></script>
 
@@ -232,6 +236,9 @@
 
                 OspreyDashboardFiles.loadFromPanel();
                 OspreyDashboardQc.loadFromPanel();
+                {% if transcription == 1 %}
+                OspreyDashboardTranscriptionQc.loadFromPanel();
+                {% endif %}
 
 
         {% elif tab == "lightbox" %}
