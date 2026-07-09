@@ -19,6 +19,13 @@
         </div>
     </div>
 
+    <div class="row mt-3">
+        <div class="col">
+            <div id="report_status_text" class="text-muted small">Queued…</div>
+            <div id="report_status_error" class="text-danger small mt-2" style="display:none;"></div>
+        </div>
+    </div>
+
 
 {% endblock %}
 
@@ -26,22 +33,52 @@
 {% block javascripts %}
     <script type="text/javascript">
         $(document).ready( function () {
+            var statusUrl = '{{ url_for('reports.report_status', project_alias=project_alias, report_id=report.report_id) }}';
+            var readyUrl = '{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id, rendering="1") }}';
 
-            // Move to loading page
-            // https://stackoverflow.com/a/55144842
-            function reloadPage() {
-                clearTimeout(idleTime);
-                idleTime = setTimeout(function () {
-                    location.replace('{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id, rendering="1") }}');
-                }, 2000);
+            function setStatusText(txt) {
+                $('#report_status_text').text(txt);
             }
 
-            var idleTime;
-            reloadPage();
-            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
-                clearTimeout(idleTime);
-                reloadPage();
-            });
+            function showError(txt) {
+                $('#report_status_error').text(txt).show();
+            }
+
+            function poll() {
+                $.getJSON(statusUrl)
+                  .done(function (data) {
+                      if (!data || !data.status) {
+                          setStatusText('Waiting for scheduler…');
+                          return;
+                      }
+                      if (data.status === 'succeeded' && (data.artifact_path_csv || data.artifact_path_xlsx)) {
+                          location.replace(readyUrl);
+                          return;
+                      }
+                      if (data.status === 'failed') {
+                          setStatusText('Failed to generate report.');
+                          if (data.error_message) {
+                              showError(data.error_message);
+                          }
+                          return;
+                      }
+                      if (data.status === 'running') {
+                          setStatusText('Generating…');
+                          return;
+                      }
+                      if (data.status === 'queued') {
+                          setStatusText('Queued…');
+                          return;
+                      }
+                      setStatusText('Waiting…');
+                  })
+                  .fail(function () {
+                      setStatusText('Waiting for scheduler…');
+                  });
+            }
+
+            poll();
+            setInterval(poll, 2000);
         });
 
     </script>

@@ -82,8 +82,8 @@
 
     {% if site_net == "internal" %}
     <div class="row file-hero g-3 mb-3">
-        <div class="col-lg-8 file-hero-preview">
-            <div class="card file-preview-card h-100">
+        <div class="col-lg-6 file-hero-preview">
+            <div class="card file-preview-card">
                 <div class="card-header bg-dark text-white py-2">
                     <h2 class="h6 mb-0">Image Preview</h2>
                 </div>
@@ -119,10 +119,8 @@
                     {% endif %}
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-4 file-hero-summary">
-            <div class="card border-0 shadow-sm file-summary-card h-100">
+            <div class="card border-0 shadow-sm file-summary-card mt-3">
               <div class="card-body py-3">
                 <h2 class="file-summary-filename mb-2" title="{{ file_details.file_name }}">{{ file_details.file_name }}</h2>
 
@@ -184,10 +182,31 @@
               </div>
             </div>
         </div>
+
+        <div class="col-lg-6 file-hero-transcriptions">
+            {% if tables|length > 0 %}
+            <h3 class="h5 mb-3">Transcriptions</h3>
+            {% for data in tables %}
+                <div class="card mb-3 border-0 shadow-sm">
+                    <h4 class="card-header osprey-card-header h6 mb-0">{{ tables[data].name }}</h4>
+                    <div class="card-body file-metadata-wrap py-2">
+                        {{ tables[data].table|safe }}
+                    </div>
+                    {% if tables[data].source_info %}
+                        <div class="card-footer py-2">
+                            <p class="small text-muted mb-0">{{ tables[data].source_info }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted mb-0">No transcription data recorded for this file.</p>
+            {% endif %}
+        </div>
     </div>
     {% else %}
     <div class="row file-hero g-3 mb-3">
-        <div class="col-12 file-hero-summary">
+        <div class="col-lg-6 file-hero-summary">
             <div class="card border-0 shadow-sm file-summary-card h-100">
               <div class="card-body py-3">
                 <h2 class="file-summary-filename mb-2" title="{{ file_details.file_name }}">{{ file_details.file_name }}</h2>
@@ -244,26 +263,26 @@
               </div>
             </div>
         </div>
-    </div>
-    {% endif %}
 
-    {% if tables|length > 0 %}
-    <div class="row mb-3">
-        <div class="col-12">
-            <h3 class="h5">Transcriptions</h3>
+        <div class="col-lg-6 file-hero-transcriptions">
+            {% if tables|length > 0 %}
+            <h3 class="h5 mb-3">Transcriptions</h3>
             {% for data in tables %}
                 <div class="card mb-3 border-0 shadow-sm">
                     <h4 class="card-header osprey-card-header h6 mb-0">{{ tables[data].name }}</h4>
-                    <div class="card-body file-metadata-wrap">
+                    <div class="card-body file-metadata-wrap py-2">
                         {{ tables[data].table|safe }}
                     </div>
                     {% if tables[data].source_info %}
-                        <div class="card-footer">
+                        <div class="card-footer py-2">
                             <p class="small text-muted mb-0">{{ tables[data].source_info }}</p>
                         </div>
                     {% endif %}
                 </div>
             {% endfor %}
+            {% else %}
+            <p class="text-muted mb-0">No transcription data recorded for this file.</p>
+            {% endif %}
         </div>
     </div>
     {% endif %}

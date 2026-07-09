@@ -327,6 +327,10 @@
             var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
             return allFolders.filter(function (folder) {
                 var matchesSearch = !query || folder.folder.toLowerCase().indexOf(query) !== -1;
+                if (query) {
+                    // When searching by name, ignore the filter buttons entirely.
+                    return matchesSearch;
+                }
                 var matchesChip = matchesFilter(folder, filterMode);
                 return matchesSearch && matchesChip;
             });
@@ -467,7 +471,15 @@
             updateFilterButtons();
 
             if (emptyMsg) {
-                var hasCriteria = (searchInput && searchInput.value.trim()) || filterMode !== 'all';
+                var query = searchInput ? searchInput.value.trim() : '';
+                var hasCriteria = Boolean(query) || filterMode !== 'all';
+                if (query) {
+                    emptyMsg.textContent = 'No folders match your search.';
+                } else if (filterMode !== 'all') {
+                    emptyMsg.textContent = 'No folders match your filters.';
+                } else {
+                    emptyMsg.textContent = 'No folders match your search or filters.';
+                }
                 emptyMsg.classList.toggle('d-none', folders.length > 0 || !hasCriteria);
             }
         }

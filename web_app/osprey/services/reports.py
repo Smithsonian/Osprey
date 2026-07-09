@@ -8,6 +8,7 @@ from time import strftime, localtime
 import pandas as pd
 
 from osprey.db import run_query
+from osprey.services import report_materializations as materializations
 
 
 def get_report(report_id):
@@ -58,24 +59,40 @@ def get_report_data(report):
 
 
 def generate_pregenerated_report(report):
-    """Delete stale cached exports and regenerate CSV/XLSX for a pregenerated report.
+    """Return latest completed export artifact paths for a pregenerated report.
 
-    Returns (report_dataframe, csv_path, xlsx_path, generated_at_formatted).
+    Long-running exports are materialized out-of-band by a scheduler; this
+    function must be safe to call inside a web request (no big queries).
+
+    Returns (csv_path, xlsx_path, generated_at_formatted, materialization_row).
     """
-    for ext in ('csv', 'xlsx'):
-        files_todel = glob.glob("static/reports/{}_*.{}".format(report['pregen_filename'], ext))
-        for file in files_todel:
-            try:
-                os.remove(file)
-            except FileNotFoundError:
-                continue
-    Path("static/reports").mkdir(parents=True, exist_ok=True)
-    rep_timestamp = localtime()
-    current_datetime = strftime("%Y%m%d_%H%M%S", rep_timestamp)
-    current_datetime_formatted = strftime("%Y-%m-%d %H:%M:%S", rep_timestamp)
-    report_data = pd.DataFrame(run_query(report['query']))
-    data_file = "reports/{}_{}.csv".format(report['pregen_filename'], current_datetime)
-    report_data.to_csv("static/{}".format(data_file), index=False)
-    data_file_e = "reports/{}_{}.xlsx".format(report['pregen_filename'], current_datetime)
-    report_data.to_excel("static/{}".format(data_file_e), index=False)
-    return report_data, data_file, data_file_e, current_datetime_formatted
+    project_id = int(report["project_id"])
+    report_id = str(report["report_id"])
+    materializations.ensure_row(project_id, report_id)
+    mat = materializations.get_materialization(project_id, report_id)
+    if not mat:
+        return "", "", "", None
+    generated_at = mat.get("last_succeeded_at")
+    generated_at_formatted = generated_at.strftime("%Y-%m-%d %H:%M:%S") if generated_at else ""
+    return (
+        mat.get("artifact_path_csv") or "",
+        mat.get("artifact_path_xlsx") or "",
+        generated_at_formatted,
+        mat,
+    )
+
+
+def request_pregenerated_refresh(report, requested_by=None) -> bool:
+    """Queue a refresh for a pregenerated report (safe in-request)."""
+    project_id = int(report["project_id"])
+    report_id = str(report["report_id"])
+    materializations.ensure_row(project_id, report_id)
+    return materializations.request_refresh(project_id, report_id, requested_by=requested_by)
+
+
+def get_pregenerated_status(report):
+    """Get materialization status row for a pregenerated report."""
+    project_id = int(report["project_id"])
+    report_id = str(report["report_id"])
+    materializations.ensure_row(project_id, report_id)
+    return materializations.get_materialization(project_id, report_id)

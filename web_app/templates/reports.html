@@ -22,9 +22,25 @@
         {% endfor %}
     {% else %}
 
-        <p>Report generated on: {{ report_date }}</p>
-        <p>Excel: <a href="{{ url_for('static', filename=data_file_e) }}" title="Download Data File (Excel)">{{ data_file_e | replace("reports/", "") }}</a></p>
-        <p>CSV: <a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file | replace("reports/", "") }}</a></p>
+        {% if materialization %}
+            <p>Source data last updated on: {{ materialization.source_updated_at or report_data_updated }}</p>
+            <p>Report generated on: {{ report_date }}</p>
+        {% else %}
+            <p>Source data last updated on: {{ report_data_updated }}</p>
+        {% endif %}
+
+        {% if data_file_e != "" %}
+            <p>Excel: <a href="{{ url_for('static', filename=data_file_e) }}" title="Download Data File (Excel)">{{ data_file_e | replace("reports/", "") }}</a></p>
+        {% endif %}
+        {% if data_file != "" %}
+            <p>CSV: <a href="{{ url_for('static', filename=data_file) }}" title="Download Data File (CSV)">{{ data_file | replace("reports/", "") }}</a></p>
+        {% endif %}
+
+        {% if data_file == "" and data_file_e == "" %}
+            <p class="text-muted">No export is available yet. A refresh may be queued.</p>
+            <button id="refresh_report_btn" class="btn btn-sm btn-outline-primary">Queue refresh</button>
+            <div id="refresh_report_msg" class="small mt-2 text-muted"></div>
+        {% endif %}
 
     {% endif %}
 {% endblock %}
@@ -50,5 +66,23 @@
                 })
             });
     </script>
+
+    {% if pregenerated == 1 and (data_file == "" and data_file_e == "") %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var refreshUrl = '{{ url_for('reports.report_refresh', project_alias=project_alias, report_id=report.report_id) }}';
+            $('#refresh_report_btn').on('click', function () {
+                $('#refresh_report_msg').text('Queuing…');
+                $.post(refreshUrl)
+                  .done(function () {
+                      $('#refresh_report_msg').text('Queued. This page will update once the scheduler finishes.');
+                  })
+                  .fail(function () {
+                      $('#refresh_report_msg').text('Failed to queue refresh.');
+                  });
+            });
+        });
+    </script>
+    {% endif %}
 
 {% endblock %}
