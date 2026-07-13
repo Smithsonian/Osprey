@@ -401,7 +401,32 @@
             }
         }
 
-        function onFolderNavigate(event, href, folderId) {
+        function getActiveDashboardTab() {
+            var active = document.querySelector('.dashboard-tabs a.nav-link.active[data-tab]');
+            return active ? active.getAttribute('data-tab') : 'filechecks';
+        }
+
+        function folderDashboardUrl(folderId, tab) {
+            var url = '/dashboard/' + encodeURIComponent(projectAlias) + '/' + folderId + '/';
+            if (tab && tab !== 'filechecks') {
+                url += encodeURIComponent(tab) + '/';
+            }
+            return url;
+        }
+
+        function updateDashboardTabLinks(folderId) {
+            var links = document.querySelectorAll('.dashboard-tabs a.nav-link[data-tab]');
+            Array.prototype.forEach.call(links, function (link) {
+                var tab = link.getAttribute('data-tab');
+                if (link.classList.contains('active')) {
+                    link.setAttribute('href', '#');
+                } else {
+                    link.setAttribute('href', folderDashboardUrl(folderId, tab));
+                }
+            });
+        }
+
+        function onFolderNavigate(event, folderId) {
             var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
             var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
             var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
@@ -414,8 +439,10 @@
             }
             event.preventDefault();
             updateSelectedFolder(folderId);
+            updateDashboardTabLinks(folderId);
+            var navigateUrl = folderDashboardUrl(folderId, getActiveDashboardTab());
             if (window.history && window.history.pushState) {
-                window.history.pushState({ folderId: folderId }, '', href);
+                window.history.pushState({ folderId: folderId }, '', navigateUrl);
             }
             if (hasFilesLoader) {
                 window.OspreyDashboardFiles.loadForFolder(folderId);
@@ -450,7 +477,7 @@
                 if (!match) {
                     return;
                 }
-                onFolderNavigate(event, row.getAttribute('href'), match[1]);
+                onFolderNavigate(event, match[1]);
             });
         }
 
@@ -529,24 +556,27 @@
                     hasTranscriptionQcLoader) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
-                        updateSelectedFolder(match[1]);
+                        var folderId = match[1];
+                        updateSelectedFolder(folderId);
+                        updateDashboardTabLinks(folderId);
+                        var navigateUrl = folderDashboardUrl(folderId, getActiveDashboardTab());
                         if (window.history && window.history.pushState) {
-                            window.history.pushState({ folderId: match[1] }, '', this.value);
+                            window.history.pushState({ folderId: folderId }, '', navigateUrl);
                         }
                         if (hasFilesLoader) {
-                            window.OspreyDashboardFiles.loadForFolder(match[1]);
+                            window.OspreyDashboardFiles.loadForFolder(folderId);
                         }
                         if (hasQcLoader) {
-                            window.OspreyDashboardQc.loadForFolder(match[1]);
+                            window.OspreyDashboardQc.loadForFolder(folderId);
                         }
                         if (hasLightboxLoader) {
-                            window.OspreyDashboardLightbox.loadForFolder(match[1]);
+                            window.OspreyDashboardLightbox.loadForFolder(folderId);
                         }
                         if (hasPostprodLoader) {
-                            window.OspreyDashboardPostprocessing.loadForFolder(match[1]);
+                            window.OspreyDashboardPostprocessing.loadForFolder(folderId);
                         }
                         if (hasTranscriptionQcLoader) {
-                            window.OspreyDashboardTranscriptionQc.loadForFolder(match[1]);
+                            window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
                         }
                         return;
                     }

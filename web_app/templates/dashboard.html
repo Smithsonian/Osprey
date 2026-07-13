@@ -82,6 +82,7 @@
                     <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}"
                        title="Link to the file checks of the folder"
                        class="nav-link {% if tab == "filechecks" %}active{% endif %}"
+                       data-tab="filechecks"
                        {% if tab == "filechecks" %}aria-current="page"{% endif %}
                        role="tab">File Checks</a>
                 </li>
@@ -90,6 +91,7 @@
                     <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}"
                        title="Link to view image previews in a lightbox of the folder"
                        class="nav-link {% if tab == "lightbox" %}active{% endif %}"
+                       data-tab="lightbox"
                        {% if tab == "lightbox" %}aria-current="page"{% endif %}
                        role="tab">Lightbox</a>
                 </li>
@@ -99,6 +101,7 @@
                     <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}"
                        title="Link to view the post-production steps of the folder"
                        class="nav-link {% if tab == "postprod" %}active{% endif %}"
+                       data-tab="postprod"
                        {% if tab == "postprod" %}aria-current="page"{% endif %}
                        role="tab">Post-Production</a>
                 </li>
