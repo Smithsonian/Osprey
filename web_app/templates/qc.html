@@ -109,6 +109,14 @@
     <div class="card dashboard-files-card border-dark mb-3">
       <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <h2 class="h5 mb-0">Folders Ready for QC</h2>
+        <div class="d-flex align-items-center gap-2">
+          <label for="qc-preview-type-filter" class="form-label small mb-0">Preview type</label>
+          <select id="qc-preview-type-filter" class="form-select form-select-sm" aria-label="Filter folders by preview type" style="width: auto;">
+            <option value="">Any</option>
+            <option value="dzi">DZI</option>
+            <option value="iiif">IIIF</option>
+          </select>
+        </div>
       </div>
       <div class="card-body p-0">
         <div class="dashboard-files-table-wrap">
@@ -125,7 +133,7 @@
             </thead>
             <tbody>
                 {% for folder in folder_qc_info %}
-                <tr>
+                <tr data-qc-folder-row data-preview-type="{{ folder.preview_type or '' }}">
                     <td>
                         {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %}
                     </td>
@@ -176,6 +184,9 @@
             </tbody>
           </table>
         </div>
+        <p id="qc-preview-type-empty" class="text-muted small p-3 mb-0 d-none" role="status">
+          No folders match the selected preview type.
+        </p>
       </div>
     </div>
 
@@ -249,4 +260,8 @@
     </div>
     {% endif %}
 
+{% endblock %}
+
+{% block javascripts %}
+<script src="{{ url_for('static', filename='js/qc_preview_type_filter.js') }}"></script>
 {% endblock %}
