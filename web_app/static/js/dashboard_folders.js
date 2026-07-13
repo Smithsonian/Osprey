@@ -3,7 +3,7 @@
 
     var QC_BADGES = ['QC Passed', 'QC Failed', 'QC Pending'];
     var TRANSCRIPTION_QC_BADGE_RE = /^Transcription QC /i;
-    var FILE_COUNT_RE = /^\d[\d,]* files$/i;
+    var FILE_COUNT_RE = /^\d[\d,]* files?$/i;
     var SKIP_CHIP_BADGES = /^MD5 Valid$/i;
     var PREVIEW_TYPE_BADGES = /^(DZI|IIIF)$/i;
 
@@ -25,8 +25,12 @@
     }
 
     function fileCountFromBadges(badges) {
-        var match = (badges || '').match(/(\d[\d,]*)\s+files/i);
-        return match ? match[1] + ' files' : null;
+        var match = (badges || '').match(/(\d[\d,]*)\s+files?\b/i);
+        if (!match) {
+            return null;
+        }
+        var count = match[1];
+        return count + (count === '1' ? ' file' : ' files');
     }
 
     function isInDams(folder) {
@@ -61,7 +65,7 @@
             capture_date: folder.capture_date,
             section: isInDams(folder) ? 'dams' : 'active',
             fileCount: fileCountFromBadges(folder.badges) ||
-                (folder.no_files ? String(folder.no_files) + ' files' : null),
+                (folder.no_files ? String(folder.no_files) + (Number(folder.no_files) === 1 ? ' file' : ' files') : null),
             unavailable: isUnavailable(folder)
         };
     }
