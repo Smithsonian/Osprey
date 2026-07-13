@@ -15,6 +15,7 @@ import settings
 from logger import logger
 from osprey.services import projects as project_service
 from osprey.services.permissions import user_perms
+from osprey.version import __version__
 from web.forms import LoginForm
 
 projects_bp = Blueprint('projects', __name__)
@@ -26,7 +27,7 @@ def new_project(msg=None):
     """Create a new project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -99,7 +100,7 @@ def edit_project(project_alias=None):
     """Edit a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -134,7 +135,7 @@ def infprojects():
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -168,7 +169,7 @@ def infprojects_edit(proj_id=None):
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -190,7 +191,7 @@ def new_infprojects():
     """Home for informatics projects"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -245,7 +246,7 @@ def proj_links(project_alias=None):
     """Add / edit links associated with a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":

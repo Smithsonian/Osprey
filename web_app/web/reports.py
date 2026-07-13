@@ -11,6 +11,7 @@ from flask_login import current_user
 import settings
 from cache import cache
 from osprey.services import reports as report_service
+from osprey.version import __version__
 from web.forms import LoginForm
 
 reports_bp = Blueprint('reports', __name__)
@@ -22,7 +23,7 @@ def data_reports_form():
     """Report of a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -45,7 +46,7 @@ def data_reports(project_alias=None, report_id=None, rendering=None):
     """Report of a project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":

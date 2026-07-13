@@ -17,7 +17,7 @@ def test_folder_fixture_top_level_keys():
     data = _load_fixture('folder.json')
     for key in (
         'delivered_to_dams', 'error_info', 'file_errors', 'files',
-        'folder', 'folder_date', 'folder_id', 'previews', 'project_alias',
+        'folder', 'folder_date', 'folder_id', 'previews', 'preview_type', 'project_alias',
         'project_id', 'qc_status', 'status',
     ):
         assert key in data
@@ -51,7 +51,7 @@ def test_folder_files_fixture_file_checks_shape():
     rows = data['folders']
     assert len(rows) > 0
     row = rows[0]
-    for key in ('folder_id', 'project_id', 'folder', 'status', 'capture_date'):
+    for key in ('folder_id', 'project_id', 'folder', 'status', 'capture_date', 'preview_type'):
         assert key in row
 
 

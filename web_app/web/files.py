@@ -12,6 +12,7 @@ import settings
 from cache import cache
 from logger import logger
 from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
+from osprey.version import __version__
 from osprey.services import file_search as file_search_service
 from osprey.services import files as files_service
 from osprey.services.permissions import kiosk_mode, user_perms
@@ -25,7 +26,7 @@ def file(file_id=None):
     """File details"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -119,7 +120,7 @@ def file_transcription(file_id=None):
     """File details from a transcription project"""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     # If API, not allowed - to improve
     if site_net == "api":
@@ -224,7 +225,7 @@ def search_files(project_alias):
     """Search files by filename."""
     site_env = settings.env
     site_net = settings.site_net
-    site_ver = getattr(settings, 'site_ver', '2.11.1')
+    site_ver = __version__
 
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))

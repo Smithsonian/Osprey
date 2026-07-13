@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- SI Elements -->
+    <link rel="preload" href="/static/css/qfv0ytn.css" as="style">
+    <link rel="stylesheet" href="/static/css/qfv0ytn.css">
+
+    <!-- favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+    <!-- Font Awesome 6.4.2 -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">
+
+    <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
+    <link href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/css/dataTables.dataTables.min.css" rel="stylesheet" integrity="sha384-iRTWPXZquQySBE9K96fgJXUIrnm8TpdtPAbiCNR+qjpP24qFZw9PHFA91JtWy7Ul" crossorigin="anonymous">
+
+    <!-- Osprey-specific CSS -->
+    <link href="/static/css/osprey_custom.min.css" rel="stylesheet" />
+
+    
+    
+
+    <!-- favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+
+    <title class="pagetitle">Accessibility Smoke</title>
+
+</head>
+<body>
+
+<div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
+
+<nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
+  <div class="container-fluid">
+    <div class="d-flex align-items-center min-w-0 me-lg-3 flex-grow-1 overflow-hidden">
+      <a class="navbar-brand osprey-brand flex-shrink-0"
+         href="/homepage"
+         title="Osprey home">
+        Osprey
+      </a>
+      
+        <span class="badge text-bg-secondary osprey-internal-badge ms-2 d-none d-sm-inline">Internal</span>
+      
+      <span class="navbar-context-sep text-white-50 mx-2 d-none d-md-inline" aria-hidden="true">/</span>
+      <div class="navbar-context-wrap min-w-0 text-truncate">
+        
+  <span class="navbar-context">Accessibility Smoke</span>
+
+      </div>
+    </div>
+
+    <button class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#ospreyNavbar"
+            aria-controls="ospreyNavbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse flex-grow-0" id="ospreyNavbar">
+            <ul class="navbar-nav ms-lg-auto align-items-lg-center">
+        
+        
+          <li class="nav-item">
+            <a class="nav-link"
+               href="/homepage"
+               title="System homepage">
+              <i class="fa-solid fa-house fa-fw" aria-hidden="true"></i>
+              Home
+            </a>
+          </li>
+          
+            <li class="nav-item">
+              <button type="button"
+                      class="nav-link btn btn-link p-0"
+                      data-bs-toggle="modal"
+                      data-bs-target="#loginModal">
+                <i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>
+                Login
+              </button>
+            </li>
+          
+          <li class="nav-item">
+            <a class="nav-link"
+               href="/about"
+               >
+              <i class="fa-solid fa-circle-info fa-fw" aria-hidden="true"></i>
+              About
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="https://github.com/Smithsonian/Osprey/blob/master/documentation/Osprey_User_Guide/OspreyUserGuide.md"
+               target="_blank"
+               rel="noopener noreferrer"
+               title="Osprey user guide (opens in new tab)">
+              User guide
+              <i class="fa-solid fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i>
+              <span class="screen-reader-only">(opens in new tab)</span>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid">
+
+    <main id="maincontent" class="osprey-main-content">
+    
+  <h1 class="h4">Accessibility smoke page</h1>
+
+  <p>This page exists only to exercise shared UI components for automated accessibility checks.</p>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <h2 class="h6">Form controls</h2>
+
+      <div class="mb-3">
+        <label for="a11y_input" class="form-label">Example input</label>
+        <input id="a11y_input" name="a11y_input" class="form-control" type="text" value="Example">
+      </div>
+
+      <div class="mb-3">
+        <label for="a11y_select" class="form-label">Example select</label>
+        <select id="a11y_select" name="a11y_select" class="form-select">
+          <option value="1">One</option>
+          <option value="2">Two</option>
+        </select>
+      </div>
+
+      <button type="button" class="btn btn-primary" aria-describedby="a11yModalHint">
+        Modal example below
+      </button>
+      <div id="a11yModalHint" class="visually-hidden">A sample modal is rendered below for accessibility checks.</div>
+    </div>
+  </div>
+
+  <div class="modal show"
+       id="a11yLoginModal"
+       tabindex="-1"
+       aria-labelledby="a11yLoginModalLabel"
+       aria-modal="true"
+       role="dialog"
+       style="display: block;">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="a11yLoginModalLabel">Login</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <div class="mb-3">
+              <label for="a11y_email" class="form-label">Email</label>
+              <input id="a11y_email" name="email" type="email" class="form-control" autocomplete="email">
+            </div>
+            <div class="mb-3">
+              <label for="a11y_password" class="form-label">Password</label>
+              <input id="a11y_password" name="password" type="password" class="form-control" autocomplete="current-password">
+            </div>
+            <button type="button" class="btn btn-primary">Sign in</button>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    </main>
+
+</div>
+
+
+<footer class="osprey-footer">
+  <!-- Footer Elements -->
+  <div class="container-fluid">
+      <div class="row g-3 align-items-start">
+        <div class="col-md-4 osprey-footer-logo">
+            <a href="https://dpo.si.edu" class="footer-text"><img src="/static/logo-white-300.png" alt="Logo of the Smithsonian Digitization Program Office"></a>
+        </div>
+        <div class="col-md-4">
+            
+                <p><a href="https://sinet.sharepoint.com/sites/ODT" class="footer-text" title="Link to the Office of Digital Transformation">Office of Digital Transformation</a></p>
+            
+            <p><a href="/about" class="footer-text" title="Link to page with contact information and about the system">About & Contact</a></p>
+            <p><a href="https://www.si.edu/termsofuse" class="footer-text" title="Link to the Terms of Use">Terms of Use</a></p>
+            <p><a href="https://www.si.edu/vulnerability-disclosure-policy" class="footer-text" title="Link to the Vulnerability Disclosure Policy">Vulnerability Disclosure Policy</a></p>
+        </div>
+        <div class="col-md-4">
+            
+                <p><a href="https://prism.si.edu/" class="footer-text" title="Link to the PRISM website">PRISM</a></p>
+            
+            <p><a href="https://www.si.edu/Accessibility" class="footer-text" title="Link to the Accessibility information page">Accessibility</a></p>
+            <p><a href="https://www.si.edu/privacy" class="footer-text" title="Link to the Privacy information page">Privacy</a></p>
+        </div>
+
+    </div>
+ </div>
+
+</footer>
+
+    <!-- JQuery 4.0 -->
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
+
+    <!-- Bootstrap 5.3.8 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.3.7/js/dataTables.min.js" integrity="sha384-Lo2E+ASlyar6zUXt6sPEy5uaDGtDGHXo300rohaW4/AV26JdoLBT9zhcOhV8BtL8" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/js/dataTables.dataTables.min.js" integrity="sha384-RvGje9AANZHL+RqzTE91MrrBgAHP4CP/HtrBtRdKdyiiO39OALDOKkWqG4eQyHv6" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/dataTables.buttons.min.js" integrity="sha384-ygalescEL33A7N+7n2CN65lzwzfLzQNVWNhHDnAUGLiE1RyuaOQ+kI2PhRsTzEGV" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons-dt@3.2.6/js/buttons.dataTables.min.js" integrity="sha384-am9IcoOVnQUWq55iBGGD9pgIkr+HcQLfg+sSzKIeIiGZTGhhl9iww3QqdviztPLy" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/buttons.html5.min.js" integrity="sha384-OFL+acRxgxRUKgJTHEQrtuwzydyoSE/AN10JClRMQjjfnXKoF89juO7p8HyCYxxO" crossorigin="anonymous"></script>
+    
+    
+    
+
+    
+    
+</body>
+</html>

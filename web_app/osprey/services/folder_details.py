@@ -39,7 +39,7 @@ def get_folder_details_row(folder_id, transcription):
     if transcription == 1:
         rows = run_query(
             ("SELECT f.folder_transcription_id as folder_id, f.project_id, f.folder, "
-             "   p.project_alias, f.status, f.previews, "
+             "   p.project_alias, f.status, f.previews, f.preview_type, "
              "   DATE_FORMAT(f.date, '%Y-%m-%d') as folder_date, "
              "   f.file_errors, f.error_info, "
              " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "
@@ -58,7 +58,7 @@ def get_folder_details_row(folder_id, transcription):
     else:
         rows = run_query(
             ("SELECT f.folder_id, f.project_id, f.project_folder as folder, "
-             "   p.project_alias, f.status, f.previews, "
+             "   p.project_alias, f.status, f.previews, f.preview_type, "
              "   DATE_FORMAT(f.date, '%Y-%m-%d') as folder_date, "
              "   f.file_errors, f.error_info, "
              " CASE WHEN f.delivered_to_dams = 0 THEN 'Completed' "

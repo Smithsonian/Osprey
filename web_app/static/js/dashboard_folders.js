@@ -5,6 +5,7 @@
     var TRANSCRIPTION_QC_BADGE_RE = /^Transcription QC /i;
     var FILE_COUNT_RE = /^\d[\d,]* files$/i;
     var SKIP_CHIP_BADGES = /^MD5 Valid$/i;
+    var PREVIEW_TYPE_BADGES = /^(DZI|IIIF)$/i;
 
     function escapeHtml(text) {
         return String(text)
@@ -56,6 +57,7 @@
             qc_status: folder.qc_status,
             status: folder.status,
             previews: folder.previews,
+            preview_type: folder.preview_type,
             capture_date: folder.capture_date,
             section: isInDams(folder) ? 'dams' : 'active',
             fileCount: fileCountFromBadges(folder.badges) ||
@@ -104,6 +106,9 @@
                 return false;
             }
             if (badge === 'Delivered to DAMS') {
+                return false;
+            }
+            if (PREVIEW_TYPE_BADGES.test(badge)) {
                 return false;
             }
             return true;
@@ -179,6 +184,11 @@
                 chips.push('<span class="badge ' + transcriptionQcBadgeClass(badge) + '">' +
                     escapeHtml(badge) + '</span>');
             });
+            if (folder.preview_type === 'dzi') {
+                chips.push('<span class="badge text-bg-info" title="Preview type: DZI">DZI</span>');
+            } else if (folder.preview_type === 'iiif') {
+                chips.push('<span class="badge text-bg-primary" title="Preview type: IIIF">IIIF</span>');
+            }
         }
 
         extraBadges(folder.badgeList).forEach(function (badge) {

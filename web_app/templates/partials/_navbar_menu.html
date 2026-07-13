@@ -65,13 +65,13 @@
           </li>
           {% if asklogin is defined and asklogin %}
             <li class="nav-item">
-              <a class="nav-link"
-                 href="#"
-                 data-bs-toggle="modal"
-                 data-bs-target="#loginModal">
+              <button type="button"
+                      class="nav-link btn btn-link p-0"
+                      data-bs-toggle="modal"
+                      data-bs-target="#loginModal">
                 <i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>
                 Login
-              </a>
+              </button>
             </li>
           {% endif %}
           <li class="nav-item">

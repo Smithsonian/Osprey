@@ -13,6 +13,7 @@ def list_for_project(project_id, transcription, include_previews=True):
              "f.folder_transcription_id as folder_id, f.project_id, f.folder, "
              "f.folder_path, f.status, "
              + previews_select +
+             "f.preview_type, "
              "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
              "f.no_files, f.file_errors, "
              " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
@@ -24,7 +25,7 @@ def list_for_project(project_id, transcription, include_previews=True):
              "     LEFT JOIN folders_badges b ON (f.folder_transcription_id = b.folder_uid) "
              " WHERE project_id = %(project_id)s"
              " GROUP BY f.folder_transcription_id, f.project_id, f.folder, f.folder_path, "
-             "      f.status, f.error_info, f.date, f.no_files,"
+             "      f.status, f.preview_type, f.error_info, f.date, f.no_files,"
              "      f.file_errors, q.qc_status"
              + previews_group +
              " ORDER BY f.date DESC, f.folder DESC"),
@@ -37,6 +38,7 @@ def list_for_project(project_id, transcription, include_previews=True):
          "f.folder_id, f.project_id, f.project_folder as folder, "
          "f.folder_path, f.status, "
          + previews_select +
+         "f.preview_type, "
          "f.error_info, date_format(f.date, '%%Y-%%m-%%d') as capture_date, "
          "f.no_files, f.file_errors, "
          " CASE WHEN f.delivered_to_dams = 1 THEN 0 ELSE 9 END as delivered_to_dams, "
@@ -48,7 +50,7 @@ def list_for_project(project_id, transcription, include_previews=True):
          "     LEFT JOIN folders_badges b ON (f.folder_id = b.folder_id) "
          " WHERE project_id = %(project_id)s"
          " GROUP BY f.folder_id, f.project_id, f.project_folder, f.folder_path, "
-         "      f.status, f.error_info, f.date, f.no_files,"
+         "      f.status, f.preview_type, f.error_info, f.date, f.no_files,"
          "      f.file_errors, q.qc_status"
          + previews_group +
          " ORDER BY f.date DESC, f.project_folder DESC"),

@@ -89,7 +89,7 @@
                 {% for folder in folder_qc_pending %}
                   <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div>
-                      {{ folder.folder }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
+                      {{ folder.folder }}{% include 'partials/_preview_type_badge.html' %} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
                     </div>
                     {% if folder.qc_by == username %}
                       <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
@@ -126,7 +126,7 @@
                 {% for folder in folder_qc_info %}
                 <tr>
                     <td>
-                        {{ folder.project_folder }}
+                        {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %}
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
@@ -204,7 +204,7 @@
                 {% for folder in folder_qc_done %}
                 <tr>
                     <td>
-                        {{ folder.project_folder }}
+                        {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %}
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>

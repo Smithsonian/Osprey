@@ -22,7 +22,10 @@
         <div class="dashboard-recent-images">
             <h4>Recent images:</h4>
                 {% for img in recent_images %}
-                    <a href="{{ url_for('files.file', file_id=img.file_id) }}"><img src="{{ url_for('static', filename=img.preview) }}" alt=""></a>
+                    <a href="{{ url_for('files.file', file_id=img.file_id) }}"
+                       aria-label="Open file {{ img.file_id }}">
+                      <img src="{{ url_for('static', filename=img.preview) }}" alt="">
+                    </a>
                 {% endfor %}
         </div>
         <br>
@@ -60,18 +63,18 @@
         {% if folder_badges != None %}
             <div style="text-align: right;">
                 {% if files_count != "0 files" and files_count != "0" %}
-                    &nbsp;<span class="badge bg-primary" alt="{{ files_count }} Files">{{ files_count }} Files</span>
+                    &nbsp;<span class="badge bg-primary" title="{{ files_count }} Files">{{ files_count }} Files</span>
                 {% endif %}
 
                 {% for folder_badge in folder_badges %}
-                    &nbsp;<span class="badge {{ folder_badge.badge_css }}" alt="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
+                    &nbsp;<span class="badge {{ folder_badge.badge_css }}" title="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
                 {% endfor %}
             </div>
         {% endif %}
 
 
         <!-- Accessible jump to files -->
-        <a name="filestable"></a>
+        <div id="filestable"></div>
 
         <!-- Choose view -->
             <ul class="nav nav-tabs dashboard-tabs" role="tablist" aria-label="Folder detail views">
@@ -146,7 +149,10 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
                       <div class="modal-body">
-                          <p><div class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 600 x 600. Click on the Details link for the fullsize</em></div><a href="#" id="filelink">Link to image</a></p>
+                          <p>
+                            <span class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 600 x 600. Click on the Details link for the fullsize</em></span>
+                            <a href="" id="filelink">Link to image</a>
+                          </p>
 
                            <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
                       </div>

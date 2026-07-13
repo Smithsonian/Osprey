@@ -1,0 +1,13 @@
+{
+  "name": "osprey-web-app-a11y",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "playwright": "^1.55.0"
+  },
+  "scripts": {
+    "a11y": "node tests/a11y/run_a11y.mjs"
+  }
+}
+

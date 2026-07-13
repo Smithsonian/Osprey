@@ -17,6 +17,28 @@ from api import api_bp
 from api.auth import validate_api_key
 from osprey.db import query_database_insert, run_query
 
+
+def _parse_preview_type(value):
+    """Return (preview_type, badge_text, badge_css) or None if invalid."""
+    preview_type = str(value).lower()
+    if preview_type not in ('dzi', 'iiif'):
+        return None
+    badge_text = 'DZI' if preview_type == 'dzi' else 'IIIF'
+    badge_css = 'bg-info' if preview_type == 'dzi' else 'bg-primary'
+    return preview_type, badge_text, badge_css
+
+
+def _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css):
+    query = (
+        f"INSERT INTO folders_badges ({fid}, badge_type, badge_css, badge_text, updated_at) "
+        "VALUES (%(folder_id)s, 'preview_type', %(badge_css)s, %(badge_text)s, CURRENT_TIMESTAMP) "
+        "ON DUPLICATE KEY UPDATE badge_text = %(badge_text)s, badge_css = %(badge_css)s, updated_at = CURRENT_TIMESTAMP"
+    )
+    return query_database_insert(
+        query,
+        {'folder_id': folder_id, 'badge_text': badge_text, 'badge_css': badge_css},
+    )
+
 @api_bp.route('/update/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
@@ -383,6 +405,19 @@ def api_update_project_details(project_alias=None):
                             query = ("UPDATE folders SET previews = %(value)s WHERE folder_id = %(folder_id)s")
                             res = query_database_insert(query, {'folder_id': folder_id, 'value': query_value})
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                    elif query_property == "preview_type":
+                        parsed = _parse_preview_type(query_value)
+                        if parsed is None:
+                            return jsonify({'error': 'preview_type must be dzi or iiif'}), 400
+                        preview_type, badge_text, badge_css = parsed
+                        if transcription == 1:
+                            query = ("UPDATE transcription_folders SET preview_type = %(value)s WHERE folder_transcription_id = %(folder_id)s")
+                        else:
+                            query = ("UPDATE folders SET preview_type = %(value)s WHERE folder_id = %(folder_id)s")
+                        res = query_database_insert(query, {'folder_id': folder_id, 'value': preview_type})
+                        logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
+                        res = _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css)
+                        logger.info("query: update|{}|{}|badge|{}|{}".format(query_type, query_property, folder_id, res))
                     elif query_property == "qc":
                         query = ("SELECT * FROM qc_folders WHERE folder_id = %(folder_id)s")
                         folder_qc = run_query(query, {'folder_id': folder_id})
@@ -728,22 +763,47 @@ def api_new_folder(project_alias=None):
                     folder_path = request.form.get("folder_path")
                     project_id = request.form.get("project_id")
                     folder_date = request.form.get("folder_date")
+                    preview_type_raw = request.form.get("preview_type")
                     folder_uid = str(uuid.uuid4())
                     if folder is not None and folder_path is not None:
+                        preview_type = None
+                        badge_text = None
+                        badge_css = None
+                        if preview_type_raw:
+                            parsed = _parse_preview_type(preview_type_raw)
+                            if parsed is None:
+                                return jsonify({'error': 'preview_type must be dzi or iiif'}), 400
+                            preview_type, badge_text, badge_css = parsed
                         if transcription == 1:
-                            query = ("INSERT INTO transcription_folders (folder_transcription_id, folder, folder_path, status, project_id, date, previews) "
-                                    " VALUES (%(folder_id)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1)")
-                            data = query_database_insert(query, {'folder_id': folder_uid, 'folder': folder, 'folder_path': folder_path,
-                                                                'project_id': project_id, 'folder_date': folder_date})
+                            if preview_type:
+                                query = ("INSERT INTO transcription_folders (folder_transcription_id, folder, folder_path, status, project_id, date, previews, preview_type) "
+                                        " VALUES (%(folder_id)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1, %(preview_type)s)")
+                                data = query_database_insert(query, {'folder_id': folder_uid, 'folder': folder, 'folder_path': folder_path,
+                                                                    'project_id': project_id, 'folder_date': folder_date, 'preview_type': preview_type})
+                            else:
+                                query = ("INSERT INTO transcription_folders (folder_transcription_id, folder, folder_path, status, project_id, date, previews) "
+                                        " VALUES (%(folder_id)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1)")
+                                data = query_database_insert(query, {'folder_id': folder_uid, 'folder': folder, 'folder_path': folder_path,
+                                                                    'project_id': project_id, 'folder_date': folder_date})
+                            if preview_type:
+                                _upsert_preview_type_badge('folder_uid', folder_uid, badge_text, badge_css)
                             data = run_query("SELECT * FROM transcription_folders WHERE folder_transcription_id = %(folder_transcription_id)s",
                                               {'folder_transcription_id': folder_uid})
                         else:
-                            query = ("INSERT INTO folders (folder_uid, project_folder, folder_path, status, project_id, date, previews) "
-                                    " VALUES (%(folder_uid)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1)")
-                            data = query_database_insert(query, {'folder_uid': folder_uid, 'folder': folder, 'folder_path': folder_path,
-                                                                'project_id': project_id, 'folder_date': folder_date})
+                            if preview_type:
+                                query = ("INSERT INTO folders (folder_uid, project_folder, folder_path, status, project_id, date, previews, preview_type) "
+                                        " VALUES (%(folder_uid)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1, %(preview_type)s)")
+                                data = query_database_insert(query, {'folder_uid': folder_uid, 'folder': folder, 'folder_path': folder_path,
+                                                                    'project_id': project_id, 'folder_date': folder_date, 'preview_type': preview_type})
+                            else:
+                                query = ("INSERT INTO folders (folder_uid, project_folder, folder_path, status, project_id, date, previews) "
+                                        " VALUES (%(folder_uid)s, %(folder)s, %(folder_path)s, 1, %(project_id)s, %(folder_date)s, 1)")
+                                data = query_database_insert(query, {'folder_uid': folder_uid, 'folder': folder, 'folder_path': folder_path,
+                                                                    'project_id': project_id, 'folder_date': folder_date})
                             data = run_query("SELECT * FROM folders WHERE project_folder = %(project_folder)s AND folder_path = %(folder_path)s AND project_id = %(project_id)s",
                                                 {'project_folder': folder, 'folder_path': folder_path, 'project_id': project_id})
+                            if preview_type and data:
+                                _upsert_preview_type_badge('folder_id', data[0]['folder_id'], badge_text, badge_css)
                         return jsonify({"result": data})
                     else:
                         return jsonify({"result": False}), 400
