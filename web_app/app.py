@@ -93,6 +93,9 @@ app.register_blueprint(api_bp, url_prefix='/api')
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = settings.secret_key
+# Token validation remains on; skip Referer matching (often missing behind
+# proxies, privacy browsers, or when Referrer-Policy strips the header).
+app.config['WTF_CSRF_SSL_STRICT'] = False
 csrf = CSRFProtect(app)
 csrf.exempt(api_bp)
 
