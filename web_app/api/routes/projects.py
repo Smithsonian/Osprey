@@ -18,7 +18,7 @@ def api_get_projects():
     logger.info("api_get_projects called | section={}".format(section))
     projects_data = project_service.list_projects(section)
     last_update = run_query(
-        "SELECT date_format(MAX(updated_at), '%d-%m-%Y') AS updated_at FROM projects_stats"
+        "SELECT date_format(MAX(updated_at), '%Y-%m-%d') AS updated_at FROM projects_stats"
     )
     return jsonify({"projects": projects_data, "last_update": last_update[0]['updated_at']})
 

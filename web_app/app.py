@@ -2854,25 +2854,51 @@ def qc_process_transcript(source_id, folder_id):
     
     # File submitted
     if file_id_q is not None:
+
         qc_info = request.values.get('qc_info')
         qc_val = request.values.get('qc_val')
-        user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
-                                 {'username': username})[0]
-        if qc_val != "0" and qc_info == "":
-            msg = "Error: The field QC Details can not be empty if the file has an issue.<br>Please try again."
+        if str(project_id['project_id']) == "250":
+            alembo_cat = request.values.get('alembo_cat')
+            alembo_cat_t = (alembo_cat is None)
+            logger.info(f"{alembo_cat},{alembo_cat_t},{qc_info},{file_id_q}")
+            if qc_info != "" and alembo_cat == "NA":
+                msg = "Error: The field Issue or Comment Category can not be empty if QC Details is filled.<br>Please try again."
+            else:
+                user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
+                                        {'username': username})[0]
+                if qc_val != "0" and qc_info == "":
+                    msg = "Error: The field QC Details can not be empty if the file has an issue.<br>Please try again."
+                else:
+                    q = query_database_insert(("UPDATE transcription_qc SET "
+                                    "      qc_results = %(qc_val)s, "
+                                    "      qc_notes = %(qc_info)s "
+                                    " WHERE file_transcription_id = %(file_id)s and transcription_source_id = %(source_id)s"),
+                                    {'file_id': file_id_q,
+                                    'qc_info': f"{alembo_cat}|{qc_info}",
+                                    'qc_val': qc_val,
+                                    'source_id': source_id
+                                    })
+                
+                    logger.info(f"file_id: {file_id_q}|source_id: {source_id}|folder_id: {folder_id}")
+                    return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
         else:
-            q = query_database_insert(("UPDATE transcription_qc SET "
-                            "      qc_results = %(qc_val)s, "
-                            "      qc_notes = %(qc_info)s "
-                            " WHERE file_transcription_id = %(file_id)s and transcription_source_id = %(source_id)s"),
-                            {'file_id': file_id_q,
-                            'qc_info': qc_info,
-                            'qc_val': qc_val,
-                            'source_id': source_id
-                            })
-        
-            logger.info(f"file_id: {file_id_q}|source_id: {source_id}|folder_id: {folder_id}")
-            return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
+            user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
+                                    {'username': username})[0]
+            if qc_val != "0" and qc_info == "":
+                msg = "Error: The field QC Details can not be empty if the file has an issue.<br>Please try again."
+            else:
+                q = query_database_insert(("UPDATE transcription_qc SET "
+                                "      qc_results = %(qc_val)s, "
+                                "      qc_notes = %(qc_info)s "
+                                " WHERE file_transcription_id = %(file_id)s and transcription_source_id = %(source_id)s"),
+                                {'file_id': file_id_q,
+                                'qc_info': qc_info,
+                                'qc_val': qc_val,
+                                'source_id': source_id
+                                })
+            
+                logger.info(f"file_id: {file_id_q}|source_id: {source_id}|folder_id: {folder_id}")
+                return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
     
     project_id = run_query("SELECT project_id from transcription_folders WHERE folder_transcription_id = %(folder_id)s",
                                 {'folder_id': folder_id})[0]

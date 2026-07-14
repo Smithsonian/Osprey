@@ -112,7 +112,29 @@
               <p class="text-danger">{{ msg | safe }}</p>
               <label for="qc_info" class="form-label">QC details or issues:</label>
               <input type="text" class="form-control" id="qc_info" name="qc_info" aria-label="QC details or issues:" {% if qc_image_unavailable %}disabled{% endif %}>
-          </div>
+
+
+
+                {% if project_alias == "nmnh_mdpp_ento_pollinators_labels" %}
+                    <label for="alembo_cat" class="form-label">Issue or Comment Category:<br>
+                    (<strong>required if QC Details is filled</strong>)</label>
+                    <select name="alembo_cat" id="alembo_cat" class="form-select" aria-label="Default select example">
+                        <option selected value="NA"></option>
+                        <option value="Tip">Tip</option>
+                        <option value="Instruction error">Instruction error</option>
+                        <option value="Interpretation error">Interpretation error</option>
+                        <option value="Accuracy error">Accuracy error</option>
+                        <option value="Compliment">Compliment</option>
+                    </select>
+
+                {% endif %}
+
+
+
+
+
+
+            </div>
                 <input type="hidden" class="form-control" id="file_id" name="file_id" value="{{ file_details.file_transcription_id }}">
                 <input type="hidden" class="form-control" id="source_id" name="source_id" value="{{ source_id }}">
               <button type="submit" class="btn btn-primary" {% if qc_image_unavailable %}disabled{% endif %}>Submit</button>
