@@ -34,6 +34,7 @@
             </ul>
 
             <form action="{{ url_for('qc_done', folder_id=folder.folder_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                 <div class="mb-3">
                     {% if qc_folder_result == True %}

@@ -73,7 +73,13 @@
             var refreshUrl = '{{ url_for('reports.report_refresh', project_alias=project_alias, report_id=report.report_id) }}';
             $('#refresh_report_btn').on('click', function () {
                 $('#refresh_report_msg').text('Queuing…');
-                $.post(refreshUrl)
+                $.ajax({
+                    url: refreshUrl,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    }
+                })
                   .done(function () {
                       $('#refresh_report_msg').text('Queued. This page will update once the scheduler finishes.');
                   })

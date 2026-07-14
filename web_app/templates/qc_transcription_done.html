@@ -34,6 +34,7 @@
             </ul>
 
             <form action="{{ url_for('qc_transcription_done', source_id=source_id, folder_id=folder.folder_transcription_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                 <div class="mb-3">
                     {% if qc_folder_result == True %}

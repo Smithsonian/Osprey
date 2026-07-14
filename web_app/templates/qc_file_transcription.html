@@ -90,6 +90,7 @@
             {% endif %}
 
             <form action="{{ url_for('qc_process_transcript', source_id=source_id, folder_id=folder.folder_transcription_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <div class="mb-3">
                 <input type="radio" class="btn-check" name="qc_val" value="0" id="success-outlined" autocomplete="off" checked {% if qc_image_unavailable %}disabled{% endif %}>

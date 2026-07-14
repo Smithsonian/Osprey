@@ -13,6 +13,7 @@
 <div class="row">
     <div class="col">
         <form action="{{ url_for('projects.project_update', project_alias=project.project_alias) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <div class="mb-3">
                 <label for="p_title" class="form-label">Project Name:</label>

@@ -119,18 +119,23 @@
         });
     }
 
-    function dotClass(folder, selectedFolderId) {
+    function dotClass(folder, selectedFolderId, qcEnabled) {
         if (folder.unavailable) {
             return 'dashboard-folder-dot-unavailable';
         }
         if (String(folder.folder_id) === String(selectedFolderId)) {
             return 'dashboard-folder-dot-selected';
         }
-        if (folder.file_errors === 1 || folder.qc_status === 'QC Failed' || hasTranscriptionQcFailed(folder)) {
+        if (folder.file_errors === 1) {
             return 'dashboard-folder-dot-error';
         }
-        if (folder.qc_status === 'QC Pending') {
-            return 'dashboard-folder-dot-pending';
+        if (qcEnabled) {
+            if (folder.qc_status === 'QC Failed' || hasTranscriptionQcFailed(folder)) {
+                return 'dashboard-folder-dot-error';
+            }
+            if (folder.qc_status === 'QC Pending') {
+                return 'dashboard-folder-dot-pending';
+            }
         }
         return 'dashboard-folder-dot-ok';
     }
@@ -168,7 +173,7 @@
         return 'text-bg-light border';
     }
 
-    function buildChipsHtml(folder) {
+    function buildChipsHtml(folder, qcEnabled) {
         var chips = [];
 
         if (folder.unavailable) {
@@ -180,14 +185,16 @@
             if (folder.section === 'dams') {
                 chips.push('<span class="badge text-bg-success">Delivered to DAMS</span>');
             }
-            if (folder.qc_status) {
+            if (qcEnabled && folder.qc_status) {
                 chips.push('<span class="badge ' + qcBadgeClass(folder.qc_status) + '">' +
                     escapeHtml(folder.qc_status) + '</span>');
             }
-            (folder.transcriptionQcBadges || []).forEach(function (badge) {
-                chips.push('<span class="badge ' + transcriptionQcBadgeClass(badge) + '">' +
-                    escapeHtml(badge) + '</span>');
-            });
+            if (qcEnabled) {
+                (folder.transcriptionQcBadges || []).forEach(function (badge) {
+                    chips.push('<span class="badge ' + transcriptionQcBadgeClass(badge) + '">' +
+                        escapeHtml(badge) + '</span>');
+                });
+            }
             if (folder.preview_type === 'dzi') {
                 chips.push('<span class="badge text-bg-info" title="Preview type: DZI">DZI</span>');
             } else if (folder.preview_type === 'iiif') {
@@ -202,14 +209,14 @@
         return chips.join('');
     }
 
-    function buildRowHtml(folder, projectAlias, selectedFolderId) {
+    function buildRowHtml(folder, projectAlias, selectedFolderId, qcEnabled) {
         var slug = folder.folder.replace(/ /g, '_');
         var title = escapeHtml(folder.folder);
         var tooltip = folder.capture_date ?
             title + ' (' + escapeHtml(folder.capture_date) + ')' : title;
-        var chips = buildChipsHtml(folder);
+        var chips = buildChipsHtml(folder, qcEnabled);
         var inner =
-            '<span class="dashboard-folder-dot ' + dotClass(folder, selectedFolderId) + '" aria-hidden="true"></span>' +
+            '<span class="dashboard-folder-dot ' + dotClass(folder, selectedFolderId, qcEnabled) + '" aria-hidden="true"></span>' +
             '<span class="dashboard-folder-name" title="' + tooltip + '">' + title + '</span>' +
             '<span class="dashboard-folder-chips">' + chips + '</span>';
 
@@ -228,16 +235,29 @@
             (selected ? ' aria-current="true"' : '') + '>' + inner + '</a>';
     }
 
-    function matchesFilter(folder, filterMode) {
+    function matchesFilter(folder, filterMode, qcEnabled) {
         if (filterMode === 'ok') {
-            return !folder.unavailable &&
+            if (!folder.unavailable &&
                 folder.file_errors !== 1 &&
-                folder.qc_status === 'QC Passed' &&
-                !hasTranscriptionQcFailed(folder) &&
-                folder.section !== 'dams';
+                folder.section !== 'dams') {
+                if (!qcEnabled) {
+                    return true;
+                }
+                return folder.qc_status === 'QC Passed' && !hasTranscriptionQcFailed(folder);
+            }
+            return false;
         }
         if (filterMode === 'errors') {
             return folder.file_errors === 1;
+        }
+        if (!qcEnabled && (
+            filterMode === 'qc' ||
+            filterMode === 'qc_pending' ||
+            filterMode === 'transcription_qc' ||
+            filterMode === 'transcription_qc_passed' ||
+            filterMode === 'transcription_qc_pending'
+        )) {
+            return false;
         }
         if (filterMode === 'qc') {
             return folder.qc_status === 'QC Failed';
@@ -285,6 +305,7 @@
         var foldersUrl = panel.getAttribute('data-folders-url');
         var projectAlias = panel.getAttribute('data-project-alias');
         var selectedFolderId = panel.getAttribute('data-selected-folder-id') || '';
+        var qcEnabled = panel.getAttribute('data-qc-enabled') !== '0';
         var searchInput = document.getElementById('folder-search');
         var emptyMsg = document.getElementById('folder-search-empty');
         var loadingEl = document.getElementById('folder-list-loading');
@@ -322,7 +343,7 @@
                 return allFolders.length;
             }
             return allFolders.filter(function (folder) {
-                return matchesFilter(folder, mode);
+                return matchesFilter(folder, mode, qcEnabled);
             }).length;
         }
 
@@ -345,7 +366,7 @@
                     // When searching by name, ignore the filter buttons entirely.
                     return matchesSearch;
                 }
-                var matchesChip = matchesFilter(folder, filterMode);
+                var matchesChip = matchesFilter(folder, filterMode, qcEnabled);
                 return matchesSearch && matchesChip;
             });
         }
@@ -391,7 +412,7 @@
                         dot.className = 'dashboard-folder-dot ' +
                             dotClass(allFolders.find(function (f) {
                                 return String(f.folder_id) === selectedFolderId;
-                            }) || { folder_id: folderId }, selectedFolderId);
+                            }) || { folder_id: folderId }, selectedFolderId, qcEnabled);
                     }
                 });
             }
@@ -493,7 +514,7 @@
 
             var html = '<div class="dashboard-folder-list list-group shadow-sm">';
             folders.forEach(function (folder) {
-                html += buildRowHtml(folder, projectAlias, selectedFolderId);
+                html += buildRowHtml(folder, projectAlias, selectedFolderId, qcEnabled);
             });
             html += '</div>';
             desktopEl.innerHTML = html;

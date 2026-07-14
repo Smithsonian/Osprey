@@ -22,7 +22,8 @@ def get_project_row(project_alias):
          "CASE WHEN project_end IS NULL THEN NULL ELSE date_format(project_end, '%Y-%m-%d') END as project_end, "
          "project_notice, "
          "date_format(updated_at, '%Y-%m-%d') AS updated_at, "
-         "transcription "
+         "transcription, "
+         "qc_status "
          "FROM projects "
          "WHERE project_alias = %(project_alias)s"),
         {'project_alias': project_alias},

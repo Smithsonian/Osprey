@@ -105,6 +105,7 @@
                             <div class="alert alert-warning file-sensitive-form mb-3" role="region" aria-label="Flag sensitive content">
                                 <p class="mb-2 small">If this image contains potentially sensitive or offensive material, enter details below:</p>
                                 <form action="{{ url_for('files.update_image') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <input type="hidden" id="file_id" name="file_id" value="{{ file_details.file_id }}">
                                     <div class="flex-grow-1">
                                         <label for="sensitive_info" class="form-label visually-hidden">Reason for sensitive flag</label>

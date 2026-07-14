@@ -24,6 +24,7 @@
             <h2>Edit Informatics Project:</h2>
                         
                 <form action="{{ url_for('projects.edit_inf_proj') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="proj_edit" id="proj_edit" value="1">
                     <table class="table">
                         <tbody class="table-striped">

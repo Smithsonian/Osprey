@@ -3,7 +3,8 @@
      data-folders-url="{{ url_for('api.api_get_project_details', project_alias=project_alias) }}"
      data-project-alias="{{ project_alias }}"
      data-selected-folder-id="{{ folder_id if folder_id is not none else '' }}"
-     data-transcription="{{ 1 if transcription == 1 else 0 }}">
+     data-transcription="{{ 1 if transcription == 1 else 0 }}"
+     data-qc-enabled="{{ 0 if project_info.qc_status == 0 else 1 }}">
 
   <p class="small text-muted mb-2">
     This project has <span id="folder-total-count">…</span> folders total.
@@ -35,12 +36,14 @@
       <div class="dashboard-folder-filter-sub btn-group btn-group-sm flex-wrap w-100" role="group" aria-label="Filter folders by status">
         <button type="button" class="btn btn-outline-success active" data-folder-filter="ok" aria-pressed="true">OK</button>
         <button type="button" class="btn btn-outline-danger" data-folder-filter="errors" aria-pressed="false">Errors</button>
+        {% if project_info.qc_status != 0 %}
         <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="qc" aria-pressed="false">QC Failed</button>
         <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="qc_pending" aria-pressed="false">QC Pending</button>
         {% if transcription == 1 %}
         <button type="button" class="btn btn-outline-success" data-folder-filter="transcription_qc_passed" aria-pressed="false">Transcription QC Passed</button>
         <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="transcription_qc" aria-pressed="false">Transcription QC Failed</button>
         <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="transcription_qc_pending" aria-pressed="false">Transcription QC Pending</button>
+        {% endif %}
         {% endif %}
         <button type="button" class="btn btn-outline-primary" data-folder-filter="dams" aria-pressed="false">In DAMS</button>
         <button type="button" class="btn btn-outline-secondary" data-folder-filter="unavailable" aria-pressed="false">Unavailable</button>
