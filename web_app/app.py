@@ -2877,6 +2877,10 @@ def qc_process_transcript(source_id, folder_id):
                                 'qc_by': current_user.id
                                 })
     
+    
+    project_id = run_query("SELECT project_id from transcription_folders WHERE folder_transcription_id = %(folder_id)s",
+                                {'folder_id': folder_id})[0]
+    
     # File submitted
     if file_id_q is not None:
 
@@ -2924,9 +2928,6 @@ def qc_process_transcript(source_id, folder_id):
             
                 logger.info(f"file_id: {file_id_q}|source_id: {source_id}|folder_id: {folder_id}")
                 return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
-    
-    project_id = run_query("SELECT project_id from transcription_folders WHERE folder_transcription_id = %(folder_id)s",
-                                {'folder_id': folder_id})[0]
     
     project_settings = run_query("SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
                                       {'project_id': project_id['project_id']})[0]
