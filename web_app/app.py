@@ -53,6 +53,13 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 app = Flask(__name__)
 app.secret_key = settings.secret_key
 
+if site_env == "prod" and not settings.secret_key:
+    raise RuntimeError("SECRET_KEY must be set when env is prod")
+
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = (site_env == 'prod')
+
 # For subdirs
 def prefix_route(route_function, prefix='', mask='{0}{1}'):
   '''
@@ -82,6 +89,22 @@ cache.init_app(app)
 from api import api_bp
 app.register_blueprint(api_bp, url_prefix='/api')
 
+# CSRF protection for browser forms (API blueprint uses api_key auth)
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = settings.secret_key
+csrf = CSRFProtect(app)
+csrf.exempt(api_bp)
+
+# Ensure templates can always call csrf_token() (Flask-WTF context processor
+# is not always available depending on version / init order).
+app.jinja_env.globals['csrf_token'] = generate_csrf
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': generate_csrf}
+
 # Web Blueprints
 from web.reports import reports_bp
 from web.invoices import invoices_bp
@@ -91,6 +114,15 @@ app.register_blueprint(reports_bp)
 app.register_blueprint(invoices_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(projects_bp)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 
 # Shared database pool
 try:
@@ -292,8 +324,7 @@ def load_user(username):
     u = run_query(query, {'username': username})
     if len(u) == 1:
         return AuthBaseUser(u[0]['username'], u[0]['user_id'], u[0]['full_name'], u[0]['user_active'])
-    else:
-        return AuthBaseUser(None, None, None, False)
+    return None
 
 
 ###################################
@@ -612,22 +643,13 @@ def login():
             logger.error("Login error - missing @si.edu")
             return redirect(url_for('not_user'))
         logger.info("LDAP (user): {}".format(username))
-        query = ("SELECT user_id, username, user_active, full_name, internal FROM users WHERE email = %(email)s")
+        query = ("SELECT user_id, username, user_active, full_name FROM users WHERE email = %(email)s")
         user = run_query(query, {'email': username})
-        logger.info("Trying to log in: {}".format(user))
+        logger.info("Trying to log in: {}".format(username))
         if len(user) == 1:
-            if user[0]['internal'] == "1":
-                query = ("SELECT user_id, username, user_active, full_name, internal FROM users WHERE email = %(email)s and pass = %(password)s")
-                user = run_query(query, {'email': username, 'password': password})
-                if len(user) != 1:
-                    logger.error("Internal user failed login: {}".format(username))
-                    logger.error("Login error - Internal password error")
-                    return redirect(url_for('not_user'))
-            else:
-                if not get_auth_service().authenticate_user(username, password):
-                    logger.error("Login error - LDAP")
-                    return redirect(url_for('not_user'))
-            #
+            if not get_auth_service().authenticate_user(username, password):
+                logger.error("Login error - LDAP")
+                return redirect(url_for('not_user'))
             username = user[0]['username']
             logger.info(user[0]['user_active'])
             if user[0]['user_active']:
