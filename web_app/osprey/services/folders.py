@@ -61,3 +61,19 @@ def list_for_project(project_id, transcription, include_previews=True):
 def list_for_project_api(project_id, transcription):
     """Folder list for GET /api/projects/<alias> (includes previews for dashboard filters)."""
     return list_for_project(project_id, transcription, include_previews=True)
+
+
+def list_folder_ids_for_project(project_id, transcription, status=None):
+    """Return folder_id rows for a project, optionally filtered by status."""
+    if transcription == 1:
+        table = "transcription_folders"
+        id_col = "folder_transcription_id"
+    else:
+        table = "folders"
+        id_col = "folder_id"
+    query = f"SELECT {id_col} AS folder_id FROM {table} WHERE project_id = %(project_id)s"
+    params = {"project_id": project_id}
+    if status is not None:
+        query += " AND status = %(status)s"
+        params["status"] = status
+    return run_query(query, params)

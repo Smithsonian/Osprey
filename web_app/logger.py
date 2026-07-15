@@ -31,8 +31,6 @@ if settings.env == "prod":
 else:
     log_level = logging.DEBUG
 
-log_level = logging.DEBUG
-
 log_format = '%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s'
 log_datefmt = '%y-%b-%d %H:%M:%S'
 

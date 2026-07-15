@@ -32,7 +32,7 @@ class AuthBaseUser(UserMixin):
 
     @property
     def is_authenticated(self):
-        return True
+        return self.id is not None and bool(self.active)
 
 
 class AuthService:
@@ -70,25 +70,27 @@ class AuthService:
         from ldap3 import Connection, set_config_parameter
         from ldap3.core.exceptions import LDAPBindError
 
+        if not password or not str(password).strip():
+            logger.error("LDAP: empty password rejected for {}".format(username))
+            return False
+
         try:
             set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
             conn = Connection(self.server, user=username, password=password, auto_bind=True)
-            logger.info("LDAP (conn): {}".format(conn))
-            logger.info("LDAP (who_am_i): {}".format(conn.extend.standard.who_am_i()))
+            logger.info("LDAP bind succeeded for {}".format(username))
             self.bound = True
             return True
         except LDAPBindError:
             time.sleep(3)
-            logger.info("LDAP trying latin-1")
+            logger.info("LDAP trying latin-1 for {}".format(username))
             set_config_parameter('DEFAULT_SERVER_ENCODING', 'latin-1')
             try:
                 conn = Connection(self.server, user=username, password=password, auto_bind=True)
-                logger.info("LDAP latin-1 (conn): {}".format(conn))
-                logger.info("LDAP latin-1 (who_am_i): {}".format(conn.extend.standard.who_am_i()))
+                logger.info("LDAP latin-1 bind succeeded for {}".format(username))
                 self.bound = True
                 return True
             except LDAPBindError as e:
-                logger.error("LDAP: {} - {}".format(username, e))
+                logger.error("LDAP bind failed for {}".format(username))
                 return False
 
 

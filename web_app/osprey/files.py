@@ -45,9 +45,19 @@ def static_preview_path(folder_id, file_id, size="160", transcription=False):
     path = f"{_preview_base_path(folder_id, file_id, transcription)}/{size}/{file_id}.jpg"
     if os.path.isfile(f"static/{path}"):
         return path
-    if size in ("160", "200", "600", "1200"):
+    if size in ("160", "200", "600", "800", "1200"):
         return f"na_{size}.png"
     return "na_160.png"
+
+
+def resolve_static_preview_fallback(folder_id, file_id, transcription=False):
+    """Prefer 800px, then 160px; return relative static path or None if neither exists."""
+    base = _preview_base_path(folder_id, file_id, transcription)
+    for size in ("800", "160"):
+        path = f"{base}/{size}/{file_id}.jpg"
+        if os.path.isfile(f"static/{path}"):
+            return path
+    return None
 
 
 def static_fullsize_path(folder_id, file_id, transcription=False):
@@ -76,6 +86,9 @@ def attach_preview_paths(file_details, file_id, transcription=False):
         folder_id, file_id, size="600", transcription=transcription
     )
     file_details['fullsize_img_path'] = static_fullsize_path(
+        folder_id, file_id, transcription=transcription
+    )
+    file_details['preview_fallback_path'] = resolve_static_preview_fallback(
         folder_id, file_id, transcription=transcription
     )
     return file_details

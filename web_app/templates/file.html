@@ -132,7 +132,11 @@
 
                                 {% if file_details.preview_image_ext == None %}
 
-                                    {% if file_details.preview_img_path == "na_160.png" %}
+                                    {% if file_details.preview_fallback_path %}
+                                        <img src="{{ url_for('static', filename=file_details.preview_fallback_path) }}"
+                                             alt="Preview image of {{ file_details.file_name }}"
+                                             class="file-preview-image">
+                                    {% else %}
 
                                         <div class="missing-image">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -148,10 +152,6 @@
                                                 <i class="fa-solid fa-circle-info"></i> The preview is not available because the record was created recently. It might take up to a few hours for the images to be available. Please contact the Project Manager for more details.
                                             {% endif %}
                                         </div>
-                                    {% else %}
-                                        <img src="{{ url_for('static', filename=file_details.preview_img_path) }}"
-                                             alt="Preview image of {{ file_details.file_name }}"
-                                             class="file-preview-image">
                                     {% endif %}
 
                                 {% else %}
