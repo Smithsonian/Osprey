@@ -84,6 +84,23 @@
     </script>
     {% endif %}
 
+    {% if pregenerated == 1 and preview_tables %}
+    <!-- Datatables preview (full export is via CSV/XLSX links above) -->
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('#report_preview').DataTable({
+                dom: 'frtip',
+                order: [],
+                pageLength: 20,
+                lengthMenu: [
+                    [10, 20, -1],
+                    [10, 20, 'All'],
+                ]
+            });
+        });
+    </script>
+    {% endif %}
+
     {% if pregenerated == 1 and (data_file == "" and data_file_e == "") %}
     <script type="text/javascript">
         $(document).ready(function () {
