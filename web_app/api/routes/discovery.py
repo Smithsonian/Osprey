@@ -7,7 +7,6 @@ from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
-from api.auth import require_session_or_api_key
 from osprey.version import __version__
 
 
@@ -15,9 +14,6 @@ from osprey.version import __version__
 @api_bp.route('/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_route_list():
     """Print available routes in JSON"""
-    auth_error = require_session_or_api_key(url='/api/', params=None)
-    if auth_error is not None:
-        return auth_error
     logger.info("api_route_list called")
     func_list = {}
     for rule in current_app.url_map.iter_rules():

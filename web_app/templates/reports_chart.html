@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_info.project_title }} - {{ report.report_title }}{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="statistics-page">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+    <div>
+      <h1 class="h4 mb-1">{{ report.report_title }}</h1>
+      <p class="text-muted small mb-0">{{ project_info.project_title }}</p>
+    </div>
+    <a class="btn btn-outline-dark btn-sm"
+       href="{{ url_for('dashboard', project_alias=project_alias) }}"
+       title="Back to the project dashboard">
+      <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i>
+      Back to dashboard
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
+    <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <h2 class="h6 mb-0" id="chart-title-{{ chart.step_id }}">{{ chart.title }}</h2>
+      {% if not chart.empty %}
+        <a class="btn btn-outline-light btn-sm"
+           href="{{ url_for('reports.download_builtin_report_csv', project_alias=project_alias, report_id=report.report_id) }}"
+           download>
+          <i class="fa-solid fa-download" aria-hidden="true"></i>
+          Download CSV
+        </a>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Images are distinct file names; objects use this project's <code>img2obj</code> rule.
+        Dates are from <code>file_timestamp</code>.
+      </p>
+
+      {% if chart.empty %}
+        <div class="alert alert-info mb-0" role="status">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          No data is available for this report yet.
+        </div>
+        <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
+      {% else %}
+        <figure class="statistics-chart-figure mb-0"
+                role="group"
+                aria-labelledby="chart-title-{{ chart.step_id }}"
+                aria-describedby="chart-desc-{{ chart.step_id }}">
+          <div class="statistics-chart-canvas-wrap">
+            <canvas id="chart-{{ chart.step_id }}"
+                    role="img"
+                    aria-label="{{ chart.short_description }}"
+                    data-chart-spec='{{ chart.chart_js_spec | tojson }}'></canvas>
+          </div>
+          <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
+          <details class="statistics-chart-data mt-2">
+            <summary>View chart data table</summary>
+            <div class="table-responsive mt-2">
+              <table class="table table-sm table-striped mb-0">
+                <caption class="visually-hidden">Data for {{ chart.title }}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Images</th>
+                    <th scope="col">Objects</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in chart.table_rows %}
+                    <tr>
+                      <td>{{ row.date }}</td>
+                      <td>{{ row.images }}</td>
+                      <td>{{ row.objects }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </figure>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
+          integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws"
+          crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/statistics_charts.js') }}"></script>
+{% endblock %}

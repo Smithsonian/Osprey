@@ -514,6 +514,28 @@ def api_update_project_details(project_alias=None):
                                                 this_val = str(item)
                                     row_data = (file_id, filetype, key.split(':')[0], key.split(':')[1], this_key, this_val, this_val)
                                     res = query_database_insert(query, row_data)
+                        # Derive files.datetime_created from DateCreated EXIF tag.
+                        res = query_database_insert(
+                            """
+                            WITH data AS (
+                              SELECT file_id,
+                                     MAX(
+                                       STR_TO_DATE(
+                                         REPLACE(SUBSTRING(value, 1, 10), ':', '-'),
+                                         '%Y-%m-%d'
+                                       )
+                                     ) AS datetime_created
+                              FROM files_exif
+                              WHERE tag = 'DateCreated'
+                                AND file_id = %(file_id)s
+                              GROUP BY file_id
+                            )
+                            UPDATE files f, data
+                            SET f.datetime_created = data.datetime_created
+                            WHERE f.file_id = data.file_id
+                            """,
+                            {'file_id': file_id},
+                        )
                 elif query_property == "delete":
                     if transcription == 1:
                         query = ("DELETE FROM transcription_files WHERE file_transcription_id = %(file_id)s")

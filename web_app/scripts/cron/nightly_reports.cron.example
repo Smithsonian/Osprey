@@ -1,0 +1,13 @@
+# Example crontab entry for overnight pregenerated report materialization.
+#
+# Adjust APP_ROOT and the python/venv path for your host. Install with:
+#   crontab -e
+# and paste one of the lines below (without this comment block).
+#
+# Runs daily at 02:00 local time.
+
+# Using the wrapper script (recommended):
+# 0 2 * * * /var/www/app/web_app/scripts/run_nightly_reports.sh >> /var/log/osprey_nightly_reports.log 2>&1
+
+# Or inline (equivalent):
+# 0 2 * * * cd /var/www/app/web_app && PYTHONPATH=/var/www/app/web_app /var/www/app/venv/bin/python scripts/queue_nightly_reports.py && PYTHONPATH=/var/www/app/web_app /var/www/app/venv/bin/python scripts/materialize_reports.py --until-empty >> /var/log/osprey_nightly_reports.log 2>&1

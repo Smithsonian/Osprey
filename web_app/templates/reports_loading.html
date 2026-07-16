@@ -21,7 +21,7 @@
 
     <div class="row mt-3">
         <div class="col">
-            <div id="report_status_text" class="text-muted small">Queued…</div>
+            <div id="report_status_text" class="text-muted small">Checking status…</div>
             <div id="report_status_error" class="text-danger small mt-2" style="display:none;"></div>
         </div>
     </div>
@@ -44,14 +44,37 @@
                 $('#report_status_error').text(txt).show();
             }
 
+            function isViewable(data) {
+                if (!data) {
+                    return false;
+                }
+                if (data.viewable) {
+                    return true;
+                }
+                var hasArtifact = !!(data.artifact_path_csv || data.artifact_path_xlsx);
+                if (!hasArtifact) {
+                    return false;
+                }
+                if (data.status === 'succeeded') {
+                    return true;
+                }
+                // Prior overnight export remains downloadable while a refresh is queued.
+                return !!(data.last_succeeded_at);
+            }
+
             function poll() {
-                $.getJSON(statusUrl)
+                $.ajax({
+                    url: statusUrl,
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                })
                   .done(function (data) {
                       if (!data || !data.status) {
                           setStatusText('Waiting for scheduler…');
                           return;
                       }
-                      if (data.status === 'succeeded' && (data.artifact_path_csv || data.artifact_path_xlsx)) {
+                      if (isViewable(data)) {
                           location.replace(readyUrl);
                           return;
                       }
@@ -72,8 +95,9 @@
                       }
                       setStatusText('Waiting…');
                   })
-                  .fail(function () {
-                      setStatusText('Waiting for scheduler…');
+                  .fail(function (xhr) {
+                      var detail = (xhr && xhr.status) ? ('HTTP ' + xhr.status) : 'request failed';
+                      setStatusText('Waiting for scheduler… (' + detail + ')');
                   });
             }
 

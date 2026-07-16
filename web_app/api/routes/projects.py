@@ -6,7 +6,7 @@ from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
-from api.auth import require_session_or_api_key, validate_api_key
+from api.auth import validate_api_key
 from osprey.db import run_query
 from osprey.services import folder_stats as folder_stats_service
 from osprey.services import folders as folder_service
@@ -17,9 +17,6 @@ from osprey.services import projects as project_service
 @api_bp.route('/projects/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_projects():
     """Get the list of projects."""
-    auth_error = require_session_or_api_key(url='/api/projects/', params=None)
-    if auth_error is not None:
-        return auth_error
     section = request.form.get("section")
     logger.info("api_get_projects called | section={}".format(section))
     projects_data = project_service.list_projects(section)
@@ -33,11 +30,6 @@ def api_get_projects():
 @api_bp.route('/projects/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get project details and folder list by project_alias (used by the dashboard sidebar)."""
-    auth_error = require_session_or_api_key(
-        url='/api/projects/', params="project_alias={}".format(project_alias),
-    )
-    if auth_error is not None:
-        return auth_error
     logger.info("api_get_project_details called | project_alias={}".format(project_alias))
     rows = project_service.get_project_row(project_alias)
     if len(rows) == 1:
@@ -50,11 +42,6 @@ def api_get_project_details(project_alias=None):
 @api_bp.route('/projects/<project_alias>/files', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_files(project_alias=None):
     """Get the list of files of a project by specifying the project_alias."""
-    auth_error = require_session_or_api_key(
-        url='/api/projects/', params="project_alias={}".format(project_alias),
-    )
-    if auth_error is not None:
-        return auth_error
     logger.info("api_get_project_files called | project_alias={}".format(project_alias))
     data = project_service.list_project_files(project_alias)
     if len(data) == 0:

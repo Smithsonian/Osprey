@@ -26,7 +26,7 @@
     <link href="/static/css/osprey_custom.min.css" rel="stylesheet" />
 
     
-    
+
 
     <!-- favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
@@ -34,7 +34,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
     <link rel="manifest" href="/static/site.webmanifest">
 
-    <title class="pagetitle">Accessibility Smoke</title>
+    <title class="pagetitle">Statistics of Demo Digitization Project - DPO Collections Digitization Dashboard</title>
 
 </head>
 <body>
@@ -55,7 +55,7 @@
       <span class="navbar-context-sep text-white-50 mx-2 d-none d-md-inline" aria-hidden="true">/</span>
       <div class="navbar-context-wrap min-w-0 text-truncate">
         
-  <span class="navbar-context">Accessibility Smoke</span>
+    <a class="navbar-context" href="/dashboard" title="Demo Digitization Project">Demo Digitization Project</a>
 
       </div>
     </div>
@@ -72,6 +72,15 @@
 
     <div class="collapse navbar-collapse flex-grow-0" id="ospreyNavbar">
             <ul class="navbar-nav ms-lg-auto align-items-lg-center">
+        
+          <li class="nav-item">
+            <a class="nav-link"
+               href="/dashboard"
+               title="Return to project dashboard">
+              <i class="fa-solid fa-gauge-high fa-fw" aria-hidden="true"></i>
+              This project
+            </a>
+          </li>
         
         
           <li class="nav-item">
@@ -122,66 +131,130 @@
 
     <main id="maincontent" class="osprey-main-content">
     
-  <h1 class="h4">Accessibility smoke page</h1>
 
-  <p>This page exists only to exercise shared UI components for automated accessibility checks.</p>
+<div class="statistics-page">
 
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-      <h2 class="h6">Form controls</h2>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+    <div>
+      <h1 class="h4 mb-1">Project Statistics</h1>
+      <p class="text-muted small mb-0">Demo Digitization Project</p>
+    </div>
+    <a class="btn btn-outline-dark btn-sm"
+       href="/dashboard"
+       title="Back to the project dashboard">
+      <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i>
+      Back to dashboard
+    </a>
+  </div>
 
-      <div class="mb-3">
-        <label for="a11y_input" class="form-label">Example input</label>
-        <input id="a11y_input" name="a11y_input" class="form-control" type="text" value="Example">
-      </div>
+  
 
-      <div class="mb-3">
-        <label for="a11y_select" class="form-label">Example select</label>
-        <select id="a11y_select" name="a11y_select" class="form-select">
-          <option value="1">One</option>
-          <option value="2">Two</option>
-        </select>
-      </div>
+  
 
-      <button type="button" class="btn btn-primary" aria-describedby="a11yModalHint">
-        Modal example below
-      </button>
-      <div id="a11yModalHint" class="visually-hidden">A sample modal is rendered below for accessibility checks.</div>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white py-2">
+      <h2 class="h6 mb-0">About these metrics</h2>
+    </div>
+    <div class="card-body small">
+      <dl class="row mb-0 statistics-metric-definitions">
+        <dt class="col-sm-3">Images</dt>
+        <dd class="col-sm-9">Number of images (usually pairs of TIF and RAW files) ingested by the system for this project.</dd>
+
+        <dt class="col-sm-3">Objects</dt>
+        <dd class="col-sm-9">Number of objects digitized in this project. The count may differ from the number of images when multiple images are taken of one objects, or when several objects are digitized together.</dd>
+
+        <dt class="col-sm-3">OK</dt>
+        <dd class="col-sm-9">Images that pass all technical checks.</dd>
+
+        <dt class="col-sm-3">Errors</dt>
+        <dd class="col-sm-9">Images with technical errors detected by the system, usually formatting issues or incorrect filenames.</dd>
+
+        
+      </dl>
     </div>
   </div>
 
-  <div class="modal show"
-       id="a11yLoginModal"
-       tabindex="-1"
-       aria-labelledby="a11yLoginModalLabel"
-       aria-modal="true"
-       role="dialog"
-       style="display: block;">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title fs-5" id="a11yLoginModalLabel">Login</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  
+
+  
+    <h2 class="h5 mb-3">Progress figures</h2>
+    
+      <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
+        <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h3 class="h6 mb-0" id="chart-title-step-1">Daily files ingested</h3>
+          
+            <a href="/proj_statistics_dl"
+               class="btn btn-outline-light btn-sm"
+               role="button">
+              <i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV
+            </a>
+          
         </div>
-        <div class="modal-body">
-          <form>
-            <div class="mb-3">
-              <label for="a11y_email" class="form-label">Email</label>
-              <input id="a11y_email" name="email" type="email" class="form-control" autocomplete="email">
-            </div>
-            <div class="mb-3">
-              <label for="a11y_password" class="form-label">Password</label>
-              <input id="a11y_password" name="password" type="password" class="form-control" autocomplete="current-password">
-            </div>
-            <button type="button" class="btn btn-primary">Sign in</button>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="card-body">
+          
+            <p class="text-muted small mb-3">Files counted by capture date.</p>
+          
+
+          
+            <figure class="statistics-chart-figure mb-0"
+                    role="group"
+                    aria-labelledby="chart-title-step-1"
+                    aria-describedby="chart-desc-step-1">
+              <div class="statistics-chart-canvas-wrap">
+                <canvas id="chart-step-1"
+                        role="img"
+                        aria-label="Bar chart: Daily files ingested for Demo Digitization Project. 2 points from 2024-01-01 to 2024-01-02."
+                        data-chart-spec='{"chart_js_type": "bar", "chart_type": "bar", "datasets": [{"backgroundColor": "#3F4249", "borderColor": "#3F4249", "borderWidth": 1, "data": [2, 5], "fill": false, "label": "Daily files ingested"}], "labels": ["2024-01-01", "2024-01-02"], "step_id": "step-1", "title": "Daily files ingested", "units": "files"}'></canvas>
+              </div>
+              <p id="chart-desc-step-1" class="visually-hidden">Bar chart: Daily files ingested. Values range from 2 files to 5 files. Median is 3.5 files; total is 7 files.</p>
+              <details class="statistics-chart-data mt-2">
+                <summary>View chart data table</summary>
+                <div class="table-responsive mt-2">
+                  <table class="table table-sm table-striped mb-0">
+                    <caption class="visually-hidden">Data for Daily files ingested</caption>
+                    <thead>
+                      
+                        <tr>
+                          <th scope="col">Date</th>
+                          <th scope="col">Value (files)</th>
+                          
+                        </tr>
+                      
+                    </thead>
+                    <tbody>
+                      
+                        
+                          <tr>
+                            <td>2024-01-01</td>
+                            <td>2</td>
+                            
+                          </tr>
+                        
+                      
+                        
+                          <tr>
+                            <td>2024-01-02</td>
+                            <td>5</td>
+                            
+                          </tr>
+                        
+                      
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+              <figcaption class="small text-muted mt-2">
+                Updated 2024-06-01 12:00:00 · Units: files
+              </figcaption>
+            </figure>
+          
         </div>
       </div>
-    </div>
-  </div>
+    
+  
+
+</div>
+
 
     </main>
 
@@ -231,7 +304,11 @@
     <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/buttons.html5.min.js" integrity="sha384-OFL+acRxgxRUKgJTHEQrtuwzydyoSE/AN10JClRMQjjfnXKoF89juO7p8HyCYxxO" crossorigin="anonymous"></script>
     
     
-    
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+          crossorigin="anonymous"></script>
+  <script src="/static/js/statistics_charts.js"></script>
+
 
     
     

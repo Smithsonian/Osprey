@@ -105,26 +105,108 @@
     </div>
   {% endif %}
 
-  {% if proj_stats_steps %}
+  {% if chart_figures %}
     <h2 class="h5 mb-3">Progress figures</h2>
-    {% for stat in proj_stats_steps %}
+    {% for fig in chart_figures %}
       <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
         <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h3 class="h6 mb-0">{{ stat.step_info }}</h3>
-          <a href="{{ url_for('proj_statistics_dl', project_id=project_info.proj_id, step_id=stat.step_id) }}"
-             class="btn btn-outline-light btn-sm"
-             role="button">
-            <i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV
-          </a>
+          <h3 class="h6 mb-0" id="chart-title-{{ fig.step_id }}">{{ fig.title }}</h3>
+          {% if fig.step_id %}
+            <a href="{{ url_for('proj_statistics_dl', project_id=project_info.proj_id, step_id=fig.step_id) }}"
+               class="btn btn-outline-light btn-sm"
+               role="button">
+              <i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV
+            </a>
+          {% endif %}
         </div>
         <div class="card-body">
-          {% if stat.step_notes %}
-            <p class="text-muted small mb-3">{{ stat.step_notes }}</p>
+          {% if fig.notes %}
+            <p class="text-muted small mb-3">{{ fig.notes }}</p>
           {% endif %}
-          <img class="w-100 statistics-chart-image"
-               src="{{ url_for('static', filename='figs/' ~ project_info.proj_id ~ '_' ~ stat.step ~ '.png') }}"
-               alt="{{ stat.step_info }} for {{ project_info.project_title }}">
-          <p class="small text-muted mb-0 mt-2"><em>Updated {{ stat.step_updated_on }}</em></p>
+
+          {% if fig.empty %}
+            <div class="alert alert-info mb-0" role="status">
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              No data is available for this figure yet.
+            </div>
+            <p id="chart-desc-{{ fig.step_id }}" class="visually-hidden">{{ fig.long_description }}</p>
+          {% else %}
+            <figure class="statistics-chart-figure mb-0"
+                    role="group"
+                    aria-labelledby="chart-title-{{ fig.step_id }}"
+                    aria-describedby="chart-desc-{{ fig.step_id }}">
+              <div class="statistics-chart-canvas-wrap">
+                <canvas id="chart-{{ fig.step_id }}"
+                        role="img"
+                        aria-label="{{ fig.short_description }}"
+                        data-chart-spec='{{ {
+                          "step_id": fig.step_id,
+                          "chart_js_type": fig.chart_js_type,
+                          "chart_type": fig.chart_type,
+                          "labels": fig.labels,
+                          "datasets": fig.datasets,
+                          "units": fig.units,
+                          "title": fig.title
+                        } | tojson }}'></canvas>
+              </div>
+              <p id="chart-desc-{{ fig.step_id }}" class="visually-hidden">{{ fig.long_description }}</p>
+              <details class="statistics-chart-data mt-2">
+                <summary>View chart data table</summary>
+                <div class="table-responsive mt-2">
+                  <table class="table table-sm table-striped mb-0">
+                    <caption class="visually-hidden">Data for {{ fig.title }}</caption>
+                    <thead>
+                      {% if fig.table_mode == 'boxplot' %}
+                        <tr>
+                          <th scope="col">Group</th>
+                          <th scope="col">Min</th>
+                          <th scope="col">Q1</th>
+                          <th scope="col">Median</th>
+                          <th scope="col">Q3</th>
+                          <th scope="col">Max</th>
+                          <th scope="col">Count</th>
+                        </tr>
+                      {% else %}
+                        <tr>
+                          <th scope="col">Date</th>
+                          <th scope="col">Value{% if fig.units %} ({{ fig.units }}){% endif %}</th>
+                          {% if fig.table_rows and fig.table_rows[0].file_name %}
+                            <th scope="col">File</th>
+                          {% endif %}
+                        </tr>
+                      {% endif %}
+                    </thead>
+                    <tbody>
+                      {% for row in fig.table_rows %}
+                        {% if fig.table_mode == 'boxplot' %}
+                          <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.min }}</td>
+                            <td>{{ row.q1 }}</td>
+                            <td>{{ row.median }}</td>
+                            <td>{{ row.q3 }}</td>
+                            <td>{{ row.max }}</td>
+                            <td>{{ row.count }}</td>
+                          </tr>
+                        {% else %}
+                          <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.value }}</td>
+                            {% if fig.table_rows[0].file_name %}
+                              <td>{{ row.file_name }}</td>
+                            {% endif %}
+                          </tr>
+                        {% endif %}
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+              <figcaption class="small text-muted mt-2">
+                Updated {{ fig.updated_on }}{% if fig.units %} · Units: {{ fig.units }}{% endif %}
+              </figcaption>
+            </figure>
+          {% endif %}
         </div>
       </div>
     {% endfor %}
@@ -132,4 +214,11 @@
 
 </div>
 
+{% endblock %}
+
+{% block javascripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/statistics_charts.js') }}"></script>
 {% endblock %}

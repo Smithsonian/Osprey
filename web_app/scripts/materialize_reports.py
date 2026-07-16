@@ -162,6 +162,32 @@ def _claim_next_job() -> Optional[dict]:
     return rows[0] if rows else None
 
 
+def _cleanup_old_artifacts(materialized_view: str, keep_rel_paths: set[str], retain_days: int = 7) -> None:
+    """Remove prior CSV/XLSX artifacts for this report older than retain_days."""
+    reports_dir = Path("static/reports")
+    if not reports_dir.is_dir():
+        return
+    prefix = f"{materialized_view}_"
+    cutoff = time.time() - (retain_days * 86400)
+    keep_names = {Path(p).name for p in keep_rel_paths if p}
+    for path in reports_dir.iterdir():
+        if not path.is_file():
+            continue
+        if not path.name.startswith(prefix):
+            continue
+        if path.suffix.lower() not in {".csv", ".xlsx"}:
+            continue
+        if path.name in keep_names:
+            continue
+        try:
+            if path.stat().st_mtime >= cutoff:
+                continue
+            path.unlink()
+            logger.info(f"materialize_reports: removed old artifact {path}")
+        except OSError:
+            logger.exception(f"materialize_reports: failed to remove {path}")
+
+
 def _materialize_one(project_id: int, report_id: str) -> None:
     start = time.time()
     report = report_service.get_project_report(project_id, report_id)
@@ -200,6 +226,8 @@ def _materialize_one(project_id: int, report_id: str) -> None:
         df.to_csv(abs_csv, index=False)
         df.to_excel(abs_xlsx, index=False)
 
+        _cleanup_old_artifacts(str(materialized_view), {rel_csv, rel_xlsx})
+
         duration_ms = int((time.time() - start) * 1000)
         _set_status(
             project_id,
@@ -229,7 +257,17 @@ def _materialize_one(project_id: int, report_id: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Materialize queued reports to CSV/XLSX artifacts.")
     parser.add_argument("--once", action="store_true", help="Run at most one queued job then exit.")
-    parser.add_argument("--loop", type=int, default=0, help="If >0, keep polling every N seconds.")
+    parser.add_argument(
+        "--until-empty",
+        action="store_true",
+        help="Drain all queued jobs then exit (for overnight cron).",
+    )
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=0,
+        help="If >0, keep polling every N seconds (use with --until-empty to idle between jobs).",
+    )
     args = parser.parse_args()
 
     # Touch settings so env is loaded similarly to app.
@@ -250,7 +288,15 @@ def main() -> int:
             logger.exception(f"materialize_reports: failed project_id={pid} report_id={rid}")
         return True
 
-    if args.loop and args.loop > 0:
+    if args.until_empty:
+        poll_seconds = args.loop if args.loop > 0 else 0
+        while True:
+            ran = run_one()
+            if not ran:
+                return 0
+            if poll_seconds:
+                time.sleep(poll_seconds)
+    elif args.loop and args.loop > 0:
         while True:
             ran = run_one()
             if args.once and ran:

@@ -585,6 +585,26 @@ color: #000;}
       border-radius: 0.25rem;
   }
 
+  .statistics-chart-figure {
+      margin: 0;
+  }
+
+  .statistics-chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: min(420px, 55vh);
+      min-height: 240px;
+  }
+
+  .statistics-chart-canvas-wrap canvas {
+      max-width: 100%;
+  }
+
+  .statistics-chart-data summary {
+      cursor: pointer;
+      font-size: 0.875rem;
+  }
+
   .statistics-metric-definitions dt {
       font-weight: 600;
   }

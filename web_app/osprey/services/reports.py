@@ -7,7 +7,9 @@ from time import strftime, localtime
 
 import pandas as pd
 
+from logger import logger
 from osprey.db import run_query
+from osprey.services import builtin_reports
 from osprey.services import report_materializations as materializations
 
 
@@ -46,7 +48,14 @@ def get_project_report(project_id, report_id):
          " project_id = %(project_id)s AND report_id = %(report_id)s"),
         {'project_id': project_id, 'report_id': report_id},
     )
-    return rows[0] if rows else None
+    if rows:
+        return rows[0]
+    return builtin_reports.get_builtin_report(project_id, report_id)
+
+
+def list_project_reports(project_id):
+    """Per-project data_reports plus built-in reports."""
+    return builtin_reports.list_project_reports(project_id)
 
 
 def get_report_last_updated(report):
@@ -56,6 +65,55 @@ def get_report_last_updated(report):
 def get_report_data(report):
     """Run a non-pregenerated report's query."""
     return pd.DataFrame(run_query(report['query']))
+
+
+def get_pregenerated_preview(report, limit=20):
+    """Return a small preview DataFrame from the materialized MySQL table.
+
+    Safe for web requests: only fetches ``limit`` rows. Returns None when the
+    materialization is missing, not viewable, or the preview query fails.
+    """
+    mat = get_pregenerated_status(report)
+    if not mat:
+        return None
+    # Allow preview from the last successful materialization even while a
+    # refresh is queued/running overnight.
+    has_prior_success = mat.get("last_succeeded_at") is not None
+    if mat.get("status") != "succeeded" and not has_prior_success:
+        return None
+    table_name = mat.get("materialized_table_name")
+    if not table_name:
+        return None
+    # Identifiers cannot be parameterized; sanitize like the materializer.
+    safe_name = "".join(
+        ch if (ch.isalnum() or ch == "_") else "_" for ch in str(table_name)
+    )
+    if safe_name != str(table_name) or not safe_name:
+        return None
+    try:
+        rows = run_query(
+            f"SELECT * FROM `{safe_name}` LIMIT %(limit)s",
+            {"limit": int(limit)},
+            log_vals=False,
+        )
+    except Exception:
+        logger.exception(
+            "get_pregenerated_preview failed for table %s (project_id=%s report_id=%s)",
+            safe_name,
+            report.get("project_id"),
+            report.get("report_id"),
+        )
+        return None
+    if rows is False:
+        logger.error(
+            "get_pregenerated_preview query returned error for table %s "
+            "(project_id=%s report_id=%s)",
+            safe_name,
+            report.get("project_id"),
+            report.get("report_id"),
+        )
+        return None
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
 def generate_pregenerated_report(report):

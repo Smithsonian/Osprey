@@ -4,19 +4,13 @@ import pandas as pd
 from flask import jsonify, request
 
 from api import api_bp
-from api.auth import require_session_or_api_key, validate_api_key
-from logger import api_logger as logger
+from api.auth import validate_api_key
 from osprey.services import folder_details as folder_service
 
 
 @api_bp.route('/folders/<folder_id>/files', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_files(folder_id=None):
     """Get folder details; each file includes file_checks as an array."""
-    auth_error = require_session_or_api_key(
-        url='/api/folders/', params="folder_id={}".format(folder_id),
-    )
-    if auth_error is not None:
-        return auth_error
     payload, status, message = folder_service.get_folder_files_payload(folder_id)
     if payload is None:
         if status == 400:
@@ -28,11 +22,6 @@ def api_get_folder_files(folder_id=None):
 @api_bp.route('/folders/<folder_id>/qc', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_qc(folder_id=None):
     """Get folder visual-QC sampling summary."""
-    auth_error = require_session_or_api_key(
-        url='/api/folders/', params="folder_id={}".format(folder_id),
-    )
-    if auth_error is not None:
-        return auth_error
     payload, status, message = folder_service.get_folder_qc_payload(folder_id)
     if payload is None:
         if status == 400:
@@ -44,11 +33,6 @@ def api_get_folder_qc(folder_id=None):
 @api_bp.route('/folders/<folder_id>/transcription_qc', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_folder_transcription_qc(folder_id=None):
     """Get folder transcription-QC sampling summaries by source."""
-    auth_error = require_session_or_api_key(
-        url='/api/folders/', params="folder_id={}".format(folder_id),
-    )
-    if auth_error is not None:
-        return auth_error
     payload, status, message = folder_service.get_folder_transcription_qc_payload(folder_id)
     if payload is None:
         if status == 400:

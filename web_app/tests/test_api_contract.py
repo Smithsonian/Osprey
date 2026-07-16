@@ -63,6 +63,7 @@ def test_api_blueprint_route_prefixes():
     api_rules = sorted(rule.rule for rule in app.url_map.iter_rules() if rule.rule.startswith('/api'))
     assert '/api/' in api_rules
     assert '/api/projects/' in api_rules
+    assert '/api/projects/<project_alias>/recalculate-stats' in api_rules
     assert '/api/folders/<folder_id>/files' in api_rules
     assert '/api/folders/<folder_id>' in api_rules
     assert '/api/files/<int:file_id>' in api_rules
@@ -75,3 +76,59 @@ def test_site_net_api_redirect_target():
     with app.test_request_context():
         from flask import url_for
         assert url_for('api.api_route_list') == '/api/'
+
+
+def test_reports_route_accepts_empty_rendering():
+    pytest.importorskip('flask')
+    from app import app
+    from web.reports import RENDERING_PENDING, _report_data_ready, _materialization_viewable
+
+    with app.test_request_context():
+        from flask import url_for
+
+        assert url_for('reports.data_reports', project_alias='demo', report_id='42') == '/reports/demo/42/'
+        assert url_for(
+            'reports.data_reports',
+            project_alias='demo',
+            report_id='42',
+            rendering=RENDERING_PENDING,
+        ) == '/reports/demo/42/%20'
+        assert url_for(
+            'reports.report_status',
+            project_alias='demo',
+            report_id='42',
+        ) == '/reports/demo/42/status'
+
+    adapter = app.url_map.bind('localhost')
+    endpoint, values = adapter.match('/reports/demo/42/')
+    assert endpoint == 'reports.data_reports'
+    assert values == {'project_alias': 'demo', 'report_id': '42'}
+
+    endpoint, values = adapter.match('/reports/demo/42/%20')
+    assert endpoint == 'reports.data_reports'
+    assert values == {'project_alias': 'demo', 'report_id': '42', 'rendering': ' '}
+
+    endpoint, values = adapter.match('/reports/demo/42/status')
+    assert endpoint == 'reports.report_status'
+    assert values == {'project_alias': 'demo', 'report_id': '42'}
+
+    assert not _report_data_ready(RENDERING_PENDING)
+    assert not _report_data_ready('')
+    assert not _report_data_ready('False')
+    assert _report_data_ready('1')
+
+    assert _materialization_viewable({
+        'status': 'succeeded',
+        'artifact_path_csv': 'reports/a.csv',
+        'last_succeeded_at': '2026-01-01',
+    })
+    assert _materialization_viewable({
+        'status': 'queued',
+        'artifact_path_csv': 'reports/a.csv',
+        'last_succeeded_at': '2026-01-01',
+    })
+    assert not _materialization_viewable({
+        'status': 'queued',
+        'artifact_path_csv': None,
+        'last_succeeded_at': None,
+    })

@@ -30,6 +30,7 @@ from auth_service import AuthBaseUser, get_auth_service
 # MySQL — shared connection pool
 from osprey.db import init_db, query_database_insert, run_query
 from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
+from osprey.services import reports as report_service
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -999,14 +1000,9 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                                   {'folder_id': folder_id})
     logger.info("folder_links: {}".format(folder_links))
 
-    # Reports
-    reports = run_query("SELECT * FROM data_reports WHERE project_id = %(project_id)s ORDER BY report_id",
-                             {'project_id': project_id})
-
-    if len(reports) > 0:
-        proj_reports = True
-    else:
-        proj_reports = False
+    # Reports (per-project data_reports + built-in reports)
+    reports = report_service.list_project_reports(project_id)
+    proj_reports = len(reports) > 0
 
     # Disk space
     project_disks = run_query(("SELECT FORMAT_BYTES(sum(filesize)) as filesize, UPPER(filetype) as filetype "
@@ -1243,15 +1239,9 @@ def dashboard(project_alias=None, folder_id=None):
     folder_name = None
     folder_qc = None
 
-    # Reports
-    reports = run_query("SELECT * FROM data_reports "
-                        " WHERE project_id = %(project_id)s ORDER BY report_id",
-                             {'project_id': project_id})
-
-    if len(reports) > 0:
-        proj_reports = True
-    else:
-        proj_reports = False
+    # Reports (per-project data_reports + built-in reports)
+    reports = report_service.list_project_reports(project_id)
+    proj_reports = len(reports) > 0
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
@@ -1328,121 +1318,38 @@ def dashboard(project_alias=None, folder_id=None):
 @app.route('/dashboard/<project_alias>/statistics/', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics(project_alias=None):
     """Statistics for a project"""
-    
+
     # If API, not allowed - to improve
     if site_net == "api":
         return redirect(url_for('api.api_route_list'))
-    
-    user_exists = False
-    username = None
 
     # Declare the login form
     form = LoginForm(request.form)
 
-    # Check if project exists
-    if project_alias_exists(project_alias) is False:
+    from osprey.services import project_statistics as stats_service
+
+    ctx = stats_service.load_statistics_page_context(project_alias)
+    if not ctx.get('found'):
         error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_template(
+            'error.html',
+            error_msg=error_msg,
+            project_alias=project_alias,
+            site_env=site_env,
+            site_net=site_net,
+            site_ver=site_ver,
+            analytics_code=settings.analytics_code,
+        ), 404
 
-    project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
-                                      {'project_alias': project_alias})
-    if len(project_id_check) == 0:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-    else:
-        project_id = project_id_check[0]['project_id']
-
-    project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s", {'project_id': project_id})[0]
-    proj_stats_steps = run_query("SELECT * FROM projects_detail_statistics_steps WHERE project_id = %(proj_id)s and (stat_type='column' or stat_type='boxplot' or stat_type='area') and active=1 ORDER BY step_order", {'proj_id': project_info['proj_id']})
-    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']})
-    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']})
-
-    # Stats
-    project_stats = {}
-    project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"),
-                                    {'project_id': project_id})[0]
-    project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
-    project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
-    project_stats['errors'] = format(int(project_statistics['project_err']), ',d')
-    project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
-
-    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
-    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
-
-    return render_template('statistics.html',
-                           project_alias=project_alias,
-                           project_info=project_info,
-                           proj_stats_steps=proj_stats_steps,
-                           proj_stats_vals1=proj_stats_vals1,
-                           proj_stats_vals2=proj_stats_vals2,
-                           project_stats=project_stats,
-                           project_stats_other=project_stats_other)
-
-
-@cache.memoize()
-@app.route('/dashboard/<project_alias>/statistics2/', methods=['POST', 'GET'], provide_automatic_options=False)
-def proj_statistics_plotnine(project_alias=None):
-    """Figures with statistics for a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
-    user_exists = False
-    username = None
-
-    # Declare the login form
-    form = LoginForm(request.form)
-
-    # Check if project exists
-    if project_alias_exists(project_alias) is False:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-
-    project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
-                                      {'project_alias': project_alias})
-    if len(project_id_check) == 0:
-        error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
-    else:
-        project_id = project_id_check[0]['project_id']
-
-    project_info = run_query("SELECT * FROM projects WHERE project_id = %(project_id)s", {'project_id': project_id})[0]
-
-    daily_stats = run_query("SELECT DATE_FORMAT(f.file_timestamp, '%Y-%m-%d') as date, count(f.*) as no_files FROM files f, folders fol WHERE f.folder_id = fol.folder_id and fol.project_id = %(project_id)s GROUP BY date", {'project_id': project_info['proj_id']})
-
-    proj_stats_vals1 = run_query("SELECT s.step_info, s.step_notes, step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3", {'proj_id': project_info['proj_id']})
-
-    proj_stats_vals2 = run_query("SELECT s.step_info, s.step_notes, s.step_units, s.css, s.round_val, DATE_FORMAT(s.step_updated_on, \"%Y-%m-%d %H:%i:%s\") as step_updated_on, e.step_value FROM projects_detail_statistics_steps s, projects_detail_statistics e WHERE s.project_id = %(proj_id)s and s.stat_type='stat' and e.step_id = s.step_id and s.active=1 ORDER BY s.step_order LIMIT 3, 3", {'proj_id': project_info['proj_id']})
-
-    # Stats
-    project_stats = {}
-    project_statistics = run_query(("SELECT * FROM projects_stats WHERE project_id = %(project_id)s"),
-                                    {'project_id': project_id})[0]
-    project_stats['total'] = format(int(project_statistics['images_taken']), ',d')
-    project_stats['ok'] = format(int(project_statistics['project_ok']), ',d')
-    project_stats['errors'] = format(int(project_statistics['project_err']), ',d')
-    project_stats['objects'] = format(int(project_statistics['objects_digitized']), ',d')
-
-    project_stats_other = run_query(("SELECT other_icon, other_name, COALESCE(other_stat, 0) as other_stat FROM projects_stats WHERE project_id = %(project_id)s"), {'project_id': project_id})[0]
-    project_stats_other['other_stat'] = format(int(project_stats_other['other_stat']), ',d')
-
-    return render_template('statistics.html',
-                           project_alias=project_alias,
-                           project_info=project_info,
-                           proj_stats_steps=proj_stats_steps,
-                           proj_stats_vals1=proj_stats_vals1,
-                           proj_stats_vals2=proj_stats_vals2,
-                           project_stats=project_stats,
-                           project_stats_other=project_stats_other)
+    return render_template(
+        'statistics.html',
+        form=form,
+        site_env=site_env,
+        site_net=site_net,
+        site_ver=site_ver,
+        analytics_code=settings.analytics_code,
+        **{k: v for k, v in ctx.items() if k != 'found'},
+    )
 
 
 @cache.memoize()

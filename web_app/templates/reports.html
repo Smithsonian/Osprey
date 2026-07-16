@@ -25,6 +25,9 @@
         {% if materialization %}
             <p>Source data last updated on: {{ materialization.source_updated_at or report_data_updated }}</p>
             <p>Report generated on: {{ report_date }}</p>
+            {% if materialization.row_count is not none %}
+                <p>{{ materialization.row_count }} rows in export.</p>
+            {% endif %}
         {% else %}
             <p>Source data last updated on: {{ report_data_updated }}</p>
         {% endif %}
@@ -42,12 +45,25 @@
             <div id="refresh_report_msg" class="small mt-2 text-muted"></div>
         {% endif %}
 
+        {% if preview_tables %}
+            <hr>
+            {% if preview_row_count is not none %}
+                <p class="text-muted">Showing first {{ preview_limit }} of {{ preview_row_count }} rows — download for full data.</p>
+            {% else %}
+                <p class="text-muted">Showing first {{ preview_limit }} rows — download for full data.</p>
+            {% endif %}
+            {% for table in preview_tables %}
+                {{ table|safe }}
+            {% endfor %}
+        {% endif %}
+
     {% endif %}
 {% endblock %}
 
 
 {% block javascripts %}
 
+    {% if pregenerated == 0 %}
     <!-- Datatables -->
     <script type="text/javascript">
         $(document).ready( function () {
@@ -66,6 +82,7 @@
                 })
             });
     </script>
+    {% endif %}
 
     {% if pregenerated == 1 and (data_file == "" and data_file_e == "") %}
     <script type="text/javascript">
