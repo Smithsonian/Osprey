@@ -1861,19 +1861,19 @@ def qc_transcription(project_alias=None):
         # Not allowed
         return redirect(url_for('home'))
 
-    project_settings = run_query(("SELECT * FROM qc_settings "
+    project_settings = run_query(("SELECT * FROM transcription_qc_settings "
                                  " WHERE project_id = %(project_id)s"),
                                 {'project_id': project_id})
 
     if len(project_settings) == 0:
-        query = ("INSERT INTO qc_settings (project_id, qc_level, qc_percent, "
+        query = ("INSERT INTO transcription_qc_settings (project_id, qc_level, qc_percent, "
                  " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
                  " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
                  "  VALUES ("
                  "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
                  "  CURRENT_TIME)")
         q = query_database_insert(query, {'project_id': project_id})
-        project_settings = run_query(("SELECT * FROM qc_settings "
+        project_settings = run_query(("SELECT * FROM transcription_qc_settings "
                                       " WHERE project_id = %(project_id)s"),
                                      {'project_id': project_id})
 
@@ -2092,19 +2092,19 @@ def qct_loading2(source_id):
 
     source_info = run_query("SELECT * FROM transcription_sources WHERE transcription_source_id = %(source_id)s", {'source_id': source_id})[0]
 
-    project_settings = run_query(("SELECT * FROM qc_settings "
+    project_settings = run_query(("SELECT * FROM transcription_qc_settings "
                                  " WHERE project_id = %(project_id)s"),
                                 {'project_id': project_id})
 
     if len(project_settings) == 0:
-        query = ("INSERT INTO qc_settings (project_id, qc_level, qc_percent, "
+        query = ("INSERT INTO transcription_qc_settings (project_id, qc_level, qc_percent, "
                  " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
                  " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
                  "  VALUES ("
                  "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
                  "  CURRENT_TIME)")
         q = query_database_insert(query, {'project_id': project_id})
-        project_settings = run_query(("SELECT * FROM qc_settings "
+        project_settings = run_query(("SELECT * FROM transcription_qc_settings "
                                       " WHERE project_id = %(project_id)s"),
                                      {'project_id': project_id})
 
@@ -2836,7 +2836,7 @@ def qc_process_transcript(source_id, folder_id):
                 logger.info(f"file_id: {file_id_q}|source_id: {source_id}|folder_id: {folder_id}")
                 return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
     
-    project_settings = run_query("SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
+    project_settings = run_query("SELECT * FROM transcription_qc_settings WHERE project_id = %(project_id)s",
                                       {'project_id': project_id['project_id']})[0]
 
     folder_qc_check = run_query(("SELECT "
@@ -2883,7 +2883,7 @@ def qc_process_transcript(source_id, folder_id):
     }
     logger.info("qc_status: {} | no_files: {}".format(folder_qc['qc_status'], folder_stats['no_files']))
     
-    project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
+    project_qc_settings = run_query(("SELECT * FROM transcription_qc_settings WHERE project_id = %(project_id)s"),
                                     {'project_id': project_id['project_id']})[0]
     
     if folder_qc['qc_status'] == "QC Pending" and folder_stats['no_files'] > 0:
@@ -3156,7 +3156,7 @@ def qc_transcription_done(source_id, folder_id):
     user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
                         {'username': username})[0]
     project_qc_settings = run_query(
-        "SELECT * FROM qc_settings WHERE project_id = %(project_id)s",
+        "SELECT * FROM transcription_qc_settings WHERE project_id = %(project_id)s",
         {'project_id': project_id})[0]
 
     q = query_database_insert(

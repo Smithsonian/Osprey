@@ -59,9 +59,9 @@
 
     {% if folder_name != None %}
 
-        <!-- This folder badges -->
-        {% if folder_badges != None %}
-            <div style="text-align: right;">
+        <!-- This folder badges (updated by dashboard_folders.js on soft folder change) -->
+        <div id="dashboard-folder-badges" style="text-align: right;">
+            {% if folder_badges != None %}
                 {% if files_count != "0 files" and files_count != "0" %}
                     &nbsp;<span class="badge bg-primary" title="{{ files_count }} Files">{{ files_count }} Files</span>
                 {% endif %}
@@ -69,8 +69,8 @@
                 {% for folder_badge in folder_badges %}
                     &nbsp;<span class="badge {{ folder_badge.badge_css }}" title="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
                 {% endfor %}
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
 
 
         <!-- Accessible jump to files -->

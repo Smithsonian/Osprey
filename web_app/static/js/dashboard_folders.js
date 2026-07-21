@@ -394,6 +394,17 @@
             mobileSelect.innerHTML = html;
         }
 
+        function updateMainPanelBadges(folderId) {
+            var badgesEl = document.getElementById('dashboard-folder-badges');
+            if (!badgesEl) {
+                return;
+            }
+            var folder = allFolders.find(function (f) {
+                return String(f.folder_id) === String(folderId);
+            });
+            badgesEl.innerHTML = folder ? buildChipsHtml(folder, qcEnabled) : '';
+        }
+
         function updateSelectedFolder(folderId) {
             selectedFolderId = String(folderId);
             panel.setAttribute('data-selected-folder-id', selectedFolderId);
@@ -420,6 +431,7 @@
                 var href = '/dashboard/' + encodeURIComponent(projectAlias) + '/' + selectedFolderId + '/';
                 mobileSelect.value = href;
             }
+            updateMainPanelBadges(selectedFolderId);
         }
 
         function getActiveDashboardTab() {
@@ -618,6 +630,9 @@
                 allFolders = (data.folders || []).map(normalizeFolder);
                 setLoading(false);
                 render();
+                if (selectedFolderId) {
+                    updateMainPanelBadges(selectedFolderId);
+                }
             })
             .catch(function (error) {
                 setLoading(false);

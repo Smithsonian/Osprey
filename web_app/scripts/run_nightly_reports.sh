@@ -15,6 +15,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${APP_ROOT}"
 
+# rm old reports
+rm static/reports/*
+
+
 PYTHON="${PYTHON:-}"
 if [[ -z "${PYTHON}" ]]; then
   if [[ -x "${APP_ROOT}/venv/bin/python" ]]; then
