@@ -23,7 +23,7 @@ def init_db():
     try:
         _pool = pooling.MySQLConnectionPool(
             pool_name='osprey_pool',
-            pool_size=10,
+            pool_size=3,
             host=settings.host,
             user=settings.user,
             password=settings.password,
