@@ -11,9 +11,9 @@ from flask import request
 from flask import Response
 from flask import url_for
 from flask_login import current_user
+from flask_login import login_required
 
 import settings
-from cache import cache
 from osprey.services import builtin_reports as builtin_report_service
 from osprey.services import reports as report_service
 from osprey.version import __version__
@@ -42,7 +42,6 @@ def _materialization_viewable(status):
     return status.get('last_succeeded_at') is not None
 
 
-@cache.memoize()
 @reports_bp.route('/reports/', methods=['GET'], provide_automatic_options=False)
 def data_reports_form():
     """Report of a project"""
@@ -134,8 +133,14 @@ def report_status(project_alias=None, report_id=None):
 
 
 @reports_bp.route('/reports/<project_alias>/<report_id>/refresh', methods=['POST'], provide_automatic_options=False)
+@login_required
 def report_refresh(project_alias=None, report_id=None):
-    """Queue a refresh for a pregenerated/materialized report."""
+    """Queue a refresh for a pregenerated/materialized report (logged-in users only).
+
+    Anonymous visitors still get a refresh queued automatically on first
+    view of a report with no artifact (see data_reports); this endpoint is
+    only the manual re-queue button.
+    """
     project_id = report_service.get_project_id(project_alias)
     if project_id is None:
         return jsonify({'error': 'Project not found'}), 404

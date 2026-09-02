@@ -1,18 +1,10 @@
 """Unit tests for projects.img2obj SQL helpers."""
 
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-if 'osprey.db' not in sys.modules:
-    _db = types.ModuleType('osprey.db')
-    _db.run_query = MagicMock()
-    _db.query_database_insert = MagicMock()
-    sys.modules['osprey.db'] = _db
-
-from osprey.services.img2obj import (  # noqa: E402
+from osprey.services.img2obj import (
     get_project_img2obj_sql,
     object_count_expression,
     qualify_img2obj_sql,

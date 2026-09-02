@@ -45,6 +45,9 @@ def _borrow_cursor():
     return conn, conn.cursor(dictionary=True)
 
 
+# NOTE: these helpers raise on database errors. They previously returned the
+# literal False, which nearly every caller immediately subscripted, turning any
+# transient DB problem into "TypeError: 'bool' object is not subscriptable".
 def run_query(query, parameters=None, return_val=True, log_vals=True):
     if log_vals:
         logger.info("parameters: {}".format(parameters))
@@ -55,7 +58,7 @@ def run_query(query, parameters=None, return_val=True, log_vals=True):
             conn.ping(reconnect=True, attempts=3, delay=1)
         except mysql.connector.InterfaceError as error:
             logger.error("mysql connection error: {}".format(error))
-            return False
+            raise
         try:
             if parameters is None:
                 cur.execute(query)
@@ -63,7 +66,7 @@ def run_query(query, parameters=None, return_val=True, log_vals=True):
                 cur.execute(query, parameters)
         except mysql.connector.Error as err:
             logger.error("mysql error: {} (err_no: {}|query: {})".format(err, err.errno, query))
-            return False
+            raise
         if return_val:
             data = cur.fetchall()
             logger.info("No of results: {}".format(len(data)))
@@ -83,12 +86,12 @@ def query_database_insert(query, parameters, return_res=False):
             conn.ping(reconnect=True, attempts=3, delay=1)
         except mysql.connector.InterfaceError as error:
             logger.error("mysql connection error: {}".format(error))
-            return False
+            raise
         try:
             cur.execute(query, parameters)
-        except Exception as error:
+        except mysql.connector.Error as error:
             logger.error(error)
-            return False
+            raise
         logger.info("Query: {}".format(cur.statement))
         if return_res:
             return cur.lastrowid

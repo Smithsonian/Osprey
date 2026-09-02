@@ -3,14 +3,12 @@
 from flask import current_app, jsonify
 
 import settings
-from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
 from osprey.version import __version__
 
 
-@cache.memoize()
 @api_bp.route('/', methods=['GET', 'POST'], strict_slashes=False, provide_automatic_options=False)
 def api_route_list():
     """Print available routes in JSON"""

@@ -2,7 +2,6 @@
 
 from flask import jsonify, request
 
-from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
@@ -13,7 +12,6 @@ from osprey.services import folders as folder_service
 from osprey.services import projects as project_service
 
 
-@cache.memoize()
 @api_bp.route('/projects/', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_projects():
     """Get the list of projects."""
@@ -26,7 +24,6 @@ def api_get_projects():
     return jsonify({"projects": projects_data, "last_update": last_update[0]['updated_at']})
 
 
-@cache.memoize()
 @api_bp.route('/projects/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_details(project_alias=None):
     """Get project details and folder list by project_alias (used by the dashboard sidebar)."""
@@ -38,7 +35,6 @@ def api_get_project_details(project_alias=None):
     return jsonify({'error': 'Project was not found'}), 404
 
 
-@cache.memoize()
 @api_bp.route('/projects/<project_alias>/files', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_project_files(project_alias=None):
     """Get the list of files of a project by specifying the project_alias."""
@@ -109,8 +105,6 @@ def api_recalculate_project_folder_stats(project_alias=None):
         folder_stats_service.recalculate_project_stats(project_id, transcription)
     except ValueError as err:
         return jsonify({'error': str(err)}), 400
-
-    cache.delete_memoized(api_get_project_details, project_alias)
 
     return jsonify({
         'result': True,

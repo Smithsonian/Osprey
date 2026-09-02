@@ -68,7 +68,7 @@ class AuthService:
         Returns True on success, False on failure.
         """
         from ldap3 import Connection, set_config_parameter
-        from ldap3.core.exceptions import LDAPBindError
+        from ldap3.core.exceptions import LDAPBindError, LDAPException
 
         if not password or not str(password).strip():
             logger.error("LDAP: empty password rejected for {}".format(username))
@@ -76,7 +76,7 @@ class AuthService:
 
         try:
             set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
-            conn = Connection(self.server, user=username, password=password, auto_bind=True)
+            Connection(self.server, user=username, password=password, auto_bind=True)
             logger.info("LDAP bind succeeded for {}".format(username))
             self.bound = True
             return True
@@ -85,13 +85,18 @@ class AuthService:
             logger.info("LDAP trying latin-1 for {}".format(username))
             set_config_parameter('DEFAULT_SERVER_ENCODING', 'latin-1')
             try:
-                conn = Connection(self.server, user=username, password=password, auto_bind=True)
+                Connection(self.server, user=username, password=password, auto_bind=True)
                 logger.info("LDAP latin-1 bind succeeded for {}".format(username))
                 self.bound = True
                 return True
-            except LDAPBindError as e:
+            except LDAPException:
                 logger.error("LDAP bind failed for {}".format(username))
                 return False
+        except LDAPException as e:
+            # Directory unreachable or other LDAP failure: fail the login
+            # instead of surfacing a 500.
+            logger.error("LDAP error for {}: {}".format(username, e))
+            return False
 
 
 _ldap_service = None

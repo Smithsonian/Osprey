@@ -40,9 +40,8 @@ def reconcile_invoice(project_id, uploaded_file):
 
     if project_info['transcription'] == 1:
         executemany(
-            "INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, {}, %s)".format(
-                project_info['project_id']),
-            res,
+            "INSERT INTO invoice_recon_transcription (file_name, project_id, randomint) VALUES (%s, %s, %s)",
+            [(file_name, project_info['project_id'], randomint) for file_name, randomint in res],
         )
         # Add IDs
         run_query(

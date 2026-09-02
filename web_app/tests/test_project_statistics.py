@@ -1,17 +1,8 @@
 """Unit tests for project statistics chart helpers."""
 
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
-# Stub DB before importing services (test env may lack mysql.connector).
-if 'osprey.db' not in sys.modules:
-    _db = types.ModuleType('osprey.db')
-    _db.run_query = MagicMock(return_value=[])
-    _db.query_database_insert = MagicMock()
-    sys.modules['osprey.db'] = _db
-
-from osprey.services.project_statistics import (  # noqa: E402
+from osprey.services.project_statistics import (
     build_chart_spec,
     describe_chart,
     normalize_chart_rows,

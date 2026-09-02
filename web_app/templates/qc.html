@@ -89,7 +89,7 @@
                 {% for folder in folder_qc_pending %}
                   <li class="list-group-item{% if folder.days_since > 7 %} list-group-item-warning{% endif %} d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div>
-                      {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
+                      {{ folder.project_folder }}{{ preview_type_badge(folder.preview_type) }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
                       <small>(last updated on: {{ folder.updated_at }})</small>
                     </div>
                     {% if folder.qc_by == username %}
@@ -135,7 +135,7 @@
                 {% for folder in folder_qc_info %}
                 <tr data-qc-folder-row data-preview-type="{{ folder.preview_type or '' }}">
                     <td>
-                        {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %}
+                        {{ folder.project_folder }}{{ preview_type_badge(folder.preview_type) }}
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>
@@ -216,7 +216,7 @@
                 {% for folder in folder_qc_done %}
                 <tr>
                     <td>
-                        {{ folder.project_folder }}{% include 'partials/_preview_type_badge.html' %}
+                        {{ folder.project_folder }}{{ preview_type_badge(folder.preview_type) }}
                     </td>
                     <td>
                          <span class="badge bg-secondary" title="{{ folder.no_files }} files in the folder">{{ folder.no_files }}</span>

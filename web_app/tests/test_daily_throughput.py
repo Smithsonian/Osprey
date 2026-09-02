@@ -1,18 +1,10 @@
 """Unit tests for daily throughput chart helpers."""
 
-import sys
-import types
 from datetime import date, datetime
 from unittest.mock import MagicMock
 
-if 'osprey.db' not in sys.modules:
-    _db = types.ModuleType('osprey.db')
-    _db.run_query = MagicMock(return_value=[])
-    _db.query_database_insert = MagicMock()
-    sys.modules['osprey.db'] = _db
-
-from osprey.services.builtin_reports import chart_spec_for_js  # noqa: E402
-from osprey.services.daily_throughput import (  # noqa: E402
+from osprey.services.builtin_reports import chart_spec_for_js
+from osprey.services.daily_throughput import (
     _format_day,
     build_daily_throughput_chart_spec,
 )

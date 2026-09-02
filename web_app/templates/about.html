@@ -175,7 +175,7 @@
 </div>
 
 {% if asklogin %}
-    {% include 'partials/_login_modal.html' %}
+    {{ login_modal(form, msg) }}
 {% endif %}
 
 {% endblock %}

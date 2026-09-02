@@ -9,7 +9,6 @@ from flask_login import current_user
 from flask_login import login_required
 
 import settings
-from cache import cache
 from logger import logger
 from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
 from osprey.version import __version__
@@ -37,7 +36,7 @@ def file(file_id=None):
         return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
     try:
         file_id = int(file_id)
-    except:
+    except Exception:
         error_msg = "File ID is not valid."
         return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
 
@@ -68,7 +67,7 @@ def file(file_id=None):
 
     file_links = files_service.get_file_links(file_id)
 
-    file_sensitive = []
+    file_sensitive = files_service.get_file_sensitive(file_id)
     if len(file_sensitive) == 0:
         file_sensitive = 0
         sensitive_info = ""
@@ -219,7 +218,6 @@ def preview_image(folder_id=None, file_id=None):
     return redirect(url_for('static', filename=path))
 
 
-@cache.memoize()
 @files_bp.route('/dashboard/<project_alias>/search_files', methods=['GET'], provide_automatic_options=False)
 def search_files(project_alias):
     """Search files by filename."""

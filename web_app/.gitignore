@@ -1,15 +1,25 @@
-cache/*
-logs/*
-venv
-__pychache__
-.idea
-settings.*
+# Python
+__pycache__/
+*.pyc
+venv/
 
-!static/*
+# Secrets and local config (use settings.py.template as the reference)
+settings.py
+settings.py.bak
+.env
 
+# Runtime artifacts
+cache/
+logs/
+static/figs/
+static/image_previews/
+static/reports/
+
+# Node / test output
+node_modules/
+tests/a11y/out/
+
+# IDE
+.idea/
+.vs/
 *.code-workspace
-.vs
-
-static/figs
-static/image_previews
-static/reports/*

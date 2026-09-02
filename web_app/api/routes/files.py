@@ -10,8 +10,9 @@ from cache import cache
 from logger import api_logger as logger
 
 from api import api_bp
-from api.auth import check_file_id, validate_api_key
+from api.auth import validate_api_key
 from osprey.db import run_query
+from osprey.services import files as file_service
 
 @api_bp.route('/files/<int:file_id>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
 def api_get_file_details(file_id=None):
@@ -27,7 +28,7 @@ def api_get_file_details(file_id=None):
     if valid_api_key == False:
         logger.warning("api_get_file_details: invalid api_key | file_id={}".format(file_id))
         return jsonify({'error': 'Forbidden'}), 403
-    file_id, file_uid = check_file_id(file_id)
+    file_id, file_uid = file_service.check_file_id(file_id)
     if file_id is None:
         logger.warning("api_get_file_details: file not found | file_id={}".format(file_id))
         return jsonify({'error': 'File not found'}), 404

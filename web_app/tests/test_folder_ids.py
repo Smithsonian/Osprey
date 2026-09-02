@@ -1,17 +1,8 @@
 """Unit tests for folder ID listing helper."""
 
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
-# Stub DB before importing services (test env may lack mysql.connector).
-if 'osprey.db' not in sys.modules:
-    _db = types.ModuleType('osprey.db')
-    _db.run_query = MagicMock()
-    _db.query_database_insert = MagicMock()
-    sys.modules['osprey.db'] = _db
-
-from osprey.services.folders import list_folder_ids_for_project  # noqa: E402
+from osprey.services.folders import list_folder_ids_for_project
 
 
 @patch('osprey.services.folders.run_query')

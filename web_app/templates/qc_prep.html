@@ -2,7 +2,6 @@
 
 {% block title %}Project QC{% endblock %}
 
-{% block page_title %}Project QC{% endblock %}
 
 {% block homelink %}
     <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="Project dashboard">Project dashboard</a>
@@ -14,7 +13,7 @@
         <h2>QC Loading...</h2>
 
         <div class="spinner-border" role="status" style="margin-left: 30px;">
-            <span class="sr-only">Loading...</span>
+            <span class="visually-hidden">Loading...</span>
         </div>
     </div>
 
@@ -39,7 +38,7 @@
 
             var idleTime;
             reloadPage();
-            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
+            $('html').on('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
                 clearTimeout(idleTime);
                 reloadPage();
             });

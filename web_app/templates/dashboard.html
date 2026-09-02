@@ -36,10 +36,244 @@
 
 <div class="row g-3 mb-4">
     <div class="col-lg-6">
-        {% include 'partials/_dashboard_project_details.html' %}
+<div class="card border-0 shadow-sm dashboard-project-details">
+  <div class="card-header bg-dark text-white py-2">
+    <h2 class="h6 mb-0">Project Details</h2>
+  </div>
+  <div class="card-body py-2">
+    {% if project_info.project_description %}
+      <p class="small text-muted mb-2 dashboard-description">{{ project_info.project_description }}</p>
+    {% endif %}
+
+    <div class="dashboard-fact-chips" role="list" aria-label="Project details">
+      <span class="dashboard-fact-chip" role="listitem" title="Project Manager">
+        <i class="fa-solid fa-user-gear fa-fw" aria-hidden="true"></i>
+        <span class="dashboard-fact-chip-label">Manager:</span>
+        {{ project_manager_link | safe }}
+      </span>
+
+      {% if project_info.project_section %}
+        <span class="dashboard-fact-chip" role="listitem" title="Team">
+          <i class="fa-solid fa-people-group fa-fw" aria-hidden="true"></i>
+          {% if project_info.project_section == "MD" %}Mass Digitization{% elif project_info.project_section == "IS" %}Imaging Services{% endif %}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_unit %}
+        <span class="dashboard-fact-chip" role="listitem" title="Unit">
+          <i class="fa-solid fa-building-columns fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_unit }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_type %}
+        <span class="dashboard-fact-chip" role="listitem" title="Project Type">
+          <i class="fa-solid fa-diagram-project fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_type }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_area %}
+        <span class="dashboard-fact-chip" role="listitem" title="Project Area">
+          <i class="fa-solid fa-book-open fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_area }}
+        </span>
+      {% endif %}
+
+      {% if project_info.project_status %}
+        <span class="dashboard-fact-chip dashboard-fact-chip-status" role="listitem" title="Project Status">
+          <i class="fa-solid fa-list-check fa-fw" aria-hidden="true"></i>
+          {{ project_info.project_status }}
+        </span>
+      {% endif %}
+
+      {% if project_info.pdates %}
+        <span class="dashboard-fact-chip" role="listitem" title="Dates of the Project">
+          <i class="fa-solid fa-calendar-days fa-fw" aria-hidden="true"></i>
+          {{ project_info.pdates }}
+        </span>
+      {% endif %}
+
+      {% if project_disk %}
+        <span class="dashboard-fact-chip" role="listitem" title="Disk Space Used">
+          <i class="fa-solid fa-hard-drive fa-fw" aria-hidden="true"></i>
+          {{ project_disk }}
+        </span>
+      {% endif %}
+
+      {% for link in projects_links %}
+        <a href="{{ link.url }}"
+           role="listitem"
+           title="{{ link.link_title }} (external link)"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="dashboard-fact-chip dashboard-fact-chip-link">
+          {% if link.link_type == "yt" %}
+            <i class="fa-solid fa-video fa-fw" title="YouTube Video" aria-hidden="true"></i>
+          {% elif link.link_type == "video" %}
+            <i class="fa-solid fa-video fa-fw" title="Video" aria-hidden="true"></i>
+          {% elif link.link_type == "fb" %}
+            <i class="fa-brands fa-facebook fa-fw" title="Facebook Post" aria-hidden="true"></i>
+          {% elif link.link_type == "ig" %}
+            <i class="fa-brands fa-instagram fa-fw" title="Instagram Post" aria-hidden="true"></i>
+          {% elif link.link_type == "news" %}
+            <i class="fa-solid fa-newspaper fa-fw" title="News Item" aria-hidden="true"></i>
+          {% else %}
+            <i class="fa-solid fa-link fa-fw" title="Link" aria-hidden="true"></i>
+          {% endif %}
+          {{ link.link_title }}
+          <i class="fa-solid fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i>
+          <span class="screen-reader-only">(link is external)</span>
+        </a>
+      {% endfor %}
+    </div>
+
+{% if reports|length > 0 %}
+  <div class="dashboard-report-chips mt-2 pt-2 border-top">
+    <div class="small text-muted mb-1">Data reports</div>
+    <div class="dashboard-fact-chips" role="list" aria-label="Data reports">
+      {% for report in reports %}
+        <a href="{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id) }}"
+           role="listitem"
+           class="dashboard-fact-chip dashboard-fact-chip-link dashboard-report-chip"
+           title="{{ report.report_title }}">
+          <i class="fa-solid fa-chart-column fa-fw" aria-hidden="true"></i>
+          {{ report.report_title_brief }}
+          {% if report.builtin %}
+            <span class="badge rounded-pill text-bg-success dashboard-report-chip-badge">Chart</span>
+          {% elif report.pregenerated == 1 %}
+            <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Export</span>
+          {% else %}
+            <span class="badge rounded-pill text-bg-info dashboard-report-chip-badge">Live</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+  </div>
+</div>
     </div>
     <div class="col-lg-6">
-        {% include 'partials/_dashboard_stats.html' %}
+{% set total_num = (project_stats.total | default('0') | replace(',', '')) | int %}
+{% set ok_num = (project_stats.ok | default('0') | replace(',', '')) | int %}
+{% set errors_num = (project_stats.errors | default('0') | replace(',', '')) | int %}
+{% set ok_pct = ((ok_num * 100) / total_num) | round(1) if total_num > 0 else 0 %}
+{% set error_pct = ((errors_num * 100) / total_num) | round(1) if total_num > 0 else 0 %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Total number of images in the project">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-primary-subtle text-primary">
+          <i class="fa-solid fa-image" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.total | default('0') }}</div>
+          <div class="text-muted small">Images</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Total number of objects/specimens digitized">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-secondary-subtle text-secondary">
+          <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.objects | default('0') }}</div>
+          <div class="text-muted small">{{ project_info.obj_type }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Images that pass all checks">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-success-subtle text-success">
+          <i class="fa-solid fa-square-check" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.ok | default('0') }}</div>
+          <div class="text-muted small">OK{% if total_num > 0 %} ({{ ok_pct }}%){% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100 dashboard-stat-card" title="Images with errors">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="dashboard-stat-icon bg-danger-subtle text-danger">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-semibold lh-1">{{ project_stats.errors | default('0') }}</div>
+          <div class="text-muted small">Errors{% if total_num > 0 %} ({{ error_pct }}%){% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if total_num > 0 %}
+  <div class="mb-3" title="Share of images that pass all checks">
+    <div class="d-flex justify-content-between small text-muted mb-1">
+      <span>Check pass rate</span>
+      <span>{{ ok_pct }}% OK · {{ error_pct }}% errors</span>
+    </div>
+    <div class="progress dashboard-progress" role="progressbar"
+         aria-valuenow="{{ ok_pct }}" aria-valuemin="0" aria-valuemax="100"
+         aria-label="Check pass rate">
+      {% if ok_pct > 0 %}
+        <div class="progress-bar bg-success" style="width: {{ ok_pct }}%"></div>
+      {% endif %}
+      {% if error_pct > 0 %}
+        <div class="progress-bar bg-danger" style="width: {{ error_pct }}%"></div>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<div class="row g-3 align-items-end mb-3">
+  <div class="col-md">
+    {% if project_stats_other is defined and project_stats_other.other_stat | default('0') != "0" %}
+      <div class="alert alert-warning py-2 mb-md-0 small" title="{{ project_stats_other.other_name }} in this project">
+        {{ project_stats_other.other_icon | safe }}
+        <strong>{{ project_stats_other.other_stat }}</strong> {{ project_stats_other.other_name }}
+      </div>
+    {% endif %}
+  </div>
+  <div class="col-md-auto">
+    {% if project_info.stats_page == 1 %}
+      <a href="{{ url_for('proj_statistics', project_alias=project_alias) }}"
+         class="btn btn-dark"
+         role="button">
+        <i class="fa-solid fa-chart-column" aria-hidden="true"></i> Project Statistics
+      </a>
+    {% endif %}
+  </div>
+  <div class="col-md">
+    <form action="{{ url_for('files.search_files', project_alias=project_alias) }}" method="GET">
+      <div class="input-group">
+        <span class="input-group-text" id="search-files-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+        <input type="search"
+               class="form-control"
+               id="search_files"
+               name="q"
+               aria-label="Search Files"
+               aria-describedby="search-files-addon"
+               placeholder="Search files in the project">
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if project_info.project_message %}
+  <div class="alert alert-danger mb-0" role="alert">
+    <strong>Note:</strong> {{ project_info.project_message }}
+  </div>
+{% endif %}
     </div>
 </div>
 
@@ -52,7 +286,70 @@
             <div class="skipnav"><a href="#filestable">Skip to Files</a></div>
         {% endif %}
 
-        {% include 'partials/_dashboard_folders.html' %}
+<div class="dashboard-folder-panel"
+     id="dashboard-folder-panel"
+     data-folders-url="{{ url_for('api.api_get_project_details', project_alias=project_alias) }}"
+     data-project-alias="{{ project_alias }}"
+     data-selected-folder-id="{{ folder_id if folder_id is not none else '' }}"
+     data-transcription="{{ 1 if transcription == 1 else 0 }}"
+     data-qc-enabled="{{ 0 if project_info.qc_status == 0 else 1 }}">
+
+  <p class="small text-muted mb-2">
+    This project has <span id="folder-total-count">…</span> folders total.
+  </p>
+
+  <div id="folder-list-loading" class="text-muted small py-2">
+    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+    Loading folders…
+  </div>
+
+  <p id="folder-list-error" class="small text-danger mb-2 d-none" role="alert"></p>
+
+  <div id="folder-list-controls" class="d-none">
+    <div class="input-group input-group-sm mb-2">
+      <span class="input-group-text" id="folder-search-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+      <input type="search"
+             class="form-control"
+             id="folder-search"
+             aria-label="Search folders"
+             aria-describedby="folder-search-addon"
+             placeholder="Search folders…"
+             autocomplete="off">
+    </div>
+
+    <div class="dashboard-folder-filters mb-2">
+      <div class="dashboard-folder-filter-all mb-1">
+        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-folder-filter="all" aria-pressed="false">All</button>
+      </div>
+      <div class="dashboard-folder-filter-sub btn-group btn-group-sm flex-wrap w-100" role="group" aria-label="Filter folders by status">
+        <button type="button" class="btn btn-outline-success active" data-folder-filter="ok" aria-pressed="true">OK</button>
+        <button type="button" class="btn btn-outline-danger" data-folder-filter="errors" aria-pressed="false">Errors</button>
+        {% if project_info.qc_status != 0 %}
+        <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="qc" aria-pressed="false">QC Failed</button>
+        <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="qc_pending" aria-pressed="false">QC Pending</button>
+        {% if transcription == 1 %}
+        <button type="button" class="btn btn-outline-success" data-folder-filter="transcription_qc_passed" aria-pressed="false">Transcription QC Passed</button>
+        <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="transcription_qc" aria-pressed="false">Transcription QC Failed</button>
+        <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="transcription_qc_pending" aria-pressed="false">Transcription QC Pending</button>
+        {% endif %}
+        {% endif %}
+        <button type="button" class="btn btn-outline-primary" data-folder-filter="dams" aria-pressed="false">In DAMS</button>
+        <button type="button" class="btn btn-outline-secondary" data-folder-filter="unavailable" aria-pressed="false">Unavailable</button>
+      </div>
+    </div>
+
+    <p class="small text-danger mb-2 d-none" id="folder-search-empty" role="status">No folders match your search or filters.</p>
+  </div>
+
+  <div class="d-lg-none mb-3" id="folder-list-mobile-wrap">
+    <label for="folder-select-mobile" class="form-label small mb-1">Folder</label>
+    <select class="form-select form-select-sm" id="folder-select-mobile" aria-label="Select a folder">
+      <option value="" selected disabled>Loading folders…</option>
+    </select>
+  </div>
+
+  <div class="d-none d-lg-block" id="folder-list-desktop"></div>
+</div>
 
     </div>
     <div class="col-12 col-lg-9 overflow-x-auto dashboard-main-panel">
@@ -135,11 +432,98 @@
 
                 {% endif %}
 
-                {% include 'partials/_dashboard_qc.html' %}
+<div id="dashboard-qc-panel"
+     data-qc-url="{{ url_for('api.api_get_folder_qc', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+
+    <div id="dashboard-qc-loading" class="text-muted small py-1">
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Loading QC information…
+    </div>
+
+    <p id="dashboard-qc-error" class="small text-danger d-none" role="alert"></p>
+
+    <div id="dashboard-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+        <div class="row">
+            <div class="col">
+                <div class="accordion" id="qc_accordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="qc_accordion_heading">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#qc_accordion_panel"
+                                    aria-expanded="false"
+                                    aria-controls="qc_accordion_panel">
+                                Visual Image QC Details (click to expand)
+                            </button>
+                        </h2>
+                        <div id="qc_accordion_panel"
+                             class="accordion-collapse collapse"
+                             aria-labelledby="qc_accordion_heading"
+                             data-bs-parent="#qc_accordion">
+                            <div class="accordion-body">
+                                <table id="qc_details_table" class="display compact table-striped w-100"></table>
+                                <hr>
+                                <p id="dashboard-qc-notes" class="d-none mb-0">Notes: <span id="dashboard-qc-notes-text"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 {% if transcription == 1 %}
-                    {% include 'partials/_dashboard_transcription_qc.html' %}
+<div id="dashboard-transcription-qc-panel"
+     data-qc-url="{{ url_for('api.api_get_folder_transcription_qc', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-app-root="{{ app_root or '' }}">
+
+    <div id="dashboard-transcription-qc-loading" class="text-muted small py-1">
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Loading transcription QC information...
+    </div>
+
+    <p id="dashboard-transcription-qc-error" class="small text-danger d-none" role="alert"></p>
+
+    <div id="dashboard-transcription-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+        <div class="accordion" id="transcription_qc_accordion"></div>
+    </div>
+</div>
                 {% endif %}
-                {% include 'partials/_dashboard_files_table.html' %}
+<div id="dashboard-files-panel"
+     class="card dashboard-files-card border-dark mb-3 mt-0"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}"
+     data-check-labels='{{ file_check_labels | tojson }}'>
+    <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h2 class="h5 mb-0">Files in folder <span id="dashboard-files-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <span id="dashboard-files-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
+        </div>
+        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by check status">
+            <button type="button" class="btn btn-outline-secondary active" data-files-filter="all">All</button>
+            <button type="button" class="btn btn-outline-danger" data-files-filter="failed">Failed</button>
+            <button type="button" class="btn btn-outline-secondary" data-files-filter="pending">Pending</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="dashboard-files-loading" class="p-3 text-muted">Loading files…</div>
+        <div id="dashboard-files-error" class="p-3 text-danger d-none" role="alert"></div>
+        <div id="dashboard-files-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+        <div id="dashboard-files-table-wrap" class="dashboard-files-table-wrap d-none">
+            <table id="files_table" class="display table table-sm table-hover dashboard-files-table w-100"></table>
+        </div>
+    </div>
+</div>
 
 
               <!-- File preview modal -->
@@ -170,14 +554,63 @@
             {% if site_net == "internal" %}
               <br><br>
                 <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
-                {% include 'partials/_dashboard_lightbox.html' %}
+<div id="dashboard-lightbox-panel"
+     class="dashboard-lightbox-panel"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+    <div id="dashboard-lightbox-loading" class="p-3 text-muted">Loading previews…</div>
+    <div id="dashboard-lightbox-error" class="p-3 text-danger d-none" role="alert"></div>
+    <div id="dashboard-lightbox-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+    <div id="dashboard-lightbox-content" class="d-none">
+        <div class="row">
+            <div class="col">
+                <p><small><em>Sorted by file_name</em></small></p>
+            </div>
+            <div class="col">
+                <nav id="dashboard-lightbox-pagination-top" aria-label="pages"></nav>
+            </div>
+        </div>
+        <div id="lightbox-grid" class="dashboard-lightbox-grid"></div>
+        <br>
+        <nav id="dashboard-lightbox-pagination-bottom" aria-label="pages"></nav>
+    </div>
+</div>
             {% endif %}
 
         {% elif tab == "postprod" %}
 
             <br><br>
                 <p class="fs-3">Post-Production Steps for the Folder {{ folder_name.project_folder }}</p>
-                {% include 'partials/_dashboard_postprocessing_table.html' %}
+<div id="dashboard-postprod-panel"
+     class="card dashboard-files-card border-dark mb-3 mt-0"
+     data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-transcription="{{ transcription }}"
+     data-app-root="{{ app_root or '' }}">
+    <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h2 class="h5 mb-0">Post-processing steps for folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <span id="dashboard-postprod-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
+        </div>
+        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by post-processing status">
+            <button type="button" class="btn btn-outline-secondary active" data-postprod-filter="all">All</button>
+            <button type="button" class="btn btn-outline-danger" data-postprod-filter="failed">Failed</button>
+            <button type="button" class="btn btn-outline-secondary" data-postprod-filter="pending">Pending</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="dashboard-postprod-loading" class="p-3 text-muted">Loading post-processing steps…</div>
+        <div id="dashboard-postprod-error" class="p-3 text-danger d-none" role="alert"></div>
+        <div id="dashboard-postprod-empty" class="p-3 text-muted d-none">No files in this folder.</div>
+        <div id="dashboard-postprod-table-wrap" class="dashboard-files-table-wrap d-none">
+            <table id="post_processing_table" class="display table table-sm table-hover dashboard-files-table w-100"></table>
+        </div>
+    </div>
+</div>
 
         {% else %}
             &nbsp;
@@ -271,7 +704,7 @@
 
             var idleTime;
              reloadPage();
-            $('html').bind('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
+            $('html').on('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
                 clearTimeout(idleTime);
                 reloadPage();
             });

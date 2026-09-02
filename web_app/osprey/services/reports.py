@@ -104,15 +104,6 @@ def get_pregenerated_preview(report, limit=20):
             report.get("report_id"),
         )
         return None
-    if rows is False:
-        logger.error(
-            "get_pregenerated_preview query returned error for table %s "
-            "(project_id=%s report_id=%s)",
-            safe_name,
-            report.get("project_id"),
-            report.get("report_id"),
-        )
-        return None
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 

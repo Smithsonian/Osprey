@@ -35,12 +35,15 @@ log_format = '%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)
 log_datefmt = '%y-%b-%d %H:%M:%S'
 
 logfile = '{}/ospreyapp_{}.log'.format(settings.log_folder, current_time)
+app_log_handler = RotatingFileHandler(logfile, maxBytes=10000000, backupCount=10)
+# rotator/namer belong on the handler; setting them on the logging module
+# (as before) silently disabled gzip rotation for this log.
+app_log_handler.rotator = rotator
+app_log_handler.namer = namer
 logging.basicConfig(level=log_level,
                     format=log_format,
                     datefmt=log_datefmt,
-                    handlers=[RotatingFileHandler(logfile, maxBytes=10000000, backupCount=10)])
-logging.rotator = rotator
-logging.namer = namer
+                    handlers=[app_log_handler])
 logger = logging.getLogger("osprey_webapp")
 
 # Dedicated logger for the api/ blueprint, written to its own file/log stream.

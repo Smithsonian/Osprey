@@ -25,8 +25,6 @@ def list_pregenerated_reports() -> list[dict]:
         """,
         log_vals=False,
     )
-    if rows is False:
-        raise RuntimeError("Failed to list pregenerated reports from data_reports")
     return rows or []
 
 

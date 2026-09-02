@@ -682,8 +682,6 @@
 
     <script src="{{ url_for('static', filename='js/file.js') }}"></script>
 
-    {% with prefix_url=url_for('static', filename='images/') %}
-        {% include 'partials/_openseadragon_init.html' %}
-    {% endwith %}
+    {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/')) }}
 
 {% endblock %}

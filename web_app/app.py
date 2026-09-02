@@ -15,7 +15,7 @@ from flask import send_from_directory
 
 from cache import cache
 # Logging
-from logger import logger
+from logger import app_log_handler, logger
 
 import os
 import locale
@@ -31,6 +31,7 @@ from auth_service import AuthBaseUser, get_auth_service
 from osprey.db import init_db, query_database_insert, run_query
 from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
 from osprey.services import reports as report_service
+from osprey.services.file_checks import assert_safe_sql_expression
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -48,8 +49,12 @@ logger.info("site_ver = {}".format(site_ver))
 logger.info("site_env = {}".format(site_env))
 logger.info("site_net = {}".format(site_net))
 
-# Set locale for number format
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+# Set locale for number format; not fatal when the host lacks the locale
+# (slim containers, CI), number formatting just falls back to the default.
+try:
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+except locale.Error:
+    logger.warning("locale en_US.UTF-8 unavailable; using default locale")
 
 app = Flask(__name__)
 app.secret_key = settings.secret_key
@@ -80,8 +85,9 @@ if site_env == "prod":
     from flask_minify import Minify
     Minify(app=app, html=True, js=True, cssless=True)
 
-# Add logger
-app.logger.addHandler(logger)
+# Route Flask's own log records into the osprey log file. The previous
+# app.logger.addHandler(logger) passed a Logger where a Handler is required.
+app.logger.addHandler(app_log_handler)
 
 # Setup cache
 cache.init_app(app)
@@ -126,6 +132,13 @@ def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
+
+
+@app.url_defaults
+def static_cache_busting(endpoint, values):
+    # Version every static URL so CSS/JS changes ship without a hard refresh.
+    if endpoint == 'static':
+        values.setdefault('v', site_ver)
 
 
 # Shared database pool
@@ -334,14 +347,12 @@ def load_user(username):
 ###################################
 # System routes
 ###################################
-@cache.memoize()
 @app.route('/favicon.ico')
 @app.route('/static/favicon.ico')
 def favicon():
     return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
-@cache.memoize()
 @app.route('/team/<team>/<subset>', methods=['GET', 'POST'], provide_automatic_options=False)
 @app.route('/team/<team>', methods=['GET', 'POST'], provide_automatic_options=False)
 @app.route('/', methods=['GET', 'POST'], provide_automatic_options=False)
@@ -678,13 +689,11 @@ def empty_team():
     return redirect(url_for('homepage'))
 
 
-@cache.memoize()
 @app.route('/dashboard/', methods=['GET'], provide_automatic_options=False)
 def dashboard_empty():
     return redirect(url_for('homepage'))
 
 
-@cache.memoize()
 @app.route('/dashboard/<project_alias>/<folder_id>/<tab>/<page>/', methods=['POST', 'GET'], provide_automatic_options=False)
 @app.route('/dashboard/<project_alias>/<folder_id>/<tab>/', methods=['POST', 'GET'], provide_automatic_options=False)
 @app.route('/dashboard/<project_alias>/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
@@ -736,7 +745,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         try:
             page = int(page)
-        except:
+        except Exception:
             error_msg = "Invalid page number."
             return render_template('error.html', error_msg=error_msg,
                                    project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
@@ -1067,7 +1076,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            )
 
 
-@cache.memoize()
 @app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def dashboard(project_alias=None, folder_id=None):
     """Dashboard for a project"""
@@ -1267,7 +1275,18 @@ def dashboard(project_alias=None, folder_id=None):
         recent_images = []
     else:
         preview_filter = project_info['preview_filter']
-        if preview_filter is None:
+        preview_filter_ok = True
+        if preview_filter is not None:
+            try:
+                # preview_filter is a SQL fragment stored in the projects table
+                preview_filter = assert_safe_sql_expression(preview_filter)
+            except ValueError:
+                # Fail closed: show no recent images rather than ignoring the filter
+                logger.error("Rejected unsafe preview_filter for project {}".format(project_info['project_id']))
+                preview_filter_ok = False
+        if not preview_filter_ok:
+            recent_images_pool = []
+        elif preview_filter is None:
             if transcription == 1:
                 recent_images_pool = run_query("SELECT file_transcription_id as file_id, CONCAT('image_previews/', folder_transcription_id, '/160/', file_transcription_id, '.jpg') as preview FROM transcription_files WHERE folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_transcription_id DESC limit 100", {'project_id': project_info['project_id']})
             else:
@@ -1314,7 +1333,6 @@ def dashboard(project_alias=None, folder_id=None):
                            analytics_code=settings.analytics_code, project_stats_other=project_stats_other, no_cols=None)
 
 
-@cache.memoize()
 @app.route('/dashboard/<project_alias>/statistics/', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics(project_alias=None):
     """Statistics for a project"""
@@ -1352,7 +1370,6 @@ def proj_statistics(project_alias=None):
     )
 
 
-@cache.memoize()
 @app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics_dl(project_id=None, step_id=None):
     """Download statistics for a project"""
@@ -1385,7 +1402,6 @@ def proj_statistics_dl(project_id=None, step_id=None):
     return response
 
 
-@cache.memoize()
 @app.route('/about/', methods=['GET'], provide_automatic_options=False)
 def about():
     """About page for the system"""
@@ -2070,7 +2086,7 @@ def qct_loading2(source_id):
     try:
         # Allow for UUIDs
         source_id = UUID(source_id)
-    except:
+    except Exception:
         raise InvalidUsage('invalid source_id value', status_code=400)
     source_id = str(source_id)
 
@@ -2277,13 +2293,13 @@ def qc_process(folder_id):
     try:
         folder_id = int(folder_id)
         transcription = 0
-    except:
+    except Exception:
         try:
             # Allow for UUIDs
             folder_id = UUID(folder_id)
             folder_id = str(folder_id)
             transcription = 1
-        except:
+        except Exception:
             raise InvalidUsage('invalid folder_id value', status_code=400)
     
     username = current_user.name
@@ -2488,19 +2504,21 @@ def qc_process(folder_id):
                 else:
                     no_files_for_qc = folder_stats['no_files']
             if project_settings['qc_filenames'] != None:
+                # qc_filenames is a SQL fragment stored in projects_settings; fail closed
+                qc_filenames = assert_safe_sql_expression(project_settings['qc_filenames'])
                 if transcription == 1:
                     q = query_database_insert(("INSERT INTO qc_files (folder_uid, file_uid) ("
                                   " SELECT folder_transcription_id, file_transcription_id "
                                   "  FROM transcription_files WHERE folder_transcription_id = %(folder_id)s "
                                   "    AND {} "
-                                  "  ORDER BY RAND() LIMIT {})").format(project_settings['qc_filenames'], no_files_for_qc),
+                                  "  ORDER BY RAND() LIMIT {})").format(qc_filenames, no_files_for_qc),
                                  {'folder_id': folder_id})
                 else:
                     q = query_database_insert(("INSERT INTO qc_files (folder_id, file_id) ("
                                   " SELECT folder_id, file_id "
                                   "  FROM files WHERE folder_id = %(folder_id)s "
                                   "    AND {} "
-                                  "  ORDER BY RAND() LIMIT {})").format(project_settings['qc_filenames'], no_files_for_qc),
+                                  "  ORDER BY RAND() LIMIT {})").format(qc_filenames, no_files_for_qc),
                                  {'folder_id': folder_id})
             else:
                 if transcription == 1:
@@ -2695,18 +2713,18 @@ def qc_process(folder_id):
                         major_files += 1
                     elif file['file_qc'] == 'Minor Issue':
                         minor_files += 1
-                qc_threshold_critical_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
-                qc_threshold_major_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
-                qc_threshold_minor_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
-                if crit_files > 0:
-                    if qc_threshold_critical_comparison <= crit_files:
-                        qc_folder_result = False
-                if major_files > 0:
-                    if qc_threshold_major_comparison <= major_files:
-                        qc_folder_result = False
-                if minor_files > 0:
-                    if qc_threshold_minor_comparison <= minor_files:
-                        qc_folder_result = False
+                # Compare the actual issue rate to the threshold percentage directly
+                # (avoids floor() under-rounding the allowed count, e.g. 1/40=2.5%
+                # incorrectly failing a 4% threshold). Only exceeding the threshold fails.
+                crit_percent = (crit_files / qc_stats['no_files']) * 100
+                major_percent = (major_files / qc_stats['no_files']) * 100
+                minor_percent = (minor_files / qc_stats['no_files']) * 100
+                if crit_percent > float(project_settings['qc_threshold_critical']):
+                    qc_folder_result = False
+                if major_percent > float(project_settings['qc_threshold_major']):
+                    qc_folder_result = False
+                if minor_percent > float(project_settings['qc_threshold_minor']):
+                    qc_folder_result = False
                 return render_template('qc_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
@@ -2746,7 +2764,7 @@ def qc_process_transcript(source_id, folder_id):
         folder_id = str(folder_id)
         source_id = UUID(source_id)
         source_id = str(source_id)
-    except:
+    except Exception:
         raise InvalidUsage('invalid source_id or folder_id value', status_code=400)
     
     username = current_user.name
@@ -2907,11 +2925,13 @@ def qc_process_transcript(source_id, folder_id):
                 else:
                     no_files_for_qc = folder_stats['no_files']
             if project_settings['qc_filenames'] != None:
+                # qc_filenames is a SQL fragment stored in projects_settings; fail closed
+                qc_filenames = assert_safe_sql_expression(project_settings['qc_filenames'])
                 q = query_database_insert(("INSERT INTO transcription_qc (file_transcription_id, folder_transcription_id, transcription_source_id) ("
                                   " SELECT file_transcription_id, '{}' as folder_transcription_id, '{}' as transcription_source_id"
                                   "  FROM transcription_files WHERE folder_transcription_id = %(folder_id)s "
                                   "    AND {} "
-                                  "  ORDER BY RAND() LIMIT {})").format(folder_id, source_id, project_settings['qc_filenames'], no_files_for_qc),
+                                  "  ORDER BY RAND() LIMIT {})").format(folder_id, source_id, qc_filenames, no_files_for_qc),
                                  {'folder_id': folder_id})
             else:
                 q = query_database_insert(("INSERT INTO transcription_qc (file_transcription_id, folder_transcription_id, transcription_source_id) ("
@@ -3041,18 +3061,18 @@ def qc_process_transcript(source_id, folder_id):
                         major_files += 1
                     elif file['qc_results'] == 'Minor Issue':
                         minor_files += 1
-                qc_threshold_critical_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_critical']) / 100))
-                qc_threshold_major_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_major']) / 100))
-                qc_threshold_minor_comparison = math.floor(qc_stats['no_files'] * (float(project_settings['qc_threshold_minor']) / 100))
-                if crit_files > 0:
-                    if qc_threshold_critical_comparison <= crit_files:
-                        qc_folder_result = False
-                if major_files > 0:
-                    if qc_threshold_major_comparison <= major_files:
-                        qc_folder_result = False
-                if minor_files > 0:
-                    if qc_threshold_minor_comparison <= minor_files:
-                        qc_folder_result = False
+                # Compare the actual issue rate to the threshold percentage directly
+                # (avoids floor() under-rounding the allowed count, e.g. 1/40=2.5%
+                # incorrectly failing a 4% threshold). Only exceeding the threshold fails.
+                crit_percent = (crit_files / qc_stats['no_files']) * 100
+                major_percent = (major_files / qc_stats['no_files']) * 100
+                minor_percent = (minor_files / qc_stats['no_files']) * 100
+                if crit_percent > float(project_settings['qc_threshold_critical']):
+                    qc_folder_result = False
+                if major_percent > float(project_settings['qc_threshold_major']):
+                    qc_folder_result = False
+                if minor_percent > float(project_settings['qc_threshold_minor']):
+                    qc_folder_result = False
                 return render_template('qc_transcription_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
@@ -3116,7 +3136,7 @@ def qc_transcription_done(source_id, folder_id):
     try:
         folder_id = str(UUID(folder_id))
         source_id = str(UUID(source_id))
-    except:
+    except Exception:
         raise InvalidUsage('invalid source_id or folder_id value', status_code=400)
 
     project_admin = run_query(
@@ -3233,13 +3253,13 @@ def qc_done(folder_id):
     try:
         folder_id = int(folder_id)
         transcription = 0
-    except:
+    except Exception:
         try:
             # Allow for UUIDs
             folder_id = UUID(folder_id)
             folder_id = str(folder_id)
             transcription = 1
-        except:
+        except Exception:
             raise InvalidUsage('invalid folder_id value', status_code=400)
         
     if transcription == 1:
@@ -3393,7 +3413,7 @@ def home():
         " ORDER BY p.projects_order DESC",
         {'username': user_name},
     )
-    if not projects or projects is False:
+    if not projects:
         projects = []
     project_list = []
     for project in projects:

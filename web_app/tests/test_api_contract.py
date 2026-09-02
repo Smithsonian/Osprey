@@ -9,7 +9,10 @@ FIXTURES = Path(__file__).resolve().parent.parent / 'api_responses'
 
 
 def _load_fixture(name):
-    with open(FIXTURES / name, encoding='utf-8') as handle:
+    path = FIXTURES / name
+    if not path.exists():
+        pytest.skip('fixture {} not present (no api_responses/ directory)'.format(name))
+    with open(path, encoding='utf-8') as handle:
         return json.load(handle)
 
 
@@ -46,6 +49,10 @@ def test_folder_files_fixture_file_checks_shape():
             assert key in check
         assert check['check_results'] in ('OK', 'Pending', 'Failed')
 
+
+def test_project_folders_fixture_shape():
+    """Previously the tail of the file_checks test, where the skips above it
+    could silently short-circuit these assertions."""
     data = _load_fixture('project_folders.json')
     assert 'folders' in data
     rows = data['folders']

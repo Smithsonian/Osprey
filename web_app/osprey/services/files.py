@@ -7,6 +7,18 @@ import pandas as pd
 from osprey.db import query_database_insert, run_query
 
 
+def check_file_id(file_id=None):
+    """Confirm an integer file_id exists in files. Return (file_id, file_uid) or (None, None)."""
+    if file_id is None:
+        return None, None
+    rows = run_query(
+        "SELECT file_id, file_uid FROM files WHERE file_id = %(file_id)s",
+        {'file_id': file_id})
+    if len(rows) == 0:
+        return None, None
+    return rows[0]['file_id'], rows[0]['file_uid']
+
+
 def check_file_id_transcription(file_id=None):
     if file_id is None:
         return False
@@ -259,3 +271,9 @@ def mark_file_sensitive(file_id, sensitive_info, user_id):
         ("INSERT INTO sensitive_contents (file_id, sensitive_contents, sensitive_info, user_id) "
          "VALUES (%(file_id)s, 1, %(sensitive_info)s, %(user_id)s) ON DUPLICATE KEY UPDATE sensitive_contents = 1"),
         {'file_id': file_id, 'sensitive_info': sensitive_info, 'user_id': user_id})
+
+
+def get_file_sensitive(file_id):
+    return run_query(
+        "SELECT sensitive_contents, sensitive_info FROM sensitive_contents WHERE file_id = %(file_id)s",
+        {'file_id': file_id})

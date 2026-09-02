@@ -2,11 +2,13 @@
 
 from flask_login import current_user
 
-from cache import cache
 from osprey.db import run_query
 
 
-@cache.memoize()
+# NOTE: Deliberately not cached. Both checks were previously wrapped in
+# @cache.memoize(), but the cache key did not include the current user
+# (user_perms) or the client IP (kiosk_mode), so one visitor's result was
+# served to everyone for an hour — including admin status.
 def kiosk_mode(request, kiosks):
     # User IP, for kiosk mode
     request_address = request.remote_addr
@@ -16,11 +18,11 @@ def kiosk_mode(request, kiosks):
         return False, request_address
 
 
-@cache.memoize()
 def user_perms(project_id, user_type='user'):
     try:
         user_name = current_user.name
-    except:
+    except AttributeError:
+        # Anonymous user (no .name attribute)
         return False
     val = False
     if user_type == 'user':

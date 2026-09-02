@@ -44,7 +44,7 @@ def _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css):
         {'folder_id': folder_id, 'badge_text': badge_text, 'badge_css': badge_css},
     )
 
-@api_bp.route('/update/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+@api_bp.route('/update/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 def api_update_project_details(project_alias=None):
     """Update a project properties."""
     # Check api_key
@@ -553,7 +553,7 @@ def api_update_project_details(project_alias=None):
 
 
 # ok
-@api_bp.route('/new/<project_alias>', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
+@api_bp.route('/new/<project_alias>', methods=['POST'], strict_slashes=False, provide_automatic_options=False)
 def api_new_folder(project_alias=None):
     """Update a project properties."""
     # Check api_key

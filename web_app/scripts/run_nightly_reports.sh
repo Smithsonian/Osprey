@@ -15,9 +15,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${APP_ROOT}"
 
-# rm old reports
-rm static/reports/*
-
+# rm old reports (guard the glob: with set -e an empty dir would abort the run)
+mkdir -p static/reports
+find static/reports -mindepth 1 -maxdepth 1 -type f -delete
 
 PYTHON="${PYTHON:-}"
 if [[ -z "${PYTHON}" ]]; then

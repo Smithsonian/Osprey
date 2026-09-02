@@ -42,7 +42,7 @@ try:
     folder_id = str(folder_id)
     transcription = 0
     folder_id = f"folder{folder_id}"
-except:
+except (TypeError, ValueError):
     try:
         # Allow for UUIDs
         folder_id = UUID(folder_id)
@@ -50,8 +50,9 @@ except:
         source_id = UUID(source_id)
         source_id = str(source_id)
         transcription = 1
-    except:
+    except (TypeError, ValueError, AttributeError):
         logger.error(f"folder_id is wrong type: {folder_id}")
+        sys.exit(1)
 
 try:
     conn = mysql.connector.connect(host=settings.host,
@@ -90,8 +91,8 @@ for f in files_qc:
             try:
                 with tarfile.open(tarimgfile, "r") as tf:
                     tf.extractall(path=imgfolder)
-            except: 
-                logger.error("Couln't extract {}".format(tarimgfile))
+            except (tarfile.TarError, OSError):
+                logger.error("Couldn't extract {}".format(tarimgfile))
                 sys.exit(1)
         else:
             logger.info("File {} already extracted".format(tarimgfile))

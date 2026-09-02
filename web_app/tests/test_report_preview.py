@@ -12,13 +12,7 @@ if 'logger' not in sys.modules:
     _logger_mod.logger = MagicMock()
     sys.modules['logger'] = _logger_mod
 
-if 'osprey.db' not in sys.modules:
-    _db = types.ModuleType('osprey.db')
-    _db.run_query = MagicMock(return_value=[])
-    _db.query_database_insert = MagicMock()
-    sys.modules['osprey.db'] = _db
-
-from osprey.services import reports as report_service  # noqa: E402
+from osprey.services import reports as report_service
 
 
 def test_get_pregenerated_preview_returns_none_when_not_succeeded():
@@ -93,5 +87,5 @@ def test_get_pregenerated_preview_returns_none_on_query_error():
             'status': 'succeeded',
             'materialized_table_name': 'rptmat_p1_report_big',
         },
-    ), patch.object(report_service, 'run_query', return_value=False):
+    ), patch.object(report_service, 'run_query', side_effect=RuntimeError('db error')):
         assert report_service.get_pregenerated_preview(report) is None
