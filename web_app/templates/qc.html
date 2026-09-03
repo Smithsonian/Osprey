@@ -92,10 +92,38 @@
                       {{ folder.project_folder }}{{ preview_type_badge(folder.preview_type) }} - [{{ folder.qc_stats_no_errors + folder.qc_stats_no_passed }} of {{ folder.qc_stats_no_files }}] - QC by: {{ folder.qc_by }}
                       <small>(last updated on: {{ folder.updated_at }})</small>
                     </div>
-                    {% if folder.qc_by == username %}
-                      <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
-                    {% endif %}
+                    <div class="d-flex gap-2">
+                      {% if folder.qc_by == username %}
+                        <a class="btn btn-primary btn-sm" href="{{ url_for('qc_process', folder_id=folder.folder_id) }}" role="button">Continue QC</a>
+                      {% endif %}
+                      {% if is_admin %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#qcResetModal-{{ loop.index }}">Reset</button>
+                      {% endif %}
+                    </div>
                   </li>
+                  {% if is_admin %}
+                    <div class="modal fade" id="qcResetModal-{{ loop.index }}" tabindex="-1" aria-labelledby="qcResetModalLabel-{{ loop.index }}" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                          <form action="{{ url_for('qc_reset', folder_id=folder.folder_id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="modal-header">
+                              <h2 class="modal-title h5" id="qcResetModalLabel-{{ loop.index }}">Reset QC lock?</h2>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                              <p>This releases <strong>{{ folder.project_folder }}</strong>, currently claimed by <strong>{{ folder.qc_by }}</strong>, back to the QC queue.</p>
+                              <p class="text-danger mb-0">Any QC judgments already recorded for this folder's files will be permanently deleted. This cannot be undone.</p>
+                            </div>
+                            <div class="modal-footer">
+                              <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                              <button type="submit" class="btn btn-danger btn-sm">Reset Folder</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  {% endif %}
                 {% endfor %}
               </ul>
             {% else %}

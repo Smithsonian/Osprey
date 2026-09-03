@@ -1481,6 +1481,7 @@ def qc(project_alias=None):
     if project_admin['no_results'] == 0:
         # Not allowed
         return redirect(url_for('home'))
+    is_admin = user_perms('', user_type='admin')
 
     project_settings = run_query(("SELECT * FROM qc_settings "
                                  " WHERE project_id = %(project_id)s"),
@@ -1677,7 +1678,7 @@ def qc(project_alias=None):
                                      "  ORDER BY date ASC, folder ASC"),
                                     {'project_id': project_id})
         return render_template('qc_transcription.html', username=username,
-                            project_settings=project_settings,
+                            project_settings=project_settings, is_admin=is_admin,
                             folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                             folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
                             project=project, form=form, project_qc_stats=project_qc_stats,
@@ -1832,7 +1833,7 @@ def qc(project_alias=None):
                                     {'project_id': project_id})
 
         return render_template('qc.html', username=username,
-                            project_settings=project_settings,
+                            project_settings=project_settings, is_admin=is_admin,
                             folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                             folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
                             project=project, form=form, project_qc_stats=project_qc_stats,
@@ -2264,9 +2265,10 @@ def qct_loading2(source_id):
     
     return render_template('qc_file_transcription_text_select.html', username=username,
                     project_settings=project_settings, source_info=source_info,
+                    is_admin=user_perms('', user_type='admin'),
                     folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                     folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
-                    project=project, form=form, project_qc_stats=project_qc_stats, source_id=source_id, 
+                    project=project, form=form, project_qc_stats=project_qc_stats, source_id=source_id,
                     site_env=site_env, site_net=site_net, site_ver=site_ver,
                     analytics_code=settings.analytics_code)
 
@@ -2738,6 +2740,67 @@ def qc_process(folder_id):
                            analytics_code=settings.analytics_code), 400
 
 
+@app.route('/qc_reset/<folder_id>/', methods=['POST'], provide_automatic_options=False)
+@login_required
+def qc_reset(folder_id):
+    """Admin: release a folder's image/file QC lock (qc_folders/qc_files) so it re-enters the queue."""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api.api_route_list'))
+
+    username = current_user.name
+
+    try:
+        folder_id = int(folder_id)
+        transcription = 0
+    except Exception:
+        try:
+            # Allow for UUIDs
+            folder_id = UUID(folder_id)
+            folder_id = str(folder_id)
+            transcription = 1
+        except Exception:
+            raise InvalidUsage('invalid folder_id value', status_code=400)
+
+    if transcription == 1:
+        project_admin = run_query(("SELECT p.project_alias FROM users u, qc_projects qp, transcription_folders f, projects p "
+                                    "    WHERE u.username = %(username)s "
+                                    "        AND qp.project_id = f.project_id "
+                                    "        AND f.project_id = p.project_id "
+                                    "        AND f.folder_transcription_id = %(folder_id)s "
+                                    "        AND u.user_id = qp.user_id"),
+                                   {'username': username, 'folder_id': folder_id})
+    else:
+        project_admin = run_query(("SELECT p.project_alias FROM users u, qc_projects qp, folders f, projects p "
+                                    "    WHERE u.username = %(username)s "
+                                    "        AND qp.project_id = f.project_id "
+                                    "        AND f.project_id = p.project_id "
+                                    "        AND f.folder_id = %(folder_id)s "
+                                    "        AND u.user_id = qp.user_id"),
+                                   {'username': username, 'folder_id': folder_id})
+
+    # Reset requires both site-wide admin and QC membership on this folder's project
+    if len(project_admin) == 0 or not user_perms('', user_type='admin'):
+        # Not allowed
+        return redirect(url_for('home'))
+    project_alias = project_admin[0]['project_alias']
+
+    fold_id = "folder_uid" if transcription == 1 else "folder_id"
+
+    query_database_insert(
+        (f"UPDATE qc_folders SET qc_status = 9, qc_by = NULL WHERE {fold_id} = %(folder_id)s"),
+        {'folder_id': folder_id})
+    query_database_insert(
+        (f"DELETE FROM qc_files WHERE {fold_id} = %(folder_id)s"),
+        {'folder_id': folder_id})
+    query_database_insert(
+        (f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s AND badge_type = 'qc_status'"),
+        {'folder_id': folder_id})
+
+    logger.info("qc_reset: folder_id={} transcription={} reset by admin={}".format(folder_id, transcription, username))
+
+    return redirect(url_for('qc', project_alias=project_alias))
+
 
 @app.route('/qc_process_transcription/<source_id>/<folder_id>', methods=['GET', 'POST'], provide_automatic_options=False)
 @login_required
@@ -3086,6 +3149,55 @@ def qc_process_transcript(source_id, folder_id):
         return render_template('error.html', error_msg=error_msg,
                                project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver,
                            analytics_code=settings.analytics_code), 400
+
+
+@app.route('/qc_transcription_reset/<source_id>/<folder_id>/', methods=['POST'], provide_automatic_options=False)
+@login_required
+def qc_transcription_reset(source_id, folder_id):
+    """Admin: release a folder's transcription-text QC lock (transcription_qc_folders/transcription_qc)."""
+    # If API, not allowed - to improve
+    if site_net == "api":
+        return redirect(url_for('api.api_route_list'))
+
+    username = current_user.name
+    try:
+        folder_id = str(UUID(folder_id))
+        source_id = str(UUID(source_id))
+    except Exception:
+        raise InvalidUsage('invalid source_id or folder_id value', status_code=400)
+
+    project_admin = run_query(("SELECT count(*) as no_results FROM users u, qc_projects p, transcription_folders f "
+                                "    WHERE u.username = %(username)s "
+                                "        AND p.project_id = f.project_id "
+                                "        AND f.folder_transcription_id = %(folder_id)s "
+                                "        AND u.user_id = p.user_id"),
+                                {'username': username, 'folder_id': folder_id})[0]
+
+    # Reset requires both site-wide admin and QC membership on this folder's project
+    if project_admin['no_results'] == 0 or not user_perms('', user_type='admin'):
+        # Not allowed
+        return redirect(url_for('home'))
+
+    query_database_insert(
+        ("UPDATE transcription_qc_folders SET qc_status = 9, qc_by = NULL "
+         " WHERE folder_transcription_id = %(folder_id)s "
+         "   AND transcription_source_id = %(source_id)s"),
+        {'folder_id': folder_id, 'source_id': source_id})
+    query_database_insert(
+        ("DELETE FROM transcription_qc "
+         " WHERE folder_transcription_id = %(folder_id)s "
+         "   AND transcription_source_id = %(source_id)s"),
+        {'folder_id': folder_id, 'source_id': source_id})
+    query_database_insert(
+        ("DELETE FROM folders_badges "
+         " WHERE folder_uid = %(folder_id)s "
+         "   AND badge_type = 'transcription_qc_status' "
+         "   AND folder_transcription_id = %(source_id)s"),
+        {'folder_id': folder_id, 'source_id': source_id})
+
+    logger.info("qc_transcription_reset: folder_id={} source_id={} reset by admin={}".format(folder_id, source_id, username))
+
+    return redirect(url_for('qct_loading2', source_id=source_id))
 
 
 @app.route('/qc_prep/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
