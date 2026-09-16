@@ -38,6 +38,12 @@
     }
 
     function isUnavailable(folder) {
+        // A folder-level processing error (status 1, e.g. an extraneous file)
+        // is a real error, not "still processing" — keep it out of the
+        // generic unavailable bucket so it gets error styling instead.
+        if (folder.status === 1) {
+            return false;
+        }
         if (folder.status !== 0) {
             return true;
         }
@@ -58,6 +64,7 @@
             badgeList: badgeList,
             transcriptionQcBadges: transcriptionQcBadgesFromList(badgeList),
             file_errors: folder.file_errors,
+            hasFolderError: folder.status === 1,
             qc_status: folder.qc_status,
             status: folder.status,
             previews: folder.previews,
@@ -120,6 +127,9 @@
     }
 
     function dotClass(folder, selectedFolderId, qcEnabled) {
+        if (folder.hasFolderError) {
+            return 'dashboard-folder-dot-error';
+        }
         if (folder.unavailable) {
             return 'dashboard-folder-dot-unavailable';
         }
@@ -176,7 +186,9 @@
     function buildChipsHtml(folder, qcEnabled) {
         var chips = [];
 
-        if (folder.unavailable) {
+        if (folder.hasFolderError) {
+            chips.push('<span class="badge text-bg-danger">Folder Error</span>');
+        } else if (folder.unavailable) {
             chips.push('<span class="badge text-bg-secondary">Not available</span>');
         } else {
             if (folder.fileCount) {
@@ -185,7 +197,8 @@
             if (folder.section === 'dams') {
                 chips.push('<span class="badge text-bg-success">Delivered to DAMS</span>');
             }
-            if (qcEnabled && folder.qc_status) {
+            if (qcEnabled && folder.qc_status &&
+                !(folder.file_errors === 1 && folder.qc_status === 'QC Pending')) {
                 chips.push('<span class="badge ' + qcBadgeClass(folder.qc_status) + '">' +
                     escapeHtml(folder.qc_status) + '</span>');
             }
@@ -203,7 +216,8 @@
         }
 
         extraBadges(folder.badgeList).forEach(function (badge) {
-            chips.push('<span class="badge ' + extraBadgeClass(badge) + '">' + escapeHtml(badge) + '</span>');
+            var badgeClass = folder.hasFolderError ? 'text-bg-danger' : extraBadgeClass(badge);
+            chips.push('<span class="badge ' + badgeClass + '">' + escapeHtml(badge) + '</span>');
         });
 
         return chips.join('');
@@ -238,6 +252,7 @@
     function matchesFilter(folder, filterMode, qcEnabled) {
         if (filterMode === 'ok') {
             if (!folder.unavailable &&
+                !folder.hasFolderError &&
                 folder.file_errors !== 1 &&
                 folder.section !== 'dams') {
                 if (!qcEnabled) {
@@ -248,7 +263,7 @@
             return false;
         }
         if (filterMode === 'errors') {
-            return folder.file_errors === 1;
+            return folder.file_errors === 1 || folder.hasFolderError;
         }
         if (!qcEnabled && (
             filterMode === 'qc' ||
@@ -263,7 +278,7 @@
             return folder.qc_status === 'QC Failed';
         }
         if (filterMode === 'qc_pending') {
-            return folder.qc_status === 'QC Pending';
+            return folder.qc_status === 'QC Pending' && folder.file_errors !== 1 && !folder.hasFolderError;
         }
         if (filterMode === 'transcription_qc') {
             return hasTranscriptionQcFailed(folder);

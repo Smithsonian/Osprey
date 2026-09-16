@@ -1622,11 +1622,10 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_transcription_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 AND f.previews = 0 "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT *, folder as project_folder FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  and no_files > 0 "
-                                     "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'folder_error' AND folder_uid IS NOT NULL) "
                                      "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'verification' AND folder_uid IS NOT NULL) "
                                      "  ORDER BY date ASC, folder ASC"),
                                     {'project_id': project_id})
@@ -1776,11 +1775,10 @@ def qc(project_alias=None):
                                      "       LEFT JOIN files_total ft ON "
                                      "           (f.folder_id = ft.folder_id), "
                                      "   projects p "
-                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 AND f.previews = 0 "
+                                     " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                      "   AND p.project_id = %(project_id)s) "
                                      " SELECT * FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                      "  and no_files > 0 "
-                                     "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'folder_error' AND folder_id IS NOT NULL) "
                                      "  and folder_id not in (SELECT folder_id from folders_badges where badge_type = 'verification' AND folder_id IS NOT NULL) "
                                      "  ORDER BY date ASC, project_folder ASC"),
                                     {'project_id': project_id})
@@ -2003,11 +2001,10 @@ def qc_transcription(project_alias=None):
                                     "       LEFT JOIN files_total ft ON "
                                     "           (f.folder_transcription_id = ft.folder_id), "
                                     "   projects p "
-                                    " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 AND f.previews = 0 "
+                                    " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                     "   AND p.project_id = %(project_id)s) "
                                     " SELECT *, folder as project_folder FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                     "  and no_files > 0 "
-                                    "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'folder_error' AND folder_uid IS NOT NULL) "
                                     "  and folder_id not in (SELECT folder_uid from folders_badges where badge_type = 'verification' AND folder_uid IS NOT NULL) "
                                     "  ORDER BY date ASC, folder ASC LIMIT 10"),
                                 {'project_id': project_id})
@@ -2249,11 +2246,10 @@ def qct_loading2(source_id):
                                     "       LEFT JOIN files_total ft ON "
                                     "           (f.folder_transcription_id = ft.folder_transcription_id), "
                                     "   projects p "
-                                    " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.status = 0 AND f.previews = 0 "
+                                    " WHERE f.project_id = p.project_id AND f.file_errors = 0 AND f.previews = 0 "
                                     "   AND p.project_id = %(project_id)s) "
                                     " SELECT *, folder as project_folder FROM qc WHERE qc_status = 'QC Pending' and qc_by is null "
                                     "  and no_files > 0 "
-                                    "  and folder_transcription_id not in (SELECT folder_uid from folders_badges where badge_type = 'folder_error' AND folder_uid IS NOT NULL) "
                                     "  and folder_transcription_id not in (SELECT folder_uid from folders_badges where badge_type = 'verification' AND folder_uid IS NOT NULL) "
                                     "  ORDER BY date ASC, folder ASC LIMIT 10"),
                                 {'project_id': project_id, 'transcription_source_id': source_id})
