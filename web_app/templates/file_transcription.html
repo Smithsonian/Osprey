@@ -441,7 +441,13 @@
     <script src="{{ url_for('static', filename='js/file.js') }}"></script>
 
     {% if zoom_exists > 0 %}
-        {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/')) }}
+        {# OpenSeadragon appends icon filenames directly onto prefixUrl, so it must be a
+        bare directory path. Strip the "?v=" cache-busting query string that url_for()
+        adds via app.py's static_cache_busting hook, or icon URLs break (e.g.
+        "images/?v=3.0.0zoomin_hover.png" instead of "images/zoomin_hover.png"). #}
+      {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/').split('?')[0]) }}
     {% endif %}
+
+    
 
 {% endblock %}
