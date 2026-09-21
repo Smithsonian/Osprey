@@ -15,7 +15,7 @@ from flask import send_from_directory
 
 from cache import cache
 # Logging
-from logger import app_log_handler, logger
+from logger import logger
 
 import os
 import locale
@@ -85,9 +85,8 @@ if site_env == "prod":
     from flask_minify import Minify
     Minify(app=app, html=True, js=True, cssless=True)
 
-# Route Flask's own log records into the osprey log file. The previous
-# app.logger.addHandler(logger) passed a Logger where a Handler is required.
-app.logger.addHandler(app_log_handler)
+# Flask's app.logger propagates to the root handler set up in logger.py, so it
+# needs no handler of its own (adding one wrote every record twice).
 
 # Setup cache
 cache.init_app(app)

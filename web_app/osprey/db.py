@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """MySQL connection pool and query helpers shared by the dashboard and API."""
 
+import time
+
 import mysql.connector
 from mysql.connector import pooling
 
@@ -11,6 +13,13 @@ from logger import logger
 class DatabasePoolError(Exception):
     """Raised when database pool initialization fails."""
 
+
+# mysql-connector caps pool_size at 32.
+POOL_SIZE = 6
+# get_connection() never waits, so borrowing retries briefly when the pool is
+# momentarily empty (total wait is at most about BORROW_RETRIES * BORROW_DELAY).
+BORROW_RETRIES = 5
+BORROW_DELAY = 0.1  # seconds
 
 _pool = None
 
@@ -23,7 +32,7 @@ def init_db():
     try:
         _pool = pooling.MySQLConnectionPool(
             pool_name='osprey_pool',
-            pool_size=3,
+            pool_size=POOL_SIZE,
             host=settings.host,
             user=settings.user,
             password=settings.password,
@@ -38,11 +47,35 @@ def init_db():
         raise DatabasePoolError(f"Failed to initialize database pool: {err}") from err
 
 
+def _get_pooled_connection():
+    """Borrow a connection, waiting briefly if the pool is momentarily empty."""
+    for attempt in range(BORROW_RETRIES):
+        try:
+            return _pool.get_connection()
+        except mysql.connector.errors.PoolError:
+            if attempt == BORROW_RETRIES - 1:
+                raise  # still exhausted after all retries
+            logger.warning("connection pool exhausted, retrying ({}/{})".format(attempt + 1, BORROW_RETRIES))
+            time.sleep(BORROW_DELAY)
+
+
 def _borrow_cursor():
     init_db()
-    conn = _pool.get_connection()
-    conn.time_zone = '-05:00'
-    return conn, conn.cursor(dictionary=True)
+    conn = _get_pooled_connection()
+    try:
+        conn.time_zone = '-05:00'
+        return conn, conn.cursor(dictionary=True)
+    except Exception:
+        conn.close()  # return the connection to the pool if setup fails
+        raise
+
+
+def _release(conn, cur):
+    """Close the cursor and always return the connection to the pool."""
+    try:
+        cur.close()
+    finally:
+        conn.close()  # runs even if cur.close() raises (e.g. unread result)
 
 
 # NOTE: these helpers raise on database errors. They previously returned the
@@ -73,8 +106,7 @@ def run_query(query, parameters=None, return_val=True, log_vals=True):
             return data
         return True
     finally:
-        cur.close()
-        conn.close()
+        _release(conn, cur)
 
 
 def query_database_insert(query, parameters, return_res=False):
@@ -97,8 +129,7 @@ def query_database_insert(query, parameters, return_res=False):
             return cur.lastrowid
         return True
     finally:
-        cur.close()
-        conn.close()
+        _release(conn, cur)
 
 
 def executemany(query, params_list):
@@ -109,5 +140,4 @@ def executemany(query, params_list):
         cur.executemany(query, params_list)
         return cur.rowcount
     finally:
-        cur.close()
-        conn.close()
+        _release(conn, cur)

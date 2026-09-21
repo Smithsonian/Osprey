@@ -144,6 +144,17 @@
         allFiles = (data.files || []).slice();
         currentPage = 1;
 
+        var headingEl = document.getElementById('dashboard-lightbox-folder-heading');
+        if (headingEl) {
+            headingEl.textContent = 'Image Previews for the Folder ' + (data.folder || '');
+        }
+        if (data.last_updated) {
+            var lastUpdatedEl = document.getElementById('dashboard-folder-last-updated');
+            if (lastUpdatedEl) {
+                lastUpdatedEl.textContent = data.last_updated;
+            }
+        }
+
         if (!allFiles.length) {
             showEmpty();
             return;
@@ -159,6 +170,9 @@
     }
 
     function loadFromUrl(filesUrl, panel) {
+        // See dashboard_table_panel.js loadFromUrl for why this guard is needed:
+        // it drops responses that arrive after a newer folder has been requested.
+        var requestFolderId = panel.getAttribute('data-folder-id');
         setLoading();
         return fetch(filesUrl, { credentials: 'same-origin' })
             .then(function (response) {
@@ -168,10 +182,16 @@
                 return response.json();
             })
             .then(function (data) {
+                if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                    return data;
+                }
                 showContent(data, panel);
                 return data;
             })
             .catch(function (error) {
+                if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                    return;
+                }
                 showError(error.message || 'Could not load image previews.');
             });
     }

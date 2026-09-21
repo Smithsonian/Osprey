@@ -12,6 +12,7 @@
         resultKey: 'post_results',
         columnsKey: 'project_postprocessing',
         errorNoun: 'post-processing steps',
+        headingPrefix: 'Post-Production Steps for the Folder ',
         badgeClass: {
             Completed: 'file-result-badge file-result-badge--ok',
             Failed: 'file-result-badge file-result-badge--failed',

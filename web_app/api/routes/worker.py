@@ -238,6 +238,13 @@ def api_update_project_details(project_alias=None):
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     else:
                         return jsonify({'error': 'Invalid operation'}), 401
+                    if query_property in ("status0", "status1", "status9"):
+                        # Keep project totals current after a status change. The status is already
+                        # committed, so a bad stored expression is logged, not returned as an error.
+                        try:
+                            folder_stats_service.recalculate_project_stats(project_id, transcription)
+                        except ValueError as err:
+                            logger.warning("project_stats: recalculation skipped|{}|{}".format(project_id, err))
                     return jsonify({"result": True})
             elif query_type == "file":
                 file_id = request.form.get("file_id")

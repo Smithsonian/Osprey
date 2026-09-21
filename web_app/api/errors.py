@@ -1,6 +1,7 @@
 """Blueprint JSON error handlers."""
 
 from flask import jsonify
+from mysql.connector.errors import PoolError
 
 from api import api_bp
 from api.exceptions import AppError, DatabaseConnectionError, InputValidationError, SecurityError
@@ -18,6 +19,15 @@ def handle_db_error(error):
     if error.original_error:
         logger.error(f"Database connection error: {error.original_error}")
     return jsonify({'error': "Service temporarily unavailable", 'code': error.code}), 503
+
+
+@api_bp.errorhandler(PoolError)
+def handle_pool_error(error):
+    """Pool still exhausted after the borrow retries in osprey.db: retryable 503, not 500."""
+    logger.error(f"Database pool exhausted: {error}")
+    response = jsonify({'error': "Service temporarily unavailable", 'code': "DB_CONN_001"})
+    response.headers['Retry-After'] = '1'
+    return response, 503
 
 
 @api_bp.errorhandler(InputValidationError)

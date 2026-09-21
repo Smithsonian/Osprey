@@ -41,7 +41,33 @@ OSPREY_ENV=dev venv/bin/python app.py
 
 This starts the Werkzeug dev server. Production runs behind a real WSGI
 server; `settings.py`'s `OSPREY_ENV=prod` switches on response
-minification and error-level logging.
+minification. Logging is verbose only when `OSPREY_ENV=dev`; any other
+value logs WARNING and above.
+
+## Logging
+
+`logger.py` writes two files in `OSPREY_LOG_FOLDER` (default `logs/`):
+`ospreyapp.log` (app, scripts) and `ospreyapi.log` (`api/` blueprint).
+Names are fixed, so all gunicorn workers and the nightly scripts append to
+the same files. The app does **not** rotate them: without a logrotate
+rule they grow forever. Example `/etc/logrotate.d/osprey` (adjust paths
+and user):
+
+```
+/path/to/web_app/logs/ospreyapp.log /path/to/web_app/logs/ospreyapi.log {
+    daily
+    maxsize 100M
+    rotate 14
+    compress
+    missingok
+    notifempty
+    su appuser appgroup
+}
+```
+
+`maxsize` is only checked when logrotate runs (daily by default on RHEL).
+On RHEL with SELinux, a non-standard log folder may need the `var_log_t`
+label or logrotate will be denied (check `ausearch -m avc -ts recent`).
 
 ## Tests
 

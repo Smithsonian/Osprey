@@ -474,39 +474,52 @@
             });
         }
 
-        function onFolderNavigate(event, folderId) {
-            var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
-            var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
-            var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
-            var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-            var hasTranscriptionQcLoader = document.getElementById('dashboard-transcription-qc-panel') &&
-                window.OspreyDashboardTranscriptionQc;
-            if (!hasFilesLoader && !hasQcLoader && !hasLightboxLoader && !hasPostprodLoader &&
-                !hasTranscriptionQcLoader) {
-                return;
+        function hasAnyPanelLoader() {
+            return Boolean(
+                (document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles) ||
+                (document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc) ||
+                (document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox) ||
+                (document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing) ||
+                (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc)
+            );
+        }
+
+        // Ask every panel loader present on the page (only the ones matching the
+        // active tab actually exist in the DOM) to reload for this folder.
+        function loadPanelsForFolder(folderId) {
+            if (document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles) {
+                window.OspreyDashboardFiles.loadForFolder(folderId);
             }
-            event.preventDefault();
+            if (document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc) {
+                window.OspreyDashboardQc.loadForFolder(folderId);
+            }
+            if (document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox) {
+                window.OspreyDashboardLightbox.loadForFolder(folderId);
+            }
+            if (document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing) {
+                window.OspreyDashboardPostprocessing.loadForFolder(folderId);
+            }
+            if (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc) {
+                window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
+            }
+        }
+
+        function navigateToFolder(folderId) {
             updateSelectedFolder(folderId);
             updateDashboardTabLinks(folderId);
             var navigateUrl = folderDashboardUrl(folderId, getActiveDashboardTab());
             if (window.history && window.history.pushState) {
                 window.history.pushState({ folderId: folderId }, '', navigateUrl);
             }
-            if (hasFilesLoader) {
-                window.OspreyDashboardFiles.loadForFolder(folderId);
+            loadPanelsForFolder(folderId);
+        }
+
+        function onFolderNavigate(event, folderId) {
+            if (!hasAnyPanelLoader()) {
+                return;
             }
-            if (hasQcLoader) {
-                window.OspreyDashboardQc.loadForFolder(folderId);
-            }
-            if (hasLightboxLoader) {
-                window.OspreyDashboardLightbox.loadForFolder(folderId);
-            }
-            if (hasPostprodLoader) {
-                window.OspreyDashboardPostprocessing.loadForFolder(folderId);
-            }
-            if (hasTranscriptionQcLoader) {
-                window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
-            }
+            event.preventDefault();
+            navigateToFolder(folderId);
         }
 
         var folderNavBound = false;
@@ -594,44 +607,34 @@
                 if (!this.value) {
                     return;
                 }
-                var hasFilesLoader = document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles;
-                var hasQcLoader = document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc;
-                var hasLightboxLoader = document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox;
-                var hasPostprodLoader = document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing;
-                var hasTranscriptionQcLoader = document.getElementById('dashboard-transcription-qc-panel') &&
-                    window.OspreyDashboardTranscriptionQc;
-                if (hasFilesLoader || hasQcLoader || hasLightboxLoader || hasPostprodLoader ||
-                    hasTranscriptionQcLoader) {
+                if (hasAnyPanelLoader()) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
-                        var folderId = match[1];
-                        updateSelectedFolder(folderId);
-                        updateDashboardTabLinks(folderId);
-                        var navigateUrl = folderDashboardUrl(folderId, getActiveDashboardTab());
-                        if (window.history && window.history.pushState) {
-                            window.history.pushState({ folderId: folderId }, '', navigateUrl);
-                        }
-                        if (hasFilesLoader) {
-                            window.OspreyDashboardFiles.loadForFolder(folderId);
-                        }
-                        if (hasQcLoader) {
-                            window.OspreyDashboardQc.loadForFolder(folderId);
-                        }
-                        if (hasLightboxLoader) {
-                            window.OspreyDashboardLightbox.loadForFolder(folderId);
-                        }
-                        if (hasPostprodLoader) {
-                            window.OspreyDashboardPostprocessing.loadForFolder(folderId);
-                        }
-                        if (hasTranscriptionQcLoader) {
-                            window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
-                        }
+                        navigateToFolder(match[1]);
                         return;
                     }
                 }
                 window.location.href = this.value;
             });
         }
+
+        // Browser Back/Forward after a soft folder switch: the URL and history
+        // state move, but nothing else does unless we reload the panel data too.
+        window.addEventListener('popstate', function (event) {
+            var folderId = event.state && event.state.folderId;
+            if (!folderId) {
+                // No folderId on this history entry (e.g. the page's original
+                // load) - reload so the page matches the URL we've landed on.
+                window.location.reload();
+                return;
+            }
+            if (!hasAnyPanelLoader()) {
+                return;
+            }
+            updateSelectedFolder(folderId);
+            updateDashboardTabLinks(folderId);
+            loadPanelsForFolder(folderId);
+        });
 
         setLoading(true);
         fetch(foldersUrl, { credentials: 'same-origin' })

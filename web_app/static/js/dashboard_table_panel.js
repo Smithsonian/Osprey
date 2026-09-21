@@ -229,6 +229,12 @@
             $('#' + cfg.idPrefix + '-error').addClass('d-none');
             $('#' + cfg.idPrefix + '-folder-name').text(data.folder || '');
             $('#' + cfg.idPrefix + '-count').text(files.length + ' file' + (files.length !== 1 ? 's' : ''));
+            if (cfg.headingPrefix) {
+                $('#' + cfg.idPrefix + '-folder-heading').text(cfg.headingPrefix + (data.folder || ''));
+            }
+            if (data.last_updated) {
+                $('#dashboard-folder-last-updated').text(data.last_updated);
+            }
 
             if (!files.length) {
                 showEmpty(data.folder || '');
@@ -241,6 +247,11 @@
         }
 
         function loadFromUrl(url, panel) {
+            // Snapshot which folder this request is for. A newer loadForFolder()
+            // call updates this attribute immediately, so if it no longer matches
+            // when the response lands, a later request has already taken over —
+            // discard this one instead of overwriting the panel with stale data.
+            var requestFolderId = panel.getAttribute('data-folder-id');
             setLoading();
             return fetch(url, { credentials: 'same-origin' })
                 .then(function (response) {
@@ -250,10 +261,16 @@
                     return response.json();
                 })
                 .then(function (data) {
+                    if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                        return data;
+                    }
                     showTable(data, panel);
                     return data;
                 })
                 .catch(function (error) {
+                    if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                        return;
+                    }
                     showError(error.message || ('Could not load ' + cfg.errorNoun + '.'));
                 });
         }

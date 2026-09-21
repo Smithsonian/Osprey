@@ -1,59 +1,42 @@
 import os
 import logging
-from logging.handlers import RotatingFileHandler
-from time import strftime
-from time import localtime
-import gzip
-import shutil
+from logging.handlers import WatchedFileHandler
 import settings
 
-# Logging
-current_time = strftime("%Y%m%d_%H%M%S", localtime())
-
-# Create folder if it doesn't exists
-# os.makedirs('logs', exist_ok=True)
-
-
-# From https://docs.python.org/3/howto/logging-cookbook.html#using-a-rotator-and-namer-to-customize-log-rotation-processing
-def rotator(source, dest):
-    with open(source, 'rb') as f_in:
-        with gzip.open(dest, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    os.remove(source)
-
-
-def namer(name):
-    return name + ".gz"
-
-
-if settings.env == "prod":
-    log_level = logging.ERROR
-else:
+# Only an explicit "dev" is verbose. prod, staging or a typo stay at WARNING.
+if settings.env == "dev":
     log_level = logging.DEBUG
+else:
+    log_level = logging.WARNING
 
-log_format = '%(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s'
+log_format = '%(levelname)s | %(asctime)s | %(process)d | %(filename)s:%(lineno)s | %(message)s'
 log_datefmt = '%y-%b-%d %H:%M:%S'
 
-logfile = '{}/ospreyapp_{}.log'.format(settings.log_folder, current_time)
-app_log_handler = RotatingFileHandler(logfile, maxBytes=10000000, backupCount=10)
-# rotator/namer belong on the handler; setting them on the logging module
-# (as before) silently disabled gzip rotation for this log.
-app_log_handler.rotator = rotator
-app_log_handler.namer = namer
-logging.basicConfig(level=log_level,
-                    format=log_format,
-                    datefmt=log_datefmt,
-                    handlers=[app_log_handler])
+# Fails fast at import if the folder can't be created (e.g. permissions).
+os.makedirs(settings.log_folder, exist_ok=True)
+
+
+def make_handler(filename):
+    """File handler with a fixed name; rotation is done by logrotate (see README).
+
+    WatchedFileHandler reopens the file after logrotate moves it, so all
+    workers and scripts can append to the same file. delay=True avoids
+    creating empty files when a script only imports this module.
+    """
+    handler = WatchedFileHandler(os.path.join(settings.log_folder, filename), delay=True)
+    handler.setFormatter(logging.Formatter(log_format, datefmt=log_datefmt))
+    return handler
+
+
+# Root stays at WARNING so third-party libraries stay quiet; the osprey
+# loggers below use log_level. Flask's app.logger propagates to this handler.
+app_log_handler = make_handler('ospreyapp.log')
+logging.basicConfig(level=logging.WARNING, handlers=[app_log_handler])
 logger = logging.getLogger("osprey_webapp")
+logger.setLevel(log_level)
 
 # Dedicated logger for the api/ blueprint, written to its own file/log stream.
-api_logfile = '{}/ospreyapi_{}.log'.format(settings.log_folder, current_time)
-api_handler = RotatingFileHandler(api_logfile, maxBytes=10000000, backupCount=10)
-api_handler.setFormatter(logging.Formatter(log_format, datefmt=log_datefmt))
-api_handler.rotator = rotator
-api_handler.namer = namer
-
 api_logger = logging.getLogger("osprey_api")
 api_logger.setLevel(log_level)
-api_logger.addHandler(api_handler)
+api_logger.addHandler(make_handler('ospreyapi.log'))
 api_logger.propagate = False

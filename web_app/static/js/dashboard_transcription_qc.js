@@ -170,6 +170,9 @@
     }
 
     function loadFromUrl(url, panel) {
+        // See dashboard_table_panel.js loadFromUrl for why this guard is needed:
+        // it drops responses that arrive after a newer folder has been requested.
+        var requestFolderId = panel.getAttribute('data-folder-id');
         showLoading();
         return fetch(url, { credentials: 'same-origin' })
             .then(function (response) {
@@ -179,10 +182,16 @@
                 return response.json();
             })
             .then(function (data) {
+                if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                    return data;
+                }
                 showContent(data, panel);
                 return data;
             })
             .catch(function (error) {
+                if (panel.getAttribute('data-folder-id') !== requestFolderId) {
+                    return;
+                }
                 showError(error.message || 'Could not load transcription QC information.');
             });
     }

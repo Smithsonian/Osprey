@@ -553,7 +553,7 @@
         {% elif tab == "lightbox" %}
             {% if site_net == "internal" %}
               <br><br>
-                <p class="fs-3">Image Previews for the Folder {{ folder_name.project_folder }}</p>
+                <p class="fs-3" id="dashboard-lightbox-folder-heading">Image Previews for the Folder {{ folder_name.project_folder }}</p>
 <div id="dashboard-lightbox-panel"
      class="dashboard-lightbox-panel"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
@@ -583,7 +583,7 @@
         {% elif tab == "postprod" %}
 
             <br><br>
-                <p class="fs-3">Post-Production Steps for the Folder {{ folder_name.project_folder }}</p>
+                <p class="fs-3" id="dashboard-postprod-folder-heading">Post-Production Steps for the Folder {{ folder_name.project_folder }}</p>
 <div id="dashboard-postprod-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
@@ -618,7 +618,7 @@
 
         </div>
 
-        <br><p>Folder last updated on {{ fol_last_update }}.</p>
+        <br><p>Folder last updated on <span id="dashboard-folder-last-updated">{{ fol_last_update }}</span>.</p>
 
     {% else %}
         <p>Select a folder on the left</p>
