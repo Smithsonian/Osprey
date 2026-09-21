@@ -289,7 +289,8 @@
 
 
 {% if zoom_exists >= 1 %}
-    {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image) }}
+    {# Explicit prefix; the macro's relative default only works two levels deep. #}
+    {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/')) }}
 {% endif %}
 
 {% endblock %}

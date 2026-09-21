@@ -133,13 +133,6 @@ def set_security_headers(response):
     return response
 
 
-@app.url_defaults
-def static_cache_busting(endpoint, values):
-    # Version every static URL so CSS/JS changes ship without a hard refresh.
-    if endpoint == 'static':
-        values.setdefault('v', site_ver)
-
-
 # Shared database pool
 try:
     init_db()

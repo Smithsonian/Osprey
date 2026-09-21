@@ -274,12 +274,11 @@
     <script src="{{ url_for('static', filename='js/file.js') }}"></script>
 
 {% if zoom_exists >= 1 %}
-    {# See file.html: prefix_url must be a bare directory path with no query string,
-       since OpenSeadragon appends icon filenames directly onto it. Passing it
+    {# See file.html: prefix_url must be a bare directory path. Passing it
        explicitly here avoids the macro's fragile relative-path default
        ('../../static/images/'), which only resolves if this page is served two
        directory levels deep. #}
-    {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/').split('?')[0]) }}
+    {{ openseadragon_init(zoom_exists, zoom_filename, iiif_image, url_for('static', filename='images/')) }}
 {% endif %}
 
 {% endblock %}
