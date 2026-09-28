@@ -89,11 +89,12 @@ def download_builtin_report_csv(project_alias=None, report_id=None):
         project_title=project_info.get('project_title', ''),
     )
 
+    columns = chart.get('table_columns') or []
     output = StringIO()
     writer = csv.writer(output, lineterminator='\n')
-    writer.writerow(['Date', 'Images', 'Objects'])
+    writer.writerow([col['label'] for col in columns])
     for row in chart['table_rows']:
-        writer.writerow([row['date'], row['images'], row['objects']])
+        writer.writerow([row.get(col['key'], '') for col in columns])
 
     filename = f'{project_alias}-{report_id}.csv'
     return Response(

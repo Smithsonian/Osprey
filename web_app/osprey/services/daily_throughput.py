@@ -104,6 +104,11 @@ def build_daily_throughput_chart_spec(rows, *, project_title=''):
             {'date': label, 'images': img, 'objects': obj}
             for label, img, obj in zip(labels, images, objects)
         ],
+        'table_columns': [
+            {'key': 'date', 'label': 'Date'},
+            {'key': 'images', 'label': 'Images'},
+            {'key': 'objects', 'label': 'Objects'},
+        ],
         'table_mode': 'throughput',
         'short_description': short,
         'long_description': short,

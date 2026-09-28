@@ -10,6 +10,29 @@ from osprey.db import run_query
 # Projects that use ArchivesSpace RefID salvage after a failed filename check.
 _JPCA_PROJECT_IDS = {"220", "248"}
 
+# Human-readable labels for files_checks.file_check values, shared by the
+# dashboard files table and the built-in "file error types" report.
+FILE_CHECK_LABELS = {
+    'file_name': 'File name',
+    'tif_compression': 'TIF compression',
+    'tifpages': 'TIF pages',
+    'magick': 'ImageMagick',
+    'jhove': 'JHOVE',
+    'unique_file': 'Unique file',
+    'raw_pair': 'RAW pair',
+    'valid_name': 'Valid name',
+    'old_name': 'Old name',
+    'derivative': 'Derivative',
+    'prefix': 'Prefix',
+    'sequence': 'Sequence',
+    'tesseract': 'Tesseract',
+}
+
+
+def label_file_check(name: str) -> str:
+    """Human-readable label for a files_checks.file_check value."""
+    return FILE_CHECK_LABELS.get(name, name.replace('_', ' ').title())
+
 # Statement keywords / comment markers that must never appear in scalar expressions.
 _FORBIDDEN_SQL = re.compile(
     r"(;|--|/\*|\*/|\b(select|insert|update|delete|drop|alter|truncate|create|replace|"

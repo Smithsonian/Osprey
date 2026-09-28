@@ -4,12 +4,21 @@ from __future__ import annotations
 
 from osprey.db import run_query
 from osprey.services import daily_throughput
+from osprey.services import file_error_types
 
 BUILTIN_REPORT_DEFS = {
     'daily_throughput': {
         'report_id': 'daily_throughput',
         'report_title': 'Daily throughput',
         'report_title_brief': 'Daily throughput',
+        'render': 'chart',
+        'pregenerated': 0,
+        'builtin': 1,
+    },
+    'file_error_types': {
+        'report_id': 'file_error_types',
+        'report_title': 'File error types',
+        'report_title_brief': 'Error types',
         'render': 'chart',
         'pregenerated': 0,
         'builtin': 1,
@@ -79,6 +88,14 @@ def load_chart_report(project_id, report_id, *, project_title=''):
     if report_id == 'daily_throughput':
         rows = daily_throughput.load_daily_throughput_rows(project_id)
         spec = daily_throughput.build_daily_throughput_chart_spec(
+            rows, project_title=project_title,
+        )
+        spec['step_id'] = report_id
+        spec['chart_js_spec'] = chart_spec_for_js(spec)
+        return spec
+    if report_id == 'file_error_types':
+        rows = file_error_types.load_file_error_type_rows(project_id)
+        spec = file_error_types.build_file_error_type_chart_spec(
             rows, project_title=project_title,
         )
         spec['step_id'] = report_id

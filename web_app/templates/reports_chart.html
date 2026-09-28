@@ -61,17 +61,17 @@
                 <caption class="visually-hidden">Data for {{ chart.title }}</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Date</th>
-                    <th scope="col">Images</th>
-                    <th scope="col">Objects</th>
+                    {% for col in chart.table_columns %}
+                      <th scope="col">{{ col.label }}</th>
+                    {% endfor %}
                   </tr>
                 </thead>
                 <tbody>
                   {% for row in chart.table_rows %}
                     <tr>
-                      <td>{{ row.date }}</td>
-                      <td>{{ row.images }}</td>
-                      <td>{{ row.objects }}</td>
+                      {% for col in chart.table_columns %}
+                        <td>{{ row[col.key] }}</td>
+                      {% endfor %}
                     </tr>
                   {% endfor %}
                 </tbody>

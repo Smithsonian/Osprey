@@ -8,6 +8,7 @@ import uuid
 
 import pandas as pd
 from flask import current_app, jsonify, request
+import requests
 
 import settings
 from cache import cache
@@ -360,31 +361,33 @@ def api_update_project_details(project_alias=None):
                                     # JPCA
                                     # Login to ASpace
                                     logger.info("Special process for JPCA.")
-                                    login_params = {"password": getattr(settings, 'aspace_api_password', None)}
-                                    login_url = "{}/users/{}/login?{}".format(
+                                    # login_params = {"password": getattr(settings, 'aspace_api_password', None)}
+                                    login_url = "{}/users/{}/login".format(
                                         getattr(settings, 'aspace_api', None),
-                                        getattr(settings, 'aspace_api_username', None),
-                                        urllib.parse.urlencode(login_params),
+                                        getattr(settings, 'aspace_api_username', None)
                                     )
-                                    try:
-                                        with urllib.request.urlopen(urllib.request.Request(login_url, method="POST")) as resp:
-                                            status_code = resp.status
-                                            reason = resp.reason
-                                            response_json = json.loads(resp.read().decode('utf-8'))
-                                    except urllib.error.HTTPError as err:
-                                        status_code = err.code
-                                        reason = err.reason
-                                        response_json = None
+                                    # try:
+                                    payload = {"password": getattr(settings, 'aspace_api_password', None)}
+                                    with requests.post(login_url, data=payload, timeout=60) as resp:
+                                        status_code = resp.status_code
+                                        response_json = resp.json()
+                                    # with urllib.request.urlopen(urllib.request.Request(login_url, method="POST")) as resp:
+                                    #     status_code = resp.status
+                                    #     reason = resp.reason
+                                    #     response_json = json.loads(resp.read().decode('utf-8'))
                                     logger.info(f"ASpace r.status_code: {status_code}")
                                     if status_code == 200:
                                         logger.info("Success! Was able to get token")
                                         session_token = response_json['session']
                                         Headers = {"X-ArchivesSpace-Session": session_token}
-                                        lookup_url = f"{getattr(settings, 'aspace_api', None)}/repositories/2/find_by_id/archival_objects?ref_id[]={refid};resolve[]=archival_objects"
-                                        with urllib.request.urlopen(urllib.request.Request(lookup_url, headers=Headers)) as resp:
-                                            refid_exists = json.loads(resp.read().decode('utf-8'))
-                                        if len(refid_exists['archival_objects']) != 0:
-                                            if refid_exists['archival_objects'][0]['_resolved']['ref_id'] == refid:
+                                        lookup_url = f"{getattr(settings, 'aspace_api', None)}/repositories/2/find_by_id/archival_objects?ref_id[]={refid}&resolve[]=archival_objects"
+                                        # with urllib.request.urlopen(urllib.request.Request(lookup_url, headers=Headers)) as resp:
+                                        #     refid_exists = json.loads(resp.read().decode('utf-8'))
+                                        with requests.get(lookup_url, timeout=60, headers=Headers) as resp:
+                                            status_code = resp.status_code
+                                            response_json = resp.json()
+                                        if len(response_json['archival_objects']) != 0:
+                                            if response_json['archival_objects'][0]['_resolved']['ref_id'] == refid:
                                                 query = ("insert into jpc_aspace_data (refid, table_id, resource_id, archive_box, archive_type, archive_folder, unit_title) with data as (select distinct SUBSTRING_INDEX(file_name, '_', 1) as refid from files where file_id = %(file_id)s) (select refid, uuid_v4s(), 'a', 'a', 'a', 'a', 'a' from data)")
                                                 logger.info(query)
                                                 res = query_database_insert(query, {'file_id': file_id})
@@ -392,7 +395,7 @@ def api_update_project_details(project_alias=None):
                                                 check_results = 0
                                                 check_info = refid
                                     else:
-                                        logger.error("\n There was an error when loggin into ASpace: {}".format(reason))
+                                        logger.error("\n There was an error when loggin into ASpace")
                     if transcription == 1:
                         query = (
                             "INSERT INTO transcription_files_checks (file_transcription_id, file_check, check_results, check_info, updated_at) "
