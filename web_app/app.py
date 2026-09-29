@@ -535,7 +535,7 @@ def homepage(team=None, subset=None):
             "WHERE p.skip_project = 0 AND p.project_section = %(section)s AND p.project_unit = 'SAWHM'",
         )
     list_projects_is = pd.DataFrame(run_query(is_section_query, {'section': 'IS'}))
-    list_projects_is = list_projects_is.drop("images_public", axis=1)
+    # list_projects_is = list_projects_is.drop("images_public", axis=1)
 
     list_projects_is = list_projects_is.rename(columns={
         "project_unit": "Unit",
