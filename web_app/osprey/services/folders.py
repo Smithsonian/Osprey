@@ -20,6 +20,12 @@ def list_for_project(project_id, transcription, include_previews=True):
              " COALESCE(CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
              "         WHEN q.qc_status = 1 THEN 'QC Failed' "
              "         WHEN q.qc_status = 9 THEN 'QC Pending' END, 'QC Pending') as qc_status,"
+             # 1 when any file in the folder has transcribed text (any source);
+             # drives the dashboard Transcribed / Transcription QC filters.
+             " CASE WHEN EXISTS (SELECT 1 FROM transcription_files tf "
+             "     JOIN transcription_files_text tt ON (tf.file_transcription_id = tt.file_transcription_id) "
+             "     WHERE tf.folder_transcription_id = f.folder_transcription_id) "
+             "   THEN 1 ELSE 0 END as has_transcriptions,"
              " GROUP_CONCAT(b.badge_text ORDER BY b.badge_text SEPARATOR ',') as badges"
              " FROM transcription_folders f LEFT JOIN qc_folders q ON (f.folder_transcription_id = q.folder_uid)"
              "     LEFT JOIN folders_badges b ON (f.folder_transcription_id = b.folder_uid) "

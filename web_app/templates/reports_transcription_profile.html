@@ -81,7 +81,7 @@
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="tab-suspicious" data-bs-toggle="tab" data-bs-target="#pane-suspicious" type="button" role="tab" aria-controls="pane-suspicious" aria-selected="false">
-        Suspicious values <span class="badge text-bg-warning">{{ payload.suspicious|length }}</span>
+        Suspicious values
       </button>
     </li>
   </ul>
@@ -171,11 +171,12 @@
     {# ---- Suspicious values ---- #}
     <div class="tab-pane fade" id="pane-suspicious" role="tabpanel" aria-labelledby="tab-suspicious">
       <p class="small text-muted">
-        Values that may be transcription errors or hallucinations, highest score first. Reasons:
-        <strong>rare</strong> (seen in few files), <strong>novel</strong> (unlike any common value),
-        <strong>shape</strong> (unusual mix of letters/digits/symbols for this field),
-        <strong>length</strong> (much longer/shorter than usual), <strong>repeat</strong> (a word repeated in a row),
-        <strong>boilerplate</strong> (model chatter such as “the image shows”).
+        Values flagged by one or more checks, highest score first. Reasons:
+        <strong>rare</strong> (in few files), <strong>novel</strong> (unlike any common value in the field),
+        <strong>shape</strong> (uncommon mix of letters, digits and symbols for the field),
+        <strong>length</strong> (much longer or shorter than the field's usual length),
+        <strong>repeat</strong> (same word three or more times in a row),
+        <strong>boilerplate</strong> (contains a listed phrase, e.g. “the image shows”).
       </p>
       <table id="suspicious_table" class="display compact table-striped w-100">
         <thead><tr>

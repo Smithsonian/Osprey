@@ -79,6 +79,28 @@ display-only. On submit, `qc_done()`:
 Transcription *source* QC (`qc_transcription_done()`) is a separate flow
 and still takes the posted value.
 
+## Dashboard folder filters (transcription projects)
+
+The folder list on the project dashboard (`static/js/dashboard_folders.js`,
+`matchesFilter()`) is loaded from `GET /api/projects/<alias>`, which uses
+`list_for_project()` in `osprey/services/folders.py`.
+
+For transcription projects each folder row has `has_transcriptions`
+(1/0): 1 when at least one file in the folder has a
+`transcription_files_text` row, from any source. Image projects don't
+send the field, so it is treated as 0.
+
+| Filter                     | Folders shown                                                          |
+|----------------------------|------------------------------------------------------------------------|
+| Transcribed                | `has_transcriptions = 1` (shown even when project QC is off)           |
+| Transcription QC Passed    | transcribed, available, has a "Transcription QC Passed" badge, no Failed badge |
+| Transcription QC Failed    | transcribed, has any "Transcription QC Failed" badge                   |
+| Transcription QC Pending   | transcribed, available, no transcription QC badge yet                  |
+
+The three Transcription QC filters only appear when project QC is on.
+Pass/fail per source comes from the `transcription_qc_status` badges
+written by `qc_transcription_done()`.
+
 ## Transcription profile
 
 A built-in report (`report_id = transcription_profile`, transcription

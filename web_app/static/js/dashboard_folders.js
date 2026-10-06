@@ -73,7 +73,9 @@
             section: isInDams(folder) ? 'dams' : 'active',
             fileCount: fileCountFromBadges(folder.badges) ||
                 (folder.no_files ? String(folder.no_files) + (Number(folder.no_files) === 1 ? ' file' : ' files') : null),
-            unavailable: isUnavailable(folder)
+            unavailable: isUnavailable(folder),
+            // Only sent for transcription projects (folders.list_for_project).
+            hasTranscriptions: Number(folder.has_transcriptions) === 1
         };
     }
 
@@ -84,13 +86,16 @@
     }
 
     function hasTranscriptionQcFailed(folder) {
+        if (!folder.hasTranscriptions) {
+            return false;
+        }
         return (folder.transcriptionQcBadges || []).some(function (badge) {
             return /Failed/i.test(badge);
         });
     }
 
     function hasTranscriptionQcPassed(folder) {
-        if (folder.unavailable || hasTranscriptionQcFailed(folder)) {
+        if (!folder.hasTranscriptions || folder.unavailable || hasTranscriptionQcFailed(folder)) {
             return false;
         }
         return (folder.transcriptionQcBadges || []).some(function (badge) {
@@ -99,7 +104,8 @@
     }
 
     function hasTranscriptionQcPending(folder) {
-        return !folder.unavailable && (folder.transcriptionQcBadges || []).length === 0;
+        return folder.hasTranscriptions && !folder.unavailable &&
+            (folder.transcriptionQcBadges || []).length === 0;
     }
 
     function extraBadges(badgeList) {
@@ -265,6 +271,10 @@
         if (filterMode === 'errors') {
             return folder.file_errors === 1 || folder.hasFolderError;
         }
+        // Not tied to QC: shown in transcription projects even with QC off.
+        if (filterMode === 'transcribed') {
+            return folder.hasTranscriptions;
+        }
         if (!qcEnabled && (
             filterMode === 'qc' ||
             filterMode === 'qc_pending' ||
@@ -304,6 +314,7 @@
         errors: 'Errors',
         qc: 'QC Failed',
         qc_pending: 'QC Pending',
+        transcribed: 'Transcribed',
         transcription_qc: 'Transcription QC Failed',
         transcription_qc_passed: 'Transcription QC Passed',
         transcription_qc_pending: 'Transcription QC Pending',

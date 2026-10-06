@@ -326,6 +326,9 @@
       <div class="dashboard-folder-filter-sub btn-group btn-group-sm flex-wrap w-100" role="group" aria-label="Filter folders by status">
         <button type="button" class="btn btn-outline-success active" data-folder-filter="ok" aria-pressed="true">OK</button>
         <button type="button" class="btn btn-outline-danger" data-folder-filter="errors" aria-pressed="false">Errors</button>
+        {% if transcription == 1 %}
+        <button type="button" class="btn btn-outline-info" data-folder-filter="transcribed" aria-pressed="false">Transcribed</button>
+        {% endif %}
         {% if project_info.qc_status != 0 %}
         <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="qc" aria-pressed="false">QC Failed</button>
         <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="qc_pending" aria-pressed="false">QC Pending</button>
