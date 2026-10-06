@@ -13,6 +13,7 @@ import settings
 from logger import logger
 from osprey.db import run_query
 from osprey.services import report_materializations as materializations
+from osprey.services import transcription_profile
 
 
 def list_pregenerated_reports() -> list[dict]:
@@ -28,8 +29,21 @@ def list_pregenerated_reports() -> list[dict]:
     return rows or []
 
 
+def list_transcription_profile_jobs() -> list[dict]:
+    """One built-in transcription_profile job per transcription project."""
+    rows = run_query(
+        "SELECT project_id FROM projects WHERE transcription = 1 ORDER BY project_id",
+        log_vals=False,
+    )
+    return [
+        {"project_id": r["project_id"], "report_id": transcription_profile.REPORT_ID,
+         "report_title": "Transcription profile"}
+        for r in rows or []
+    ]
+
+
 def queue_all(*, requested_by: str = "nightly") -> int:
-    reports = list_pregenerated_reports()
+    reports = list_pregenerated_reports() + list_transcription_profile_jobs()
     if not reports:
         logger.info("queue_nightly_reports: no pregenerated reports found")
         return 0

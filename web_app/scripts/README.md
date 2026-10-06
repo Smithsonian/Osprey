@@ -18,7 +18,15 @@ out-of-band.
    mysql -u <user> -p <db_name> < db/mark_pregenerated_reports.sql
    ```
 
-3. Schedule overnight generation. Copy an entry from
+3. For transcription projects, apply the transcription profile tables
+   (the nightly queue adds one `transcription_profile` job per
+   transcription project):
+
+   ```bash
+   mysql -u <user> -p <db_name> < db/transcription_profile.sql
+   ```
+
+4. Schedule overnight generation. Copy an entry from
    [`cron/nightly_reports.cron.example`](cron/nightly_reports.cron.example), or run:
 
    ```bash

@@ -23,6 +23,17 @@ BUILTIN_REPORT_DEFS = {
         'pregenerated': 0,
         'builtin': 1,
     },
+    # Computed overnight by scripts/materialize_reports.py, hence pregenerated=1
+    # (also enables the existing /refresh and /status endpoints).
+    'transcription_profile': {
+        'report_id': 'transcription_profile',
+        'report_title': 'Transcription profile',
+        'report_title_brief': 'Transcription profile',
+        'render': 'transcription_profile',
+        'pregenerated': 1,
+        'builtin': 1,
+        'transcription_only': True,
+    },
 }
 
 
@@ -40,9 +51,20 @@ def get_builtin_report(project_id, report_id):
     return _builtin_row(project_id, report_id)
 
 
+def _is_transcription_project(project_id):
+    rows = run_query(
+        'SELECT transcription FROM projects WHERE project_id = %(project_id)s',
+        {'project_id': project_id},
+    )
+    return bool(rows) and rows[0]['transcription'] == 1
+
+
 def list_builtin_reports(project_id):
-    """All built-in reports for a project."""
-    return [_builtin_row(project_id, rid) for rid in sorted(BUILTIN_REPORT_DEFS)]
+    """All built-in reports for a project (transcription-only ones only for transcription projects)."""
+    rows = [_builtin_row(project_id, rid) for rid in sorted(BUILTIN_REPORT_DEFS)]
+    if not _is_transcription_project(project_id):
+        rows = [row for row in rows if not row.get('transcription_only')]
+    return rows
 
 
 def list_project_reports(project_id):

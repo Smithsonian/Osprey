@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{#- Transcription profile report. Data comes from transcription_profile.get_report_view();
+    nothing is computed in-request. -#}
+
+{% block title %}{{ project_info.project_title }} - {{ report.report_title }}{% endblock %}
+
+{% block homelink %}
+    <a class="navbar-context" href="{{ url_for('dashboard', project_alias=project_alias) }}" title="{{ project_info.project_title }}">{{ project_info.project_title }}</a>
+{% endblock %}
+
+{% macro fill_bar(row) -%}
+  {#- Stacked bar: filled / nonstring / empty. Text percentages sit next to it for screen readers. -#}
+  <div class="progress-stacked transcription-fill-bar" aria-hidden="true">
+    <div class="progress" style="width: {{ row.filled_pct }}%"><div class="progress-bar bg-success"></div></div>
+    <div class="progress" style="width: {{ row.nonstring_pct }}%"><div class="progress-bar bg-warning"></div></div>
+    <div class="progress" style="width: {{ row.empty_pct }}%"><div class="progress-bar bg-secondary bg-opacity-25"></div></div>
+  </div>
+{%- endmacro %}
+
+{% block content %}
+{% set payload = view.payload %}
+
+<div class="statistics-page">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ report.report_title }}</h1>
+      <p class="text-muted small mb-0">{{ project_info.project_title }}</p>
+    </div>
+    <a class="btn btn-outline-dark btn-sm" href="{{ url_for('dashboard', project_alias=project_alias) }}">
+      <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i>
+      Back to dashboard
+    </a>
+  </div>
+
+  {% if not view.sources %}
+    <div class="alert alert-info" role="status">This project has no transcription sources.</div>
+  {% else %}
+
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+    {% if view.sources|length > 1 %}
+    <form method="get" class="d-flex align-items-end gap-2">
+      <div>
+        <label for="source_id" class="form-label small mb-1">Transcription source</label>
+        <select id="source_id" name="source_id" class="form-select form-select-sm">
+          {% for s in view.sources %}
+            <option value="{{ s.source_id }}" {% if s.source_id == view.source.source_id %}selected{% endif %}>{{ s.source_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-sm btn-outline-primary">Show</button>
+    </form>
+    {% else %}
+      <p class="mb-0"><strong>Source:</strong> {{ view.source.source_name }}</p>
+    {% endif %}
+
+    <div class="small text-muted text-end">
+      {% if view.computed_at %}
+        Computed {{ view.computed_at }} (refreshed nightly).
+      {% else %}
+        Not computed yet. A run has been queued.
+      {% endif %}
+      {% if materialization and materialization.status in ['queued', 'running'] %}
+        <span class="badge text-bg-secondary">{{ materialization.status|capitalize }}</span>
+      {% elif materialization and materialization.status == 'failed' %}
+        <span class="badge text-bg-danger" title="{{ materialization.error_message }}">Last run failed</span>
+      {% endif %}
+      {% if username %}
+        <button type="button" id="refresh_report_btn" class="btn btn-sm btn-outline-primary ms-2">Recompute</button>
+        <div id="refresh_report_msg" class="small mt-1" role="status"></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if payload %}
+  <ul class="nav nav-tabs" role="tablist" aria-label="Transcription profile views">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-fill" data-bs-toggle="tab" data-bs-target="#pane-fill" type="button" role="tab" aria-controls="pane-fill" aria-selected="true">Fill rate</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-common" data-bs-toggle="tab" data-bs-target="#pane-common" type="button" role="tab" aria-controls="pane-common" aria-selected="false">Common values</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-suspicious" data-bs-toggle="tab" data-bs-target="#pane-suspicious" type="button" role="tab" aria-controls="pane-suspicious" aria-selected="false">
+        Suspicious values <span class="badge text-bg-warning">{{ payload.suspicious|length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content border border-top-0 p-3 mb-4">
+
+    {# ---- Fill rate ---- #}
+    <div class="tab-pane fade show active" id="pane-fill" role="tabpanel" aria-labelledby="tab-fill">
+      <p class="small text-muted">
+        Share of the <strong>{{ view.total_files }}</strong> transcribed file{{ "" if view.total_files == 1 else "s" }} with a value in each field.
+        <span class="badge bg-success">Filled</span>
+        <span class="badge bg-warning text-dark">NonString</span> (only illegible marks such as “!!!”, or N/A, none, …)
+        <span class="badge bg-secondary bg-opacity-25 text-dark">Empty</span>
+      </p>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr>
+            <th scope="col">Field</th><th scope="col" class="w-50">Distribution</th>
+            <th scope="col" class="text-end">Filled</th><th scope="col" class="text-end">NonString</th>
+            <th scope="col" class="text-end">Empty</th>
+          </tr></thead>
+          <tbody>
+            {% for row in view.fill %}
+            <tr>
+              <th scope="row">{{ row.field_name }}</th>
+              <td>{{ fill_bar(row) }}</td>
+              <td class="text-end">{{ row.filled_pct }}%</td>
+              <td class="text-end">{{ row.nonstring_pct }}%</td>
+              <td class="text-end">{{ row.empty_pct }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ---- Common values ---- #}
+    <div class="tab-pane fade" id="pane-common" role="tabpanel" aria-labelledby="tab-common">
+      <p class="small text-muted">Most frequent values per field. Near-identical spellings are grouped; expand a group to see its variants.</p>
+      <div class="accordion" id="common_accordion">
+        {% for field in payload.fields %}
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="common_h{{ loop.index }}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#common_p{{ loop.index }}" aria-expanded="false" aria-controls="common_p{{ loop.index }}">
+              {{ field.field_name }}
+              <span class="small text-muted ms-2">{{ field.filled }} values, {{ field.distinct }} distinct</span>
+              {% if field.free_text %}<span class="badge text-bg-info ms-2" title="Mostly unique values: grouping and rarity checks are skipped">Free text</span>{% endif %}
+            </button>
+          </h2>
+          <div id="common_p{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="common_h{{ loop.index }}">
+            <div class="accordion-body">
+              {% if field.common %}
+              <table class="table table-sm mb-0">
+                <thead><tr><th scope="col">Value</th><th scope="col" class="text-end">Count</th><th scope="col" class="text-end">% of filled</th><th scope="col">Variants</th></tr></thead>
+                <tbody>
+                  {% for g in field.common %}
+                  <tr>
+                    <td>{{ g.value }}</td>
+                    <td class="text-end">{{ g.count }}</td>
+                    <td class="text-end">{{ g.pct }}%</td>
+                    <td>
+                      {% if g.n_variants > 1 %}
+                        <details>
+                          <summary>{{ g.n_variants }} spellings</summary>
+                          <ul class="small mb-0">
+                            {% for v in g.variants %}<li>{{ v.value }} <span class="text-muted">({{ v.count }})</span></li>{% endfor %}
+                            {% if g.n_variants > g.variants|length %}<li class="text-muted">…</li>{% endif %}
+                          </ul>
+                        </details>
+                      {% else %}<span class="text-muted small">—</span>{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+                <p class="text-muted small mb-0">No values.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ---- Suspicious values ---- #}
+    <div class="tab-pane fade" id="pane-suspicious" role="tabpanel" aria-labelledby="tab-suspicious">
+      <p class="small text-muted">
+        Values that may be transcription errors or hallucinations, highest score first. Reasons:
+        <strong>rare</strong> (seen in few files), <strong>novel</strong> (unlike any common value),
+        <strong>shape</strong> (unusual mix of letters/digits/symbols for this field),
+        <strong>length</strong> (much longer/shorter than usual), <strong>repeat</strong> (a word repeated in a row),
+        <strong>boilerplate</strong> (model chatter such as “the image shows”).
+      </p>
+      <table id="suspicious_table" class="display compact table-striped w-100">
+        <thead><tr>
+          <th scope="col">Field</th><th scope="col">Value</th><th scope="col">Files</th>
+          <th scope="col">Score</th><th scope="col">Reasons</th><th scope="col">Example file</th>
+        </tr></thead>
+        <tbody>
+          {% for row in payload.suspicious %}
+          <tr>
+            <td>{{ row.field_name }}</td>
+            <td>{{ row.value }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.score }}</td>
+            <td>{% for r in row.reasons %}<span class="badge text-bg-light border me-1">{{ r }}</span>{% endfor %}</td>
+            <td><a href="{{ url_for('files.file_transcription', file_id=row.file_id) }}" target="_blank">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+    <div class="alert alert-info" role="status">No results yet for this source. They will appear after the next nightly run, or after a recompute finishes.</div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script type="text/javascript">
+  $(document).ready(function () {
+    if ($('#suspicious_table').length) {
+      $('#suspicious_table').DataTable({
+        dom: 'Bfrtip',
+        buttons: ['csvHtml5', 'excelHtml5'],
+        order: [[3, 'desc']],
+        pageLength: 25
+      });
+    }
+    // Same refresh endpoint as other pregenerated reports.
+    $('#refresh_report_btn').on('click', function () {
+      $('#refresh_report_msg').text('Queuing…');
+      $.ajax({
+        url: '{{ url_for('reports.report_refresh', project_alias=project_alias, report_id=report.report_id) }}',
+        method: 'POST',
+        headers: { 'X-CSRFToken': $('meta[name="csrf-token"]').attr('content') }
+      })
+        .done(function () { $('#refresh_report_msg').text('Queued. Reload this page after the job finishes.'); })
+        .fail(function () { $('#refresh_report_msg').text('Failed to queue the recompute.'); });
+    });
+  });
+</script>
+{% endblock %}

@@ -11,11 +11,9 @@ from flask import url_for
 from flask_login import current_user
 from flask_login import login_required
 
-import settings
 from logger import logger
 from osprey.services import projects as project_service
 from osprey.services.permissions import user_perms
-from osprey.version import __version__
 from web.forms import LoginForm
 
 projects_bp = Blueprint('projects', __name__)
@@ -25,13 +23,6 @@ projects_bp = Blueprint('projects', __name__)
 @login_required
 def new_project(msg=None):
     """Create a new project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -48,19 +39,13 @@ def new_project(msg=None):
                                username=username, full_name=full_name,
                                is_admin=is_admin, msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
+                               form=form)
 
 
 @projects_bp.route('/create_new_project/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def create_new_project():
     """Create a new project"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     is_admin = user_perms('', user_type='admin')
     if is_admin is False:
@@ -98,13 +83,6 @@ def create_new_project():
 @login_required
 def edit_project(project_alias=None):
     """Edit a project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -123,19 +101,13 @@ def edit_project(project_alias=None):
                            username=username,
                            is_admin=is_admin,
                            project=project,
-                           form=form,
-                           site_env=site_env,
-                           site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           form=form)
 
 
 @projects_bp.route('/infprojects/', methods=['GET'], provide_automatic_options=False)
 @login_required
 def infprojects():
     """Home for informatics projects"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -158,18 +130,13 @@ def infprojects():
                            tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
                                                                border=0, escape=False,
                                                                classes=["display", "w-100"])],
-                           form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           form=form)
 
 
 @projects_bp.route('/infprojects/<proj_id>/', methods=['GET'], provide_automatic_options=False)
 @login_required
 def infprojects_edit(proj_id=None):
     """Home for informatics projects"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -180,18 +147,13 @@ def infprojects_edit(proj_id=None):
     si_units = project_service.list_si_units()
 
     return render_template('infproject.html',
-                           project=project, si_units=si_units, form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           project=project, si_units=si_units, form=form)
 
 
 @projects_bp.route('/infprojects/new/', methods=['GET'], provide_automatic_options=False)
 @login_required
 def new_infprojects():
     """Home for informatics projects"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -201,20 +163,13 @@ def new_infprojects():
     si_units = project_service.list_si_units()
 
     return render_template('newinfproject.html',
-                           si_units=si_units, form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           si_units=si_units, form=form)
 
 
 @projects_bp.route('/infprojects/edit/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def edit_inf_proj():
     """Create or edit an informatics project"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     if username not in ['villanueval', 'dipietroc']:
@@ -244,13 +199,6 @@ def edit_inf_proj():
 @login_required
 def proj_links(project_alias=None):
     """Add / edit links associated with a project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -270,20 +218,13 @@ def proj_links(project_alias=None):
 
     return render_template('proj_links.html',
                            username=username, is_admin=is_admin, project=project,
-                           form=form, projects_links=projects_links, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                           form=form, projects_links=projects_links)
 
 
 @projects_bp.route('/add_links/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def add_links(project_alias=None):
     """Create a new project"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     is_admin = user_perms('', user_type='admin')
     if is_admin is False:
@@ -305,11 +246,6 @@ def add_links(project_alias=None):
 @login_required
 def project_update(project_alias):
     """Save edits to a project"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     is_admin = user_perms('', user_type='admin')

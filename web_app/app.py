@@ -31,7 +31,9 @@ from auth_service import AuthBaseUser, get_auth_service
 from osprey.db import init_db, query_database_insert, run_query
 from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
 from osprey.services import reports as report_service
+from osprey.services import qc as qc_service
 from osprey.services.file_checks import assert_safe_sql_expression
+from web.errors import render_error
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -114,6 +116,35 @@ app.jinja_env.globals['csrf_token'] = generate_csrf
 def inject_csrf_token():
     return {'csrf_token': generate_csrf}
 
+
+@app.context_processor
+def inject_site_context():
+    """Site-wide template variables for every view (incl. blueprints).
+
+    An explicit render_template() kwarg with the same name still wins.
+    """
+    return {
+        'site_env': site_env,
+        'site_net': site_net,
+        'site_ver': site_ver,
+        'analytics_code': settings.analytics_code,
+    }
+
+
+@app.before_request
+def redirect_web_routes_on_api_site():
+    """API-only deployments (site_net == "api") serve /api/* only.
+
+    Browser routes redirect to the API route list. The API blueprint, static
+    files, the favicon and unmatched URLs (endpoint None, so they still 404)
+    are let through.
+    """
+    if site_net != "api":
+        return None
+    if request.blueprint == 'api' or request.endpoint in (None, 'static', 'favicon'):
+        return None
+    return redirect(url_for('api.api_route_list'))
+
 # Web Blueprints
 from web.reports import reports_bp
 from web.invoices import invoices_bp
@@ -168,16 +199,14 @@ def handle_invalid_usage(error):
 def page_not_found(e):
     logger.error(e)
     error_msg = "Error: {}".format(e)
-    return render_template('error.html', error_msg=error_msg, 
-                           project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 404
+    return render_error(error_msg, 404)
 
 
 @app.errorhandler(500)
 def sys_error(e):
     logger.error(e)
     error_msg = "System error: {}".format(e)
-    return render_template('error.html', error_msg=error_msg, 
-                           project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 500
+    return render_error(error_msg, 500)
 
 
 # Disable strict trailing slashes
@@ -293,6 +322,26 @@ def _about_contact_info():
     }
 
 
+# Project managers with a DPO staff page (name as stored in projects.project_manager -> page slug).
+# Both spellings of Laura's name are kept: the two dashboard views disagreed on which one the DB uses.
+PROJECT_MANAGER_PAGES = {
+    'Jeanine Nault': 'jeanine-nault',
+    'Nathan Ian Anderson': 'nathan-ian-anderson',
+    'Erin M. Mazzei': 'erin-mazzei',
+    'Laura M. Whitfield': 'laura-whitfield',
+    'Laura Whitfield': 'laura-whitfield',
+}
+
+
+def build_project_manager_link(name):
+    """Return the PM name, linked to their staff page when one is known (HTML, rendered with |safe)."""
+    slug = PROJECT_MANAGER_PAGES.get(name)
+    if slug is None:
+        return name
+    return ('<a href="https://dpo.si.edu/{slug}" class="bg-white" '
+            'title="Link to {name}\'s staff page">{name}</a>').format(slug=slug, name=name)
+
+
 def _homepage_stat_value(total):
     return "{:,}".format(total or 0)
 
@@ -350,9 +399,6 @@ def favicon():
 @app.route('/', methods=['GET', 'POST'], provide_automatic_options=False)
 def homepage(team=None, subset=None):
     """Main homepage for the system"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
     
     if current_user.is_authenticated:
         user_exists = True
@@ -617,20 +663,16 @@ def homepage(team=None, subset=None):
                                                                classes=HOMEPAGE_TABLE_CLASSES + ['homepage-software-table'])],
                            featured_projects=HOMEPAGE_FEATURED_PROJECTS,
                            is_table_title=is_table_title,
-                           asklogin=asklogin, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           last_update=last_update[0]['updated_at'] or 'unknown',
+                           asklogin=asklogin, last_update=last_update[0]['updated_at'] or 'unknown',
                            mass_digi_total=mass_digi_total,
                            kiosk=kiosk, user_address=user_address, team_heading=team_heading,
-                           html_title=html_title, analytics_code=settings.analytics_code,
-                           app_root=settings.app_root,
+                           html_title=html_title, app_root=settings.app_root,
                            subset=subset.upper())
 
 
 @app.route('/login', methods=['POST'], provide_automatic_options=False)
 def login():
     """Login into the system with LDAP (internal deployments only)."""
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     if site_net == "external":
         logger.warning("Login attempted on external site")
@@ -692,10 +734,6 @@ def dashboard_empty():
 def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     """Dashboard for a project"""
 
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -717,9 +755,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             folder_id = str(folder_id)
         except ValueError:
             error_msg = "Folder not found"
-            return render_template('error.html', error_msg=error_msg,
-                                    project_alias=project_alias, site_env=site_env, site_net=site_net,
-                                    analytics_code=settings.analytics_code), 404
+            return render_error(error_msg, 404, project_alias=project_alias)
 
     # Tab
     if tab is None or tab == '':
@@ -727,9 +763,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     else:
         if tab not in ['filechecks', 'lightbox', 'postprod']:
             error_msg = "Invalid tab ID."
-            return render_template('error.html', error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                                analytics_code=settings.analytics_code), 400
+            return render_error(error_msg, 400, project_alias=project_alias)
 
     # Page
     if page is None or page == '':
@@ -739,9 +773,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
             page = int(page)
         except Exception:
             error_msg = "Invalid page number."
-            return render_template('error.html', error_msg=error_msg,
-                                   project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 400
+            return render_error(error_msg, 400, project_alias=project_alias)
     
     # Check if project exists
     if project_alias_exists(project_alias) is False:
@@ -752,17 +784,13 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                 return redirect(url_for('dashboard', project_alias=settings.proj_redirect[project_alias]))
         except KeyError:
             error_msg = "Project was not found."
-            return render_template('error.html', error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+            return render_error(error_msg, 404, project_alias=project_alias)
 
     project_id_check = run_query("SELECT project_id FROM projects WHERE project_alias = %(project_alias)s",
                                       {'project_alias': project_alias})
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
     else:
         project_id = project_id_check[0]['project_id']
 
@@ -780,16 +808,12 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     if len(folder_check) == 0:
         error_msg = ("Folder was not found. It may have been deleted. "
                      "Please click the link below to go to the main page of the dashboard.")
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
 
     project_stats = {}
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
 
     if current_user.is_authenticated:
         username = current_user.name
@@ -812,15 +836,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                              " FROM projects WHERE project_alias = %(project_alias)s",
                                   {'project_alias': project_alias})[0]
     logger.info(project_info)
-    project_manager_link = project_info['project_manager']
-    if project_info['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\">Jeanine Nault</a>"
-    elif project_info['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\">Nathan Ian Anderson</a>"
-    elif project_info['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\">Erin M. Mazzei</a>"
-    elif project_info['project_manager'] == "Laura M. Whitfield":
-        project_manager_link = "<a href=\"https://dpo.si.edu/laura-whitfield\">Laura M. Whitfield</a>"
+    project_manager_link = build_project_manager_link(project_info['project_manager'])
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                   {'project_id': project_info['project_id']})
@@ -928,8 +944,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         logger.info("folder_name: {}".format(len(folder_name)))
         if len(folder_name) == 0:
             error_msg = "Folder does not exist in this project."
-            return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                                   site_env=site_env, site_net=site_net, site_ver=site_ver), 404
+            return render_error(error_msg, 404, project_alias=project_alias)
         else:
             folder_name = folder_name[0]
             fol_last_update = folder_name['last_updated']
@@ -1056,12 +1071,10 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            folder_links=folder_links,
                            project_folders_badges=project_folders_badges,
                            form=form, proj_reports=proj_reports,
-                           reports=reports, site_env=site_env, site_net=site_net,
-                           site_ver=site_ver, kiosk=kiosk, user_address=user_address,
+                           reports=reports, kiosk=kiosk, user_address=user_address,
                            project_disk=project_disk,
                            projects_links=projects_links,
                            project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code,
                            project_stats_other=project_stats_other,
                            folder_badges=folder_badges,
                            transcription=transcription
@@ -1071,11 +1084,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
 @app.route('/dashboard/<project_alias>/', methods=['GET', 'POST'], provide_automatic_options=False)
 def dashboard(project_alias=None, folder_id=None):
     """Dashboard for a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     folder_id = request.values.get("folder_id")
 
     if folder_id != None:
@@ -1103,9 +1112,7 @@ def dashboard(project_alias=None, folder_id=None):
                 return redirect(url_for('dashboard', project_alias=settings.proj_redirect[project_alias]))
         except KeyError:
             error_msg = "Project was not found."
-            return render_template('error.html', error_msg=error_msg,
-                                project_alias=project_alias, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+            return render_error(error_msg, 404, project_alias=project_alias)
 
     project_id = project_alias_exists(project_alias)
 
@@ -1131,15 +1138,7 @@ def dashboard(project_alias=None, folder_id=None):
                              "   FROM projects WHERE project_id = %(project_id)s",
                                   {'project_id': project_id})[0]
 
-    project_manager_link = project_info['project_manager']
-    if project_info['project_manager'] == "Jeanine Nault":
-        project_manager_link = "<a href=\"https://dpo.si.edu/jeanine-nault\" class=\"bg-white\" title=\"Link to Jeanine Nault's staff page\">Jeanine Nault</a>"
-    elif project_info['project_manager'] == "Nathan Ian Anderson":
-        project_manager_link = "<a href=\"https://dpo.si.edu/nathan-ian-anderson\" class=\"bg-white\" title=\"Link to Nathan Ian Anderson's staff page\">Nathan Ian Anderson</a>"
-    elif project_info['project_manager'] == "Erin M. Mazzei":
-        project_manager_link = "<a href=\"https://dpo.si.edu/erin-mazzei\" class=\"bg-white\" title=\"Link to Erin M. Mazzei's staff page\">Erin M. Mazzei</a>"
-    elif project_info['project_manager'] == "Laura Whitfield":
-        project_manager_link = "<a href=\"https://dpo.si.edu/laura-whitfield\" class=\"bg-white\" title=\"Link to Laura Whitfield's staff page\">Erin M. Mazzei</a>"
+    project_manager_link = build_project_manager_link(project_info['project_manager'])
 
     projects_links = run_query("SELECT * FROM projects_links WHERE project_id = %(project_id)s ORDER BY table_id",
                                {'project_id': project_info['project_id']})
@@ -1319,19 +1318,14 @@ def dashboard(project_alias=None, folder_id=None):
                            folder_links=folder_links, transcription=transcription,
                            project_folders_badges=project_folders_badges,
                            form=form, proj_reports=proj_reports, reports=reports,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
                            kiosk=kiosk, user_address=user_address, project_disk=project_disk,
                            projects_links=projects_links, project_manager_link=project_manager_link,
-                           analytics_code=settings.analytics_code, project_stats_other=project_stats_other, no_cols=None)
+                           project_stats_other=project_stats_other, no_cols=None)
 
 
 @app.route('/dashboard/<project_alias>/statistics/', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics(project_alias=None):
     """Statistics for a project"""
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -1341,23 +1335,11 @@ def proj_statistics(project_alias=None):
     ctx = stats_service.load_statistics_page_context(project_alias)
     if not ctx.get('found'):
         error_msg = "Project was not found."
-        return render_template(
-            'error.html',
-            error_msg=error_msg,
-            project_alias=project_alias,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
-            analytics_code=settings.analytics_code,
-        ), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
 
     return render_template(
         'statistics.html',
         form=form,
-        site_env=site_env,
-        site_net=site_net,
-        site_ver=site_ver,
-        analytics_code=settings.analytics_code,
         **{k: v for k, v in ctx.items() if k != 'found'},
     )
 
@@ -1365,18 +1347,12 @@ def proj_statistics(project_alias=None):
 @app.route('/dashboard/<project_id>/statistics/<step_id>', methods=['POST', 'GET'], provide_automatic_options=False)
 def proj_statistics_dl(project_id=None, step_id=None):
     """Download statistics for a project"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     project_id_check = run_query("SELECT proj_id FROM projects WHERE proj_id = %(proj_id)s",
                                       {'proj_id': project_id})
     if len(project_id_check) == 0:
         error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404)
 
     project_info = run_query("SELECT * FROM projects WHERE proj_id = %(proj_id)s", {'proj_id': project_id})[0]
 
@@ -1397,11 +1373,7 @@ def proj_statistics_dl(project_id=None, step_id=None):
 @app.route('/about/', methods=['GET'], provide_automatic_options=False)
 def about():
     """About page for the system"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -1423,13 +1395,9 @@ def about():
         'about.html',
         form=form,
         username=username,
-        site_net=site_net,
-        site_env=site_env,
         site_env_label=site_env_label,
-        site_ver=site_ver,
         kiosk=kiosk,
         user_address=user_address,
-        analytics_code=settings.analytics_code,
         asklogin=asklogin,
         about_contact=_about_contact_info(),
         about_user_guide_url=ABOUT_USER_GUIDE_URL,
@@ -1441,11 +1409,7 @@ def about():
 @login_required
 def qc(project_alias=None):
     """List the folders and QC status"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -1672,9 +1636,7 @@ def qc(project_alias=None):
                             project_settings=project_settings, is_admin=is_admin,
                             folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                             folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
-                            project=project, form=form, project_qc_stats=project_qc_stats,
-                            site_env=site_env, site_net=site_net, site_ver=site_ver,
-                            analytics_code=settings.analytics_code)
+                            project=project, form=form, project_qc_stats=project_qc_stats)
 
     else:
         folder_qc_done = run_query(("WITH pfolders AS (SELECT folder_id from folders WHERE project_id = %(project_id)s),"
@@ -1826,20 +1788,14 @@ def qc(project_alias=None):
                             project_settings=project_settings, is_admin=is_admin,
                             folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                             folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
-                            project=project, form=form, project_qc_stats=project_qc_stats,
-                            site_env=site_env, site_net=site_net, site_ver=site_ver,
-                            analytics_code=settings.analytics_code)
+                            project=project, form=form, project_qc_stats=project_qc_stats)
 
 
 @app.route('/qc_transcription/<project_alias>/', methods=['POST', 'GET'], provide_automatic_options=False)
 @login_required
 def qc_transcription(project_alias=None):
     """List the folders and QC status"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2056,18 +2012,13 @@ def qc_transcription(project_alias=None):
                             t_sources=t_sources,
                             folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                             folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
-                            project=project, form=form, project_qc_stats=project_qc_stats,
-                            site_env=site_env, site_net=site_net, site_ver=site_ver,
-                            analytics_code=settings.analytics_code)
+                            project=project, form=form, project_qc_stats=project_qc_stats)
 
 
 @app.route('/qc_transcription_list/<source_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
 @login_required
 def qct_loading2(source_id):
     """Prepare QC for a folder"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     # Declare the login form
@@ -2256,20 +2207,14 @@ def qct_loading2(source_id):
                     is_admin=user_perms('', user_type='admin'),
                     folder_qc_info=folder_qc_info, folder_qc_pending=folder_qc_pending,
                     folder_qc_done=folder_qc_done[:100], folder_qc_done_len=len(folder_qc_done),
-                    project=project, form=form, project_qc_stats=project_qc_stats, source_id=source_id,
-                    site_env=site_env, site_net=site_net, site_ver=site_ver,
-                    analytics_code=settings.analytics_code)
+                    project=project, form=form, project_qc_stats=project_qc_stats, source_id=source_id)
 
 
 @app.route('/qc_process/<folder_id>/', methods=['GET', 'POST'], provide_automatic_options=False)
 @login_required
 def qc_process(folder_id):
     """Run QC on a folder"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -2329,10 +2274,16 @@ def qc_process(folder_id):
     if len(folder_owner) == 1:
         if folder_owner[0]['username'] != username:
             # Not allowed
-            project_alias = run_query(("SELECT p.project_alias from folders f, projects p "
-                                    "    WHERE f.project_id = p.project_id "
-                                    "        AND f.folder_id = %(folder_id)s"),
-                                {'folder_id': folder_id})
+            # Transcription folders are keyed by UUID in a separate table
+            if transcription == 1:
+                alias_query = ("SELECT p.project_alias FROM transcription_folders f, projects p "
+                               "    WHERE f.project_id = p.project_id "
+                               "        AND f.folder_transcription_id = %(folder_id)s")
+            else:
+                alias_query = ("SELECT p.project_alias FROM folders f, projects p "
+                               "    WHERE f.project_id = p.project_id "
+                               "        AND f.folder_id = %(folder_id)s")
+            project_alias = run_query(alias_query, {'folder_id': folder_id})
             
             return redirect(url_for('qc', project_alias=project_alias[0]['project_alias']))
     else:
@@ -2666,9 +2617,7 @@ def qc_process(folder_id):
                                                                         escape=False,
                                                                         classes=["display", "compact", "table-striped"])],
                                         file_metadata_rows=file_metadata.shape[0],
-                                        msg=msg, form=form,
-                                        site_env=site_env, site_net=site_net, site_ver=site_ver,
-                                        analytics_code=settings.analytics_code)
+                                        msg=msg, form=form)
             else:
                 if transcription == 1:
                     error_files = run_query(("SELECT f.file_name, "
@@ -2692,49 +2641,25 @@ def qc_process(folder_id):
                                              {'folder_id': folder_id})
                     folder = run_query("SELECT * FROM folders WHERE folder_id = %(folder_id)s",
                                     {'folder_id': folder_id})[0]
-                qc_folder_result = True
-                crit_files = 0
-                major_files = 0
-                minor_files = 0
-                for file in error_files:
-                    if file['file_qc'] == 'Critical Issue':
-                        crit_files += 1
-                    elif file['file_qc'] == 'Major Issue':
-                        major_files += 1
-                    elif file['file_qc'] == 'Minor Issue':
-                        minor_files += 1
-                # Compare the actual issue rate to the threshold percentage directly
-                # (avoids floor() under-rounding the allowed count, e.g. 1/40=2.5%
-                # incorrectly failing a 4% threshold). Only exceeding the threshold fails.
-                crit_percent = (crit_files / qc_stats['no_files']) * 100
-                major_percent = (major_files / qc_stats['no_files']) * 100
-                minor_percent = (minor_files / qc_stats['no_files']) * 100
-                if crit_percent > float(project_settings['qc_threshold_critical']):
-                    qc_folder_result = False
-                if major_percent > float(project_settings['qc_threshold_major']):
-                    qc_folder_result = False
-                if minor_percent > float(project_settings['qc_threshold_minor']):
-                    qc_folder_result = False
+                # Cumulative severity check (see osprey/services/qc.py)
+                issues = qc_service.count_issues(error_files, 'file_qc')
+                qc_folder_result = qc_service.folder_passes_qc(
+                    qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
+                    project_settings)
                 return render_template('qc_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
                                         error_files=error_files, qc_folder_result=qc_folder_result,
-                                        form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                                        analytics_code=settings.analytics_code)
+                                        form=form)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 400
+        return render_error(error_msg, 400, project_alias=project_alias['project_alias'])
 
 
 @app.route('/qc_reset/<folder_id>/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def qc_reset(folder_id):
     """Admin: release a folder's image/file QC lock (qc_folders/qc_files) so it re-enters the queue."""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
 
@@ -2794,11 +2719,7 @@ def qc_reset(folder_id):
 @login_required
 def qc_process_transcript(source_id, folder_id):
     """Run QC on a transcription folder"""
-    
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
-    
+
     if current_user.is_authenticated:
         user_exists = True
         username = current_user.name
@@ -3088,9 +3009,7 @@ def qc_process_transcript(source_id, folder_id):
                                     folder_id=folder_id, file_qc=file_qc, project_settings=project_settings,
                                     file_details=file_details, file_checks=file_checks, username=username,
                                     project_alias=project_alias['project_alias'],
-                                    msg=msg, form=form, source_id=source_id, tables=tables,
-                                    site_env=site_env, site_net=site_net, site_ver=site_ver,
-                                    analytics_code=settings.analytics_code)
+                                    msg=msg, form=form, source_id=source_id, tables=tables)
             else:
                 error_files = run_query(("SELECT f.file_name, "
                                          " CASE WHEN q.qc_results = 1 THEN 'Critical Issue' "
@@ -3101,51 +3020,27 @@ def qc_process_transcript(source_id, folder_id):
                                              "  AND q.transcription_source_id = %(source_id)s "
                                               "  AND q.qc_results > 0 AND q.file_transcription_id = f.file_transcription_id"),
                                             {'folder_id': folder_id, 'source_id': source_id})
-                qc_folder_result = True
-                crit_files = 0
-                major_files = 0
-                minor_files = 0
-                for file in error_files:
-                    if file['qc_results'] == 'Critical Issue':
-                        crit_files += 1
-                    elif file['qc_results'] == 'Major Issue':
-                        major_files += 1
-                    elif file['qc_results'] == 'Minor Issue':
-                        minor_files += 1
-                # Compare the actual issue rate to the threshold percentage directly
-                # (avoids floor() under-rounding the allowed count, e.g. 1/40=2.5%
-                # incorrectly failing a 4% threshold). Only exceeding the threshold fails.
-                crit_percent = (crit_files / qc_stats['no_files']) * 100
-                major_percent = (major_files / qc_stats['no_files']) * 100
-                minor_percent = (minor_files / qc_stats['no_files']) * 100
-                if crit_percent > float(project_settings['qc_threshold_critical']):
-                    qc_folder_result = False
-                if major_percent > float(project_settings['qc_threshold_major']):
-                    qc_folder_result = False
-                if minor_percent > float(project_settings['qc_threshold_minor']):
-                    qc_folder_result = False
+                # Cumulative severity check (see osprey/services/qc.py)
+                issues = qc_service.count_issues(error_files, 'qc_results')
+                qc_folder_result = qc_service.folder_passes_qc(
+                    qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
+                    project_settings)
                 return render_template('qc_transcription_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
                                         project_alias=project_alias['project_alias'],
                                         source_id=source_id,
                                         error_files=error_files, qc_folder_result=qc_folder_result,
-                                        form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                                        analytics_code=settings.analytics_code)
+                                        form=form)
     else:
         error_msg = "Folder is not available for QC."
-        return render_template('error.html', error_msg=error_msg,
-                               project_alias=project_alias['project_alias'], site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 400
+        return render_error(error_msg, 400, project_alias=project_alias['project_alias'])
 
 
 @app.route('/qc_transcription_reset/<source_id>/<folder_id>/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def qc_transcription_reset(source_id, folder_id):
     """Admin: release a folder's transcription-text QC lock (transcription_qc_folders/transcription_qc)."""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     try:
@@ -3193,8 +3088,7 @@ def qc_transcription_reset(source_id, folder_id):
 def qc_loading1(folder_id):
     """Prepare QC for a folder"""
     return render_template('qc_prep.html', folder_id=folder_id, 
-                               project_alias="", site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                               project_alias="")
 
 
 
@@ -3203,17 +3097,13 @@ def qc_loading1(folder_id):
 def qc_transcription_loading1(source_id, folder_id):
     """Prepare QC for a folder"""
     return render_template('qc_transcription_prep.html', folder_id=folder_id, source_id=source_id,
-                               project_alias="", site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code)
+                               project_alias="")
 
 
 @app.route('/qc_loading/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
 @login_required
 def qc_loading2(folder_id):
     """Prepare QC for a folder"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     try:
         folder_id = int(folder_id)
@@ -3229,8 +3119,6 @@ def qc_loading2(folder_id):
 @login_required
 def qc_transcription_done(source_id, folder_id):
     """Finalize transcription QC for a source/folder pair."""
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     username = current_user.name
     try:
@@ -3328,9 +3216,6 @@ def qc_transcription_done(source_id, folder_id):
 @login_required
 def qc_transcription_loading2(source_id, folder_id):
     """Prepare QC for a folder"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     try:
         folder_id = str(UUID(folder_id))
@@ -3341,13 +3226,10 @@ def qc_transcription_loading2(source_id, folder_id):
     return redirect(url_for('qc_process_transcript', source_id=source_id, folder_id=folder_id))
 
 
-@app.route('/qc_done/<folder_id>/', methods=['POST', 'GET'], provide_automatic_options=False)
+@app.route('/qc_done/<folder_id>/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def qc_done(folder_id):
     """Run QC on a folder"""
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
     username = current_user.name
 
     try:
@@ -3400,12 +3282,32 @@ def qc_done(folder_id):
     project_id = project_info['project_id']
     project_alias = project_info['project_alias']
     qc_info = request.values.get('qc_info')
-    qc_status = request.values.get('qc_status')
     user_id = run_query("SELECT user_id FROM users WHERE username = %(username)s",
                              {'username': username})[0]
 
     project_qc_settings = run_query(("SELECT * FROM qc_settings WHERE project_id = %(project_id)s"),
                                     {'project_id': project_id})[0]
+
+    # Only the reviewer assigned in qc_process() can save the result
+    fold_col = "folder_uid" if transcription == 1 else "folder_id"
+    folder_owner = run_query(f"SELECT qc_by FROM qc_folders WHERE {fold_col} = %(folder_id)s",
+                             {'folder_id': folder_id})
+    if len(folder_owner) == 0 or folder_owner[0]['qc_by'] != user_id['user_id']:
+        return render_error("Only the assigned QC reviewer can submit this folder.", 403,
+                            project_alias=project_alias)
+
+    # Compute the result server-side; the form's hidden qc_status is display-only
+    qc_counts = qc_service.load_folder_qc_counts(folder_id, transcription == 1)
+    if qc_counts['no_files'] == 0 or qc_counts['unrated'] > 0:
+        return render_error("Folder QC is not complete: every sampled file must be rated.", 400,
+                            project_alias=project_alias)
+    qc_passed = qc_service.folder_passes_qc(qc_counts['no_files'], qc_counts['critical'],
+                                            qc_counts['major'], qc_counts['minor'], project_qc_settings)
+    qc_status = "0" if qc_passed else "1"
+    if request.values.get('qc_status') != qc_status:
+        logger.warning("qc_done: posted qc_status {} != computed {} | folder_id={} user={}".format(
+            request.values.get('qc_status'), qc_status, folder_id, username))
+
     if transcription == 1:
         fold_id = "folder_uid"
         # q = query_database_insert(("UPDATE transcription_qc_folders SET qc_status = %(qc_status)s, qc_by = %(qc_by)s, qc_info = %(qc_info)s, qc_level = %(qc_level)s WHERE folder_transcription_id = %(folder_id)s"),
@@ -3532,9 +3434,7 @@ def home():
         })
     return render_template('userhome.html', project_list=project_list, username=user_name,
                            is_admin=is_admin, ip_addr=ip_addr, form=form,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           about_user_guide_url=ABOUT_USER_GUIDE_URL,
-                           analytics_code=settings.analytics_code)
+                           about_user_guide_url=ABOUT_USER_GUIDE_URL)
 
 
 @app.route("/logout", methods=['GET'], provide_automatic_options=False)
@@ -3548,7 +3448,7 @@ def not_user():
     # Declare the login form
     form = LoginForm(request.form)
     logout_user()
-    return render_template('notuser.html', form=form, site_env=site_env)
+    return render_template('notuser.html', form=form)
 
 
 

@@ -134,9 +134,11 @@ def recalculate_folder_stats(project_id, folder_id, transcription):
     res = query_database_insert(query, {'folder_id': folder_id})
     logger.info("folder_stats: updated_at|{}|{}".format(folder_id, res))
 
-    # Check for other error badges
+    # Check for other error badges. QC results also use bg-danger but have
+    # their own dashboard filters, so they must not flag the folder as an error.
     query_other_errors = run_query(
-        f"SELECT count(*) as no_badges from folders_badges where {fid} = %(folder_id)s AND badge_css = 'bg-danger'",
+        f"SELECT count(*) as no_badges from folders_badges where {fid} = %(folder_id)s AND badge_css = 'bg-danger' "
+        "AND badge_type NOT IN ('qc_status', 'transcription_qc_status')",
         {'folder_id': folder_id},
     )[0]
     if query_other_errors['no_badges'] > 0:

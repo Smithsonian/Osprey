@@ -11,10 +11,10 @@ from flask_login import login_required
 import settings
 from logger import logger
 from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
-from osprey.version import __version__
 from osprey.services import file_search as file_search_service
 from osprey.services import files as files_service
 from osprey.services.permissions import kiosk_mode, user_perms
+from web.errors import render_error
 from web.forms import LoginForm
 
 files_bp = Blueprint('files', __name__)
@@ -23,37 +23,31 @@ files_bp = Blueprint('files', __name__)
 @files_bp.route('/file/<file_id>/', methods=['GET'], provide_automatic_options=False)
 def file(file_id=None):
     """File details"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     if file_id is None:
         error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
     try:
         file_id = int(file_id)
     except Exception:
         error_msg = "File ID is not valid."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
 
     # Declare the login form
     form = LoginForm(request.form)
 
-    file_id_check = check_file_id(file_id)
+    # check_file_id returns a (file_id, uid) tuple; (False, False) when the file doesn't exist
+    file_id_check, _file_uid = check_file_id(file_id)
 
     if file_id_check is False:
         error_msg = "File ID not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
 
     # Folder info
     folder_info = files_service.get_folder_info(file_id)
     if folder_info is None:
         error_msg = "Invalid File ID."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
 
     file_details = files_service.get_file_details(folder_info['folder_id'], file_id)
     project_alias = files_service.get_project_alias(folder_info['project_id'])
@@ -109,41 +103,33 @@ def file(file_id=None):
                            file_metadata_rows=file_metadata.shape[0],
                            file_links=file_links, file_sensitive=str(file_sensitive),
 
-                           sensitive_info=sensitive_info, form=form, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver, kiosk=kiosk, user_address=user_address,
-                           analytics_code=settings.analytics_code)
+                           sensitive_info=sensitive_info, form=form, kiosk=kiosk, user_address=user_address)
 
 
 @files_bp.route('/file_transcription/<file_id>/', methods=['GET'], provide_automatic_options=False)
 def file_transcription(file_id=None):
     """File details from a transcription project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
 
+    # check_file_id_transcription returns False for a missing, malformed, or unknown UUID
     file_id_check = files_service.check_file_id_transcription(file_id)
-    if file_id_check is None:
-        error_msg = "File ID is missing."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+    if file_id_check is False:
+        error_msg = "File ID not found."
+        return render_error(error_msg, 400)
 
     folder_info = files_service.get_folder_info_transcription(file_id)
     if folder_info is None:
         error_msg = "Invalid File ID."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
 
     # Transcription project?
     transcription = files_service.get_project_transcription_flag(folder_info['project_id'])
 
     if transcription != 1:
         error_msg = "File ID error."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net, site_ver=site_ver), 400
+        return render_error(error_msg, 400)
 
     tables = {}
     i = 0
@@ -194,8 +180,7 @@ def file_transcription(file_id=None):
                            file_details=file_details, file_checks=file_checks, username=user_name, image_url=image_url,
                            is_admin=is_admin, project_alias=project_alias, file_links=file_links,
                            transcription=transcription, tables=tables,
-                           form=form, site_env=site_env,
-                           site_net=site_net, site_ver=site_ver, kiosk=kiosk, analytics_code=settings.analytics_code)
+                           form=form, kiosk=kiosk)
 
 
 @files_bp.route('/file/', methods=['GET'], provide_automatic_options=False)
@@ -221,12 +206,6 @@ def preview_image(folder_id=None, file_id=None):
 @files_bp.route('/dashboard/<project_alias>/search_files', methods=['GET'], provide_automatic_options=False)
 def search_files(project_alias):
     """Search files by filename."""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     form = LoginForm(request.form)
     q = (request.values.get('q') or '').strip()
@@ -250,12 +229,8 @@ def search_files(project_alias):
             has_prev=False,
             has_next=False,
             form=form,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
             kiosk=kiosk,
             user_address=user_address,
-            analytics_code=settings.analytics_code,
         )
 
     project_info, results, total, page, page_size = file_search_service.search_files(
@@ -263,15 +238,7 @@ def search_files(project_alias):
     )
     if project_info is None:
         error_msg = "Project was not found."
-        return render_template(
-            'error.html',
-            error_msg=error_msg,
-            project_alias=project_alias,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
-            analytics_code=settings.analytics_code,
-        ), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
 
     logger.info("search_files q=%r page=%s total=%s", q, page, total)
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
@@ -289,12 +256,8 @@ def search_files(project_alias):
         has_prev=page > 0,
         has_next=(offset + len(results)) < total,
         form=form,
-        site_env=site_env,
-        site_net=site_net,
-        site_ver=site_ver,
         kiosk=kiosk,
         user_address=user_address,
-        analytics_code=settings.analytics_code,
     )
 
 
@@ -302,11 +265,6 @@ def search_files(project_alias):
 @login_required
 def update_folder_dams(project_alias=None, folder_id=None):
     """Update folder when sending to DAMS"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     if folder_id is None or project_alias is None:
         return redirect(url_for('home'))
@@ -320,11 +278,6 @@ def update_folder_dams(project_alias=None, folder_id=None):
 @login_required
 def update_image():
     """Update image as having sensitive contents"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     if not current_user.is_authenticated:
         return redirect(url_for('homepage'))

@@ -39,6 +39,7 @@ if 'osprey.db' not in sys.modules:
     _db.run_query = MagicMock()
     _db.query_database_insert = MagicMock()
     _db.executemany = MagicMock()
+    _db.iter_query = MagicMock()
     _db.init_db = MagicMock()
 
     class DatabasePoolError(Exception):

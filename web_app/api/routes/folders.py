@@ -6,6 +6,7 @@ from flask import jsonify, request
 from api import api_bp
 from api.auth import validate_api_key
 from osprey.services import folder_details as folder_service
+from osprey.services import transcription_profile as transcription_profile_service
 
 
 @api_bp.route('/folders/<folder_id>/files', methods=['POST', 'GET'], strict_slashes=False, provide_automatic_options=False)
@@ -38,6 +39,15 @@ def api_get_folder_transcription_qc(folder_id=None):
         if status == 400:
             return jsonify({'error': message or 'folder_id value not valid'}), 400
         return jsonify({'error': message or 'Folder not found'}), 404
+    return jsonify(payload)
+
+
+@api_bp.route('/folders/<folder_id>/transcription_fill', methods=['GET'], strict_slashes=False, provide_automatic_options=False)
+def api_get_folder_transcription_fill(folder_id=None):
+    """Get the stored (nightly) field fill rates for a transcription folder, by source."""
+    payload, status, message = transcription_profile_service.get_folder_fill_payload(folder_id)
+    if payload is None:
+        return jsonify({'error': message or 'folder_id value not valid'}), status
     return jsonify(payload)
 
 

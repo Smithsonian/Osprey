@@ -480,7 +480,8 @@
                 (document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc) ||
                 (document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox) ||
                 (document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing) ||
-                (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc)
+                (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc) ||
+                (document.getElementById('dashboard-transcription-fill-panel') && window.OspreyDashboardTranscriptionFill)
             );
         }
 
@@ -501,6 +502,9 @@
             }
             if (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc) {
                 window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
+            }
+            if (document.getElementById('dashboard-transcription-fill-panel') && window.OspreyDashboardTranscriptionFill) {
+                window.OspreyDashboardTranscriptionFill.loadForFolder(folderId);
             }
         }
 

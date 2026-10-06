@@ -16,7 +16,8 @@ from flask_login import login_required
 import settings
 from osprey.services import builtin_reports as builtin_report_service
 from osprey.services import reports as report_service
-from osprey.version import __version__
+from osprey.services import transcription_profile as transcription_profile_service
+from web.errors import render_error
 from web.forms import LoginForm
 
 reports_bp = Blueprint('reports', __name__)
@@ -42,16 +43,29 @@ def _materialization_viewable(status):
     return status.get('last_succeeded_at') is not None
 
 
+def _render_transcription_profile(project_alias, project_id, project_info, report, username, asklogin, form):
+    """Render the stored transcription profile (computed overnight; never computed here)."""
+    status = report_service.get_pregenerated_status(report)
+    # Same best-effort first-view queueing as other pregenerated reports.
+    if not status or status.get('last_succeeded_at') is None:
+        report_service.request_pregenerated_refresh(report, requested_by=username)
+    view = transcription_profile_service.get_report_view(project_id, request.args.get('source_id'))
+    return render_template(
+        'reports_transcription_profile.html',
+        project_alias=project_alias,
+        project_info=project_info,
+        report=report,
+        view=view,
+        materialization=status,
+        username=username,
+        asklogin=asklogin,
+        form=form,
+    )
+
+
 @reports_bp.route('/reports/', methods=['GET'], provide_automatic_options=False)
 def data_reports_form():
     """Report of a project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -60,8 +74,7 @@ def data_reports_form():
     report_id = request.values.get("report_id")
     if project_alias is None or report_id is None:
         error_msg = "Report is not available."
-        return render_template('error.html', error_msg=error_msg, project_alias=None,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver), 404
+        return render_error(error_msg, 404)
     return redirect(url_for('reports.data_reports', project_alias=project_alias, report_id=report_id))
 
 
@@ -162,13 +175,6 @@ def report_refresh(project_alias=None, report_id=None):
 @reports_bp.route('/reports/<project_alias>/<report_id>/<rendering>', methods=['GET'], provide_automatic_options=False)
 def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING):
     """Report of a project"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     if current_user.is_authenticated:
         username = current_user.name
@@ -184,24 +190,25 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
 
     if project_alias is None:
         error_msg = "Project is not available."
-        return render_template('error.html', error_msg=error_msg, project_alias=None, site_env=site_env, site_net=site_net), 404
+        return render_error(error_msg, 404)
 
     project_id = report_service.get_project_id(project_alias)
 
     if project_id is None:
         error_msg = "Project was not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_id,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404, project_alias=project_id)
 
     project_report = report_service.get_project_report(project_id, report_id)
     if project_report is None:
         error_msg = "Report was not found."
-        return render_template('error.html', error_msg=error_msg, project_alias=project_alias,
-                               site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code), 404
+        return render_error(error_msg, 404, project_alias=project_alias)
 
     project_info = report_service.get_project(project_id)
+
+    if project_report.get('render') == 'transcription_profile':
+        return _render_transcription_profile(
+            project_alias, project_id, project_info, project_report, username, asklogin, form,
+        )
 
     if builtin_report_service.is_builtin_chart_report(project_report):
         chart = builtin_report_service.load_chart_report(
@@ -215,10 +222,6 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
             project_info=project_info,
             report=project_report,
             chart=chart,
-            site_env=site_env,
-            site_net=site_net,
-            site_ver=site_ver,
-            analytics_code=settings.analytics_code,
             username=username,
             asklogin=asklogin,
             form=form,
@@ -254,10 +257,6 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
                 project_alias=project_alias,
                 project_info=project_info,
                 report=project_report,
-                site_env=site_env,
-                site_net=site_net,
-                site_ver=site_ver,
-                analytics_code=settings.analytics_code,
             )
 
         data_file, data_file_e, current_datetime_formatted, status = report_service.generate_pregenerated_report(project_report)
@@ -302,7 +301,5 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
                            preview_row_count=preview_row_count,
                            data_file_e=data_file_e, report_data_updated=report_data_updated, form=form,
                            data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted,
-                           site_env=site_env, site_net=site_net, site_ver=site_ver,
-                           analytics_code=settings.analytics_code,
                            username=username, asklogin=asklogin,
                            materialization=status)

@@ -13,10 +13,8 @@ from flask import url_for
 from flask_login import current_user
 from flask_login import login_required
 
-import settings
 from osprey.services import invoices as invoice_service
 from osprey.services.permissions import user_perms
-from osprey.version import __version__
 from web.forms import LoginForm
 
 invoices_bp = Blueprint('invoices', __name__)
@@ -26,13 +24,6 @@ invoices_bp = Blueprint('invoices', __name__)
 @login_required
 def invoice(msg=None):
     """Invoice Reconciliation"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -50,21 +41,13 @@ def invoice(msg=None):
                                username=username, project_list=project_list,
                                is_admin=is_admin, msg=msg,
                                today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
+                               form=form)
 
 
 @invoices_bp.route('/invoice_recon/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def invoice_recon(msg=None):
     """Invoice Reconciliation"""
-    site_env = settings.env
-    site_net = settings.site_net
-    site_ver = __version__
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     # Declare the login form
     form = LoginForm(request.form)
@@ -90,19 +73,13 @@ def invoice_recon(msg=None):
                                project_info=result['project_info'],
                                count_msg=result['count_msg'], count_msg_css=result['count_msg_css'],
                                today_date=datetime.today().strftime('%Y-%m-%d'),
-                               form=form, site_env=site_env, site_net=site_net, site_ver=site_ver,
-                               analytics_code=settings.analytics_code)
+                               form=form)
 
 
 @invoices_bp.route('/invoice_recon_dl/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def invoice_recon_dl(randomint=None):
     """Download Invoice Reconciliation"""
-    site_net = settings.site_net
-
-    # If API, not allowed - to improve
-    if site_net == "api":
-        return redirect(url_for('api.api_route_list'))
 
     is_admin = user_perms('', user_type='admin')
     if is_admin is False:

@@ -109,6 +109,30 @@ def run_query(query, parameters=None, return_val=True, log_vals=True):
         _release(conn, cur)
 
 
+def iter_query(query, parameters=None, chunk_size=5000):
+    """Yield result rows in chunks of ``chunk_size`` without loading them all.
+
+    Uses the pool's default unbuffered cursor, so rows stream from MySQL as
+    they are fetched. Meant for batch jobs (scripts/), not web requests: the
+    connection stays borrowed until the generator is exhausted or closed.
+    """
+    conn, cur = _borrow_cursor()
+    try:
+        conn.ping(reconnect=True, attempts=3, delay=1)
+        try:
+            cur.execute(query, parameters)
+        except mysql.connector.Error as err:
+            logger.error("mysql error: {} (err_no: {}|query: {})".format(err, err.errno, query))
+            raise
+        while True:
+            rows = cur.fetchmany(chunk_size)
+            if not rows:
+                break
+            yield rows
+    finally:
+        _release(conn, cur)
+
+
 def query_database_insert(query, parameters, return_res=False):
     logger.info("query: {}".format(query))
     logger.info("parameters: {}".format(parameters))

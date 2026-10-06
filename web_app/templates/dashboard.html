@@ -139,7 +139,9 @@
            title="{{ report.report_title }}">
           <i class="fa-solid fa-chart-column fa-fw" aria-hidden="true"></i>
           {{ report.report_title_brief }}
-          {% if report.builtin %}
+          {% if report.render == 'transcription_profile' %}
+            <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Nightly</span>
+          {% elif report.builtin %}
             <span class="badge rounded-pill text-bg-success dashboard-report-chip-badge">Chart</span>
           {% elif report.pregenerated == 1 %}
             <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Export</span>
@@ -495,6 +497,18 @@
         <div class="accordion" id="transcription_qc_accordion"></div>
     </div>
 </div>
+{# Field fill rates from the nightly transcription profile; filled by dashboard_transcription_fill.js #}
+<div id="dashboard-transcription-fill-panel"
+     class="d-none"
+     data-fill-url="{{ url_for('api.api_get_folder_transcription_fill', folder_id=folder_id) }}"
+     data-api-path="/api/folders/"
+     data-folder-id="{{ folder_id }}"
+     data-report-url="{{ url_for('reports.data_reports', project_alias=project_alias, report_id='transcription_profile') }}">
+    {# Same block/accordion styling as the QC panels above; items are built per source in JS. #}
+    <div class="alert alert-secondary dashboard-qc-block py-2">
+        <div class="accordion" id="transcription_fill_accordion"></div>
+    </div>
+</div>
                 {% endif %}
 <div id="dashboard-files-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0"
@@ -645,6 +659,7 @@
 <script src="{{ url_for('static', filename='js/dashboard_files.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_qc.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_transcription_qc.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_transcription_fill.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_postprocessing.js') }}"></script>
 
@@ -680,6 +695,7 @@
                 OspreyDashboardQc.loadFromPanel();
                 {% if transcription == 1 %}
                 OspreyDashboardTranscriptionQc.loadFromPanel();
+                OspreyDashboardTranscriptionFill.loadFromPanel();
                 {% endif %}
 
 

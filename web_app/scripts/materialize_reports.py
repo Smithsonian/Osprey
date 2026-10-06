@@ -24,6 +24,7 @@ import settings
 from logger import logger
 from osprey.db import run_query
 from osprey.services import reports as report_service
+from osprey.services import transcription_profile
 
 
 def _set_status(
@@ -188,7 +189,23 @@ def _cleanup_old_artifacts(materialized_view: str, keep_rel_paths: set[str], ret
             logger.exception(f"materialize_reports: failed to remove {path}")
 
 
+def _materialize_transcription_profile(project_id: int, report_id: str) -> None:
+    """Built-in transcription profile: results go to DB tables, not CSV/XLSX artifacts."""
+    start = time.time()
+    try:
+        rows_read = transcription_profile.materialize_project(project_id)
+    except Exception as exc:
+        _set_status(project_id, report_id, status="failed",
+                    duration_ms=int((time.time() - start) * 1000), error_message=str(exc))
+        raise
+    _set_status(project_id, report_id, status="succeeded",
+                duration_ms=int((time.time() - start) * 1000), row_count=rows_read)
+
+
 def _materialize_one(project_id: int, report_id: str) -> None:
+    if report_id == transcription_profile.REPORT_ID:
+        _materialize_transcription_profile(project_id, report_id)
+        return
     start = time.time()
     report = report_service.get_project_report(project_id, report_id)
     if not report:
