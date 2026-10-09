@@ -150,10 +150,12 @@ from web.reports import reports_bp
 from web.invoices import invoices_bp
 from web.files import files_bp
 from web.projects import projects_bp
+from web.sysadmin import sysadmin_bp, sysadmin_allowed
 app.register_blueprint(reports_bp)
 app.register_blueprint(invoices_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(projects_bp)
+app.register_blueprint(sysadmin_bp)
 
 
 @app.after_request
@@ -3400,6 +3402,7 @@ def home():
     user_name = current_user.name
     is_admin = user_perms('', user_type='admin')
     logger.info("is_admin:{}".format(is_admin))
+    is_sysadmin = sysadmin_allowed()
     ip_addr = request.environ['REMOTE_ADDR']
     projects = run_query(
         "select p.project_title, p.project_id, p.project_alias, "
@@ -3433,7 +3436,8 @@ def home():
             'transcription': project['transcription']
         })
     return render_template('userhome.html', project_list=project_list, username=user_name,
-                           is_admin=is_admin, ip_addr=ip_addr, form=form,
+                           is_admin=is_admin, is_sysadmin=is_sysadmin,
+                           ip_addr=ip_addr, form=form,
                            about_user_guide_url=ABOUT_USER_GUIDE_URL)
 
 

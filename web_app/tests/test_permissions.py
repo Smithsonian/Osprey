@@ -61,3 +61,21 @@ def test_kiosk_mode_is_per_client_ip():
     assert permissions.kiosk_mode(kiosk_req, kiosks) == (True, '1.2.3.4')
     # A different client hitting the same URL must not inherit kiosk mode.
     assert permissions.kiosk_mode(other_req, kiosks) == (False, '9.9.9.9')
+
+
+@patch('osprey.services.permissions.run_query')
+def test_user_perms_sysadmin_is_per_user(mock_run):
+    def by_user(query, params):
+        assert 'sysadmin = 1' in query
+        return [{'is_sysadmin': 1 if params['user_name'] == 'alice' else 0}]
+
+    mock_run.side_effect = by_user
+    with patch('osprey.services.permissions.current_user', _user('alice')):
+        assert permissions.user_perms('', user_type='sysadmin') is True
+    with patch('osprey.services.permissions.current_user', _user('bob')):
+        assert permissions.user_perms('', user_type='sysadmin') is False
+
+
+def test_user_perms_sysadmin_anonymous_is_false():
+    with patch('osprey.services.permissions.current_user', object()):
+        assert permissions.user_perms('', user_type='sysadmin') is False

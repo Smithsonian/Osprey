@@ -62,6 +62,14 @@
 
   {% endif %}
 
+  {% if is_sysadmin %}
+  <div class="dashboard-fact-chips mb-4" aria-label="System admin">
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('sysadmin.index') }}">
+      <i class="fa-solid fa-server" aria-hidden="true"></i> System Admin
+    </a>
+  </div>
+  {% endif %}
+
   {% if project_list %}
     <div class="userhome-project-list">
       {% for project in project_list %}

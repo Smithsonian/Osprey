@@ -18,6 +18,11 @@ def kiosk_mode(request, kiosks):
         return False, request_address
 
 
+# Two separate flags on the users table; neither implies the other:
+#   is_admin = 1  -> can manage specific projects (create/edit projects,
+#                    project links, invoice reconciliation).
+#   sysadmin = 1  -> has more powers: system-wide administration (the
+#                    /sysadmin/ page), only on internal deployments.
 def user_perms(project_id, user_type='user'):
     try:
         user_name = current_user.name
@@ -35,4 +40,9 @@ def user_perms(project_id, user_type='user'):
                  " WHERE username = %(user_name)s AND is_admin = 1")
         is_admin = run_query(query, {'user_name': user_name})
         val = is_admin[0]['is_admin'] == 1
+    if user_type == 'sysadmin':
+        query = ("SELECT COUNT(*) as is_sysadmin FROM users "
+                 " WHERE username = %(user_name)s AND sysadmin = 1")
+        is_sysadmin = run_query(query, {'user_name': user_name})
+        val = is_sysadmin[0]['is_sysadmin'] == 1
     return val

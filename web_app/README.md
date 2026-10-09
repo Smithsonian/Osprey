@@ -9,12 +9,12 @@ worker processes.
 ## Layout
 
 - `app.py` — Flask app, login, dashboard and QC routes
-- `web/` — blueprints for files, projects, reports, invoices
+- `web/` — blueprints for files, projects, reports, invoices, sysadmin
 - `api/` — worker/read API blueprint (`/api/...`)
 - `osprey/` — DB pool (`osprey/db.py`) and service layer (`osprey/services/`)
 - `templates/`, `static/` — Jinja2 templates and assets
 - `scripts/` — nightly pregenerated-report jobs (see `scripts/README.md`)
-- `db/` — SQL applied by hand for the report materialization and transcription profile tables
+- `db/` — SQL applied by hand for the report materialization and transcription profile tables, and `users.sysadmin`
 - `tests/` — pytest suite and the axe-based a11y checks (`tests/a11y/`)
 
 ## View conventions
@@ -223,6 +223,27 @@ tables from `db/transcription_profile.sql`:
 ```bash
 mysql -u <user> -p <db_name> < db/transcription_profile.sql
 ```
+
+## System admin page
+
+`/sysadmin/` (`web/sysadmin.py`, `osprey/services/system_status.py`) is a
+read-only status page: app/package versions, DB round-trip and server
+version, cache directory size, nightly report status and recent failures,
+and the last ERROR/CRITICAL lines of `ospreyapp.log` and `ospreyapi.log`.
+A link appears on `/home/` for users who can open it.
+
+- **Who** — users with `users.sysadmin = 1`, and only when
+  `site_net == "internal"`. Anyone else is redirected to `/home/`.
+- **Two flags** — `is_admin` is for people who manage specific projects;
+  `sysadmin` has more powers (system administration). Neither implies the
+  other.
+- **Schema** — apply `db/sysadmin.sql` *before* deploying: `/home/` reads
+  the column on internal sites. Grant with
+  `UPDATE users SET sysadmin = 1 WHERE username = '<username>';`.
+- Each section fails independently (shown as "Unavailable: ..."), so the
+  page still loads when the DB or a log file is the problem.
+- Log lines shown come from the last 256 KB of each file; they may contain
+  query text, which is why the page is sysadmin-only.
 
 ## Setup
 

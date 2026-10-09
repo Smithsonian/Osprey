@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}System Admin — Collections Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <span class="navbar-context">System admin</span>
+{% endblock %}
+
+{% macro section_error(sec) %}
+  <div class="alert alert-danger mb-0" role="alert">Unavailable: {{ sec.error }}</div>
+{% endmacro %}
+
+{% block content %}
+
+<div class="userhome-page">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h1 class="h2 mb-1">System Admin</h1>
+      <p class="text-muted small mb-0">Signed in as {{ username }} · read-only status</p>
+    </div>
+  </div>
+
+  <div class="dashboard-fact-chips mb-4" aria-label="Quick links">
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('home') }}">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> My Projects
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('sysadmin.index') }}">
+      <i class="fa-solid fa-rotate" aria-hidden="true"></i> Refresh
+    </a>
+  </div>
+
+  {# Application #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Application</h2></div>
+    <div class="card-body">
+      {% set sec = status.app %}
+      {% if sec.ok %}
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><th scope="row">Osprey version</th><td>{{ sec.data.version }}</td></tr>
+          <tr><th scope="row">Environment</th><td>{{ sec.data.env }}</td></tr>
+          <tr><th scope="row">Site</th><td>{{ sec.data.site_net }}</td></tr>
+          <tr><th scope="row">Host</th><td>{{ sec.data.host }}</td></tr>
+          <tr><th scope="row">Python</th><td>{{ sec.data.python }}</td></tr>
+          {% for pkg, ver in sec.data.packages.items() %}
+          <tr><th scope="row">{{ pkg }}</th><td>{{ ver }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}{{ section_error(sec) }}{% endif %}
+    </div>
+  </div>
+
+  {# Database #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Database</h2></div>
+    <div class="card-body">
+      {% set sec = status.db %}
+      {% if sec.ok %}
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><th scope="row">Server</th><td>{{ sec.data.host }} / {{ sec.data.database }}</td></tr>
+          <tr><th scope="row">MySQL version</th><td>{{ sec.data.server_version }}</td></tr>
+          <tr><th scope="row">Query round-trip</th><td>{{ sec.data.latency_ms }} ms</td></tr>
+          <tr><th scope="row">DB time</th><td>{{ sec.data.db_now }}</td></tr>
+          <tr><th scope="row">Pool size (per process)</th><td>{{ sec.data.pool_size }}</td></tr>
+        </tbody>
+      </table>
+      {% else %}{{ section_error(sec) }}{% endif %}
+    </div>
+  </div>
+
+  {# Cache #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Cache</h2></div>
+    <div class="card-body">
+      {% set sec = status.cache %}
+      {% if sec.ok %}
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><th scope="row">Directory</th><td><code>{{ sec.data.dir }}</code></td></tr>
+          <tr><th scope="row">Entries</th><td>{{ sec.data.files }}</td></tr>
+          <tr><th scope="row">Size</th><td>{{ sec.data.bytes|filesizeformat }}</td></tr>
+        </tbody>
+      </table>
+      {% else %}{{ section_error(sec) }}{% endif %}
+    </div>
+  </div>
+
+  {# Nightly reports #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Nightly reports</h2></div>
+    <div class="card-body">
+      {% set sec = status.reports %}
+      {% if not sec.ok %}{{ section_error(sec) }}
+      {% elif not sec.data.table_present %}
+        <p class="mb-0 text-muted">The <code>report_materializations</code> table does not exist (see <code>db/report_materializations.sql</code>).</p>
+      {% else %}
+        <p class="mb-2">Last success: {{ sec.data.last_success or 'never' }} · Stale (past SLA): {{ sec.data.stale }}</p>
+        <table class="table table-sm mb-3">
+          <thead><tr><th scope="col">Status</th><th scope="col">Reports</th><th scope="col">Last update</th></tr></thead>
+          <tbody>
+            {% for row in sec.data.by_status %}
+            <tr><td>{{ row.status }}</td><td>{{ row.n }}</td><td>{{ row.last_update }}</td></tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted">No tracked reports.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if sec.data.failures %}
+        <h3 class="h6">Recent failures</h3>
+        <table class="table table-sm mb-0">
+          <thead><tr><th scope="col">Project</th><th scope="col">Report</th><th scope="col">Failed at</th><th scope="col">Error</th></tr></thead>
+          <tbody>
+            {% for row in sec.data.failures %}
+            <tr><td>{{ row.project_id }}</td><td>{{ row.report_id }}</td><td>{{ row.last_failed_at }}</td><td><small>{{ row.error_message }}</small></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Recent errors #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Recent errors (newest first)</h2></div>
+    <div class="card-body">
+      {% set sec = status.logs %}
+      {% if sec.ok %}
+        {% for log in sec.data %}
+          <h3 class="h6"><code>{{ log.path }}</code>{% if log.exists %} · {{ log.size|filesizeformat }}{% endif %}</h3>
+          {% if not log.exists %}
+            <p class="text-muted">Log file not created yet.</p>
+          {% elif log.lines %}
+            <pre class="small border rounded p-2 mb-3" style="max-height: 24rem; overflow: auto; white-space: pre-wrap;">{% for line in log.lines %}{{ line }}
+{% endfor %}</pre>
+          {% else %}
+            <p class="text-muted">No ERROR or CRITICAL lines in the last part of the file.</p>
+          {% endif %}
+        {% endfor %}
+      {% else %}{{ section_error(sec) }}{% endif %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

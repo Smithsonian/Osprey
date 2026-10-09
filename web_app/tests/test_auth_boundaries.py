@@ -47,3 +47,8 @@ def test_report_refresh_requires_login(client):
     # Anonymous callers are redirected to login (or 401 with no login view);
     # they must never reach the queueing logic.
     assert response.status_code in (301, 302, 401)
+
+
+def test_sysadmin_requires_login(client):
+    response = client.get('/sysadmin/')
+    assert response.status_code in (301, 302, 401)
