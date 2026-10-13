@@ -1,0 +1,55 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, yesno, card %}
+
+{% block sysadmin_content %}
+
+{% if not api.ok %}
+  {% call card('API keys') %}{{ section_error(api) }}{% endcall %}
+{% else %}
+
+{% call card('API keys') %}
+  <p class="text-muted small">Keys are shown by their last 4 characters. Usage figures come from the newest {{ '{:,}'.format(api.data.window) }} rows of <code>api_keys_usage</code>; admin keys are never logged there, so they show no usage.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Key</th><th scope="col">User</th><th scope="col">Active</th><th scope="col">Admin</th><th scope="col">Expires</th><th scope="col">Rate</th><th scope="col">Last used</th><th scope="col" class="text-end">Calls 24h</th></tr></thead>
+    <tbody>
+      {% for k in api.data['keys'] %}
+      <tr{% if not k.is_active %} class="text-muted"{% endif %}>
+        <td><code>{{ k.key_masked }}</code></td>
+        <td>{{ k.api_user or '' }}</td>
+        <td>{{ yesno(k.is_active) }}</td>
+        <td>{{ yesno(k.is_admin) }}</td>
+        <td>{{ k.expires_on }}{% if k.expired and k.is_active %} <span class="badge bg-warning text-dark" title="Expired but still active">expired</span>{% endif %}</td>
+        <td>{{ k.usage_rate }}</td>
+        <td>{{ k.last_used or ('—' if k.is_admin else 'not in window') }}</td>
+        <td class="text-end">{{ k.calls_24h }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% endcall %}
+
+{% call card('Recent invalid key attempts') %}
+  {% if api.data.invalid %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">When</th><th scope="col">Key</th><th scope="col">Known key?</th><th scope="col">URL</th></tr></thead>
+    <tbody>
+      {% for row in api.data.invalid %}
+      <tr>
+        <td>{{ row.created_at }}</td>
+        <td><code>{{ row.key_masked }}</code></td>
+        <td>{{ yesno(row.known_key) }}</td>
+        <td class="small"><code>{{ row.url }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="text-muted mb-0">None in the window.</p>{% endif %}
+{% endcall %}
+
+{% endif %}
+
+{% endblock %}

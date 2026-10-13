@@ -32,7 +32,7 @@ PACKAGES = ('flask', 'flask-login', 'Flask-WTF', 'Flask-Caching',
 ER_NO_SUCH_TABLE = 1146
 
 
-def _section(name, func):
+def section(name, func):
     """Run one collector; on failure log it and return an error marker."""
     try:
         return {'ok': True, 'data': func()}
@@ -141,9 +141,9 @@ def log_info():
 
 def collect():
     return {
-        'app': _section('app', app_info),
-        'db': _section('db', db_info),
-        'cache': _section('cache', cache_info),
-        'reports': _section('reports', reports_info),
-        'logs': _section('logs', log_info),
+        'app': section('app', app_info),
+        'db': section('db', db_info),
+        'cache': section('cache', cache_info),
+        'reports': section('reports', reports_info),
+        'logs': section('logs', log_info),
     }

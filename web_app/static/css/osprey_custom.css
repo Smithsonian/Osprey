@@ -341,6 +341,21 @@ color: #000;}
       color: #052c65;
   }
 
+  /* Caution variant (e.g. the System Admin link on /home): orange-red so
+     admin-only areas stand out from ordinary links. Text contrast >= 7:1.
+     Defined after .dashboard-fact-chip-link so it wins at equal specificity. */
+  .dashboard-fact-chip-caution {
+      background-color: #ffe5d0;
+      border-color: #fd9843;
+      color: #8a2c0d;
+  }
+
+  .dashboard-fact-chip-caution:hover {
+      background-color: #fecba1;
+      border-color: #fd7e14;
+      color: #6a1f06;
+  }
+
   .dashboard-report-chip-badge {
       font-size: 0.65rem;
       font-weight: 500;

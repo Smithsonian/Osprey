@@ -226,11 +226,81 @@ mysql -u <user> -p <db_name> < db/transcription_profile.sql
 
 ## System admin page
 
-`/sysadmin/` (`web/sysadmin.py`, `osprey/services/system_status.py`) is a
-read-only status page: app/package versions, DB round-trip and server
-version, cache directory size, nightly report status and recent failures,
-and the last ERROR/CRITICAL lines of `ospreyapp.log` and `ospreyapi.log`.
-A link appears on `/home/` for users who can open it.
+`/sysadmin/` (`web/sysadmin.py`) is a set of read-only pages, so routine
+lookups don't need a MySQL session. A link appears on `/home/` for users
+who can open it.
+
+| Page | Shows | Source |
+|---|---|---|
+| Status | app/package versions, DB round-trip, cache size, nightly report status, last ERROR/CRITICAL log lines | `osprey/services/system_status.py` |
+| Schema & tables | whether each hand-applied `db/*.sql` is in place; nightly per-project stats (e.g. `files_exif` rows); size and estimated rows per table | `information_schema`, `sysadmin_stats` |
+| Users | every user and their flags, and projects per user (`users.pass` is never read); **Set inactive** button with a confirmation modal | `users`, `qc_projects` |
+| Projects | users and `projects_settings` per project; transcription profile settings and terms | `projects`, `qc_projects`, `projects_settings`, `transcription_profile_*` |
+| API keys | keys masked to the last 4 characters, expiry, last use, calls in the past 24h, recent invalid attempts | `api_keys`, `api_keys_usage` |
+| Kiosks | latest check-in per machine over the past 30 days, compared with `OSPREY_KIOSKS` | `kiosk` |
+| Reports | each `data_reports` row as live or pregenerated, with last materialization | `data_reports`, `report_materializations` |
+| Generate Reports | sysadmin-only report queries by project: live ones run on click (preview + CSV); pregenerated ones are queued and downloaded as CSV/XLSX | `sysadmin_reports`, `report_materializations` |
+| Data Entry | choose a project, then a data type, then add/remove its list of values (e.g. folder names a report treats differently) | `project_custom_types`, `project_custom_values` |
+
+Lookups live in `osprey/services/sysadmin_data.py` and are SELECT-only.
+
+These actions write (POST + CSRF token, gate re-checked, logged at WARNING
+with the username in `ospreyapp.log`): Requeue, Clear cache, Queue on
+Generate Reports, Save/Remove on Data Entry, and Set inactive on Users. Running or downloading a sysadmin report is logged the
+same way.
+
+- **Requeue** (Reports page, pregenerated reports not already queued or
+  running): same path as the report page's Recompute button. The job runs
+  on the next `materialize_reports.py` pass, not immediately.
+- **Clear cache** (Status page): empties the shared `FileSystemCache`
+  directory for every process. Dashboards are slower until it refills.
+
+Notes:
+
+- `api_keys_usage` has no index on `created_at`, so usage is computed over
+  the newest 100,000 rows by primary key (`API_USAGE_WINDOW`) instead of by
+  date. Admin keys are never logged there.
+- Per-project stats come from `sysadmin_stats` (apply
+  `db/sysadmin_stats.sql` first). Jobs are defined in
+  `osprey/services/sysadmin_stats.py` (`STAT_JOBS`: one SQL query returning
+  `project_id` plus one column per stat). `queue_nightly_reports.py` queues
+  each one as a built-in report (`project_id` 0, `report_id` `stat:<job>`),
+  and `materialize_reports.py` runs it, so its status and errors appear on
+  the Status page. Adding a stat needs no schema change. The pages never
+  run these queries live, because they scan very large tables such as
+  `files_exif`, which has one row per EXIF tag.
+- **Generate Reports** reads `sysadmin_reports` (apply
+  `db/sysadmin_reports.sql`; add rows by hand). These reports never show
+  on project dashboards. `query` must be one read-only `SELECT`/`WITH`
+  statement: `osprey/services/sysadmin_reports.py` refuses anything else
+  (DML, `INTO OUTFILE`, `FOR UPDATE`, `SLEEP`, more than one statement)
+  before it reaches MySQL. Live (`pregenerated = 0`) reports run in the
+  request, so keep them fast. Pregenerated ones run as built-in jobs
+  (`project_id` 0, `report_id` `sysrep:<id>`) every night and when
+  queued. Their CSV/XLSX files go to `sysadmin_reports_folder` (default
+  `sysadmin_reports/` in the app root, never `static/`), mode 0640, and
+  only the newest run is kept. The cron user writes that folder and the
+  web server reads it, so both need a shared group. On RHEL the folder
+  also needs an SELinux label httpd can read (see deploy notes).
+- **Set inactive** sets `users.user_active = 0`. `/login` already refuses
+  inactive users, and an open session stops authenticating on the user's
+  next request. Project assignments and QC history are kept. You cannot
+  deactivate your own account, so at least one active sysadmin always
+  remains. There is no reactivate button yet: run
+  `UPDATE users SET user_active = 1 WHERE user_id = <id>;`. The app's DB
+  user needs `UPDATE` on `users.user_active`.
+- **Data Entry** stores per-project lists of values by data type (apply
+  `db/project_custom_data.sql`; add types to `project_custom_types` by
+  hand). Each type belongs to one project (key `project_id` + `type_id`;
+  types are not shared), and only projects with types appear in step 1. Values are text, number or date. Several can be added at once,
+  one per line, and numbers and dates are normalised so duplicates match.
+  Remove is a soft delete (`removed_by`/`removed_at`), and adding a removed
+  value again restores it. Queries should read the `project_custom_data`
+  view, which shows current values only, e.g.
+  `... AND f.project_folder NOT IN (SELECT value FROM project_custom_data
+  WHERE project_id = 12 AND type_id = 'special_folders')`.
+- Table sizes come from `information_schema`: row counts are InnoDB
+  estimates, and MySQL 8 may cache them for up to 24h.
 
 - **Who** — users with `users.sysadmin = 1`, and only when
   `site_net == "internal"`. Anyone else is redirected to `/home/`.
@@ -240,8 +310,8 @@ A link appears on `/home/` for users who can open it.
 - **Schema** — apply `db/sysadmin.sql` *before* deploying: `/home/` reads
   the column on internal sites. Grant with
   `UPDATE users SET sysadmin = 1 WHERE username = '<username>';`.
-- Each section fails independently (shown as "Unavailable: ..."), so the
-  page still loads when the DB or a log file is the problem.
+- Each block fails independently (shown as "Unavailable: ..."), so a
+  page still loads when the DB, a table or a log file is the problem.
 - Log lines shown come from the last 256 KB of each file; they may contain
   query text, which is why the page is sysadmin-only.
 
@@ -296,6 +366,29 @@ and user):
 `maxsize` is only checked when logrotate runs (daily by default on RHEL).
 On RHEL with SELinux, a non-standard log folder may need the `var_log_t`
 label or logrotate will be denied (check `ausearch -m avc -ts recent`).
+
+### Sysadmin report files (RHEL)
+
+Pregenerated sysadmin reports are written by the cron user and served by
+httpd from `sysadmin_reports_folder` (default `<app root>/sysadmin_reports`).
+Create it once with a group both users share, and setgid so new files keep
+that group (files are written 0640):
+
+```bash
+install -d -m 2750 -o <cron_user> -g <httpd_group> /path/to/web_app/sysadmin_reports
+```
+
+httpd only needs to read it. Under `/var/www` the default
+`httpd_sys_content_t` label already allows that; elsewhere:
+
+```bash
+semanage fcontext -a -t httpd_sys_content_t "/path/to/web_app/sysadmin_reports(/.*)?"
+restorecon -Rv /path/to/web_app/sysadmin_reports
+```
+
+If a download shows "Could not read the … file", check `ospreyapp.log` and
+`ausearch -m avc -ts recent`: an `avc: denied { read }` entry means the
+label is wrong; otherwise it is the group or file mode.
 
 ## Tests
 

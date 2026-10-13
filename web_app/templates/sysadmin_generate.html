@@ -1,0 +1,65 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% if not groups.ok %}
+  {% call card('Generate Reports') %}{{ section_error(groups) }}{% endcall %}
+{% elif groups.data is none %}
+  {% call card('Generate Reports') %}
+    <p class="text-muted mb-0">The <code>sysadmin_reports</code> table does not exist (see <code>db/sysadmin_reports.sql</code>).</p>
+  {% endcall %}
+{% elif not groups.data %}
+  {% call card('Generate Reports') %}
+    <p class="text-muted mb-0">No reports yet. Add rows to <code>sysadmin_reports</code> (example in <code>db/sysadmin_reports.sql</code>).</p>
+  {% endcall %}
+{% else %}
+  <p class="text-muted small">Sysadmin-only reports from <code>sysadmin_reports</code>; they never appear on project dashboards.
+    <strong>Live</strong> reports run when you click Run (first {{ '{:,}'.format(preview_rows) }} rows shown, full result as CSV).
+    <strong>Pregenerated</strong> reports run on the next <code>materialize_reports.py</code> pass (nightly, or after Queue) to CSV/XLSX.</p>
+
+  {% for g in groups.data %}
+  {% if g.project_id is none %}{% set heading = 'All projects' %}
+  {% else %}{% set heading = (g.project_title or ('Project ' ~ g.project_id)) %}{% endif %}
+  {% call card(heading) %}
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr><th scope="col">Report</th><th scope="col">Mode</th><th scope="col">Last run</th><th scope="col"><span class="screen-reader-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for r in g.reports %}
+        <tr>
+          <td>{{ r.title }}<div class="text-muted small"><code>{{ r.report_id }}</code>{% if r.description %} · {{ r.description }}{% endif %}</div></td>
+          <td>{% if r.pregenerated %}<span class="badge bg-info text-dark">pregenerated</span>{% else %}live{% endif %}</td>
+          <td class="small">
+            {% if r.pregenerated %}
+              {% if r.status == 'failed' %}<span class="badge bg-danger">failed</span> {{ r.last_failed_at }}<div class="text-danger">{{ r.error_message }}</div>
+              {% elif r.status in ('queued', 'running') %}<span class="badge bg-secondary">{{ r.status }}</span>
+              {% elif r.last_succeeded_at %}{{ r.last_succeeded_at }}{% if r.row_count is not none %} · {{ '{:,}'.format(r.row_count) }} rows{% endif %}{% if r.duration_ms is not none %} · {{ '%.1f'|format(r.duration_ms / 1000) }} s{% endif %}
+              {% else %}<span class="text-muted">never</span>{% endif %}
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if r.pregenerated %}
+              {% if r.status not in ('queued', 'running') %}
+              <form method="post" action="{{ url_for('sysadmin.generate_queue', report_id=r.report_id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-osprey btn-sm"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Queue</button>
+              </form>
+              {% endif %}
+              {% if r.artifact_path_csv %}<a class="btn btn-osprey btn-sm" href="{{ url_for('sysadmin.generate_file', report_id=r.report_id, fmt='csv') }}"><i class="fa-solid fa-download" aria-hidden="true"></i> CSV</a>{% endif %}
+              {% if r.artifact_path_xlsx %}<a class="btn btn-osprey btn-sm" href="{{ url_for('sysadmin.generate_file', report_id=r.report_id, fmt='xlsx') }}"><i class="fa-solid fa-download" aria-hidden="true"></i> XLSX</a>{% endif %}
+            {% else %}
+              <a class="btn btn-osprey btn-sm" href="{{ url_for('sysadmin.generate_run', report_id=r.report_id) }}"><i class="fa-solid fa-play" aria-hidden="true"></i> Run</a>
+              <a class="btn btn-outline-osprey btn-sm" href="{{ url_for('sysadmin.generate_download', report_id=r.report_id) }}"><i class="fa-solid fa-download" aria-hidden="true"></i> CSV</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endcall %}
+  {% endfor %}
+{% endif %}
+
+{% endblock %}

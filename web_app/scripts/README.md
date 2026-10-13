@@ -26,7 +26,23 @@ out-of-band.
    mysql -u <user> -p <db_name> < db/transcription_profile.sql
    ```
 
-4. Schedule overnight generation. Copy an entry from
+4. Apply the sysadmin stats table (the nightly queue adds one
+   `stat:<job>` built-in job per entry in
+   `osprey/services/sysadmin_stats.py`; results show on `/sysadmin/schema/`):
+
+   ```bash
+   mysql -u <user> -p <db_name> < db/sysadmin_stats.sql
+   ```
+
+5. Apply the sysadmin-only reports table (pregenerated rows are queued as
+   `sysrep:<report_id>` jobs; output goes to `sysadmin_reports_folder`,
+   outside `static/`):
+
+   ```bash
+   mysql -u <user> -p <db_name> < db/sysadmin_reports.sql
+   ```
+
+6. Schedule overnight generation. Copy an entry from
    [`cron/nightly_reports.cron.example`](cron/nightly_reports.cron.example), or run:
 
    ```bash

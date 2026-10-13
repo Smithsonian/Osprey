@@ -1,0 +1,29 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Data Entry: choose a project') %}
+  {% if not projects.ok %}{{ section_error(projects) }}
+  {% elif projects.data is none %}
+    <p class="text-muted mb-0">The custom data tables do not exist (see <code>db/project_custom_data.sql</code>).</p>
+  {% elif not projects.data %}
+    <p class="text-muted mb-0">No project has data types yet. Add one to <code>project_custom_types</code> (example in <code>db/project_custom_data.sql</code>).</p>
+  {% else %}
+  <p class="text-muted small">Only projects with data types defined are listed. Per-project lists of values (for example, folder names a report treats differently). Report queries read them from the <code>project_custom_data</code> view.</p>
+  <form method="get" action="{{ url_for('sysadmin.data_entry') }}" class="d-flex flex-wrap gap-2 align-items-end">
+    <div>
+      <label for="project_id" class="form-label small mb-1">Project</label>
+      <select id="project_id" name="project_id" class="form-select form-select-sm" required>
+        <option value="">Select a project…</option>
+        {% for p in projects.data %}
+        <option value="{{ p.project_id }}">{{ p.project_title or ('Project ' ~ p.project_id) }}{% if p.project_status == 'Completed' %} (completed){% endif %} · {{ p.n_types }} type{{ '' if p.n_types == 1 else 's' }}, {{ p.n_values }} value{{ '' if p.n_values == 1 else 's' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-osprey btn-sm">Next <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+  </form>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

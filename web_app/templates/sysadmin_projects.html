@@ -1,0 +1,68 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Projects: users and settings') %}
+  {% if projects.ok %}
+  <p class="text-muted small">Users come from <code>qc_projects</code>; settings from <code>projects_settings</code>. Completed projects are listed last.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Status</th><th scope="col">Unit</th><th scope="col">Users</th><th scope="col">Settings</th></tr></thead>
+    <tbody>
+      {% for p in projects.data %}
+      <tr>
+        <td>
+          {% if p.project_alias %}<a href="{{ url_for('dashboard', project_alias=p.project_alias) }}">{{ p.project_title }}</a>{% else %}{{ p.project_title }}{% endif %}
+          <div class="text-muted small">ID {{ p.project_id }}{% if p.project_alias %} · {{ p.project_alias }}{% endif %}</div>
+        </td>
+        <td>{{ p.project_status or '' }}</td>
+        <td>{{ p.project_unit or '' }}</td>
+        <td class="small">
+          {% for u in p.users %}<span{% if not u.user_active %} class="text-muted text-decoration-line-through" title="inactive"{% endif %}>{{ u.username }}</span>{% if not loop.last %}, {% endif %}{% else %}<span class="text-danger">none</span>{% endfor %}
+        </td>
+        <td class="small">
+          {% for name, values in p.settings.items() %}<div><strong>{{ name }}</strong>: {{ values|join(', ') }}</div>{% else %}<span class="text-muted">none</span>{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}{{ section_error(projects) }}{% endif %}
+{% endcall %}
+
+{% call card('Transcription profile settings') %}
+  {% if not profile.ok %}{{ section_error(profile) }}
+  {% elif profile.data is none %}
+    <p class="text-muted mb-0">The transcription profile tables do not exist (see <code>db/transcription_profile.sql</code>).</p>
+  {% elif not profile.data %}
+    <p class="text-muted mb-0">No project has been profiled yet (rows are seeded on first run).</p>
+  {% else %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Fuzzy</th><th scope="col">Top N</th><th scope="col">Pool</th><th scope="col">Rare ≤</th><th scope="col">Free-text ratio</th><th scope="col">Min score</th><th scope="col">Weights (rare/novel/shape/length/repeat/boilerplate)</th><th scope="col">Terms</th><th scope="col">Updated</th></tr></thead>
+    <tbody>
+      {% for s in profile.data %}
+      <tr>
+        <td>{{ s.project_alias or s.project_id }}</td>
+        <td>{{ s.fuzzy_threshold }}</td>
+        <td>{{ s.top_n_common }}</td>
+        <td>{{ s.canonical_pool }}</td>
+        <td>{{ s.rare_max_count }}</td>
+        <td>{{ s.free_text_ratio }}</td>
+        <td>{{ s.min_score }}</td>
+        <td class="small">{{ s.w_rare }} / {{ s.w_novel }} / {{ s.w_shape }} / {{ s.w_length }} / {{ s.w_repeat }} / {{ s.w_boilerplate }}</td>
+        <td class="small">
+          {% for kind, words in s.terms.items() %}<div><strong>{{ kind }}</strong>: {{ words|join(', ') }}</div>{% else %}<span class="text-muted">none</span>{% endfor %}
+        </td>
+        <td>{{ s.updated_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

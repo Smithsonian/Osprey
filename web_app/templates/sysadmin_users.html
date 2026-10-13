@@ -1,0 +1,98 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, yesno, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Users') %}
+  {% if users.ok %}
+  <p class="text-muted small"><strong>Admin</strong> manages specific projects; <strong>sysadmin</strong> has system-wide powers. "Updated" is the last change to the user row, not the last login (logins are not recorded).</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">ID</th><th scope="col">Username</th><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Active</th><th scope="col">Admin</th><th scope="col">Sysadmin</th><th scope="col">Internal</th><th scope="col">Projects</th><th scope="col">Updated</th><th scope="col"><span class="screen-reader-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for u in users.data %}
+      <tr{% if not u.user_active %} class="text-muted"{% endif %}>
+        <td>{{ u.user_id }}</td>
+        <td><a href="#user-{{ u.user_id }}">{{ u.username }}</a></td>
+        <td>{{ u.full_name or '' }}</td>
+        <td>{{ u.email or '' }}</td>
+        <td>{{ yesno(u.user_active) }}</td>
+        <td>{{ yesno(u.is_admin) }}</td>
+        <td>{{ yesno(u.sysadmin) }}</td>
+        <td>{{ yesno(u.internal) }}</td>
+        <td>{{ u.project_count }}</td>
+        <td>{{ u.updated_at }}</td>
+        <td class="text-nowrap">
+          {% if u.user_active and u.username != current_username %}
+          <button type="button" class="btn btn-outline-danger btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#deactivateModal"
+                  data-action="{{ url_for('sysadmin.deactivate_user', user_id=u.user_id) }}"
+                  data-username="{{ u.username }}" data-fullname="{{ u.full_name or '' }}"
+                  data-projects="{{ u.project_count }}">
+            <i class="fa-solid fa-user-slash" aria-hidden="true"></i> Set inactive
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}{{ section_error(users) }}{% endif %}
+{% endcall %}
+
+{% call card('Project assignments by user (qc_projects)') %}
+  {% if not assignments.ok %}{{ section_error(assignments) }}
+  {% elif users.ok %}
+    {% for u in users.data %}
+      {% set mine = assignments.data.get(u.user_id, []) %}
+      <h3 class="h6 mt-3" id="user-{{ u.user_id }}">{{ u.username }}{% if u.full_name %} — {{ u.full_name }}{% endif %} <span class="text-muted small">({{ mine|length }})</span></h3>
+      {% if mine %}
+      <ul class="small mb-2">
+        {% for p in mine %}
+        {# project_alias is nullable; such projects have no dashboard URL. #}
+        <li>{% if p.project_alias %}<a href="{{ url_for('dashboard', project_alias=p.project_alias) }}">{{ p.project_title }}</a>{% else %}{{ p.project_title }} <span class="text-muted">(no alias)</span>{% endif %} <span class="text-muted">· {{ p.project_status or 'no status' }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-muted small mb-2">No projects.</p>{% endif %}
+    {% endfor %}
+  {% endif %}
+{% endcall %}
+
+{% endblock %}
+
+{% block javascripts %}
+{# One shared confirmation modal; the clicked button fills in the user and form action. #}
+<div class="modal fade" id="deactivateModal" tabindex="-1" aria-labelledby="deactivateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="deactivateForm" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="deactivateModalLabel">Set user inactive?</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong id="deactivateName"></strong> will no longer be able to log in, and any open session ends on their next page load.</p>
+          <p class="small text-muted mb-0">Their project assignments (<span id="deactivateProjects"></span>) and past QC records are kept. Reactivating is not available on this page yet.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-user-slash" aria-hidden="true"></i> Set inactive</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('deactivateModal').addEventListener('show.bs.modal', function (event) {
+    var btn = event.relatedTarget;
+    var name = btn.getAttribute('data-username');
+    var full = btn.getAttribute('data-fullname');
+    document.getElementById('deactivateForm').setAttribute('action', btn.getAttribute('data-action'));
+    document.getElementById('deactivateName').textContent = full ? name + ' (' + full + ')' : name;
+    document.getElementById('deactivateProjects').textContent = btn.getAttribute('data-projects');
+  });
+</script>
+{% endblock %}
+

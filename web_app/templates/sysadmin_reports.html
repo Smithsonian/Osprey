@@ -1,0 +1,48 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Report definitions (data_reports)') %}
+  {% if not reports.ok %}{{ section_error(reports) }}
+  {% else %}
+  <p class="text-muted small">Pregenerated reports run overnight; live reports run on each request and have no recorded run time. Switch a report with <code>db/mark_pregenerated_reports.sql</code>.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Report</th><th scope="col">Mode</th>
+      {% if reports.data.materializations %}<th scope="col">Status</th><th scope="col">Last success</th><th scope="col" class="text-end">Duration</th><th scope="col" class="text-end">Rows</th>{% endif %}
+      <th scope="col">Definition updated</th><th scope="col"><span class="screen-reader-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for r in reports.data.rows %}
+      <tr>
+        <td>{{ r.project_alias or r.project_id }}</td>
+        <td>{{ r.report_title }}<div class="text-muted small"><code>{{ r.report_id }}</code></div></td>
+        <td>{% if r.pregenerated %}<span class="badge bg-info text-dark">pregenerated</span>{% else %}live{% endif %}</td>
+        {% if reports.data.materializations %}
+        <td>{% if r.status == 'failed' %}<span class="badge bg-danger">failed</span>{% else %}{{ r.status or '' }}{% endif %}</td>
+        <td>{{ r.last_succeeded_at or '' }}</td>
+        <td class="text-end">{% if r.duration_ms is not none %}{{ '%.1f'|format(r.duration_ms / 1000) }} s{% endif %}</td>
+        <td class="text-end">{% if r.row_count is not none %}{{ '{:,}'.format(r.row_count) }}{% endif %}</td>
+        {% endif %}
+        <td>{{ r.updated_at }}</td>
+        <td>
+          {% if r.pregenerated and r.status not in ('queued', 'running') %}
+          <form method="post" action="{{ url_for('sysadmin.requeue_report', project_id=r.project_id, report_id=r.report_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-osprey btn-sm text-nowrap">
+              <i class="fa-solid fa-rotate" aria-hidden="true"></i> Requeue
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="text-muted">No reports defined.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

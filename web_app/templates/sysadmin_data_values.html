@@ -1,0 +1,74 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+{% set ptitle = project.project_title or ('Project ' ~ project.project_id) %}
+
+<p class="small mb-2">
+  <a href="{{ url_for('sysadmin.data_entry') }}">Projects</a> /
+  <a href="{{ url_for('sysadmin.data_project', project_id=project.project_id) }}">{{ ptitle }}</a> /
+  {{ dtype.label }}
+</p>
+
+{% call card(dtype.label ~ ' · ' ~ ptitle) %}
+  {% if dtype.description %}<p class="text-muted small">{{ dtype.description }}</p>{% endif %}
+  <p class="text-muted small">In queries: <code>SELECT value FROM project_custom_data WHERE project_id = {{ project.project_id }} AND type_id = '{{ dtype.type_id }}'</code></p>
+
+  {% if not values.ok %}{{ section_error(values) }}
+  {% else %}
+  <h3 class="h6">Current values ({{ values.data.current|length }})</h3>
+  {% if values.data.current %}
+  <div class="table-responsive mb-3">
+  <table class="table table-sm mb-0 align-middle">
+    <thead><tr><th scope="col">Value</th><th scope="col">Note</th><th scope="col">Added</th><th scope="col"><span class="screen-reader-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for v in values.data.current %}
+      <tr>
+        <td><code>{{ v.value }}</code></td>
+        <td class="small">{{ v.note or '' }}</td>
+        <td class="small text-muted">{{ v.added_by }} · {{ v.added_at }}</td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('sysadmin.data_remove', project_id=project.project_id, type_id=dtype.type_id, value_id=v.value_id) }}"
+                onsubmit="return confirm('Remove this value? It stays in the history below.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="text-muted">None yet.</p>{% endif %}
+
+  <h3 class="h6">Add values</h3>
+  <form method="post" action="{{ url_for('sysadmin.data_add', project_id=project.project_id, type_id=dtype.type_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-2">
+      <label for="values" class="form-label small mb-1">One value per line ({{ dtype.value_type }}{% if dtype.value_type == 'date' %}, YYYY-MM-DD{% endif %}; up to {{ max_per_submit }})</label>
+      <textarea id="values" name="values" rows="5" class="form-control form-control-sm" required></textarea>
+    </div>
+    <div class="mb-2">
+      <label for="note" class="form-label small mb-1">Note (optional, applies to all values in this save)</label>
+      <input id="note" name="note" type="text" maxlength="255" class="form-control form-control-sm">
+    </div>
+    <button type="submit" class="btn btn-osprey btn-sm"><i class="fa-solid fa-plus" aria-hidden="true"></i> Save</button>
+  </form>
+
+  {% if values.data.removed %}
+  <details class="mt-3">
+    <summary class="small">Removed values ({{ values.data.removed|length }})</summary>
+    <table class="table table-sm mt-2 mb-0">
+      <thead><tr><th scope="col">Value</th><th scope="col">Added</th><th scope="col">Removed</th></tr></thead>
+      <tbody>
+        {% for v in values.data.removed %}
+        <tr class="text-muted small"><td><code>{{ v.value }}</code></td><td>{{ v.added_by }} · {{ v.added_at }}</td><td>{{ v.removed_by }} · {{ v.removed_at }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

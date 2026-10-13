@@ -1,0 +1,14 @@
+{# Shared helpers for the sysadmin pages. #}
+
+{% macro section_error(sec) %}
+  <div class="alert alert-danger mb-0" role="alert">Unavailable: {{ sec.error }}</div>
+{% endmacro %}
+
+{% macro yesno(value) %}{% if value %}<span class="badge bg-success">yes</span>{% else %}<span class="text-muted">no</span>{% endif %}{% endmacro %}
+
+{% macro card(title) %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">{{ title }}</h2></div>
+    <div class="card-body">{{ caller() }}</div>
+  </div>
+{% endmacro %}

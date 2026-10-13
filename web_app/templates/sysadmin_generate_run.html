@@ -1,0 +1,34 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import card %}
+
+{% block sysadmin_content %}
+
+{% call card(report.title) %}
+  <p class="small mb-2">
+    <code>{{ report.report_id }}</code>
+    · {% if report.project_id is none %}All projects{% else %}{{ report.project_title or ('Project ' ~ report.project_id) }}{% endif %}
+    · {{ '{:,}'.format(result.total) }} row{{ '' if result.total == 1 else 's' }} in {{ '%.1f'|format(result.duration_ms / 1000) }} s
+    {% if result.total > preview_rows %}· showing the first {{ '{:,}'.format(preview_rows) }}{% endif %}
+  </p>
+  {% if report.description %}<p class="text-muted small">{{ report.description }}</p>{% endif %}
+  <div class="d-flex gap-2 mb-3">
+    <a class="btn btn-osprey btn-sm" href="{{ url_for('sysadmin.generate_download', report_id=report.report_id) }}"><i class="fa-solid fa-download" aria-hidden="true"></i> Download full CSV</a>
+    <a class="btn btn-outline-osprey btn-sm" href="{{ url_for('sysadmin.generate') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> All reports</a>
+  </div>
+  {% if result.rows %}
+  <div class="table-responsive" style="max-height: 70vh; overflow: auto;">
+  <table class="table table-sm table-striped mb-0">
+    <thead><tr>{% for c in result.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in result.rows %}
+      <tr>{% for c in result.columns %}<td>{{ '' if row[c] is none else row[c] }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">The query returned no rows.</p>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

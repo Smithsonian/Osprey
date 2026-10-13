@@ -1,0 +1,38 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, yesno, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Kiosk check-ins') %}
+  {% if not kiosks.ok %}{{ section_error(kiosks) }}
+  {% elif not kiosks.data.table_present %}
+    <p class="text-muted mb-0">The <code>kiosk</code> table does not exist (see <code>db/kiosk.sql</code>).</p>
+  {% else %}
+  <p class="text-muted small">Machines that checked in over the last {{ kiosks.data.days }} days. "IP" is what the machine reports about itself; "In OSPREY_KIOSKS" compares it with the setting, which matches on the address the web server sees, so a proxy or NAT can make these differ.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-3">
+    <thead><tr><th scope="col">Machine</th><th scope="col">IP</th><th scope="col">In OSPREY_KIOSKS</th><th scope="col">Last seen</th><th scope="col" class="text-end">Check-ins</th><th scope="col">Other IPs</th></tr></thead>
+    <tbody>
+      {% for m in kiosks.data.machines %}
+      <tr>
+        <td>{{ m.machine_name }}</td>
+        <td><code>{{ m.ip }}</code></td>
+        <td>{% if m.configured %}{{ yesno(true) }}{% else %}<span class="badge bg-warning text-dark">not listed</span>{% endif %}</td>
+        <td>{{ m.last_seen }}</td>
+        <td class="text-end">{{ m.checkins }}</td>
+        <td class="small">{{ m.other_ips|join(', ') }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-muted">No check-ins in this period.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% if kiosks.ok and kiosks.data.get('configured_not_seen') %}
+    <h3 class="h6">Listed in OSPREY_KIOSKS but no check-in in {{ kiosks.data.days }} days</h3>
+    <p class="mb-0">{% for ip in kiosks.data.configured_not_seen %}<code>{{ ip }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

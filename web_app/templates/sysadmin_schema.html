@@ -1,0 +1,101 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Hand-applied SQL (db/)') %}
+  {% if schema.ok %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">File</th><th scope="col">Creates</th><th scope="col">Applied</th></tr></thead>
+    <tbody>
+      {% for row in schema.data %}
+      <tr>
+        <td><code>{{ row.file }}</code></td>
+        <td><code>{{ row.target }}</code></td>
+        <td>{% if row.applied %}<span class="badge bg-success">applied</span>{% else %}<span class="badge bg-danger">missing</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="text-muted small mt-2 mb-0"><code>db/mark_pregenerated_reports.sql</code> only changes data; see the Reports tab.</p>
+  {% else %}{{ section_error(schema) }}{% endif %}
+{% endcall %}
+
+{% if not stats.ok %}
+  {% call card('Per-project stats') %}{{ section_error(stats) }}{% endcall %}
+{% elif not stats.data.table_present %}
+  {% call card('Per-project stats') %}
+    <p class="text-muted mb-0">The <code>sysadmin_stats</code> table does not exist (see <code>db/sysadmin_stats.sql</code>).</p>
+  {% endcall %}
+{% else %}
+{% for job in stats.data.jobs %}
+{% call card(job.title) %}
+  {% set run = job.run %}
+  <p class="text-muted small mb-2">
+    Computed nightly (job <code>stat:{{ job.job_id }}</code>).
+    {% if job.computed_at %}Last computed {{ job.computed_at }}{% if run and run.duration_ms is not none %}, took {{ '%.0f'|format(run.duration_ms / 1000) }} s{% endif %}.{% endif %}
+    {% if job.note %}{{ job.note }}{% endif %}
+  </p>
+  {% if run and run.status == 'failed' %}
+    <div class="alert alert-danger small mb-2" role="alert">Last run failed at {{ run.last_failed_at }}: {{ run.error_message }}</div>
+  {% elif run and run.status in ('queued', 'running') %}
+    <p class="small mb-2"><span class="badge bg-info text-dark">{{ run.status }}</span></p>
+  {% endif %}
+  {% if not job.projects %}
+    <p class="text-muted mb-0">No values yet: the job runs at the end of the nightly report queue.</p>
+  {% else %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Status</th>
+      {% for stat_id, label in job.stats %}<th scope="col" class="text-end">{{ label }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for p in job.projects %}
+      <tr>
+        <td>
+          {% if p.project_id == 0 %}<em>Not linked to a project</em>
+          {% elif p.project_alias %}<a href="{{ url_for('dashboard', project_alias=p.project_alias) }}">{{ p.project_title }}</a>
+          {% else %}{{ p.project_title or ('Project ' ~ p.project_id) }}{% endif %}
+          {% if p.project_id != 0 %}<div class="text-muted small">ID {{ p.project_id }}</div>{% endif %}
+        </td>
+        <td>{{ p.project_status or '' }}</td>
+        {% for stat_id, label in job.stats %}<td class="text-end">{% if stat_id in p['values'] %}{{ '{:,}'.format(p['values'][stat_id]) }}{% endif %}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><th scope="row">Total</th><td></td>
+      {% for stat_id, label in job.stats %}<th class="text-end">{{ '{:,}'.format(job.totals[stat_id]) }}</th>{% endfor %}
+    </tr></tfoot>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+{% endfor %}
+{% endif %}
+
+{% call card('Table sizes') %}
+  {% if sizes.ok %}
+  <p class="text-muted small">Row counts are InnoDB estimates; MySQL may cache these figures for up to 24 hours.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Table</th><th scope="col" class="text-end">Rows (est.)</th><th scope="col" class="text-end">Data</th><th scope="col" class="text-end">Indexes</th><th scope="col" class="text-end">Total</th><th scope="col">Last write</th></tr></thead>
+    <tbody>
+      {% for t in sizes.data %}
+      <tr>
+        <td><code>{{ t.name }}</code></td>
+        <td class="text-end">{{ '{:,}'.format(t.est_rows or 0) }}</td>
+        <td class="text-end">{{ (t.data_bytes or 0)|filesizeformat }}</td>
+        <td class="text-end">{{ (t.index_bytes or 0)|filesizeformat }}</td>
+        <td class="text-end">{{ (t.total_bytes or 0)|filesizeformat }}</td>
+        <td>{{ t.update_time or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}{{ section_error(sizes) }}{% endif %}
+{% endcall %}
+
+{% endblock %}

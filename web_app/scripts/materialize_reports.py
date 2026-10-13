@@ -24,6 +24,8 @@ import settings
 from logger import logger
 from osprey.db import run_query
 from osprey.services import reports as report_service
+from osprey.services import sysadmin_reports
+from osprey.services import sysadmin_stats
 from osprey.services import transcription_profile
 
 
@@ -202,9 +204,44 @@ def _materialize_transcription_profile(project_id: int, report_id: str) -> None:
                 duration_ms=int((time.time() - start) * 1000), row_count=rows_read)
 
 
+def _materialize_stat(project_id: int, report_id: str, job_id: str) -> None:
+    """Built-in sysadmin stat job: results go to sysadmin_stats, not artifacts."""
+    start = time.time()
+    try:
+        rows_written = sysadmin_stats.run_job(job_id)
+    except Exception as exc:
+        _set_status(project_id, report_id, status="failed",
+                    duration_ms=int((time.time() - start) * 1000), error_message=str(exc))
+        raise
+    _set_status(project_id, report_id, status="succeeded",
+                duration_ms=int((time.time() - start) * 1000), row_count=rows_written)
+
+
+def _materialize_sysadmin_report(project_id: int, report_id: str, sys_report_id: str) -> None:
+    """Sysadmin-only report: files go to sysadmin_reports.ARTIFACT_DIR, not static/."""
+    start = time.time()
+    try:
+        result = sysadmin_reports.materialize(sys_report_id)
+    except Exception as exc:
+        _set_status(project_id, report_id, status="failed",
+                    duration_ms=int((time.time() - start) * 1000), error_message=str(exc))
+        raise
+    _set_status(project_id, report_id, status="succeeded",
+                duration_ms=int((time.time() - start) * 1000), row_count=result["row_count"],
+                artifact_path_csv=result["csv"], artifact_path_xlsx=result["xlsx"])
+
+
 def _materialize_one(project_id: int, report_id: str) -> None:
     if report_id == transcription_profile.REPORT_ID:
         _materialize_transcription_profile(project_id, report_id)
+        return
+    stat_job = sysadmin_stats.job_id_from_report(report_id)
+    if stat_job is not None:
+        _materialize_stat(project_id, report_id, stat_job)
+        return
+    sys_report = sysadmin_reports.report_id_from_materialization(report_id)
+    if sys_report is not None:
+        _materialize_sysadmin_report(project_id, report_id, sys_report)
         return
     start = time.time()
     report = report_service.get_project_report(project_id, report_id)

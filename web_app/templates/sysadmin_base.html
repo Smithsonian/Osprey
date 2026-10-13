@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}System Admin — Collections Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <span class="navbar-context">System admin</span>
+{% endblock %}
+
+{% block content %}
+
+<div class="userhome-page">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h1 class="h2 mb-1">System Admin</h1>
+      <p class="text-muted small mb-0">Signed in as {{ username }}</p>
+    </div>
+  </div>
+
+  <nav class="dashboard-fact-chips mb-4" aria-label="System admin sections">
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('home') }}">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> My Projects
+    </a>
+    {% for endpoint, label, icon in nav %}
+    <a class="dashboard-fact-chip dashboard-fact-chip-link{% if request.endpoint == endpoint %} fw-bold{% endif %}"
+       href="{{ url_for(endpoint) }}"{% if request.endpoint == endpoint %} aria-current="page"{% endif %}>
+      <i class="fa-solid {{ icon }}" aria-hidden="true"></i> {{ label }}
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="alert alert-{{ category if category in ('success', 'warning', 'danger') else 'info' }} mb-3" role="status">{{ message }}</div>
+  {% endfor %}
+
+  {% block sysadmin_content %}{% endblock %}
+
+</div>
+
+{% endblock %}

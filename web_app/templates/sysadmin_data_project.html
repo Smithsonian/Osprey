@@ -1,0 +1,30 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+<p class="small mb-2"><a href="{{ url_for('sysadmin.data_entry') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Change project</a></p>
+
+{% call card('Data Entry: ' ~ (project.project_title or ('Project ' ~ project.project_id))) %}
+  {% if not types.ok %}{{ section_error(types) }}
+  {% elif not types.data %}
+    <p class="text-muted mb-0">No data types defined for this project. Add one to <code>project_custom_types</code> with <code>project_id = {{ project.project_id }}</code> (example in <code>db/project_custom_data.sql</code>).</p>
+  {% else %}
+  <p class="text-muted small">This project's data types. Choose one to enter its values.</p>
+  <div class="list-group">
+    {% for t in types.data %}
+    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+       href="{{ url_for('sysadmin.data_values', project_id=project.project_id, type_id=t.type_id) }}">
+      <div>
+        <div class="fw-semibold">{{ t.label }}</div>
+        {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        <div class="text-muted small"><code>{{ t.type_id }}</code> · {{ t.value_type }}</div>
+      </div>
+      <span class="badge bg-secondary">{{ t.n_values }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

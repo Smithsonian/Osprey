@@ -13,6 +13,8 @@ import settings
 from logger import logger
 from osprey.db import run_query
 from osprey.services import report_materializations as materializations
+from osprey.services import sysadmin_reports
+from osprey.services import sysadmin_stats
 from osprey.services import transcription_profile
 
 
@@ -42,8 +44,35 @@ def list_transcription_profile_jobs() -> list[dict]:
     ]
 
 
+def list_stat_jobs() -> list[dict]:
+    """One built-in job per sysadmin stat (not tied to a project)."""
+    return [
+        {"project_id": sysadmin_stats.STAT_PROJECT_ID, "report_id": sysadmin_stats.report_id_for(job_id),
+         "report_title": job["title"]}
+        for job_id, job in sysadmin_stats.STAT_JOBS.items()
+    ]
+
+
+def list_sysadmin_report_jobs() -> list[dict]:
+    """Pregenerated sysadmin-only reports; none until db/sysadmin_reports.sql is applied."""
+    if not sysadmin_reports.table_exists():
+        return []
+    rows = run_query(
+        "SELECT report_id, title FROM sysadmin_reports WHERE pregenerated = 1 ORDER BY report_id",
+        log_vals=False,
+    )
+    return [
+        {"project_id": sysadmin_reports.MATERIALIZATION_PROJECT_ID,
+         "report_id": sysadmin_reports.materialization_id(r["report_id"]),
+         "report_title": r["title"]}
+        for r in rows or []
+    ]
+
+
 def queue_all(*, requested_by: str = "nightly") -> int:
-    reports = list_pregenerated_reports() + list_transcription_profile_jobs()
+    # Stat jobs last: the queue drains oldest-first, so reports run before them.
+    reports = (list_pregenerated_reports() + list_transcription_profile_jobs()
+               + list_sysadmin_report_jobs() + list_stat_jobs())
     if not reports:
         logger.info("queue_nightly_reports: no pregenerated reports found")
         return 0
