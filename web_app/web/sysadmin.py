@@ -48,6 +48,7 @@ NAV = (
     ('sysadmin.schema', 'Schema & tables', 'fa-database'),
     ('sysadmin.users', 'Users', 'fa-users'),
     ('sysadmin.projects', 'Projects', 'fa-folder-tree'),
+    ('sysadmin.folder_errors', 'Folder Errors', 'fa-triangle-exclamation'),
     ('sysadmin.api_keys', 'API keys', 'fa-key'),
     ('sysadmin.kiosks', 'Kiosks', 'fa-desktop'),
     ('sysadmin.reports', 'Reports', 'fa-file-lines'),
@@ -137,6 +138,16 @@ def projects():
     return _render('sysadmin_projects.html',
                    projects=section('projects', sysadmin_data.projects_overview),
                    profile=section('transcription profile', sysadmin_data.transcription_profile_config))
+
+
+@sysadmin_bp.route('/folder-errors/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def folder_errors():
+    project_id = request.args.get('project_id', type=int)
+    return _render('sysadmin_folder_errors.html',
+                   errors=section('folder errors', lambda: sysadmin_data.folder_errors(project_id)),
+                   filter_projects=section('folder error projects', sysadmin_data.folder_error_projects),
+                   selected_project_id=project_id)
 
 
 @sysadmin_bp.route('/api-keys/', methods=['GET'], provide_automatic_options=False)

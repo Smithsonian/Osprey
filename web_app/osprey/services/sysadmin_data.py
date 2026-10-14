@@ -239,6 +239,48 @@ def kiosks():
     }
 
 
+def folder_errors(project_id=None):
+    """Folders (and transcription folders) currently flagged status = 1,
+    for active (non-Completed) projects, with the db's error_info message.
+    Narrowed to one project when project_id is given."""
+    params = {'project_id': project_id} if project_id else None
+    project_filter = " AND f.project_id = %(project_id)s" if project_id else ""
+    rows = db.run_query(
+        "SELECT f.folder_id, f.project_id, p.project_alias, p.project_title, "
+        "  f.project_folder AS folder_name, f.folder_path, f.status, f.error_info, "
+        "  f.file_errors, f.no_files_errors, f.updated_at, 'folder' AS source "
+        "FROM folders f JOIN projects p ON p.project_id = f.project_id "
+        "WHERE f.status = 1 AND p.project_status != 'Completed'" + project_filter,
+        params,
+    )
+    rows += db.run_query(
+        "SELECT f.folder_transcription_id AS folder_id, f.project_id, "
+        "  p.project_alias, p.project_title, f.folder AS folder_name, f.folder_path, "
+        "  f.status, f.error_info, f.file_errors, f.no_files_errors, f.updated_at, "
+        "  'transcription_folder' AS source "
+        "FROM transcription_folders f JOIN projects p ON p.project_id = f.project_id "
+        "WHERE f.status = 1 AND p.project_status != 'Completed'" + project_filter,
+        params,
+    )
+    rows.sort(key=lambda r: r['updated_at'], reverse=True)
+    return rows
+
+
+def folder_error_projects():
+    """Active projects that currently have at least one status = 1 folder,
+    for the folder-errors page's project filter dropdown."""
+    return db.run_query(
+        "SELECT p.project_id, p.project_alias, p.project_title "
+        "FROM folders f JOIN projects p ON p.project_id = f.project_id "
+        "WHERE f.status = 1 AND p.project_status != 'Completed' "
+        "UNION "
+        "SELECT p.project_id, p.project_alias, p.project_title "
+        "FROM transcription_folders f JOIN projects p ON p.project_id = f.project_id "
+        "WHERE f.status = 1 AND p.project_status != 'Completed' "
+        "ORDER BY project_alias, project_title"
+    )
+
+
 def reports():
     has_mat = bool(existing_tables(['report_materializations']))
     if has_mat:

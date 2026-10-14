@@ -88,6 +88,47 @@ def test_kiosks_without_table(monkeypatch):
         assert sd.kiosks() == {'table_present': False, 'configured': []}
 
 
+def test_folder_errors_merges_and_sorts_both_tables():
+    def rq(query, params=None):
+        assert "f.status = 1" in query
+        assert "project_status != 'Completed'" in query
+        assert params is None
+        if 'FROM folders f' in query:
+            return [{'folder_id': 1, 'project_id': 1, 'project_alias': 'p1',
+                     'project_title': 'P1', 'folder_name': 'f1', 'folder_path': '/f1',
+                     'status': 1, 'error_info': 'bad md5', 'file_errors': 2,
+                     'no_files_errors': 2, 'updated_at': T1, 'source': 'folder'}]
+        return [{'folder_id': 'u-2', 'project_id': 2, 'project_alias': 'p2',
+                 'project_title': 'P2', 'folder_name': 'f2', 'folder_path': '/f2',
+                 'status': 1, 'error_info': 'missing file', 'file_errors': 1,
+                 'no_files_errors': 1, 'updated_at': T2, 'source': 'transcription_folder'}]
+
+    with patch.object(sd.db, 'run_query', side_effect=rq):
+        rows = sd.folder_errors()
+    assert [r['folder_id'] for r in rows] == ['u-2', 1]
+    assert [r['source'] for r in rows] == ['transcription_folder', 'folder']
+
+
+def test_folder_errors_filters_by_project():
+    def rq(query, params=None):
+        assert "f.project_id = %(project_id)s" in query
+        assert params == {'project_id': 2}
+        return []
+
+    with patch.object(sd.db, 'run_query', side_effect=rq) as run_query:
+        sd.folder_errors(project_id=2)
+    assert run_query.call_count == 2
+
+
+def test_folder_error_projects_unions_both_tables():
+    with patch.object(sd.db, 'run_query', return_value=[
+            {'project_id': 2, 'project_alias': 'p2', 'project_title': 'P2'}]) as run_query:
+        rows = sd.folder_error_projects()
+    query = run_query.call_args[0][0]
+    assert 'UNION' in query and "project_status != 'Completed'" in query
+    assert rows == [{'project_id': 2, 'project_alias': 'p2', 'project_title': 'P2'}]
+
+
 def test_projects_overview_groups_users_and_settings():
     def rq(query, params=None):
         if 'FROM projects ORDER' in query:

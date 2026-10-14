@@ -1,0 +1,47 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('Folder Errors') %}
+  <p class="text-muted small">Folders (and transcription folders) in active projects currently flagged <code>status = 1</code>, with the error message the worker recorded in <code>error_info</code>.</p>
+  {% if filter_projects.ok and filter_projects.data %}
+  <form method="get" action="{{ url_for('sysadmin.folder_errors') }}" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div>
+      <label for="project_id" class="form-label small mb-1">Project</label>
+      <select id="project_id" name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All projects</option>
+        {% for p in filter_projects.data %}
+        <option value="{{ p.project_id }}" {% if p.project_id == selected_project_id %}selected{% endif %}>{{ p.project_alias or p.project_title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-osprey btn-sm">Filter</button></noscript>
+  </form>
+  {% endif %}
+  {% if not errors.ok %}{{ section_error(errors) }}
+  {% else %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Type</th><th scope="col">Folder</th><th scope="col">Error</th><th scope="col" class="text-end">File errors</th><th scope="col" class="text-end">No-files errors</th><th scope="col">Updated</th></tr></thead>
+    <tbody>
+      {% for f in errors.data %}
+      <tr>
+        <td>{{ f.project_alias or f.project_title }}</td>
+        <td>{{ 'Transcription' if f.source == 'transcription_folder' else 'Folder' }}</td>
+        <td><code>{{ f.folder_name }}</code></td>
+        <td class="small">{{ f.error_info }}</td>
+        <td class="text-end">{{ f.file_errors }}</td>
+        <td class="text-end">{{ f.no_files_errors }}</td>
+        <td>{{ f.updated_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-muted">No folders currently in an error state.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}
