@@ -1,0 +1,108 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+{% set ptitle = project.project_title or ('Project ' ~ project.project_id) %}
+
+<p class="small mb-2"><a href="{{ url_for('sysadmin.qc_settings') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Change project</a></p>
+
+{% call card('QC settings: ' ~ ptitle) %}
+  {% if not qc_settings.ok %}{{ section_error(qc_settings) }}
+  {% elif qc_settings.data is none %}
+    <p class="text-muted mb-0">No QC settings yet for this project
+      (the row is created the first time a project admin opens
+      <code>{{ '/qc_transcription/' if project.transcription else '/qc/' }}{{ project.project_alias or project.project_id }}/</code>).</p>
+  {% else %}
+  {% set s = qc_settings.data %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr>
+      <th scope="col">Level</th><th scope="col">Sample %</th>
+      <th scope="col">Threshold critical</th><th scope="col">Weight major</th><th scope="col">Weight minor</th>
+      <th scope="col">Weighted rate</th>
+      <th scope="col">Normal %</th><th scope="col">Reduced %</th><th scope="col">Tightened %</th>
+      <th scope="col">Updated</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge bg-secondary">{{ s.qc_level }}</span></td>
+        <td>{{ s.qc_percent }}%</td>
+        <td>{{ s.qc_threshold_critical }}%</td>
+        <td>{{ s.w_major }}</td>
+        <td>{{ s.w_minor }}</td>
+        <td>{{ s.weighted_rate }}%</td>
+        <td>{{ s.qc_normal_percent }}%</td>
+        <td>{{ s.qc_reduced_percent }}%</td>
+        <td>{{ s.qc_tightened_percent }}%</td>
+        <td>{{ s.updated_at }}</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="text-muted small mb-0">See <code>folder_passes_qc</code> in <code>osprey/services/qc.py</code>:
+    critical issues are a hard gate checked alone against the critical threshold. Major and minor issues are
+    blended into one weighted rate - <code>major_count &times; weight major + minor_count &times; weight minor</code>,
+    as a percentage of the sample - and compared against the weighted rate threshold. A folder fails only if it
+    exceeds a threshold; sitting exactly at it passes.</p>
+  {% endif %}
+{% endcall %}
+
+{% if qc_settings.ok and qc_settings.data %}
+{% set s = qc_settings.data %}
+{% call card('Pass/fail calculator') %}
+  <p class="text-muted small">Enter a sample size and how many sampled files landed in each severity to see
+    whether that sample would pass QC under this project's current thresholds.</p>
+  <form id="qc-calculator" class="row gy-2 gx-3 align-items-end"
+        data-threshold-critical="{{ s.qc_threshold_critical }}"
+        data-w-major="{{ s.w_major }}"
+        data-w-minor="{{ s.w_minor }}"
+        data-weighted-rate="{{ s.weighted_rate }}">
+    <div class="col-auto">
+      <label for="qc-calc-sample" class="form-label small mb-1">Sample size</label>
+      <input type="number" min="1" step="1" id="qc-calc-sample" class="form-control form-control-sm" value="100">
+    </div>
+    <div class="col-auto">
+      <label for="qc-calc-critical" class="form-label small mb-1">Critical failures</label>
+      <input type="number" min="0" step="1" id="qc-calc-critical" class="form-control form-control-sm" value="0">
+    </div>
+    <div class="col-auto">
+      <label for="qc-calc-major" class="form-label small mb-1">Major failures</label>
+      <input type="number" min="0" step="1" id="qc-calc-major" class="form-control form-control-sm" value="0">
+    </div>
+    <div class="col-auto">
+      <label for="qc-calc-minor" class="form-label small mb-1">Minor failures</label>
+      <input type="number" min="0" step="1" id="qc-calc-minor" class="form-control form-control-sm" value="0">
+    </div>
+  </form>
+
+  <div class="table-responsive mt-3">
+  <table class="table table-sm mb-0">
+    <thead><tr>
+      <th scope="col">Check</th><th scope="col">Issues</th><th scope="col">% of sample</th>
+      <th scope="col">Threshold</th><th scope="col">Result</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <th scope="row">Critical</th>
+        <td id="qc-calc-critical-n"></td><td id="qc-calc-critical-pct"></td>
+        <td id="qc-calc-critical-limit"></td><td id="qc-calc-critical-result"></td>
+      </tr>
+      <tr>
+        <th scope="row">Weighted major + minor</th>
+        <td id="qc-calc-weighted-n"></td><td id="qc-calc-weighted-pct"></td>
+        <td id="qc-calc-weighted-limit"></td><td id="qc-calc-weighted-result"></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="mt-3 mb-0">Conclusion: <span id="qc-calc-conclusion" class="badge bg-secondary">enter a sample size</span></p>
+{% endcall %}
+{% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/sysadmin_qc_calculator.js') }}"></script>
+{% endblock %}

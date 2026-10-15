@@ -29,13 +29,13 @@ def test_schema_status_marks_tables_and_columns():
     def rq(query, params=None):
         if 'information_schema.TABLES' in query:
             return [{'name': 'kiosk'}, {'name': 'report_materializations'}]
-        return [{'t': 'users', 'c': 'sysadmin'}]
+        return [{'t': 'folders', 'c': 'preview_type'}]
 
     with patch.object(sd.db, 'run_query', side_effect=rq):
         rows = {r['target']: r['applied'] for r in sd.schema_status()}
     assert rows['kiosk'] is True
-    assert rows['users.sysadmin'] is True
-    assert rows['folders.preview_type'] is False
+    assert rows['folders.preview_type'] is True
+    assert rows['transcription_folders.preview_type'] is False
     assert rows['transcription_profile_settings'] is False
 
 

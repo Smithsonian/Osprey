@@ -25,8 +25,10 @@ def count_issues(error_files, key):
 def folder_passes_qc(sample_size, critical, major, minor, settings):
     """Return True if the folder passes QC.
 
-    Severities are cumulative: each issue also counts against the thresholds
-    of less severe categories, so the minor threshold caps all issues combined.
+    Critical issues are a hard gate: their rate must not exceed
+    qc_threshold_critical on its own. Major and minor issues are blended into
+    a single weighted rate - minor issues weighted less punishing than major
+    via w_major/w_minor - and that rate is compared against weighted_rate.
     Only exceeding a threshold fails (equal passes).
     """
     if sample_size <= 0:
@@ -35,12 +37,11 @@ def folder_passes_qc(sample_size, critical, major, minor, settings):
     def pct(n):
         return n / sample_size * 100
 
-    checks = (
-        (pct(critical), settings['qc_threshold_critical']),
-        (pct(critical + major), settings['qc_threshold_major']),
-        (pct(critical + major + minor), settings['qc_threshold_minor']),
-    )
-    return all(p <= float(limit) for p, limit in checks)
+    if pct(critical) > float(settings['qc_threshold_critical']):
+        return False
+
+    weighted_issues = major * float(settings['w_major']) + minor * float(settings['w_minor'])
+    return pct(weighted_issues) <= float(settings['weighted_rate'])
 
 
 def load_folder_qc_counts(folder_id, transcription):

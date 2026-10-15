@@ -10,20 +10,21 @@ from osprey.services.qc import count_issues, folder_passes_qc, load_folder_qc_co
 # Defaults created by the /qc route for new projects
 SETTINGS = {
     'qc_threshold_critical': 0,
-    'qc_threshold_major': 1.5,
-    'qc_threshold_minor': 4,
+    'w_major': 1,
+    'w_minor': 0.3,
+    'weighted_rate': 6,
 }
 
 
 @pytest.mark.parametrize('critical, major, minor, expected', [
     (0, 0, 0, True),
-    (1, 0, 0, False),     # any critical fails at threshold 0
-    (0, 6, 0, True),      # 1.5% major, at the limit
-    (0, 7, 0, False),     # 1.75% major
-    (0, 0, 16, True),     # 4.0% total
-    (0, 0, 17, False),    # 4.25% total
-    (0, 6, 10, True),     # 16 issues = 4.0% total
-    (0, 6, 16, False),    # 22 issues = 5.5% total; passed before the cumulative rule
+    (1, 0, 0, False),      # any critical fails at threshold 0
+    (0, 24, 0, True),      # weighted = 24*1 = 24 -> 6.0% of 400, at the limit
+    (0, 25, 0, False),     # weighted = 25 -> 6.25%
+    (0, 0, 80, True),      # weighted = 80*0.3 = 24.0 -> 6.0%
+    (0, 0, 81, False),     # weighted = 24.3 -> 6.075%
+    (0, 10, 46, True),     # weighted = 10 + 13.8 = 23.8 -> 5.95%
+    (0, 10, 47, False),    # weighted = 10 + 14.1 = 24.1 -> 6.025%
 ])
 def test_folder_passes_qc_sample_400(critical, major, minor, expected):
     assert folder_passes_qc(400, critical, major, minor, SETTINGS) is expected
@@ -32,8 +33,8 @@ def test_folder_passes_qc_sample_400(critical, major, minor, expected):
 def test_folder_passes_qc_accepts_decimal_strings():
     # MySQL DECIMAL columns may arrive as Decimal or str
     settings = {k: str(v) for k, v in SETTINGS.items()}
-    assert folder_passes_qc(100, 0, 1, 3, settings) is True
-    assert folder_passes_qc(100, 0, 1, 4, settings) is False
+    assert folder_passes_qc(100, 0, 0, 20, settings) is True   # weighted = 6.0, at the limit
+    assert folder_passes_qc(100, 0, 0, 21, settings) is False  # weighted = 6.3
 
 
 def test_folder_passes_qc_empty_sample():

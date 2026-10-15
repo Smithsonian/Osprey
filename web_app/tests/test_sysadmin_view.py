@@ -1,6 +1,6 @@
 """Access rules for the /sysadmin/ page.
 
-Only a user with users.sysadmin = 1, on a site_net == "internal"
+Only a user with users.is_admin = 1, on a site_net == "internal"
 deployment, may see it; everyone else is redirected to /home/.
 """
 
@@ -42,9 +42,9 @@ def client(monkeypatch):
     return c
 
 
-def _get(client, site_net, is_sysadmin, monkeypatch):
+def _get(client, site_net, is_admin_user, monkeypatch):
     monkeypatch.setattr(settings, 'site_net', site_net)
-    with patch('web.sysadmin.user_perms', return_value=is_sysadmin) as perms, \
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user) as perms, \
             patch('web.sysadmin.system_status.collect', return_value=STATUS):
         return client.get('/sysadmin/'), perms
 
@@ -52,7 +52,7 @@ def _get(client, site_net, is_sysadmin, monkeypatch):
 def test_sysadmin_internal_sees_page(client, monkeypatch):
     response, perms = _get(client, 'internal', True, monkeypatch)
     assert response.status_code == 200
-    perms.assert_called_once_with('', user_type='sysadmin')
+    perms.assert_called_once_with('', user_type='admin')
     body = response.get_data(as_text=True)
     assert 'System Admin' in body
     assert 'Unavailable: OperationalError: down' in body
@@ -97,7 +97,7 @@ SUBPAGES = {
                                    'project_status': None, 'values': {'files_exif_rows': 10,
                                                                       'files_exif_files': 1}}]}]}},
     '/sysadmin/users/': {'users': [{'user_id': 1, 'username': 'alice', 'full_name': 'A', 'email': 'a@x',
-                                    'user_active': 1, 'is_admin': 0, 'sysadmin': 1, 'internal': 1,
+                                    'user_active': 1, 'is_admin': 1, 'internal': 1,
                                     'project_count': 1, 'updated_at': None}],
                          # Second project has no alias (projects.project_alias is nullable):
                          # it must render as text, not raise BuildError for url_for('dashboard').
@@ -157,9 +157,9 @@ def test_subpages_redirect_on_external_site(client, monkeypatch, url):
 REPORT = {'project_id': 10, 'report_id': 'bot_full', 'pregenerated': 1}
 
 
-def _post(client, monkeypatch, url, is_sysadmin=True, site_net='internal'):
+def _post(client, monkeypatch, url, is_admin_user=True, site_net='internal'):
     monkeypatch.setattr(settings, 'site_net', site_net)
-    with patch('web.sysadmin.user_perms', return_value=is_sysadmin):
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user):
         return client.post(url)
 
 
@@ -211,11 +211,11 @@ def test_clear_cache(client, monkeypatch):
 
 
 @pytest.mark.parametrize('url', ['/sysadmin/cache/clear', '/sysadmin/reports/10/bot_full/requeue'])
-@pytest.mark.parametrize('is_sysadmin,site_net', [(False, 'internal'), (True, 'external')])
-def test_actions_gated(client, monkeypatch, url, is_sysadmin, site_net):
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_actions_gated(client, monkeypatch, url, is_admin_user, site_net):
     with patch('web.sysadmin.cache.clear') as clear, \
             patch('web.sysadmin.report_service.request_pregenerated_refresh') as req:
-        response = _post(client, monkeypatch, url, is_sysadmin=is_sysadmin, site_net=site_net)
+        response = _post(client, monkeypatch, url, is_admin_user=is_admin_user, site_net=site_net)
     assert response.status_code == 302
     assert response.headers['Location'].endswith('/home/')
     clear.assert_not_called()
@@ -356,10 +356,10 @@ def test_generate_file_served_from_artifact_dir(client, monkeypatch, tmp_path):
     ('get', '/sysadmin/generate/live1/download.csv'), ('post', '/sysadmin/generate/big1/queue'),
     ('get', '/sysadmin/generate/big1/file/csv'),
 ])
-@pytest.mark.parametrize('is_sysadmin,site_net', [(False, 'internal'), (True, 'external')])
-def test_generate_routes_gated(client, monkeypatch, method, url, is_sysadmin, site_net):
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_generate_routes_gated(client, monkeypatch, method, url, is_admin_user, site_net):
     monkeypatch.setattr(settings, 'site_net', site_net)
-    with patch('web.sysadmin.user_perms', return_value=is_sysadmin), \
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user), \
             patch('web.sysadmin.sysadmin_reports.run_live') as run, \
             patch('web.sysadmin.sysadmin_reports.queue') as q:
         r = getattr(client, method)(url)
@@ -482,11 +482,11 @@ def test_data_remove(client, monkeypatch):
     ('get', '/sysadmin/data/'), ('get', '/sysadmin/data/12/'), ('get', '/sysadmin/data/12/special_folders/'),
     ('post', '/sysadmin/data/12/special_folders/add'), ('post', '/sysadmin/data/12/special_folders/5/remove'),
 ])
-@pytest.mark.parametrize('is_sysadmin,site_net', [(False, 'internal'), (True, 'external')])
-def test_data_routes_gated(client, monkeypatch, method, url, is_sysadmin, site_net):
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_data_routes_gated(client, monkeypatch, method, url, is_admin_user, site_net):
     _data(monkeypatch)
     monkeypatch.setattr(settings, 'site_net', site_net)
-    with patch('web.sysadmin.user_perms', return_value=is_sysadmin), \
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user), \
             patch('web.sysadmin.custom_data.add_values') as add, \
             patch('web.sysadmin.custom_data.remove_value') as rm:
         r = getattr(client, method)(url, data={'values': 'x'})
@@ -531,15 +531,79 @@ def test_data_step1_no_projects_with_types(client, monkeypatch):
         assert 'No project has data types yet' in client.get('/sysadmin/data/').get_data(as_text=True)
 
 
+# ---- QC settings: project picker + settings/calculator ---------------------
+
+QC_PROJECT = {'project_id': 12, 'project_alias': 'bot', 'project_title': 'Botany',
+              'project_status': 'Ongoing', 'transcription': 0}
+QC_SETTINGS = {'project_id': 12, 'qc_level': 'Normal', 'qc_percent': 10,
+               'qc_threshold_critical': 0, 'qc_threshold_major': 1.5, 'qc_threshold_minor': 4,
+               'qc_normal_percent': 10, 'qc_reduced_percent': 5, 'qc_tightened_percent': 40,
+               'w_major': 1, 'w_minor': 0.3, 'weighted_rate': 6,
+               'updated_at': None}
+
+
+def test_qc_settings_step1_lists_projects_and_redirects(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.list_projects', lambda: [QC_PROJECT])
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/qc/').get_data(as_text=True)
+        r = client.get('/sysadmin/qc/?project_id=12')
+    assert 'Botany' in body
+    assert r.status_code == 302 and r.headers['Location'].endswith('/sysadmin/qc/12/')
+
+
+def test_qc_settings_unknown_project_is_404(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: None)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        assert client.get('/sysadmin/qc/99/').status_code == 404
+
+
+def test_qc_settings_project_shows_settings_and_calculator(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings', lambda project: QC_SETTINGS)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/qc/12/').get_data(as_text=True)
+    assert 'Botany' in body and 'Normal' in body
+    assert 'id="qc-calculator"' in body
+    assert 'data-threshold-critical="0"' in body
+    assert 'data-w-major="1"' in body
+    assert 'data-w-minor="0.3"' in body
+    assert 'data-weighted-rate="6"' in body
+
+
+def test_qc_settings_project_without_settings_row(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings', lambda project: None)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/qc/12/').get_data(as_text=True)
+    assert 'No QC settings yet for this project' in body
+    assert 'id="qc-calculator"' not in body  # nothing to calculate against
+
+
+@pytest.mark.parametrize('url', ['/sysadmin/qc/', '/sysadmin/qc/12/'])
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_qc_settings_routes_gated(client, monkeypatch, url, is_admin_user, site_net):
+    monkeypatch.setattr(settings, 'site_net', site_net)
+    monkeypatch.setattr('osprey.services.sysadmin_qc.list_projects', lambda: [])
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings', lambda project: None)
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user):
+        r = client.get(url)
+    assert r.status_code == 302 and r.headers['Location'].endswith('/home/')
+
+
 # ---- Users: set inactive ----------------------------------------------------
 
 USERS = [
-    {'user_id': 1, 'username': 'alice', 'full_name': 'Alice', 'email': 'a@x', 'user_active': 1, 'is_admin': 0,
-     'sysadmin': 1, 'internal': 1, 'project_count': 0, 'updated_at': None},
+    {'user_id': 1, 'username': 'alice', 'full_name': 'Alice', 'email': 'a@x', 'user_active': 1, 'is_admin': 1,
+     'internal': 1, 'project_count': 0, 'updated_at': None},
     {'user_id': 2, 'username': 'bob', 'full_name': '<Bob>', 'email': 'b@x', 'user_active': 1, 'is_admin': 0,
-     'sysadmin': 0, 'internal': 1, 'project_count': 3, 'updated_at': None},
+     'internal': 1, 'project_count': 3, 'updated_at': None},
     {'user_id': 3, 'username': 'carol', 'full_name': 'Carol', 'email': 'c@x', 'user_active': 0, 'is_admin': 0,
-     'sysadmin': 0, 'internal': 1, 'project_count': 0, 'updated_at': None},
+     'internal': 1, 'project_count': 0, 'updated_at': None},
 ]
 
 
@@ -550,9 +614,13 @@ def test_users_page_buttons_only_for_other_active_users(client, monkeypatch):
     with patch('web.sysadmin.user_perms', return_value=True):
         body = client.get('/sysadmin/users/').get_data(as_text=True)
     assert '/sysadmin/users/2/deactivate' in body          # bob: active, not me
-    assert '/sysadmin/users/1/deactivate' not in body      # alice: the signed-in sysadmin
+    assert '/sysadmin/users/1/deactivate' not in body      # alice: the signed-in admin
     assert '/sysadmin/users/3/deactivate' not in body      # carol: already inactive
+    assert '/sysadmin/users/3/reactivate' in body          # carol: inactive, can be reactivated
+    assert '/sysadmin/users/1/reactivate' not in body      # alice: active
+    assert '/sysadmin/users/2/reactivate' not in body      # bob: active
     assert 'id="deactivateModal"' in body and 'data-fullname="&lt;Bob&gt;"' in body
+    assert 'id="reactivateModal"' in body
 
 
 def test_deactivate_user_ok(client, monkeypatch):
@@ -582,10 +650,10 @@ def test_deactivate_db_error_flashes_not_500(client, monkeypatch):
         assert client.post('/sysadmin/users/2/deactivate').status_code == 302
 
 
-@pytest.mark.parametrize('is_sysadmin,site_net', [(False, 'internal'), (True, 'external')])
-def test_deactivate_gated(client, monkeypatch, is_sysadmin, site_net):
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_deactivate_gated(client, monkeypatch, is_admin_user, site_net):
     monkeypatch.setattr(settings, 'site_net', site_net)
-    with patch('web.sysadmin.user_perms', return_value=is_sysadmin), \
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user), \
             patch('web.sysadmin.sysadmin_users.deactivate_user') as d:
         r = client.post('/sysadmin/users/2/deactivate')
     assert r.status_code == 302 and r.headers['Location'].endswith('/home/')
@@ -600,3 +668,50 @@ def test_deactivate_rejects_get_and_missing_csrf(client, monkeypatch):
         assert client.get('/sysadmin/users/2/deactivate').status_code == 405
         assert client.post('/sysadmin/users/2/deactivate').status_code == 400
     d.assert_not_called()
+
+
+def test_reactivate_user_ok(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_users.reactivate_user', return_value=('ok', 'carol')) as r:
+        resp = client.post('/sysadmin/users/3/reactivate')
+    assert resp.status_code == 302 and resp.headers['Location'].endswith('/sysadmin/users/')
+    r.assert_called_once_with(3)
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0] == ('success', 'carol is active again and can log in.')
+
+
+def test_reactivate_already_active_message(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_users.reactivate_user', return_value=('already_active', 'bob')):
+        client.post('/sysadmin/users/2/reactivate')
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0] == ('warning', 'bob was already active.')
+
+
+def test_reactivate_db_error_flashes_not_500(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_users.reactivate_user', side_effect=RuntimeError('db')):
+        assert client.post('/sysadmin/users/3/reactivate').status_code == 302
+
+
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_reactivate_gated(client, monkeypatch, is_admin_user, site_net):
+    monkeypatch.setattr(settings, 'site_net', site_net)
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user), \
+            patch('web.sysadmin.sysadmin_users.reactivate_user') as r:
+        resp = client.post('/sysadmin/users/3/reactivate')
+    assert resp.status_code == 302 and resp.headers['Location'].endswith('/home/')
+    r.assert_not_called()
+
+
+def test_reactivate_rejects_get_and_missing_csrf(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_users.reactivate_user') as r:
+        assert client.get('/sysadmin/users/3/reactivate').status_code == 405
+        assert client.post('/sysadmin/users/3/reactivate').status_code == 400
+    r.assert_not_called()

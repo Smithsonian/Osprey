@@ -1,11 +1,11 @@
-"""System admin pages for users with users.sysadmin = 1.
+"""System admin pages for users with users.is_admin = 1.
 
 Only served on internal deployments (site_net == "internal"). Anyone else
-who reaches these URLs — wrong site, or not a sysadmin — is sent to /home.
+who reaches these URLs — wrong site, or not an admin — is sent to /home.
 
 Pages are read-only except these POST actions: requeue a pregenerated
 report, queue a pregenerated sysadmin report, clear the app cache,
-add/remove project custom data values, and deactivate a user. All are
+add/remove project custom data values, and deactivate/reactivate a user. All are
 CSRF-protected (app-wide CSRFProtect), re-check the gate on every
 request, and are logged at WARNING with the username so they appear in
 ospreyapp.log in production. Running a live sysadmin report (GET) is logged
@@ -35,6 +35,7 @@ from osprey.services import report_materializations as materializations
 from osprey.services import reports as report_service
 from osprey.services import sysadmin_reports
 from osprey.services import sysadmin_data
+from osprey.services import sysadmin_qc
 from osprey.services import sysadmin_users
 from osprey.services import system_status
 from osprey.services.permissions import user_perms
@@ -48,6 +49,7 @@ NAV = (
     ('sysadmin.schema', 'Schema & tables', 'fa-database'),
     ('sysadmin.users', 'Users', 'fa-users'),
     ('sysadmin.projects', 'Projects', 'fa-folder-tree'),
+    ('sysadmin.qc_settings', 'QC Settings', 'fa-list-check'),
     ('sysadmin.folder_errors', 'Folder Errors', 'fa-triangle-exclamation'),
     ('sysadmin.api_keys', 'API keys', 'fa-key'),
     ('sysadmin.kiosks', 'Kiosks', 'fa-desktop'),
@@ -58,17 +60,17 @@ NAV = (
 
 
 def sysadmin_allowed():
-    """True only for a sysadmin on an internal deployment.
+    """True only for an admin on an internal deployment.
 
     The site check runs first so external/api sites never query the flag.
     """
     if settings.site_net != 'internal':
         return False
-    return user_perms('', user_type='sysadmin')
+    return user_perms('', user_type='admin')
 
 
 def sysadmin_required(view):
-    """login_required plus the sysadmin/internal gate, checked on every request."""
+    """login_required plus the admin/internal gate, checked on every request."""
     @functools.wraps(view)
     @login_required
     def wrapped(*args, **kwargs):
@@ -132,12 +134,54 @@ def deactivate_user(user_id):
     return redirect(url_for('sysadmin.users'))
 
 
+@sysadmin_bp.route('/users/<int:user_id>/reactivate', methods=['POST'], provide_automatic_options=False)
+@sysadmin_required
+def reactivate_user(user_id):
+    """Set users.user_active = 1 (confirmed in a modal on the Users page)."""
+    try:
+        result, username = sysadmin_users.reactivate_user(user_id)
+    except Exception:  # boundary: DB write; logged with context
+        logger.exception("sysadmin reactivate failed: user_id={}".format(user_id))
+        flash("Could not reactivate the user; see ospreyapp.log.", 'danger')
+        return redirect(url_for('sysadmin.users'))
+    if result == sysadmin_users.OK:
+        logger.warning("sysadmin {} reactivated user {} (user_id={})".format(
+            current_user.name, username, user_id))
+        flash("{} is active again and can log in.".format(username), 'success')
+    elif result == sysadmin_users.ALREADY_ACTIVE:
+        flash("{} was already active.".format(username), 'warning')
+    else:
+        flash("User {} not found.".format(user_id), 'danger')
+    return redirect(url_for('sysadmin.users'))
+
+
 @sysadmin_bp.route('/projects/', methods=['GET'], provide_automatic_options=False)
 @sysadmin_required
 def projects():
     return _render('sysadmin_projects.html',
                    projects=section('projects', sysadmin_data.projects_overview),
                    profile=section('transcription profile', sysadmin_data.transcription_profile_config))
+
+
+@sysadmin_bp.route('/qc/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def qc_settings():
+    """Step 1: choose a project (a GET form, so ?project_id= jumps to step 2)."""
+    project_id = request.args.get('project_id', type=int)
+    if project_id is not None:
+        return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
+    return _render('sysadmin_qc.html', projects=section('qc settings projects', sysadmin_qc.list_projects))
+
+
+@sysadmin_bp.route('/qc/<int:project_id>/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def qc_settings_project(project_id):
+    """Step 2: this project's QC settings, plus a client-side pass/fail calculator."""
+    project = sysadmin_qc.get_project(project_id)
+    if project is None:
+        abort(404)
+    return _render('sysadmin_qc_project.html', project=project,
+                   qc_settings=section('qc settings', lambda: sysadmin_qc.get_settings(project)))
 
 
 @sysadmin_bp.route('/folder-errors/', methods=['GET'], provide_automatic_options=False)

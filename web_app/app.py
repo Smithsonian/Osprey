@@ -199,7 +199,7 @@ def handle_invalid_usage(error):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    logger.error(e)
+    logger.error("404 {} (referrer: {}): {}".format(request.path, request.referrer, e))
     error_msg = "Error: {}".format(e)
     return render_error(error_msg, 404)
 
@@ -1448,9 +1448,11 @@ def qc(project_alias=None):
     if len(project_settings) == 0:
         query = ("INSERT INTO qc_settings (project_id, qc_level, qc_percent, "
                  " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
-                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
+                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, "
+                 " w_major, w_minor, weighted_rate, updated_at) "
                  "  VALUES ("
                  "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
+                 "  1, 0.3, 6, "
                  "  CURRENT_TIME)")
         q = query_database_insert(query, {'project_id': project_id})
         project_settings = run_query(("SELECT * FROM qc_settings "
@@ -1833,9 +1835,11 @@ def qc_transcription(project_alias=None):
     if len(project_settings) == 0:
         query = ("INSERT INTO transcription_qc_settings (project_id, qc_level, qc_percent, "
                  " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
-                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
+                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, "
+                 " w_major, w_minor, weighted_rate, updated_at) "
                  "  VALUES ("
                  "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
+                 "  1, 0.3, 6, "
                  "  CURRENT_TIME)")
         q = query_database_insert(query, {'project_id': project_id})
         project_settings = run_query(("SELECT * FROM transcription_qc_settings "
@@ -2058,9 +2062,11 @@ def qct_loading2(source_id):
     if len(project_settings) == 0:
         query = ("INSERT INTO transcription_qc_settings (project_id, qc_level, qc_percent, "
                  " qc_threshold_critical, qc_threshold_major, qc_threshold_minor, "
-                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, updated_at) "
+                 " qc_normal_percent, qc_reduced_percent, qc_tightened_percent, "
+                 " w_major, w_minor, weighted_rate, updated_at) "
                  "  VALUES ("
                  "  %(project_id)s, 'Tightened', 40, 0, 1.5, 4, 10, 5, 40, "
+                 "  1, 0.3, 6, "
                  "  CURRENT_TIME)")
         q = query_database_insert(query, {'project_id': project_id})
         project_settings = run_query(("SELECT * FROM transcription_qc_settings "

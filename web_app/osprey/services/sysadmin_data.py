@@ -23,7 +23,6 @@ SCHEMA_CHECKS = (
     ('db/transcription_profile.sql', 'transcription_profile_terms', None),
     ('db/transcription_profile.sql', 'transcription_profile_fill', None),
     ('db/transcription_profile.sql', 'transcription_profile_results', None),
-    ('db/sysadmin.sql', 'users', 'sysadmin'),
     ('db/sysadmin_stats.sql', 'sysadmin_stats', None),
     ('db/sysadmin_reports.sql', 'sysadmin_reports', None),
     ('db/project_custom_data.sql', 'project_custom_values', None),
@@ -105,11 +104,11 @@ def users():
     # Never select users.pass.
     return db.run_query(
         "SELECT u.user_id, u.username, u.full_name, u.email, u.user_active, "
-        "  u.is_admin, u.sysadmin, u.internal, u.updated_at, "
+        "  u.is_admin, u.internal, u.updated_at, "
         "  COUNT(qp.project_id) AS project_count "
         "FROM users u LEFT JOIN qc_projects qp ON qp.user_id = u.user_id "
         "GROUP BY u.user_id, u.username, u.full_name, u.email, u.user_active, "
-        "  u.is_admin, u.sysadmin, u.internal, u.updated_at "
+        "  u.is_admin, u.internal, u.updated_at "
         "ORDER BY u.user_active DESC, u.username"
     )
 

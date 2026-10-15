@@ -13,9 +13,29 @@ worker processes.
 - `api/` — worker/read API blueprint (`/api/...`)
 - `osprey/` — DB pool (`osprey/db.py`) and service layer (`osprey/services/`)
 - `templates/`, `static/` — Jinja2 templates and assets
+- `static/vendor/` — self-hosted frontend libraries (Bootstrap, Font Awesome,
+  DataTables, jQuery, Chart.js, JSZip); see "Frontend dependencies" below
 - `scripts/` — nightly pregenerated-report jobs (see `scripts/README.md`)
-- `db/` — SQL applied by hand for the report materialization and transcription profile tables, and `users.sysadmin`
+- `db/` — SQL applied by hand for the report materialization and transcription profile tables
 - `tests/` — pytest suite and the axe-based a11y checks (`tests/a11y/`)
+
+## Frontend dependencies
+
+Bootstrap, Font Awesome, DataTables (+ Buttons), jQuery, Chart.js and JSZip
+are vendored into `static/vendor/` rather than loaded from a CDN, so the app
+doesn't depend on a third-party host being reachable. Versions are pinned in
+`package.json`'s `dependencies`; `scripts/sync_vendor.mjs` copies the dist
+files `templates/base.html` (and the chart pages) reference from
+`node_modules/` into `static/vendor/`. `static/vendor/` is committed, so a
+deployment never needs Node — only `npm install` to bump a version:
+
+```bash
+npm install                 # also runs sync_vendor.mjs via postinstall
+npm run vendor               # re-run the copy step on its own
+```
+
+To bump a version, edit the pin in `package.json`, run the above, and commit
+the changed files under `static/vendor/`.
 
 ## View conventions
 
@@ -286,9 +306,9 @@ Notes:
   inactive users, and an open session stops authenticating on the user's
   next request. Project assignments and QC history are kept. You cannot
   deactivate your own account, so at least one active sysadmin always
-  remains. There is no reactivate button yet: run
-  `UPDATE users SET user_active = 1 WHERE user_id = <id>;`. The app's DB
-  user needs `UPDATE` on `users.user_active`.
+  remains. **Reactivate** (shown in place of Set inactive for inactive
+  users) sets `users.user_active = 1` back. The app's DB user needs
+  `UPDATE` on `users.user_active`.
 - **Data Entry** stores per-project lists of values by data type (apply
   `db/project_custom_data.sql`; add types to `project_custom_types` by
   hand). Each type belongs to one project (key `project_id` + `type_id`;
@@ -302,14 +322,13 @@ Notes:
 - Table sizes come from `information_schema`: row counts are InnoDB
   estimates, and MySQL 8 may cache them for up to 24h.
 
-- **Who** — users with `users.sysadmin = 1`, and only when
+- **Who** — users with `users.is_admin = 1`, and only when
   `site_net == "internal"`. Anyone else is redirected to `/home/`.
-- **Two flags** — `is_admin` is for people who manage specific projects;
-  `sysadmin` has more powers (system administration). Neither implies the
-  other.
-- **Schema** — apply `db/sysadmin.sql` *before* deploying: `/home/` reads
-  the column on internal sites. Grant with
-  `UPDATE users SET sysadmin = 1 WHERE username = '<username>';`.
+  `is_admin` also governs project management (create/edit projects, project
+  links, invoice reconciliation) — one flag for both.
+- **Schema** — apply `db/drop_sysadmin.sql` *before* deploying: `/home/`
+  reads `is_admin` on internal sites. Grant with
+  `UPDATE users SET is_admin = 1 WHERE username = '<username>';`.
 - Each block fails independently (shown as "Unavailable: ..."), so a
   page still loads when the DB, a table or a log file is the problem.
 - Log lines shown come from the last 256 KB of each file; they may contain

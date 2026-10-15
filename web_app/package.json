@@ -2,12 +2,26 @@
   "name": "osprey-web-app-a11y",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "6.4.2",
+    "bootstrap": "5.3.8",
+    "chart.js": "4.4.7",
+    "chartjs-adapter-date-fns": "3.0.0",
+    "datatables.net": "2.3.7",
+    "datatables.net-buttons": "3.2.6",
+    "datatables.net-buttons-dt": "3.2.6",
+    "datatables.net-dt": "2.3.7",
+    "jquery": "4.0.0",
+    "jszip": "3.10.1"
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
     "playwright": "^1.55.0"
   },
   "scripts": {
-    "a11y": "node tests/a11y/run_a11y.mjs"
+    "a11y": "node tests/a11y/run_a11y.mjs",
+    "vendor": "node scripts/sync_vendor.mjs",
+    "postinstall": "node scripts/sync_vendor.mjs"
   }
 }
 

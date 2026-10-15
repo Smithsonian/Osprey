@@ -91,17 +91,17 @@
     <!-- favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <!-- Bootstrap CSS (self-hosted, see package.json / scripts/sync_vendor.mjs) -->
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
 
     <!-- Font Awesome 6.4.2 -->
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">
+    <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
 
     <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
-    <link href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/css/dataTables.dataTables.min.css" rel="stylesheet" integrity="sha384-iRTWPXZquQySBE9K96fgJXUIrnm8TpdtPAbiCNR+qjpP24qFZw9PHFA91JtWy7Ul" crossorigin="anonymous">
+    <link href="{{ url_for('static', filename='vendor/datatables/dataTables.dataTables.min.css') }}" rel="stylesheet">
 
-    <!-- Osprey-specific CSS -->
-    <link href="{{ url_for('static', filename='css/osprey_custom.min.css') }}" rel="stylesheet" />
+    <!-- Osprey-specific CSS (minified at serve time in prod by Flask-Minify, see app.py) -->
+    <link href="{{ url_for('static', filename='css/osprey_custom.css') }}" rel="stylesheet" />
 
     {% block head_blocks %}
     {% endblock %}
@@ -288,19 +288,19 @@
 
 </footer>
 
-    <!-- JQuery 4.0 -->
-    <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
+    <!-- JQuery 4.0 (self-hosted, see package.json / scripts/sync_vendor.mjs) -->
+    <script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
 
     <!-- Bootstrap 5.3.8 -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 
     <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.3.7/js/dataTables.min.js" integrity="sha384-Lo2E+ASlyar6zUXt6sPEy5uaDGtDGHXo300rohaW4/AV26JdoLBT9zhcOhV8BtL8" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.3.7/js/dataTables.dataTables.min.js" integrity="sha384-RvGje9AANZHL+RqzTE91MrrBgAHP4CP/HtrBtRdKdyiiO39OALDOKkWqG4eQyHv6" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/dataTables.buttons.min.js" integrity="sha384-ygalescEL33A7N+7n2CN65lzwzfLzQNVWNhHDnAUGLiE1RyuaOQ+kI2PhRsTzEGV" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons-dt@3.2.6/js/buttons.dataTables.min.js" integrity="sha384-am9IcoOVnQUWq55iBGGD9pgIkr+HcQLfg+sSzKIeIiGZTGhhl9iww3QqdviztPLy" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@3.2.6/js/buttons.html5.min.js" integrity="sha384-OFL+acRxgxRUKgJTHEQrtuwzydyoSE/AN10JClRMQjjfnXKoF89juO7p8HyCYxxO" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='vendor/jszip/jszip.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables/dataTables.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables/dataTables.dataTables.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables/dataTables.buttons.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables/buttons.dataTables.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables/buttons.html5.min.js') }}"></script>
     
     {% block javascripts %}
     {% endblock %}

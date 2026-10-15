@@ -1,0 +1,29 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+{% call card('QC settings: choose a project') %}
+  {% if not projects.ok %}{{ section_error(projects) }}
+  {% elif not projects.data %}
+    <p class="text-muted mb-0">No projects found.</p>
+  {% else %}
+  <p class="text-muted small">Sampling level, percent, critical threshold, and major/minor weights come from
+    <code>qc_settings</code> (or <code>transcription_qc_settings</code> for transcription projects).
+    A project with no row yet has never opened its QC page.</p>
+  <form method="get" action="{{ url_for('sysadmin.qc_settings') }}" class="d-flex flex-wrap gap-2 align-items-end">
+    <div>
+      <label for="project_id" class="form-label small mb-1">Project</label>
+      <select id="project_id" name="project_id" class="form-select form-select-sm" required>
+        <option value="">Select a project…</option>
+        {% for p in projects.data %}
+        <option value="{{ p.project_id }}">{{ p.project_title or ('Project ' ~ p.project_id) }}{% if p.project_status == 'Completed' %} (completed){% endif %}{% if p.transcription %} · transcription{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-osprey btn-sm">Next <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+  </form>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}
