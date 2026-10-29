@@ -63,3 +63,21 @@ python scripts/materialize_reports.py --once
 
 Then open a pregenerated report in the dashboard: you should see CSV/XLSX
 download links and a 20-row preview table.
+
+## Archiving EXIF rows
+
+`exif_export/archive_exif.py` exports a project's `files_exif` rows to a zip
+and deletes them. It is standalone (own settings and requirements) and run
+by hand, not from the nightly job; see
+[exif_export/README.md](exif_export/README.md).
+
+## Backfilling the QC method
+
+`backfill_qc_method.sql` is a one-time script, run after
+`db/add_qc_method.sql`. It sets `qc_method = 'weighted'` on folder QC results
+(`qc_folders`, `transcription_qc_folders`) saved since the weighted rule went
+live (2026-10-15 11:15). It keeps each row's `updated_at`, and is safe to re-run:
+
+```bash
+mysql -u <user> -p <db_name> < scripts/backfill_qc_method.sql
+```

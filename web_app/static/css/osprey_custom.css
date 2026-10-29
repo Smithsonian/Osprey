@@ -1025,3 +1025,14 @@ color: #000;}
   .about-section-card .card-header {
       padding: 0.75rem 1rem;
   }
+
+/* Banner shown on every page when settings.env == "dev" */
+.osprey-dev-banner {
+    background: repeating-linear-gradient(45deg, #b45309 0 16px, #92400e 16px 32px);
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.4rem 1rem;
+}

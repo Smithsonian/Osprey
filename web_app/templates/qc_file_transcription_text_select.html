@@ -12,6 +12,7 @@
       <div>
         <h1 class="h4 mb-1">Transcription QC</h1>
         <p class="text-muted small mb-0">{{ project.project_title }} &middot; {{ source_info.transcription_source_name }}</p>
+        {% include "partials/_qc_method_badge.html" %}
       </div>
       <a class="btn btn-outline-dark btn-sm" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="Back to the project dashboard">
         <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i> Back to dashboard

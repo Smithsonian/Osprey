@@ -261,19 +261,6 @@ def search_files(project_alias):
     )
 
 
-@files_bp.route('/folder_update/<project_alias>/<folder_id>', methods=['GET'], provide_automatic_options=False)
-@login_required
-def update_folder_dams(project_alias=None, folder_id=None):
-    """Update folder when sending to DAMS"""
-
-    if folder_id is None or project_alias is None:
-        return redirect(url_for('home'))
-
-    files_service.send_folder_to_dams(folder_id)
-
-    return redirect(url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id))
-
-
 @files_bp.route('/update_image/', methods=['POST'], provide_automatic_options=False)
 @login_required
 def update_image():

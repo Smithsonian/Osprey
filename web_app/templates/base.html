@@ -112,12 +112,19 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
 
-    <title class="pagetitle">{% block title %}{% endblock %}</title>
+    <title class="pagetitle">{% if site_env == "dev" %}[DEV] {% endif %}{% block title %}{% endblock %}</title>
 
 </head>
 <body>
 
 <div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
+
+{% if site_env == "dev" %}
+<div class="osprey-dev-banner" role="status">
+  <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+  Development site &middot; dev database, not production
+</div>
+{% endif %}
 
 <nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
   <div class="container-fluid">
@@ -176,6 +183,17 @@
               <span class="d-none d-xl-inline text-white-50">({{ username }})</span>
             </a>
           </li>
+          {% if show_sysadmin_link() %}
+          <li class="nav-item">
+            <a class="nav-link{% if request.blueprint == 'sysadmin' %} active{% endif %}"
+               href="{{ url_for('sysadmin.index') }}"
+               title="System admin"
+               {% if request.blueprint == 'sysadmin' %}aria-current="page"{% endif %}>
+              <i class="fa-solid fa-server fa-fw" aria-hidden="true"></i>
+              System admin
+            </a>
+          </li>
+          {% endif %}
           <li class="nav-item">
             <a class="nav-link{% if request.endpoint == 'about' %} active{% endif %}"
                href="{{ url_for('about') }}"

@@ -1,0 +1,49 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+<p class="small mb-2"><a href="{{ url_for('sysadmin.dams') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Change project</a></p>
+
+{% call card('DAMS status: ' ~ (project.project_title or ('Project ' ~ project.project_id))) %}
+  {% if project.dams_project_cd %}
+  <p class="text-muted small">Files are matched to the DAMS status view by project code <code>{{ project.dams_project_cd }}</code>
+    and file name (<code>&lt;file_name&gt;.tif</code>).
+    Updating resets the folder's <code>ready_for_dams</code> and <code>in_dams</code> post-processing steps.</p>
+  {% else %}
+  <div class="alert alert-warning small" role="status">This project has no <code>dams_project_cd</code>, so no file can be matched in DAMS.
+    Updating still marks the folder as sent and sets its badge to "Ready for DAMS".</div>
+  {% endif %}
+  {% if not folders.ok %}{{ section_error(folders) }}
+  {% else %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Folder</th><th scope="col">Date</th><th scope="col">DAMS badge</th><th scope="col" class="text-end">Files in DAMS</th><th scope="col">Updated</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+    <tbody>
+      {% for f in folders.data %}
+      <tr>
+        <td>{% if project.project_alias %}<a href="{{ url_for('dashboard_f', project_alias=project.project_alias, folder_id=f.folder_id) }}"><code>{{ f.project_folder }}</code></a>{% else %}<code>{{ f.project_folder }}</code>{% endif %}</td>
+        <td>{{ f.date or '' }}</td>
+        <td>{{ f.dams_badge or '' }}</td>
+        <td class="text-end">{{ f.files_with_uan }} / {{ f.files_total }}</td>
+        <td>{{ f.updated_at }}</td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('sysadmin.dams_update', project_id=project.project_id, folder_id=f.folder_id) }}"
+                onsubmit='return confirm({{ ("Update the DAMS status of " ~ f.project_folder ~ "?")|tojson }});'>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-osprey btn-sm text-nowrap">
+              <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i> Update DAMS status
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-muted">This project has no folders.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

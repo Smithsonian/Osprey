@@ -59,7 +59,44 @@
 
         </div>
         <div class="col">
-            &nbsp;
+            <div class="card border-0 shadow-sm">
+                <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">How this result was calculated</h2></div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead><tr>
+                                <th scope="col">Check</th><th scope="col">Issues</th><th scope="col">% of sample</th>
+                                <th scope="col">Threshold</th><th scope="col">Result</th>
+                            </tr></thead>
+                            <tbody>
+                                {% for check in qc_math.checks %}
+                                <tr>
+                                    <th scope="row">{{ check.label }}</th>
+                                    <td>{{ check.issues }}</td>
+                                    <td>{{ check.pct }}%</td>
+                                    <td>{{ check.limit }}%</td>
+                                    <td class="{{ 'text-success fw-semibold' if check.passed else 'text-danger fw-semibold' }}">{{ 'Pass' if check.passed else 'Fail' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">Method: {{ qc_math.method_label }}. Sample size: {{ qc_math.sample_size }} files.
+                        {% if qc_math.method == 'weighted' %}
+                        Weighted major + minor = {{ qc_math.major }} major &times; {{ qc_math.w_major }}
+                        + {{ qc_math.minor }} minor &times; {{ qc_math.w_minor }} = {{ qc_math.weighted_issues }}.
+                        Critical issues are a hard gate checked alone against the critical threshold; major and
+                        minor issues are blended into the weighted rate above.
+                        {% else %}
+                        Each issue also counts against the thresholds of the less severe categories, so the last
+                        check caps all issues combined.
+                        {% endif %}
+                        A folder fails only if it exceeds a threshold - sitting exactly at it passes.</p>
+                    <p class="mt-3 mb-0">Conclusion:
+                        <span class="badge {{ 'bg-success' if qc_math.passed else 'bg-danger' }}">{{ 'PASS' if qc_math.passed else 'FAIL' }}</span>
+                    </p>
+                </div>
+            </div>
         </div>
 
     </div>

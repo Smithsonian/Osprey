@@ -97,7 +97,7 @@ def get_file_metadata(file_id, file_ext):
     return pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                      " FROM files_exif "
                                      " WHERE file_id = %(file_id)s AND "
-                                     "       lower(filetype) = %(file_ext)s AND "
+                                     "       filetype = %(file_ext)s AND "
                                      "       lower(taggroup) != 'system' "
                                      " ORDER BY taggroup, tag "),
                                     {'file_id': str(file_id), 'file_ext': file_ext}))

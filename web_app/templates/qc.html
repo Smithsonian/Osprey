@@ -12,6 +12,7 @@
       <div>
         <h1 class="h4 mb-1">Project QC</h1>
         <p class="text-muted small mb-0">{{ project.project_title }}</p>
+        {% include "partials/_qc_method_badge.html" %}
       </div>
       <a class="btn btn-outline-dark btn-sm" href="{{ url_for('dashboard', project_alias=project.project_alias) }}" title="Back to the project dashboard">
         <i class="fa-solid fa-gauge-simple-high" aria-hidden="true"></i> Back to dashboard
@@ -237,6 +238,7 @@
                   <th scope="col">File Errors</th>
                   <th scope="col">Folder Errors</th>
                   <th scope="col">QC Level</th>
+                  <th scope="col" title="Method this QC result was decided with">QC Method</th>
                   <th scope="col">QC</th>
               </tr>
             </thead>
@@ -269,6 +271,9 @@
                     </td>
                     <td>
                     <span class="badge bg-secondary">{{ folder.qc_level }}</span>
+                    </td>
+                    <td>
+                    <span class="badge {{ 'bg-primary' if folder.qc_method == 'weighted' else 'bg-secondary' }}">{{ folder.qc_method|capitalize }}</span>
                     </td>
                     <td>
                         {% if folder.qc_status == "QC Passed" %}

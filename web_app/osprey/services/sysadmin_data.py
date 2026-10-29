@@ -280,6 +280,39 @@ def folder_error_projects():
     )
 
 
+def dams_project(project_id):
+    """The project row the DAMS page needs (dams_project_cd drives the
+    dams_uan match in files.send_folder_to_dams), or None."""
+    rows = db.run_query(
+        "SELECT project_id, project_alias, project_title, project_status, dams_project_cd "
+        "FROM projects WHERE project_id = %(pid)s", {'pid': project_id})
+    return rows[0] if rows else None
+
+
+def dams_folders(project_id, folder_id=None):
+    """The project's folders with their DAMS badge and how many files have a
+    dams_uan. Narrowed to one folder when folder_id is given."""
+    params = {'pid': project_id}
+    folder_filter = ""
+    if folder_id is not None:
+        params['fid'] = folder_id
+        folder_filter = " AND f.folder_id = %(fid)s"
+    return db.run_query(
+        "SELECT f.folder_id, f.project_folder, f.date, f.delivered_to_dams, f.updated_at, "
+        "  b.badge_text AS dams_badge, COALESCE(c.files_total, 0) AS files_total, "
+        "  COALESCE(c.files_with_uan, 0) AS files_with_uan "
+        "FROM folders f "
+        "  LEFT JOIN folders_badges b ON b.folder_id = f.folder_id AND b.badge_type = 'dams_status' "
+        "  LEFT JOIN (SELECT folder_id, COUNT(*) AS files_total, "
+        "      SUM(dams_uan IS NOT NULL AND dams_uan != '') AS files_with_uan "
+        "    FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(pid)s) "
+        "    GROUP BY folder_id) c ON c.folder_id = f.folder_id "
+        "WHERE f.project_id = %(pid)s" + folder_filter + " "
+        "ORDER BY f.date DESC, f.project_folder DESC",
+        params,
+    )
+
+
 def reports():
     has_mat = bool(existing_tables(['report_materializations']))
     if has_mat:

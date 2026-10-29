@@ -571,6 +571,55 @@ def test_qc_settings_project_shows_settings_and_calculator(client, monkeypatch):
     assert 'data-w-major="1"' in body
     assert 'data-w-minor="0.3"' in body
     assert 'data-weighted-rate="6"' in body
+    assert 'data-qc-method="weighted"' in body  # no qc_method in the row -> default
+    assert '<option value="weighted" selected' in body
+
+
+def test_qc_settings_project_cumulative_method(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings',
+                        lambda project: dict(QC_SETTINGS, qc_method='cumulative'))
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/qc/12/').get_data(as_text=True)
+    assert 'data-qc-method="cumulative"' in body
+    assert '<option value="cumulative" selected' in body
+    assert 'data-threshold-major="1.5"' in body and 'data-threshold-minor="4"' in body
+
+
+def test_set_qc_method_ok(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings', lambda project: QC_SETTINGS)
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_qc.set_method') as sm:
+        r = client.post('/sysadmin/qc/12/method', data={'qc_method': 'cumulative'})
+    assert r.status_code == 302 and r.headers['Location'].endswith('/sysadmin/qc/12/')
+    sm.assert_called_once()
+    assert sm.call_args[0][1] == 'cumulative'
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0][0] == 'success'
+
+
+@pytest.mark.parametrize('method, settings_row', [('bogus', QC_SETTINGS), ('weighted', None)])
+def test_set_qc_method_refused(client, monkeypatch, method, settings_row):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_project', lambda pid: dict(QC_PROJECT, project_id=pid))
+    monkeypatch.setattr('osprey.services.sysadmin_qc.get_settings', lambda project: settings_row)
+    with patch('web.sysadmin.user_perms', return_value=True), \
+            patch('web.sysadmin.sysadmin_qc.set_method') as sm:
+        assert client.post('/sysadmin/qc/12/method', data={'qc_method': method}).status_code == 302
+    sm.assert_not_called()
+
+
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_set_qc_method_gated(client, monkeypatch, is_admin_user, site_net):
+    monkeypatch.setattr(settings, 'site_net', site_net)
+    with patch('web.sysadmin.user_perms', return_value=is_admin_user), \
+            patch('web.sysadmin.sysadmin_qc.set_method') as sm:
+        r = client.post('/sysadmin/qc/12/method', data={'qc_method': 'weighted'})
+    assert r.status_code == 302 and r.headers['Location'].endswith('/home/')
+    sm.assert_not_called()
 
 
 def test_qc_settings_project_without_settings_row(client, monkeypatch):
@@ -715,3 +764,182 @@ def test_reactivate_rejects_get_and_missing_csrf(client, monkeypatch):
         assert client.get('/sysadmin/users/3/reactivate').status_code == 405
         assert client.post('/sysadmin/users/3/reactivate').status_code == 400
     r.assert_not_called()
+
+
+# ---- QC locks ---------------------------------------------------------------
+
+FOLDER_UUID = '11111111-1111-1111-1111-111111111111'
+SOURCE_UUID = '22222222-2222-2222-2222-222222222222'
+LOCKS = [
+    {'kind': 'folder', 'folder_id': '7', 'source_id': None, 'source_name': None, 'folder_name': 'f7',
+     'project_id': 12, 'project_alias': 'bot', 'project_title': 'Botany', 'qc_by': 'bob',
+     'updated_at': None, 'days_since': 9},
+    {'kind': 'transcription_folder', 'folder_id': FOLDER_UUID, 'source_id': None, 'source_name': None,
+     'folder_name': "t'1", 'project_id': 13, 'project_alias': None, 'project_title': 'Tx',
+     'qc_by': 'carol', 'updated_at': None, 'days_since': 1},
+    {'kind': 'text', 'folder_id': FOLDER_UUID, 'source_id': SOURCE_UUID, 'source_name': 'OCR',
+     'folder_name': 't1', 'project_id': 13, 'project_alias': None, 'project_title': 'Tx',
+     'qc_by': None, 'updated_at': None, 'days_since': None},
+]
+LOCK_URLS = ['/sysadmin/qc/locks/folder/7/reset',
+             '/sysadmin/qc/locks/transcription/{}/reset'.format(FOLDER_UUID),
+             '/sysadmin/qc/locks/text/{}/{}/reset'.format(SOURCE_UUID, FOLDER_UUID)]
+
+
+def test_qc_page_lists_locks_with_release_buttons(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.list_projects', lambda: [QC_PROJECT])
+    monkeypatch.setattr('osprey.services.sysadmin_qc.locks', lambda: LOCKS)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/qc/').get_data(as_text=True)
+    for url in LOCK_URLS:
+        assert 'action="{}"'.format(url) in body
+    assert 'Transcription text · OCR' in body
+    # A quote in a folder name cannot break out of the confirm() string.
+    assert "t'1" not in body.split('Release the QC lock on t')[1][:10]
+
+
+def test_release_folder_lock(client, monkeypatch):
+    with patch('web.sysadmin.qc_service.reset_folder_qc') as reset:
+        response = _post(client, monkeypatch, LOCK_URLS[0])
+    assert response.headers['Location'].endswith('/sysadmin/qc/')
+    reset.assert_called_once_with(7, 0)
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0][0] == 'success'
+
+
+def test_release_transcription_folder_lock(client, monkeypatch):
+    with patch('web.sysadmin.qc_service.reset_folder_qc') as reset:
+        _post(client, monkeypatch, LOCK_URLS[1])
+    reset.assert_called_once_with(FOLDER_UUID, 1)
+
+
+def test_release_text_lock(client, monkeypatch):
+    with patch('web.sysadmin.qc_service.reset_transcription_text_qc') as reset:
+        _post(client, monkeypatch, LOCK_URLS[2])
+    reset.assert_called_once_with(FOLDER_UUID, SOURCE_UUID)
+
+
+def test_release_lock_db_error_is_reported_not_500(client, monkeypatch):
+    with patch('web.sysadmin.qc_service.reset_folder_qc', side_effect=RuntimeError('db')):
+        response = _post(client, monkeypatch, LOCK_URLS[0])
+    assert response.status_code == 302
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0][0] == 'danger'
+
+
+def test_release_lock_rejects_bad_ids(client, monkeypatch):
+    with patch('web.sysadmin.qc_service.reset_folder_qc') as reset:
+        assert _post(client, monkeypatch, '/sysadmin/qc/locks/transcription/not-a-uuid/reset').status_code == 404
+    reset.assert_not_called()
+
+
+# ---- DAMS ---------------------------------------------------------------------
+
+DAMS_PROJECT = {'project_id': 12, 'project_alias': 'bot', 'project_title': 'Botany',
+                'project_status': 'Ongoing', 'dams_project_cd': 'nmnh_bot'}
+DAMS_FOLDER = {'folder_id': 7, 'project_folder': 'f7', 'date': None, 'delivered_to_dams': 1,
+               'updated_at': None, 'dams_badge': 'Ready for DAMS', 'files_total': 3, 'files_with_uan': 1}
+DAMS_URL = '/sysadmin/dams/12/7/update'
+
+
+def test_dams_step1_lists_projects_and_redirects(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_qc.list_projects', lambda: [QC_PROJECT])
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/dams/').get_data(as_text=True)
+        r = client.get('/sysadmin/dams/?project_id=12')
+    assert 'Botany' in body and 'aria-current="page"' in body
+    assert r.status_code == 302 and r.headers['Location'].endswith('/sysadmin/dams/12/')
+
+
+def test_dams_project_lists_folders(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_data.dams_project', lambda pid: DAMS_PROJECT)
+    monkeypatch.setattr('osprey.services.sysadmin_data.dams_folders', lambda pid, fid=None: [DAMS_FOLDER])
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/dams/12/').get_data(as_text=True)
+    assert 'action="{}"'.format(DAMS_URL) in body
+    assert 'nmnh_bot' in body and '1 / 3' in body
+
+
+def test_dams_unknown_project_is_404(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    monkeypatch.setattr('osprey.services.sysadmin_data.dams_project', lambda pid: None)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        assert client.get('/sysadmin/dams/99/').status_code == 404
+
+
+def test_dams_update_runs_for_folder_in_project(client, monkeypatch):
+    monkeypatch.setattr('osprey.services.sysadmin_data.dams_folders', lambda pid, fid=None: [DAMS_FOLDER])
+    with patch('web.sysadmin.files_service.send_folder_to_dams') as send:
+        response = _post(client, monkeypatch, DAMS_URL)
+    assert response.headers['Location'].endswith('/sysadmin/dams/12/')
+    send.assert_called_once_with(7)
+    with client.session_transaction() as sess:
+        category, message = sess['_flashes'][0]
+    assert category == 'success' and '1 of 3' in message
+
+
+def test_dams_update_refuses_folder_from_other_project(client, monkeypatch):
+    monkeypatch.setattr('osprey.services.sysadmin_data.dams_folders', lambda pid, fid=None: [])
+    with patch('web.sysadmin.files_service.send_folder_to_dams') as send:
+        _post(client, monkeypatch, DAMS_URL)
+    send.assert_not_called()
+    with client.session_transaction() as sess:
+        assert sess['_flashes'][0][0] == 'danger'
+
+
+def test_old_get_folder_update_route_is_gone(client, monkeypatch):
+    with patch('osprey.services.files.send_folder_to_dams') as send:
+        assert client.get('/folder_update/bot/7').status_code == 404
+    send.assert_not_called()
+
+
+@pytest.mark.parametrize('url', [DAMS_URL] + LOCK_URLS)
+@pytest.mark.parametrize('is_admin_user,site_net', [(False, 'internal'), (True, 'external')])
+def test_new_actions_gated(client, monkeypatch, url, is_admin_user, site_net):
+    with patch('web.sysadmin.files_service.send_folder_to_dams') as send, \
+            patch('web.sysadmin.qc_service.reset_folder_qc') as reset, \
+            patch('web.sysadmin.qc_service.reset_transcription_text_qc') as reset_text:
+        response = _post(client, monkeypatch, url, is_admin_user=is_admin_user, site_net=site_net)
+    assert response.headers['Location'].endswith('/home/')
+    send.assert_not_called()
+    reset.assert_not_called()
+    reset_text.assert_not_called()
+
+
+@pytest.mark.parametrize('url', [DAMS_URL] + LOCK_URLS)
+def test_new_actions_reject_get_and_require_csrf(client, monkeypatch, url):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    with patch('web.sysadmin.user_perms', return_value=True):
+        assert client.get(url).status_code == 405
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
+    with patch('web.sysadmin.files_service.send_folder_to_dams') as send, \
+            patch('web.sysadmin.qc_service.reset_folder_qc') as reset:
+        assert _post(client, monkeypatch, url).status_code == 400
+    send.assert_not_called()
+    reset.assert_not_called()
+
+
+# ---- Navbar link --------------------------------------------------------------
+
+def test_navbar_links_sysadmin_only_for_sysadmins(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    with patch('web.sysadmin.user_perms', return_value=True) as perms:
+        body = client.get('/about/').get_data(as_text=True)
+    assert 'href="/sysadmin/"' in body
+    with patch('web.sysadmin.user_perms', return_value=False):
+        body = client.get('/about/').get_data(as_text=True)
+    assert 'href="/sysadmin/"' not in body
+    # One admin query per request, shared by the navbar and the page gate.
+    assert perms.call_count == 1
+
+
+def test_projects_tab_links_edit_and_links(client, monkeypatch):
+    monkeypatch.setattr(settings, 'site_net', 'internal')
+    for func, value in SUBPAGES['/sysadmin/projects/'].items():
+        monkeypatch.setattr('osprey.services.sysadmin_data.' + func, lambda value=value: value)
+    with patch('web.sysadmin.user_perms', return_value=True):
+        body = client.get('/sysadmin/projects/').get_data(as_text=True)
+    assert 'href="/edit_project/p/"' in body and 'href="/proj_links/p/"' in body

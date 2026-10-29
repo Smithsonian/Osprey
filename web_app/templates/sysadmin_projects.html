@@ -15,6 +15,12 @@
         <td>
           {% if p.project_alias %}<a href="{{ url_for('dashboard', project_alias=p.project_alias) }}">{{ p.project_title }}</a>{% else %}{{ p.project_title }}{% endif %}
           <div class="text-muted small">ID {{ p.project_id }}{% if p.project_alias %} · {{ p.project_alias }}{% endif %}</div>
+          {% if p.project_alias %}
+          <div class="small text-nowrap">
+            <a href="{{ url_for('projects.edit_project', project_alias=p.project_alias) }}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit</a>
+            · <a href="{{ url_for('projects.proj_links', project_alias=p.project_alias) }}"><i class="fa-solid fa-link" aria-hidden="true"></i> Links</a>
+          </div>
+          {% endif %}
         </td>
         <td>{{ p.project_status or '' }}</td>
         <td>{{ p.project_unit or '' }}</td>

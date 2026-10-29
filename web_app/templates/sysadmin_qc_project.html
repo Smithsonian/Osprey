@@ -14,23 +14,44 @@
       <code>{{ '/qc_transcription/' if project.transcription else '/qc/' }}{{ project.project_alias or project.project_id }}/</code>).</p>
   {% else %}
   {% set s = qc_settings.data %}
+  {% set method = s.qc_method or 'weighted' %}
+  <form method="POST" action="{{ url_for('sysadmin.set_qc_method', project_id=project.project_id) }}"
+        class="row gx-2 gy-2 align-items-end mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label for="qc-method" class="form-label small mb-1">QC method</label>
+      <select id="qc-method" name="qc_method" class="form-select form-select-sm">
+        {% for value, label in qc_methods.items() %}
+        <option value="{{ value }}" {{ 'selected' if value == method }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Save method</button></div>
+    <div class="col-12 text-muted small">Applies to QC results saved from now on. Each saved folder keeps the
+      method it was decided with (<code>qc_folders.qc_method</code>).</div>
+  </form>
   <div class="table-responsive">
   <table class="table table-sm mb-0">
     <thead><tr>
       <th scope="col">Level</th><th scope="col">Sample %</th>
-      <th scope="col">Threshold critical</th><th scope="col">Weight major</th><th scope="col">Weight minor</th>
-      <th scope="col">Weighted rate</th>
+      <th scope="col">Threshold critical</th>
+      <th scope="col">Threshold major</th><th scope="col">Threshold minor</th>
+      <th scope="col">Weight major</th><th scope="col">Weight minor</th><th scope="col">Weighted rate</th>
       <th scope="col">Normal %</th><th scope="col">Reduced %</th><th scope="col">Tightened %</th>
       <th scope="col">Updated</th>
     </tr></thead>
     <tbody>
+      {% set cumulative_cls = '' if method == 'cumulative' else 'text-muted' %}
+      {% set weighted_cls = '' if method == 'weighted' else 'text-muted' %}
       <tr>
         <td><span class="badge bg-secondary">{{ s.qc_level }}</span></td>
         <td>{{ s.qc_percent }}%</td>
         <td>{{ s.qc_threshold_critical }}%</td>
-        <td>{{ s.w_major }}</td>
-        <td>{{ s.w_minor }}</td>
-        <td>{{ s.weighted_rate }}%</td>
+        <td class="{{ cumulative_cls }}">{{ s.qc_threshold_major }}%</td>
+        <td class="{{ cumulative_cls }}">{{ s.qc_threshold_minor }}%</td>
+        <td class="{{ weighted_cls }}">{{ s.w_major }}</td>
+        <td class="{{ weighted_cls }}">{{ s.w_minor }}</td>
+        <td class="{{ weighted_cls }}">{{ s.weighted_rate }}%</td>
         <td>{{ s.qc_normal_percent }}%</td>
         <td>{{ s.qc_reduced_percent }}%</td>
         <td>{{ s.qc_tightened_percent }}%</td>
@@ -39,11 +60,18 @@
     </tbody>
   </table>
   </div>
-  <p class="text-muted small mb-0">See <code>folder_passes_qc</code> in <code>osprey/services/qc.py</code>:
-    critical issues are a hard gate checked alone against the critical threshold. Major and minor issues are
-    blended into one weighted rate - <code>major_count &times; weight major + minor_count &times; weight minor</code>,
-    as a percentage of the sample - and compared against the weighted rate threshold. A folder fails only if it
-    exceeds a threshold; sitting exactly at it passes.</p>
+  <p class="text-muted small mb-0">See <code>folder_passes_qc</code> in <code>osprey/services/qc.py</code>.
+    Greyed-out columns are not used by the current method.
+    {% if method == 'cumulative' %}
+    Cumulative: each issue also counts against the thresholds of the less severe categories - critical alone
+    against the critical threshold, critical + major against the major threshold, and all issues against the
+    minor threshold.
+    {% else %}
+    Weighted: critical issues are a hard gate checked alone against the critical threshold. Major and minor issues
+    are blended into one weighted rate - <code>major_count &times; weight major + minor_count &times; weight minor</code>,
+    as a percentage of the sample - and compared against the weighted rate threshold.
+    {% endif %}
+    A folder fails only if it exceeds a threshold; sitting exactly at it passes.</p>
   {% endif %}
 {% endcall %}
 
@@ -53,7 +81,10 @@
   <p class="text-muted small">Enter a sample size and how many sampled files landed in each severity to see
     whether that sample would pass QC under this project's current thresholds.</p>
   <form id="qc-calculator" class="row gy-2 gx-3 align-items-end"
+        data-qc-method="{{ s.qc_method or 'weighted' }}"
         data-threshold-critical="{{ s.qc_threshold_critical }}"
+        data-threshold-major="{{ s.qc_threshold_major }}"
+        data-threshold-minor="{{ s.qc_threshold_minor }}"
         data-w-major="{{ s.w_major }}"
         data-w-minor="{{ s.w_minor }}"
         data-weighted-rate="{{ s.weighted_rate }}">
@@ -81,18 +112,7 @@
       <th scope="col">Check</th><th scope="col">Issues</th><th scope="col">% of sample</th>
       <th scope="col">Threshold</th><th scope="col">Result</th>
     </tr></thead>
-    <tbody>
-      <tr>
-        <th scope="row">Critical</th>
-        <td id="qc-calc-critical-n"></td><td id="qc-calc-critical-pct"></td>
-        <td id="qc-calc-critical-limit"></td><td id="qc-calc-critical-result"></td>
-      </tr>
-      <tr>
-        <th scope="row">Weighted major + minor</th>
-        <td id="qc-calc-weighted-n"></td><td id="qc-calc-weighted-pct"></td>
-        <td id="qc-calc-weighted-limit"></td><td id="qc-calc-weighted-result"></td>
-      </tr>
-    </tbody>
+    <tbody id="qc-calc-checks"></tbody>
   </table>
   </div>
 

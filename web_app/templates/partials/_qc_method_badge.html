@@ -1,0 +1,14 @@
+{# Active QC pass/fail method for the project (qc_settings.qc_method); set on Sysadmin > QC Settings. #}
+{% set method = qc_method(project_settings) %}
+<p class="small mb-0 mt-1">QC method:
+  <span class="badge {{ 'bg-primary' if method == 'weighted' else 'bg-secondary' }}" title="{{ qc_methods[method] }}">{{ method|capitalize }}</span>
+  <span class="text-muted">
+  {% if method == 'weighted' %}
+    critical &le; {{ project_settings.qc_threshold_critical }}%; major &times; {{ project_settings.w_major }}
+    + minor &times; {{ project_settings.w_minor }} &le; {{ project_settings.weighted_rate }}%
+  {% else %}
+    critical &le; {{ project_settings.qc_threshold_critical }}%; critical + major &le; {{ project_settings.qc_threshold_major }}%;
+    all issues &le; {{ project_settings.qc_threshold_minor }}%
+  {% endif %}
+  </span>
+</p>

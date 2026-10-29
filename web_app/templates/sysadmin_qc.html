@@ -26,4 +26,46 @@
   {% endif %}
 {% endcall %}
 
+{% call card('QC locks') %}
+  {% if not locks.ok %}{{ section_error(locks) }}
+  {% else %}
+  <p class="text-muted small">Folders someone has started QC on but not finished, across all projects, oldest first.
+    Releasing a lock deletes the QC results recorded so far for that folder and puts it back in the QC queue.</p>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th scope="col">Project</th><th scope="col">Folder</th><th scope="col">QC type</th><th scope="col">QC by</th><th scope="col">Last update</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+    <tbody>
+      {% for l in locks.data %}
+      {% if l.kind == 'folder' %}
+        {% set reset_url = url_for('sysadmin.release_folder_qc', folder_id=l.folder_id|int) %}
+      {% elif l.kind == 'transcription_folder' %}
+        {% set reset_url = url_for('sysadmin.release_transcription_folder_qc', folder_id=l.folder_id) %}
+      {% else %}
+        {% set reset_url = url_for('sysadmin.release_text_qc', source_id=l.source_id, folder_id=l.folder_id) %}
+      {% endif %}
+      <tr{% if l.days_since is not none and l.days_since > 7 %} class="table-warning"{% endif %}>
+        <td>{{ l.project_alias or l.project_title }}</td>
+        <td><code>{{ l.folder_name }}</code></td>
+        <td>{% if l.kind == 'text' %}Transcription text{% if l.source_name %} · {{ l.source_name }}{% endif %}{% else %}Image{% endif %}</td>
+        <td>{{ l.qc_by or '' }}</td>
+        <td>{{ l.updated_at }}{% if l.days_since is not none %} <span class="text-muted small">({{ l.days_since }} day{{ '' if l.days_since == 1 else 's' }})</span>{% endif %}</td>
+        <td class="text-end">
+          <form method="post" action="{{ reset_url }}"
+                onsubmit='return confirm({{ ("Release the QC lock on " ~ l.folder_name ~ "? Its QC results so far are deleted.")|tojson }});'>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap">
+              <i class="fa-solid fa-lock-open" aria-hidden="true"></i> Release
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-muted">No folders are locked in QC.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+{% endcall %}
+
 {% endblock %}

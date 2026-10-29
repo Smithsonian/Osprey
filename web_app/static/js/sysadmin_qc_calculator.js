@@ -1,38 +1,52 @@
 (function () {
     'use strict';
 
-    // Mirrors osprey/services/qc.py:folder_passes_qc. Critical issues are a
-    // hard gate checked alone against the critical threshold. Major and
-    // minor issues are blended into one weighted rate (minor weighted less
-    // punishing than major) and compared against the weighted rate threshold.
+    // Mirrors osprey/services/qc.py:_checks for the project's qc_method.
+    // weighted: critical issues are a hard gate checked alone against the
+    // critical threshold; major and minor issues are blended into one
+    // weighted rate (minor weighted less punishing than major) and compared
+    // against the weighted rate threshold.
+    // cumulative: critical, critical + major and critical + major + minor
+    // are checked against the critical, major and minor thresholds.
 
     function fieldValue(id) {
         var el = document.getElementById(id);
         return el ? parseFloat(el.value) || 0 : 0;
     }
 
-    function renderCheck(prefix, issues, sampleSize, limit) {
-        var pct = sampleSize > 0 ? (issues / sampleSize * 100) : 0;
-        document.getElementById('qc-calc-' + prefix + '-n').textContent = issues;
-        document.getElementById('qc-calc-' + prefix + '-pct').textContent = pct.toFixed(2) + '%';
-        document.getElementById('qc-calc-' + prefix + '-limit').textContent = limit + '%';
-        var passes = pct <= limit;
-        var resultEl = document.getElementById('qc-calc-' + prefix + '-result');
-        resultEl.textContent = passes ? 'Pass' : 'Fail';
-        resultEl.className = passes ? 'text-success fw-semibold' : 'text-danger fw-semibold';
-        return passes;
+    function attr(form, name) {
+        return parseFloat(form.getAttribute(name)) || 0;
+    }
+
+    function checks(form, critical, major, minor) {
+        var list = [['Critical', critical, attr(form, 'data-threshold-critical')]];
+        if (form.getAttribute('data-qc-method') === 'cumulative') {
+            list.push(['Critical + major', critical + major, attr(form, 'data-threshold-major')]);
+            list.push(['Critical + major + minor', critical + major + minor, attr(form, 'data-threshold-minor')]);
+        } else {
+            var weighted = major * attr(form, 'data-w-major') + minor * attr(form, 'data-w-minor');
+            list.push(['Weighted major + minor', weighted, attr(form, 'data-weighted-rate')]);
+        }
+        return list;
+    }
+
+    function cell(tag, text, className) {
+        var el = document.createElement(tag);
+        el.textContent = text;
+        if (tag === 'th') {
+            el.scope = 'row';
+        }
+        if (className) {
+            el.className = className;
+        }
+        return el;
     }
 
     function recalc(form) {
         var sampleSize = fieldValue('qc-calc-sample');
-        var critical = fieldValue('qc-calc-critical');
-        var major = fieldValue('qc-calc-major');
-        var minor = fieldValue('qc-calc-minor');
-        var limitCritical = parseFloat(form.getAttribute('data-threshold-critical')) || 0;
-        var wMajor = parseFloat(form.getAttribute('data-w-major')) || 0;
-        var wMinor = parseFloat(form.getAttribute('data-w-minor')) || 0;
-        var limitWeighted = parseFloat(form.getAttribute('data-weighted-rate')) || 0;
+        var tbody = document.getElementById('qc-calc-checks');
         var conclusionEl = document.getElementById('qc-calc-conclusion');
+        tbody.textContent = '';
 
         if (sampleSize <= 0) {
             conclusionEl.textContent = 'enter a sample size';
@@ -40,10 +54,21 @@
             return;
         }
 
-        var okCritical = renderCheck('critical', critical, sampleSize, limitCritical);
-        var weightedIssues = major * wMajor + minor * wMinor;
-        var okWeighted = renderCheck('weighted', weightedIssues, sampleSize, limitWeighted);
-        var passes = okCritical && okWeighted;
+        var passes = true;
+        checks(form, fieldValue('qc-calc-critical'), fieldValue('qc-calc-major'),
+            fieldValue('qc-calc-minor')).forEach(function (check) {
+            var pct = check[1] / sampleSize * 100;
+            var ok = pct <= check[2];
+            passes = passes && ok;
+            var row = document.createElement('tr');
+            row.appendChild(cell('th', check[0]));
+            row.appendChild(cell('td', Math.round(check[1] * 1000) / 1000));
+            row.appendChild(cell('td', pct.toFixed(2) + '%'));
+            row.appendChild(cell('td', check[2] + '%'));
+            row.appendChild(cell('td', ok ? 'Pass' : 'Fail',
+                ok ? 'text-success fw-semibold' : 'text-danger fw-semibold'));
+            tbody.appendChild(row);
+        });
         conclusionEl.textContent = passes ? 'PASS' : 'FAIL';
         conclusionEl.className = passes ? 'badge bg-success' : 'badge bg-danger';
     }

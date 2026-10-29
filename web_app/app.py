@@ -110,6 +110,9 @@ csrf.exempt(api_bp)
 # Ensure templates can always call csrf_token() (Flask-WTF context processor
 # is not always available depending on version / init order).
 app.jinja_env.globals['csrf_token'] = generate_csrf
+# qc_method / QC_METHODS for partials/_qc_method_badge.html
+app.jinja_env.globals['qc_method'] = qc_service.qc_method
+app.jinja_env.globals['qc_methods'] = qc_service.QC_METHODS
 
 
 @app.context_processor
@@ -129,6 +132,13 @@ def inject_site_context():
         'site_ver': site_ver,
         'analytics_code': settings.analytics_code,
     }
+
+
+@app.context_processor
+def inject_sysadmin_link():
+    """show_sysadmin_link() for the navbar; a callable so the admin query
+    only runs on pages that render the logged-in menu."""
+    return {'show_sysadmin_link': sysadmin_allowed}
 
 
 @app.before_request
@@ -1517,7 +1527,7 @@ def qc(project_alias=None):
                                 "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                 "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                 "      ELSE 'QC Pending' END AS qc_status, "
-                                "      q.qc_ip, u.username AS qc_by, "
+                                "      q.qc_ip, u.username AS qc_by, COALESCE(q.qc_method, 'cumulative') AS qc_method, "
                                 "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at, "
                                 "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
                                 "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
@@ -1667,7 +1677,7 @@ def qc(project_alias=None):
                                 "   CASE WHEN q.qc_status = 0 THEN 'QC Passed' "
                                 "      WHEN q.qc_status = 1 THEN 'QC Failed' "
                                 "      ELSE 'QC Pending' END AS qc_status, "
-                                "      q.qc_ip, u.username AS qc_by, "
+                                "      q.qc_ip, u.username AS qc_by, COALESCE(q.qc_method, 'cumulative') AS qc_method, "
                                 "      date_format(q.updated_at, '%Y-%m-%d') AS updated_at, "
                                 "       COALESCE(errors.no_files, 0) as qc_stats_no_errors, "
                                 "       COALESCE(passed.no_files, 0) as qc_stats_no_passed,"
@@ -2076,16 +2086,14 @@ def qct_loading2(source_id):
     project_settings = project_settings[0]
 
     project_qc_stats = {}
-    project_qc_ok = run_query(("SELECT count(f.folder_transcription_id) as no_folders FROM transcription_folders f "
+    project_qc_ok = run_query(("SELECT count(distinct f.folder_transcription_id) as no_folders FROM transcription_folders f "
                             " JOIN transcription_qc_folders q on (f.folder_transcription_id = q.folder_transcription_id ) "
-                            " JOIN transcription_sources ts on (f.project_id = ts.project_id ) "
-                            " WHERE f.project_id = %(project_id)s and ts.transcription_source_id = %(transcription_source_id)s "
+                            " WHERE f.project_id = %(project_id)s and q.transcription_source_id = %(transcription_source_id)s "
                             " and f.status = 0 and f.previews = 0 and f.file_errors = 0 and q.qc_status = 0"),
                             {'project_id': project_id, 'transcription_source_id': source_id})[0]
-    project_qc_failed = run_query(("SELECT count(f.folder_transcription_id) as no_folders FROM transcription_folders f "
+    project_qc_failed = run_query(("SELECT count(distinct f.folder_transcription_id) as no_folders FROM transcription_folders f "
                             " JOIN transcription_qc_folders q on (f.folder_transcription_id = q.folder_transcription_id ) "
-                            " JOIN transcription_sources ts on (f.project_id = ts.project_id ) "
-                            " WHERE f.project_id = %(project_id)s and ts.transcription_source_id = %(transcription_source_id)s "
+                            " WHERE f.project_id = %(project_id)s and q.transcription_source_id = %(transcription_source_id)s "
                             " and f.status = 0 and f.previews = 0 and f.file_errors = 0 and q.qc_status = 1"),
                             {'project_id': project_id, 'transcription_source_id': source_id})[0]
     project_qc_count = run_query((
@@ -2557,7 +2565,7 @@ def qc_process(folder_id):
                     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                                 "   FROM files_exif "
                                                                 "   WHERE file_uid = %(file_id)s "
-                                                                "       AND lower(filetype) = 'tif' "
+                                                                "       AND filetype = 'tif' "
                                                                 "   ORDER BY taggroup, tag "),
                                                             {'file_id': file_qc['file_id']}))
                     folder = run_query(
@@ -2592,7 +2600,7 @@ def qc_process(folder_id):
                     file_metadata = pd.DataFrame(run_query(("SELECT tag, taggroup, tagid, value "
                                                                 "   FROM files_exif "
                                                                 "   WHERE file_id = %(file_id)s "
-                                                                "       AND lower(filetype) = 'tif' "
+                                                                "       AND filetype = 'tif' "
                                                                 "   ORDER BY taggroup, tag "),
                                                             {'file_id': file_qc['file_id']}))
                     folder = run_query(
@@ -2649,16 +2657,19 @@ def qc_process(folder_id):
                                              {'folder_id': folder_id})
                     folder = run_query("SELECT * FROM folders WHERE folder_id = %(folder_id)s",
                                     {'folder_id': folder_id})[0]
-                # Cumulative severity check (see osprey/services/qc.py)
+                # Project's qc_method decides the checks (see osprey/services/qc.py)
                 issues = qc_service.count_issues(error_files, 'file_qc')
                 qc_folder_result = qc_service.folder_passes_qc(
+                    qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
+                    project_settings)
+                qc_math = qc_service.qc_math(
                     qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
                     project_settings)
                 return render_template('qc_done.html',
                                         folder_id=folder_id, folder=folder, qc_stats=qc_stats,
                                         project_settings=project_settings, username=username,
                                         error_files=error_files, qc_folder_result=qc_folder_result,
-                                        form=form)
+                                        qc_math=qc_math, form=form)
     else:
         error_msg = "Folder is not available for QC."
         return render_error(error_msg, 400, project_alias=project_alias['project_alias'])
@@ -2706,17 +2717,7 @@ def qc_reset(folder_id):
         return redirect(url_for('home'))
     project_alias = project_admin[0]['project_alias']
 
-    fold_id = "folder_uid" if transcription == 1 else "folder_id"
-
-    query_database_insert(
-        (f"UPDATE qc_folders SET qc_status = 9, qc_by = NULL WHERE {fold_id} = %(folder_id)s"),
-        {'folder_id': folder_id})
-    query_database_insert(
-        (f"DELETE FROM qc_files WHERE {fold_id} = %(folder_id)s"),
-        {'folder_id': folder_id})
-    query_database_insert(
-        (f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s AND badge_type = 'qc_status'"),
-        {'folder_id': folder_id})
+    qc_service.reset_folder_qc(folder_id, transcription)
 
     logger.info("qc_reset: folder_id={} transcription={} reset by admin={}".format(folder_id, transcription, username))
 
@@ -3028,9 +3029,12 @@ def qc_process_transcript(source_id, folder_id):
                                              "  AND q.transcription_source_id = %(source_id)s "
                                               "  AND q.qc_results > 0 AND q.file_transcription_id = f.file_transcription_id"),
                                             {'folder_id': folder_id, 'source_id': source_id})
-                # Cumulative severity check (see osprey/services/qc.py)
+                # Project's qc_method decides the checks (see osprey/services/qc.py)
                 issues = qc_service.count_issues(error_files, 'qc_results')
                 qc_folder_result = qc_service.folder_passes_qc(
+                    qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
+                    project_settings)
+                qc_math = qc_service.qc_math(
                     qc_stats['no_files'], issues['critical'], issues['major'], issues['minor'],
                     project_settings)
                 return render_template('qc_transcription_done.html',
@@ -3039,7 +3043,7 @@ def qc_process_transcript(source_id, folder_id):
                                         project_alias=project_alias['project_alias'],
                                         source_id=source_id,
                                         error_files=error_files, qc_folder_result=qc_folder_result,
-                                        form=form)
+                                        qc_math=qc_math, form=form)
     else:
         error_msg = "Folder is not available for QC."
         return render_error(error_msg, 400, project_alias=project_alias['project_alias'])
@@ -3069,22 +3073,7 @@ def qc_transcription_reset(source_id, folder_id):
         # Not allowed
         return redirect(url_for('home'))
 
-    query_database_insert(
-        ("UPDATE transcription_qc_folders SET qc_status = 9, qc_by = NULL "
-         " WHERE folder_transcription_id = %(folder_id)s "
-         "   AND transcription_source_id = %(source_id)s"),
-        {'folder_id': folder_id, 'source_id': source_id})
-    query_database_insert(
-        ("DELETE FROM transcription_qc "
-         " WHERE folder_transcription_id = %(folder_id)s "
-         "   AND transcription_source_id = %(source_id)s"),
-        {'folder_id': folder_id, 'source_id': source_id})
-    query_database_insert(
-        ("DELETE FROM folders_badges "
-         " WHERE folder_uid = %(folder_id)s "
-         "   AND badge_type = 'transcription_qc_status' "
-         "   AND folder_transcription_id = %(source_id)s"),
-        {'folder_id': folder_id, 'source_id': source_id})
+    qc_service.reset_transcription_text_qc(folder_id, source_id)
 
     logger.info("qc_transcription_reset: folder_id={} source_id={} reset by admin={}".format(folder_id, source_id, username))
 
@@ -3181,7 +3170,8 @@ def qc_transcription_done(source_id, folder_id):
          "   qc_by = %(qc_by)s, "
          "   qc_info = %(qc_info)s, "
          "   qc_ip = %(qc_ip)s, "
-         "   qc_level = %(qc_level)s "
+         "   qc_level = %(qc_level)s, "
+         "   qc_method = %(qc_method)s "
          " WHERE folder_transcription_id = %(folder_id)s "
          "   AND transcription_source_id = %(source_id)s"),
         {'folder_id': folder_id,
@@ -3190,7 +3180,8 @@ def qc_transcription_done(source_id, folder_id):
          'qc_info': qc_info,
          'qc_ip': request.environ.get('REMOTE_ADDR'),
          'qc_by': user_id['user_id'],
-         'qc_level': project_qc_settings['qc_level']})
+         'qc_level': project_qc_settings['qc_level'],
+         'qc_method': qc_service.qc_method(project_qc_settings)})
 
     badgecss = "bg-success" if qc_status == "0" else "bg-danger"
     badge_status = "Passed" if qc_status == "0" else "Failed"
@@ -3327,12 +3318,13 @@ def qc_done(folder_id):
         #                   })
     else:
         fold_id = "folder_id"
-    q = query_database_insert((f"UPDATE qc_folders SET qc_status = %(qc_status)s, qc_by = %(qc_by)s, qc_info = %(qc_info)s, qc_level = %(qc_level)s WHERE {fold_id} = %(folder_id)s"),
+    q = query_database_insert((f"UPDATE qc_folders SET qc_status = %(qc_status)s, qc_by = %(qc_by)s, qc_info = %(qc_info)s, qc_level = %(qc_level)s, qc_method = %(qc_method)s WHERE {fold_id} = %(folder_id)s"),
                          {'folder_id': folder_id,
                           'qc_status': qc_status,
                           'qc_info': qc_info,
                           'qc_by': user_id['user_id'],
-                          'qc_level': project_qc_settings['qc_level']
+                          'qc_level': project_qc_settings['qc_level'],
+                          'qc_method': qc_service.qc_method(project_qc_settings)
                           })
     # Create folder badge
     clear_badges = run_query(f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s and badge_type = 'qc_status'",
@@ -3406,9 +3398,6 @@ def home():
     form = LoginForm(request.form)
 
     user_name = current_user.name
-    is_admin = user_perms('', user_type='admin')
-    logger.info("is_admin:{}".format(is_admin))
-    is_sysadmin = sysadmin_allowed()
     ip_addr = request.environ['REMOTE_ADDR']
     projects = run_query(
         "select p.project_title, p.project_id, p.project_alias, "
@@ -3442,7 +3431,6 @@ def home():
             'transcription': project['transcription']
         })
     return render_template('userhome.html', project_list=project_list, username=user_name,
-                           is_admin=is_admin, is_sysadmin=is_sysadmin,
                            ip_addr=ip_addr, form=form,
                            about_user_guide_url=ABOUT_USER_GUIDE_URL)
 

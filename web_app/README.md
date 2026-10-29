@@ -65,10 +65,24 @@ A folder's QC Passed / QC Failed result is computed by
 
 **Input:** the sample size (`qc_files` rows for the folder), the number of
 sampled files rated Critical (1), Major (2) and Minor (3), and the
-project's `qc_settings` row (`qc_threshold_critical`, `qc_threshold_major`,
-`qc_threshold_minor`, in percent).
+project's `qc_settings` row. Thresholds are in percent.
 
-**Rule (cumulative severities):** each issue also counts against the
+**Method:** `qc_settings.qc_method` (and `transcription_qc_settings.qc_method`)
+picks the rule; sysadmins set it on *Sysadmin > QC Settings*. Rows without a
+value use `weighted`. Apply `db/add_qc_method.sql` to add the columns.
+
+*`weighted` (default):* critical issues are a hard gate; major and minor
+are blended into one weighted rate.
+
+| Check                  | Counted issues                         | Fails when % is over    |
+|------------------------|----------------------------------------|-------------------------|
+| Critical               | critical                               | `qc_threshold_critical` |
+| Weighted major + minor | major × `w_major` + minor × `w_minor`  | `weighted_rate`         |
+
+Example, 400-file sample with defaults (0 / 1 / 0.3 / 6): 10 major + 46
+minor = 23.8 weighted = 5.95% → passes; 10 major + 47 minor = 6.025% → fails.
+
+*`cumulative` (the original rule):* each issue also counts against the
 thresholds of the less severe categories:
 
 | Check    | Counted issues            | Fails when % is over      |
@@ -78,13 +92,19 @@ thresholds of the less severe categories:
 | Minor    | critical + major + minor  | `qc_threshold_minor`      |
 
 So `qc_threshold_minor` is effectively the cap on *all* issues combined.
-Equal to the threshold passes; only exceeding it fails.
+Example with defaults (0 / 1.5 / 4): 6 major + 10 minor = 4.0% total →
+passes; 6 major + 16 minor = 5.5% total → fails.
 
-Example, 400-file sample with defaults (0 / 1.5 / 4): 6 major + 10 minor
-= 4.0% total → passes; 6 major + 16 minor = 5.5% total → fails.
+In both, equal to the threshold passes; only exceeding it fails.
 
 **Output:** `True` (passed) / `False` (failed). Raises `ValueError` on an
-empty sample. Results saved before this rule are not recalculated.
+empty sample or an unknown `qc_method`. Results saved before a rule or
+method change are not recalculated.
+
+**Recorded method:** saving a result stamps the method used on
+`qc_folders.qc_method` / `transcription_qc_folders.qc_method`; a reset
+clears it. `NULL` on a decided folder means it was saved before the column
+existed, so results can be told apart if a project switches method.
 
 **Saving (`qc_done()`, POST only):** the result shown on `qc_done.html` is
 display-only. On submit, `qc_done()`:

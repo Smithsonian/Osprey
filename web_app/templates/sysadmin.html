@@ -3,6 +3,22 @@
 
 {% block sysadmin_content %}
 
+  {# Admin tools (moved from /home) #}
+  <div class="dashboard-fact-chips mb-4" aria-label="Admin tools">
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('projects.new_project') }}">
+      <i class="fa-solid fa-folder-plus" aria-hidden="true"></i> Create New Project
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('invoices.invoice') }}">
+      <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i> Invoice Reconciliation
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('projects.infprojects') }}">
+      <i class="fa-solid fa-laptop-code" aria-hidden="true"></i> Informatics Projects
+    </a>
+    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('projects.new_infprojects') }}">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i> New Informatics Project
+    </a>
+  </div>
+
   {# Application #}
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-header osprey-card-header py-2"><h2 class="h6 mb-0 text-white">Application</h2></div>

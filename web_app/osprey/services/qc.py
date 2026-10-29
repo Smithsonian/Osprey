@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from osprey.db import run_query
+from osprey.db import query_database_insert, run_query
 
 # Labels produced by the error_files queries in app.py (file_qc / qc_results 1-3)
 _SEVERITY_LABELS = {
@@ -22,26 +22,88 @@ def count_issues(error_files, key):
     return counts
 
 
-def folder_passes_qc(sample_size, critical, major, minor, settings):
-    """Return True if the folder passes QC.
+# qc_settings.qc_method: which pass/fail rule a project uses. The method a
+# saved result was decided with is stamped on qc_folders.qc_method.
+QC_METHOD_WEIGHTED = 'weighted'
+QC_METHOD_CUMULATIVE = 'cumulative'
+QC_METHODS = {
+    QC_METHOD_WEIGHTED: 'Weighted (critical gate + weighted major/minor)',
+    QC_METHOD_CUMULATIVE: 'Cumulative (critical / +major / +minor thresholds)',
+}
+DEFAULT_QC_METHOD = QC_METHOD_WEIGHTED
 
-    Critical issues are a hard gate: their rate must not exceed
-    qc_threshold_critical on its own. Major and minor issues are blended into
-    a single weighted rate - minor issues weighted less punishing than major
-    via w_major/w_minor - and that rate is compared against weighted_rate.
-    Only exceeding a threshold fails (equal passes).
+
+def qc_method(settings):
+    """The project's QC method; settings rows from before the column existed use the default."""
+    method = settings.get('qc_method') or DEFAULT_QC_METHOD
+    if method not in QC_METHODS:
+        raise ValueError("unknown qc_method: {!r}".format(method))
+    return method
+
+
+def _checks(critical, major, minor, settings):
+    """The (label, issues, limit) checks for the project's QC method.
+
+    weighted: critical issues are a hard gate checked alone against
+    qc_threshold_critical. Major and minor issues are blended into a single
+    weighted rate - minor weighted less punishing than major via
+    w_major/w_minor - compared against weighted_rate.
+
+    cumulative: each issue also counts against the thresholds of the less
+    severe categories - critical vs qc_threshold_critical, critical + major
+    vs qc_threshold_major, critical + major + minor vs qc_threshold_minor.
+    """
+    method = qc_method(settings)
+    checks = [('Critical', critical, float(settings['qc_threshold_critical']))]
+    if method == QC_METHOD_CUMULATIVE:
+        checks.append(('Critical + major', critical + major, float(settings['qc_threshold_major'])))
+        checks.append(('Critical + major + minor', critical + major + minor,
+                       float(settings['qc_threshold_minor'])))
+    else:
+        weighted_issues = major * float(settings['w_major']) + minor * float(settings['w_minor'])
+        checks.append(('Weighted major + minor', weighted_issues, float(settings['weighted_rate'])))
+    return method, checks
+
+
+def folder_passes_qc(sample_size, critical, major, minor, settings):
+    """Return True if the folder passes QC under the project's qc_method.
+
+    Every check's issue count, as a percentage of the sample, must not
+    exceed its threshold (see _checks). Only exceeding a threshold fails
+    (equal passes).
     """
     if sample_size <= 0:
         raise ValueError("QC sample is empty")
+    _, checks = _checks(critical, major, minor, settings)
+    return all(issues / sample_size * 100 <= limit for _, issues, limit in checks)
 
-    def pct(n):
-        return n / sample_size * 100
 
-    if pct(critical) > float(settings['qc_threshold_critical']):
-        return False
+def qc_math(sample_size, critical, major, minor, settings):
+    """Break down the folder_passes_qc computation for display.
 
-    weighted_issues = major * float(settings['w_major']) + minor * float(settings['w_minor'])
-    return pct(weighted_issues) <= float(settings['weighted_rate'])
+    Same checks as folder_passes_qc, but returns each check's issues,
+    percentage, threshold and pass/fail (rounded for display; pass/fail uses
+    the unrounded numbers) so a results page can show how the result was
+    reached.
+    """
+    method, checks = _checks(critical, major, minor, settings)
+    rows = []
+    for label, issues, limit in checks:
+        pct = issues / sample_size * 100 if sample_size > 0 else 0
+        rows.append({'label': label, 'issues': round(issues, 3), 'pct': round(pct, 3),
+                     'limit': limit, 'passed': pct <= limit})
+    result = {
+        'method': method, 'method_label': QC_METHODS[method],
+        'sample_size': sample_size,
+        'critical': critical, 'major': major, 'minor': minor,
+        'checks': rows,
+        'passed': all(row['passed'] for row in rows),
+    }
+    if method == QC_METHOD_WEIGHTED:
+        result['w_major'] = float(settings['w_major'])
+        result['w_minor'] = float(settings['w_minor'])
+        result['weighted_issues'] = rows[1]['issues']
+    return result
 
 
 def load_folder_qc_counts(folder_id, transcription):
@@ -63,3 +125,42 @@ def load_folder_qc_counts(folder_id, transcription):
     )[0]
     # MySQL SUM() returns Decimal
     return {k: int(v) for k, v in row.items()}
+
+
+def reset_folder_qc(folder_id, transcription):
+    """Release a folder's image/file QC lock so it re-enters the queue.
+
+    Transcription folders key qc_folders/qc_files/folders_badges by folder_uid
+    (their UUID); regular folders by folder_id.
+    """
+    fold_id = "folder_uid" if transcription == 1 else "folder_id"
+    query_database_insert(
+        f"UPDATE qc_folders SET qc_status = 9, qc_by = NULL, qc_method = NULL WHERE {fold_id} = %(folder_id)s",
+        {'folder_id': folder_id})
+    query_database_insert(
+        f"DELETE FROM qc_files WHERE {fold_id} = %(folder_id)s",
+        {'folder_id': folder_id})
+    query_database_insert(
+        f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s AND badge_type = 'qc_status'",
+        {'folder_id': folder_id})
+
+
+def reset_transcription_text_qc(folder_id, source_id):
+    """Release a folder's transcription-text QC lock for one source."""
+    params = {'folder_id': folder_id, 'source_id': source_id}
+    query_database_insert(
+        "UPDATE transcription_qc_folders SET qc_status = 9, qc_by = NULL, qc_method = NULL "
+        " WHERE folder_transcription_id = %(folder_id)s "
+        "   AND transcription_source_id = %(source_id)s",
+        params)
+    query_database_insert(
+        "DELETE FROM transcription_qc "
+        " WHERE folder_transcription_id = %(folder_id)s "
+        "   AND transcription_source_id = %(source_id)s",
+        params)
+    query_database_insert(
+        "DELETE FROM folders_badges "
+        " WHERE folder_uid = %(folder_id)s "
+        "   AND badge_type = 'transcription_qc_status' "
+        "   AND folder_transcription_id = %(source_id)s",
+        params)

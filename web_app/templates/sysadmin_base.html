@@ -18,9 +18,6 @@
   </div>
 
   <nav class="dashboard-fact-chips mb-4" aria-label="System admin sections">
-    <a class="dashboard-fact-chip dashboard-fact-chip-link" href="{{ url_for('home') }}">
-      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> My Projects
-    </a>
     {% for endpoint, label, icon in nav %}
     <a class="dashboard-fact-chip dashboard-fact-chip-link{% if request.endpoint == endpoint %} fw-bold{% endif %}"
        href="{{ url_for(endpoint) }}"{% if request.endpoint == endpoint %} aria-current="page"{% endif %}>

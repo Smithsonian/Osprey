@@ -1,0 +1,4 @@
+settings.py
+exif_archive/
+logs/
+.venv/

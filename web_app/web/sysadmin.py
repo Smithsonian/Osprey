@@ -5,7 +5,9 @@ who reaches these URLs — wrong site, or not an admin — is sent to /home.
 
 Pages are read-only except these POST actions: requeue a pregenerated
 report, queue a pregenerated sysadmin report, clear the app cache,
-add/remove project custom data values, and deactivate/reactivate a user. All are
+add/remove project custom data values, deactivate/reactivate a user, set
+a project's QC method, release a folder's QC lock, and update a folder's
+DAMS status. All are
 CSRF-protected (app-wide CSRFProtect), re-check the gate on every
 request, and are logged at WARNING with the username so they appear in
 ospreyapp.log in production. Running a live sysadmin report (GET) is logged
@@ -19,6 +21,7 @@ from flask import Blueprint
 from flask import Response
 from flask import abort
 from flask import flash
+from flask import g
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -30,7 +33,9 @@ from flask_login import login_required
 import settings
 from cache import cache
 from logger import logger
+from osprey.services import files as files_service
 from osprey.services import project_custom_data as custom_data
+from osprey.services import qc as qc_service
 from osprey.services import report_materializations as materializations
 from osprey.services import reports as report_service
 from osprey.services import sysadmin_reports
@@ -51,6 +56,7 @@ NAV = (
     ('sysadmin.projects', 'Projects', 'fa-folder-tree'),
     ('sysadmin.qc_settings', 'QC Settings', 'fa-list-check'),
     ('sysadmin.folder_errors', 'Folder Errors', 'fa-triangle-exclamation'),
+    ('sysadmin.dams', 'DAMS', 'fa-cloud-arrow-up'),
     ('sysadmin.api_keys', 'API keys', 'fa-key'),
     ('sysadmin.kiosks', 'Kiosks', 'fa-desktop'),
     ('sysadmin.reports', 'Reports', 'fa-file-lines'),
@@ -63,10 +69,14 @@ def sysadmin_allowed():
     """True only for an admin on an internal deployment.
 
     The site check runs first so external/api sites never query the flag.
+    The answer is kept on flask.g, so the gate and the navbar link share one
+    query per request.
     """
     if settings.site_net != 'internal':
         return False
-    return user_perms('', user_type='admin')
+    if 'sysadmin_allowed' not in g:
+        g.sysadmin_allowed = user_perms('', user_type='admin')
+    return g.sysadmin_allowed
 
 
 def sysadmin_required(view):
@@ -170,7 +180,8 @@ def qc_settings():
     project_id = request.args.get('project_id', type=int)
     if project_id is not None:
         return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
-    return _render('sysadmin_qc.html', projects=section('qc settings projects', sysadmin_qc.list_projects))
+    return _render('sysadmin_qc.html', projects=section('qc settings projects', sysadmin_qc.list_projects),
+                   locks=section('qc locks', sysadmin_qc.locks))
 
 
 @sysadmin_bp.route('/qc/<int:project_id>/', methods=['GET'], provide_automatic_options=False)
@@ -180,8 +191,76 @@ def qc_settings_project(project_id):
     project = sysadmin_qc.get_project(project_id)
     if project is None:
         abort(404)
-    return _render('sysadmin_qc_project.html', project=project,
+    return _render('sysadmin_qc_project.html', project=project, qc_methods=qc_service.QC_METHODS,
                    qc_settings=section('qc settings', lambda: sysadmin_qc.get_settings(project)))
+
+
+@sysadmin_bp.route('/qc/<int:project_id>/method', methods=['POST'], provide_automatic_options=False)
+@sysadmin_required
+def set_qc_method(project_id):
+    """Choose the project's QC pass/fail method (qc_settings.qc_method)."""
+    project = sysadmin_qc.get_project(project_id)
+    if project is None:
+        abort(404)
+    method = request.form.get('qc_method')
+    if method not in qc_service.QC_METHODS:
+        flash("Unknown QC method.", 'danger')
+        return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
+    try:
+        if sysadmin_qc.get_settings(project) is None:
+            flash("This project has no QC settings yet.", 'warning')
+            return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
+        sysadmin_qc.set_method(project, method)
+    except Exception:  # boundary: DB write; logged with context
+        logger.exception("sysadmin set qc_method failed: project_id={}".format(project_id))
+        flash("Could not change the QC method; see ospreyapp.log.", 'danger')
+        return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
+    logger.warning("sysadmin {} set qc_method={} for project_id={}".format(
+        current_user.name, method, project_id))
+    flash("QC method set to {}.".format(qc_service.QC_METHODS[method]), 'success')
+    return redirect(url_for('sysadmin.qc_settings_project', project_id=project_id))
+
+
+def _release_qc_lock(reset, description):
+    """Run one of the qc service resets and flash the outcome (QC locks card)."""
+    try:
+        reset()
+    except Exception:  # boundary: DB write; logged with context
+        logger.exception("sysadmin QC lock release failed: {}".format(description))
+        flash("Could not release the QC lock; see ospreyapp.log.", 'danger')
+        return redirect(url_for('sysadmin.qc_settings'))
+    logger.warning("sysadmin {} released QC lock: {}".format(current_user.name, description))
+    flash("QC lock released; the folder is back in the QC queue.", 'success')
+    return redirect(url_for('sysadmin.qc_settings'))
+
+
+@sysadmin_bp.route('/qc/locks/folder/<int:folder_id>/reset', methods=['POST'],
+                   provide_automatic_options=False)
+@sysadmin_required
+def release_folder_qc(folder_id):
+    """Image QC on a regular folder (same writes as /qc_reset)."""
+    return _release_qc_lock(lambda: qc_service.reset_folder_qc(folder_id, 0),
+                            "folder_id={}".format(folder_id))
+
+
+@sysadmin_bp.route('/qc/locks/transcription/<uuid:folder_id>/reset', methods=['POST'],
+                   provide_automatic_options=False)
+@sysadmin_required
+def release_transcription_folder_qc(folder_id):
+    """Image QC on a transcription folder (same writes as /qc_reset with a UUID)."""
+    folder_id = str(folder_id)
+    return _release_qc_lock(lambda: qc_service.reset_folder_qc(folder_id, 1),
+                            "transcription folder_uid={}".format(folder_id))
+
+
+@sysadmin_bp.route('/qc/locks/text/<uuid:source_id>/<uuid:folder_id>/reset', methods=['POST'],
+                   provide_automatic_options=False)
+@sysadmin_required
+def release_text_qc(source_id, folder_id):
+    """Transcription-text QC for one source (same writes as /qc_transcription_reset)."""
+    source_id, folder_id = str(source_id), str(folder_id)
+    return _release_qc_lock(lambda: qc_service.reset_transcription_text_qc(folder_id, source_id),
+                            "text QC folder={} source={}".format(folder_id, source_id))
 
 
 @sysadmin_bp.route('/folder-errors/', methods=['GET'], provide_automatic_options=False)
@@ -192,6 +271,52 @@ def folder_errors():
                    errors=section('folder errors', lambda: sysadmin_data.folder_errors(project_id)),
                    filter_projects=section('folder error projects', sysadmin_data.folder_error_projects),
                    selected_project_id=project_id)
+
+
+@sysadmin_bp.route('/dams/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def dams():
+    """Step 1: choose a project (a GET form, so ?project_id= jumps to step 2)."""
+    project_id = request.args.get('project_id', type=int)
+    if project_id is not None:
+        return redirect(url_for('sysadmin.dams_project', project_id=project_id))
+    return _render('sysadmin_dams.html', projects=section('dams projects', sysadmin_qc.list_projects))
+
+
+@sysadmin_bp.route('/dams/<int:project_id>/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def dams_project(project_id):
+    """Step 2: the project's folders, their DAMS badge, and an update button each."""
+    project = sysadmin_data.dams_project(project_id)
+    if project is None:
+        abort(404)
+    return _render('sysadmin_dams_project.html', project=project,
+                   folders=section('dams folders', lambda: sysadmin_data.dams_folders(project_id)))
+
+
+@sysadmin_bp.route('/dams/<int:project_id>/<int:folder_id>/update', methods=['POST'],
+                   provide_automatic_options=False)
+@sysadmin_required
+def dams_update(project_id, folder_id):
+    """Mark the folder as sent to DAMS and pull dams_uan values from the DAMS
+    view (files.send_folder_to_dams; replaces the old GET /folder_update)."""
+    back = redirect(url_for('sysadmin.dams_project', project_id=project_id))
+    if not sysadmin_data.dams_folders(project_id, folder_id):
+        flash("Folder {} is not in this project.".format(folder_id), 'danger')
+        return back
+    try:
+        files_service.send_folder_to_dams(folder_id)
+    except Exception:  # boundary: DB writes; logged with context
+        logger.exception("sysadmin DAMS update failed: folder_id={}".format(folder_id))
+        flash("Could not update the DAMS status; see ospreyapp.log.", 'danger')
+        return back
+    logger.warning("sysadmin {} updated DAMS status of folder_id={} (project_id={})".format(
+        current_user.name, folder_id, project_id))
+    folder = sysadmin_data.dams_folders(project_id, folder_id)[0]
+    flash("{}: {} of {} files matched in DAMS; badge is now \"{}\".".format(
+        folder['project_folder'], folder['files_with_uan'], folder['files_total'],
+        folder['dams_badge']), 'success')
+    return back
 
 
 @sysadmin_bp.route('/api-keys/', methods=['GET'], provide_automatic_options=False)

@@ -35,6 +35,13 @@ def _parse_preview_type(value):
 
 
 def _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css):
+    # Transcription badges have folder_id = NULL, so the folder_id-based unique
+    # keys never match and ON DUPLICATE KEY UPDATE would insert a new row on
+    # every call. Remove the existing badge first.
+    query_database_insert(
+        f"DELETE FROM folders_badges WHERE {fid} = %(folder_id)s AND badge_type = 'preview_type'",
+        {'folder_id': folder_id},
+    )
     query = (
         f"INSERT INTO folders_badges ({fid}, badge_type, badge_css, badge_text, updated_at) "
         "VALUES (%(folder_id)s, 'preview_type', %(badge_css)s, %(badge_text)s, CURRENT_TIMESTAMP) "

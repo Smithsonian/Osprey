@@ -29,6 +29,8 @@ def init_db():
     global _pool
     if _pool is not None:
         return
+    if settings.env == 'dev' and not (settings.dev_host and settings.dev_database):
+        raise DatabasePoolError("env is dev but dev_host/dev_database are not set in settings.py")
     try:
         _pool = pooling.MySQLConnectionPool(
             pool_name='osprey_pool',
