@@ -1,6 +1,7 @@
 """Project read queries shared by the API."""
 
 from logger import logger
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 from osprey.services import folders as folder_service
 
@@ -186,6 +187,7 @@ def create_project(p_title, p_unit, p_alias, p_desc, p_coordurl, p_area, p_md, p
                               'p_prod': p_prod, 'p_storage': p_storage, 'p_start': p_start
                               }, return_res=True)
     logger.debug("PROJECT ID: {}".format(project_id))
+    audit.record('insert', 'project', 'created', project_id=project_id)
     query_database_insert(
         ("INSERT INTO projects_stats (project_id, collex_total, collex_to_digitize) "
          "VALUES (%(project_id)s, %(collex_total)s, %(collex_total)s)"),
@@ -245,6 +247,8 @@ def update_project(project_alias, project_id, p_title, p_status, p_start, p_desc
                                   " WHERE project_id = %(project_id)s "),
                                  {'project_id': project_id,
                                   'p_noobjects': p_noobjects})
+    audit.record('update', 'project', 'updated', project_id=project_id,
+                 note="status: {}".format(p_status))
 
 
 def list_informatics_projects():
@@ -337,3 +341,4 @@ def add_project_link(project_id, link_type, link_title, link_url):
                               'link_title': link_title,
                               'url': link_url
                               })
+    audit.record('update', 'project', 'link_added', project_id=project_id, note=link_title)

@@ -1,6 +1,7 @@
 """Recalculate folder and project stats (shared by worker and bulk API)."""
 
 from logger import api_logger as logger
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 from osprey.services.file_checks import assert_safe_sql_expression
 
@@ -278,16 +279,13 @@ def recalculate_folder_stats(project_id, folder_id, transcription):
                 "UPDATE folders SET status = 1, error_info = %(value)s "
                 "WHERE folder_id = %(folder_id)s"
             )
-        res = query_database_insert(
-            query,
-            {
-                'value': "File checks totals don't match: {}/{}/{}".format(
-                    total_checks, no_pending['no_files'], no_files['no_files'],
-                ),
-                'folder_id': folder_id,
-            },
+        error_info = "File checks totals don't match: {}/{}/{}".format(
+            total_checks, no_pending['no_files'], no_files['no_files'],
         )
+        res = query_database_insert(query, {'value': error_info, 'folder_id': folder_id})
         logger.info("folder_stats: checks mismatch|{}|{}".format(folder_id, res))
+        audit.record('update', 'folder', 'status_error', project_id=project_id,
+                     folder_ref=folder_id, transcription=transcription == 1, note=error_info)
         run_query(
             f"DELETE FROM folders_badges WHERE {fid} = %(folder_id)s and badge_type = 'folder_error'",
             {'folder_id': folder_id},

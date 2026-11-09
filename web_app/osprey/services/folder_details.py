@@ -338,6 +338,7 @@ def get_folder_qc_payload(folder_id_raw):
             'folder_id': folder_id,
             'qc_checked': False,
             'qc_folder_info': None,
+            'qc_status': None,
             'files': [],
         }, 200, None
 
@@ -350,7 +351,7 @@ def get_folder_qc_payload(folder_id_raw):
             {'folder_id': folder_id},
         )
         folder_info_rows = run_query(
-            "SELECT qc_info FROM qc_folders WHERE folder_uid = %(folder_id)s",
+            "SELECT qc_info, qc_status FROM qc_folders WHERE folder_uid = %(folder_id)s",
             {'folder_id': folder_id},
         )
     else:
@@ -362,7 +363,7 @@ def get_folder_qc_payload(folder_id_raw):
             {'folder_id': folder_id},
         )
         folder_info_rows = run_query(
-            "SELECT qc_info FROM qc_folders WHERE folder_id = %(folder_id)s",
+            "SELECT qc_info, qc_status FROM qc_folders WHERE folder_id = %(folder_id)s",
             {'folder_id': folder_id},
         )
 
@@ -370,6 +371,8 @@ def get_folder_qc_payload(folder_id_raw):
         'folder_id': folder_id,
         'qc_checked': True,
         'qc_folder_info': folder_info_rows[0]['qc_info'] if folder_info_rows else None,
+        # 0 = passed, 1 = failed, 9 = pending (qc_folders.qc_status)
+        'qc_status': folder_info_rows[0]['qc_status'] if folder_info_rows else None,
         'files': [dict(row) for row in details],
     }, 200, None
 

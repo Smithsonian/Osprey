@@ -47,6 +47,9 @@
         var dataTableInstance = null;
         var filterHandlerRegistered = false;
         var filterSelector = '.dashboard-files-filters [data-' + cfg.filterKey + ']';
+        // JSON of the last payload drawn; a background refresh with the same
+        // data leaves the table (page, sort, search) untouched.
+        var lastPayloadKey = null;
 
         function labelFor(name, labels) {
             if (labels && labels[name]) {
@@ -108,6 +111,59 @@
             $(row).toggleClass('dashboard-files-row-failed', hasFailed);
         }
 
+        function setActiveFilterButton() {
+            $(filterSelector).each(function () {
+                var isActive = $(this).data(cfg.filterKey) === tableFilter;
+                $(this).toggleClass('active', isActive).attr('aria-pressed', isActive ? 'true' : 'false');
+            });
+        }
+
+        function fileHasStatus(file, status) {
+            var items = file[cfg.itemsKey] || [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i][cfg.resultKey] === status) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Fill the "(n)" badges on the All / Failed / Pending buttons.
+        function updateFilterCounts(files) {
+            var counts = {
+                all: files.length,
+                failed: files.filter(function (f) { return fileHasStatus(f, 'Failed'); }).length,
+                pending: files.filter(function (f) { return fileHasStatus(f, 'Pending'); }).length
+            };
+            $(filterSelector).each(function () {
+                var mode = $(this).data(cfg.filterKey);
+                $(this).find('[data-count-for]').text(counts[mode] === undefined ? '' : counts[mode]);
+            });
+        }
+
+        function captureTableState() {
+            if (!dataTableInstance) {
+                return null;
+            }
+            return {
+                page: dataTableInstance.page(),
+                length: dataTableInstance.page.len(),
+                order: dataTableInstance.order(),
+                search: dataTableInstance.search()
+            };
+        }
+
+        function restoreTableState(state) {
+            if (!state || !dataTableInstance) {
+                return;
+            }
+            dataTableInstance.page.len(state.length).order(state.order).search(state.search).draw();
+            var pages = dataTableInstance.page.info().pages;
+            if (pages > 0) {
+                dataTableInstance.page(Math.min(state.page, pages - 1)).draw('page');
+            }
+        }
+
         function destroyTable() {
             var $table = $('#' + cfg.tableId);
             if ($table.length && $.fn.dataTable.isDataTable($table)) {
@@ -156,7 +212,13 @@
             return thead + '<tbody>' + bodyRows + '</tbody>';
         }
 
-        function initDataTable(files, columnNames, transcription, appRoot, labels) {
+        function initDataTable(files, columnNames, transcription, appRoot, labels, previousState) {
+            // Hold the wrapper's height while the table is rebuilt so a
+            // refresh doesn't make the page jump.
+            var wrap = document.getElementById(cfg.idPrefix + '-table-wrap');
+            if (wrap && previousState) {
+                wrap.style.minHeight = wrap.offsetHeight + 'px';
+            }
             destroyTable();
             registerFilter();
 
@@ -180,12 +242,17 @@
                 }
             });
 
+            restoreTableState(previousState);
+            if (wrap) {
+                wrap.style.minHeight = '';
+            }
+
             $(filterSelector).off('click.' + cfg.filterNamespace).on('click.' + cfg.filterNamespace, function () {
                 tableFilter = $(this).data(cfg.filterKey);
-                $(filterSelector).removeClass('active');
-                $(this).addClass('active');
+                setActiveFilterButton();
                 dataTableInstance.draw();
             });
+            setActiveFilterButton();
         }
 
         function panelConfig(panel) {
@@ -215,12 +282,19 @@
             $('#' + cfg.idPrefix + '-table-wrap').addClass('d-none');
             $('#' + cfg.idPrefix + '-empty').removeClass('d-none');
             $('#' + cfg.idPrefix + '-count').text('0 files');
+            updateFilterCounts([]);
             if (folderName) {
                 $('#' + cfg.idPrefix + '-folder-name').text(folderName);
             }
         }
 
-        function showTable(data, panel) {
+        function showTable(data, panel, silent) {
+            var payloadKey = JSON.stringify(data);
+            if (silent && payloadKey === lastPayloadKey) {
+                return;
+            }
+            lastPayloadKey = payloadKey;
+            var previousState = silent ? captureTableState() : null;
             var conf = panelConfig(panel);
             var columnNames = data[cfg.columnsKey] || [];
             var files = data.files || [];
@@ -229,9 +303,7 @@
             $('#' + cfg.idPrefix + '-error').addClass('d-none');
             $('#' + cfg.idPrefix + '-folder-name').text(data.folder || '');
             $('#' + cfg.idPrefix + '-count').text(files.length + ' file' + (files.length !== 1 ? 's' : ''));
-            if (cfg.headingPrefix) {
-                $('#' + cfg.idPrefix + '-folder-heading').text(cfg.headingPrefix + (data.folder || ''));
-            }
+            updateFilterCounts(files);
             if (data.last_updated) {
                 $('#dashboard-folder-last-updated').text(data.last_updated);
             }
@@ -243,16 +315,20 @@
 
             $('#' + cfg.idPrefix + '-empty').addClass('d-none');
             $('#' + cfg.idPrefix + '-table-wrap').removeClass('d-none');
-            initDataTable(files, columnNames, conf.transcription, conf.appRoot, conf.labels);
+            initDataTable(files, columnNames, conf.transcription, conf.appRoot, conf.labels, previousState);
         }
 
-        function loadFromUrl(url, panel) {
+        // silent: background refresh - no spinner, keep the current table on
+        // failure (the error is passed on so the caller can report it).
+        function loadFromUrl(url, panel, silent) {
             // Snapshot which folder this request is for. A newer loadForFolder()
             // call updates this attribute immediately, so if it no longer matches
             // when the response lands, a later request has already taken over —
             // discard this one instead of overwriting the panel with stale data.
             var requestFolderId = panel.getAttribute('data-folder-id');
-            setLoading();
+            if (!silent) {
+                setLoading();
+            }
             return fetch(url, { credentials: 'same-origin' })
                 .then(function (response) {
                     if (!response.ok) {
@@ -264,12 +340,15 @@
                     if (panel.getAttribute('data-folder-id') !== requestFolderId) {
                         return data;
                     }
-                    showTable(data, panel);
+                    showTable(data, panel, silent);
                     return data;
                 })
                 .catch(function (error) {
                     if (panel.getAttribute('data-folder-id') !== requestFolderId) {
                         return;
+                    }
+                    if (silent) {
+                        throw error;
                     }
                     showError(error.message || ('Could not load ' + cfg.errorNoun + '.'));
                 });
@@ -297,14 +376,23 @@
             panel.setAttribute('data-files-url', url);
             panel.setAttribute('data-folder-id', String(folderId));
             tableFilter = 'all';
-            $(filterSelector).removeClass('active');
-            $('.dashboard-files-filters [data-' + cfg.filterKey + '="all"]').addClass('active');
+            lastPayloadKey = null;
+            setActiveFilterButton();
             return loadFromUrl(url, panel);
+        }
+
+        function refresh() {
+            var panel = document.getElementById(cfg.panelId);
+            if (!panel || !panel.getAttribute('data-files-url')) {
+                return;
+            }
+            return loadFromUrl(panel.getAttribute('data-files-url'), panel, true);
         }
 
         return {
             loadFromPanel: loadFromPanel,
-            loadForFolder: loadForFolder
+            loadForFolder: loadForFolder,
+            refresh: refresh
         };
     }
 

@@ -13,11 +13,11 @@
     <!-- favicon -->
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 
-    <!-- Bootstrap CSS (self-hosted, see package.json / scripts/sync_vendor.mjs) -->
+    <!-- Bootstrap CSS (self-hosted, see scripts/sync_vendor.py) -->
     <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
 
     <!-- Font Awesome 6.4.2 -->
-    <link href="/static/vendor/fontawesome/all.min.css" rel="stylesheet">
+    <link href="/static/vendor/fontawesome/css/all.min.css" rel="stylesheet">
 
     <!-- DataTables 2.3.7 + Buttons 3.2.6 (HTML5 export only) -->
     <link href="/static/vendor/datatables/dataTables.dataTables.min.css" rel="stylesheet">
@@ -34,12 +34,19 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
     <link rel="manifest" href="/static/site.webmanifest">
 
-    <title class="pagetitle">Accessibility Smoke</title>
+    <title class="pagetitle">[DEV] Accessibility Smoke</title>
 
 </head>
 <body>
 
 <div class="skipnav"><a href="#maincontent">Skip to main content</a></div>
+
+
+<div class="osprey-dev-banner" role="status">
+  <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+  Development site &middot; dev database, not production
+</div>
+
 
 <nav class="navbar navbar-expand-lg navbar-dark osprey-navbar" aria-label="Main">
   <div class="container-fluid">
@@ -216,7 +223,7 @@
 
 </footer>
 
-    <!-- JQuery 4.0 (self-hosted, see package.json / scripts/sync_vendor.mjs) -->
+    <!-- JQuery 4.0 (self-hosted, see scripts/sync_vendor.py) -->
     <script src="/static/vendor/jquery/jquery.min.js"></script>
 
     <!-- Bootstrap 5.3.8 -->

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 
 # Labels produced by the error_files queries in app.py (file_qc / qc_results 1-3)
@@ -143,6 +144,8 @@ def reset_folder_qc(folder_id, transcription):
     query_database_insert(
         f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s AND badge_type = 'qc_status'",
         {'folder_id': folder_id})
+    audit.record('update', 'folder', 'qc_reset', folder_ref=folder_id,
+                 transcription=transcription == 1)
 
 
 def reset_transcription_text_qc(folder_id, source_id):
@@ -164,3 +167,5 @@ def reset_transcription_text_qc(folder_id, source_id):
         "   AND badge_type = 'transcription_qc_status' "
         "   AND folder_transcription_id = %(source_id)s",
         params)
+    audit.record('update', 'folder', 'qc_reset', folder_ref=folder_id, transcription=True,
+                 note="transcription source {}".format(source_id))

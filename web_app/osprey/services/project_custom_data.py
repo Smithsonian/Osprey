@@ -13,6 +13,7 @@ import datetime
 import re
 from decimal import Decimal, InvalidOperation
 
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 
 TYPE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
@@ -147,6 +148,9 @@ def add_values(project_id: int, type_id: str, values: list[str], note: str | Non
             {'pid': project_id, 'tid': type_id, 'v': v, 'note': note or None, 'user': username},
         )
         saved += 1
+    if saved:
+        audit.record('update', 'project', 'custom_value_added', project_id=project_id,
+                     note="{}: {}".format(type_id, ", ".join(values)))
     return saved
 
 
@@ -166,4 +170,6 @@ def remove_value(project_id: int, type_id: str, value_id: int, username: str) ->
         {'user': username, 'vid': value_id, 'pid': project_id, 'tid': type_id},
         return_val=False,
     )
+    audit.record('update', 'project', 'custom_value_removed', project_id=project_id,
+                 note="{}: {}".format(type_id, rows[0]['value']))
     return True

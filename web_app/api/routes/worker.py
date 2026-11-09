@@ -16,6 +16,7 @@ from logger import api_logger as logger
 
 from api import api_bp
 from api.auth import validate_api_key
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 from osprey.services import folder_stats as folder_stats_service
 from osprey.services.file_checks import (
@@ -32,6 +33,28 @@ def _parse_preview_type(value):
     badge_text = 'DZI' if preview_type == 'dzi' else 'IIIF'
     badge_css = 'bg-info' if preview_type == 'dzi' else 'bg-primary'
     return preview_type, badge_text, badge_css
+
+
+def _folder_audit_event(query_property, query_value):
+    """(event, note) for folder updates that change the folders table, else None.
+
+    Badge-only and md5-table updates are not audited (see osprey/audit.py).
+    """
+    if query_property == "status0":
+        return "status_ok", None
+    if query_property == "status9":
+        return "status_pending", query_value
+    if query_property == "status1":
+        return "status_error", query_value
+    if query_property == "tif_md5_matches_error":
+        return "status_error", "MD5 mismatch: {}".format(query_value)
+    if query_property == "filename_spaces":
+        return "status_error", "Filenames have spaces"
+    if query_property == "checking_folder":
+        return "checking", None
+    if query_property in ("previews", "preview_type"):
+        return query_property, query_value
+    return None
 
 
 def _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css):
@@ -246,6 +269,11 @@ def api_update_project_details(project_alias=None):
                         logger.info("query: update|{}|{}|{}|{}|{}".format(query_type, query_property, query, folder_id, res))
                     else:
                         return jsonify({'error': 'Invalid operation'}), 401
+                    folder_event = _folder_audit_event(query_property, query_value)
+                    if folder_event is not None:
+                        audit.record('update', 'folder', folder_event[0], project_id=project_id,
+                                     folder_ref=folder_id, transcription=transcription == 1,
+                                     note=folder_event[1])
                     if query_property in ("status0", "status1", "status9"):
                         # Keep project totals current after a status change. The status is already
                         # committed, so a bad stored expression is logged, not returned as an error.
@@ -553,12 +581,20 @@ def api_update_project_details(project_alias=None):
                             """,
                             {'file_id': file_id},
                         )
+                        audit.record('update', 'file', 'datetime_created', project_id=project_id,
+                                     folder_ref=folder_id, file_ref=file_id)
                 elif query_property == "delete":
+                    # Names are looked up before the row is gone.
+                    audit_ctx = audit.lookup_context(project_id=project_id, file_ref=file_id,
+                                                     transcription=transcription == 1)
                     if transcription == 1:
                         query = ("DELETE FROM transcription_files WHERE file_transcription_id = %(file_id)s")
                     else:
                         query = ("DELETE FROM files WHERE file_id = %(file_id)s")
                     res = run_query(query, {'file_id': file_id}, return_val=False)
+                    audit.record('delete', 'file', 'deleted', project_id=project_id,
+                                 folder_ref=folder_id, file_ref=file_id,
+                                 transcription=transcription == 1, context=audit_ctx)
                 else:
                     return jsonify({'error': 'Invalid value for property: {}'.format(query_property)}), 400
                 return jsonify({"result": True})
@@ -623,6 +659,8 @@ def api_new_folder(project_alias=None):
                                 _upsert_preview_type_badge('folder_uid', folder_uid, badge_text, badge_css)
                             data = run_query("SELECT * FROM transcription_folders WHERE folder_transcription_id = %(folder_transcription_id)s",
                                               {'folder_transcription_id': folder_uid})
+                            audit.record('insert', 'folder', 'created', project_id=project_id,
+                                         folder_ref=folder_uid, transcription=True)
                         else:
                             if preview_type:
                                 query = ("INSERT INTO folders (folder_uid, project_folder, folder_path, status, project_id, date, previews, preview_type) "
@@ -638,6 +676,8 @@ def api_new_folder(project_alias=None):
                                                 {'project_folder': folder, 'folder_path': folder_path, 'project_id': project_id})
                             if preview_type and data:
                                 _upsert_preview_type_badge('folder_id', data[0]['folder_id'], badge_text, badge_css)
+                            audit.record('insert', 'folder', 'created', project_id=project_id,
+                                         folder_ref=data[0]['folder_id'] if data else None)
                         return jsonify({"result": data})
                     else:
                         return jsonify({"result": False}), 400
@@ -666,6 +706,9 @@ def api_new_folder(project_alias=None):
                             file_info = run_query(query, {'folder_id': folder_id, 'filename': filename})
                             file_id = file_info[0]['file_id']
                             # file_uid = file_info[0]['uid']
+                        audit.record('insert', 'file', 'created', project_id=project_id,
+                                     folder_ref=folder_id, file_ref=file_id,
+                                     transcription=transcription == 1, note=filetype)
                         # Check for unique file
                         if transcription == 1:
                             query = ("SELECT f.file_transcription_id as file_id, fol.folder as project_folder FROM transcription_files f, transcription_folders fol "
@@ -716,6 +759,8 @@ def api_new_folder(project_alias=None):
                         if transcription == 1:
                             query = ("UPDATE transcription_files SET file_size = %(filesize)s where file_transcription_id = %(file_id)s")
                             data = query_database_insert(query, {'file_id': file_id, 'filesize': filesize})
+                            audit.record('update', 'file', 'file_size', project_id=project_id,
+                                         file_ref=file_id, transcription=True, note=filesize)
                         else:
                             query = ("INSERT INTO files_size (file_id, filetype, filesize) "
                                     " VALUES (%(file_id)s, %(filetype)s, %(filesize)s) ON DUPLICATE KEY UPDATE "

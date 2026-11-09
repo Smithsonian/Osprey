@@ -24,18 +24,19 @@ worker processes.
 Bootstrap, Font Awesome, DataTables (+ Buttons), jQuery, Chart.js and JSZip
 are vendored into `static/vendor/` rather than loaded from a CDN, so the app
 doesn't depend on a third-party host being reachable. Versions are pinned in
-`package.json`'s `dependencies`; `scripts/sync_vendor.mjs` copies the dist
-files `templates/base.html` (and the chart pages) reference from
-`node_modules/` into `static/vendor/`. `static/vendor/` is committed, so a
-deployment never needs Node — only `npm install` to bump a version:
+`PACKAGES` in `scripts/sync_vendor.py`, which downloads each package's npm
+tarball from the registry (stdlib only, no Node needed) and copies the dist
+files `templates/base.html` (and the chart pages) reference into
+`static/vendor/`. `static/vendor/` is committed, so the script only runs when
+bumping a version:
 
 ```bash
-npm install                 # also runs sync_vendor.mjs via postinstall
-npm run vendor               # re-run the copy step on its own
+python3 scripts/sync_vendor.py
 ```
 
-To bump a version, edit the pin in `package.json`, run the above, and commit
-the changed files under `static/vendor/`.
+To bump a version, edit the pin in `PACKAGES`, run the above, and commit
+the changed files under `static/vendor/`. The script also fetches
+`tests/a11y/axe.min.js` for the accessibility tests.
 
 ## View conventions
 
@@ -278,6 +279,7 @@ who can open it.
 | Projects | users and `projects_settings` per project; transcription profile settings and terms | `projects`, `qc_projects`, `projects_settings`, `transcription_profile_*` |
 | API keys | keys masked to the last 4 characters, expiry, last use, calls in the past 24h, recent invalid attempts | `api_keys`, `api_keys_usage` |
 | Kiosks | latest check-in per machine over the past 30 days, compared with `OSPREY_KIOSKS` | `kiosk` |
+| Audit | `audit_log` events newest first, filtered by project, type, action, who, dates or text; click a folder/file for its history, or an event for its request details from `ospreyaudit.log` (current and rotated files on this server) | `audit_log` |
 | Reports | each `data_reports` row as live or pregenerated, with last materialization | `data_reports`, `report_materializations` |
 | Generate Reports | sysadmin-only report queries by project: live ones run on click (preview + CSV); pregenerated ones are queued and downloaded as CSV/XLSX | `sysadmin_reports`, `report_materializations` |
 | Data Entry | choose a project, then a data type, then add/remove its list of values (e.g. folder names a report treats differently) | `project_custom_types`, `project_custom_values` |
@@ -383,15 +385,16 @@ value logs WARNING and above.
 
 ## Logging
 
-`logger.py` writes two files in `OSPREY_LOG_FOLDER` (default `logs/`):
-`ospreyapp.log` (app, scripts) and `ospreyapi.log` (`api/` blueprint).
+`logger.py` writes three files in `OSPREY_LOG_FOLDER` (default `logs/`):
+`ospreyapp.log` (app, scripts), `ospreyapi.log` (`api/` blueprint) and
+`ospreyaudit.log` (audit details, always at INFO; see *Audit log* below).
 Names are fixed, so all gunicorn workers and the nightly scripts append to
 the same files. The app does **not** rotate them: without a logrotate
 rule they grow forever. Example `/etc/logrotate.d/osprey` (adjust paths
 and user):
 
 ```
-/path/to/web_app/logs/ospreyapp.log /path/to/web_app/logs/ospreyapi.log {
+/path/to/web_app/logs/ospreyapp.log /path/to/web_app/logs/ospreyapi.log /path/to/web_app/logs/ospreyaudit.log {
     daily
     maxsize 100M
     rotate 14
@@ -405,6 +408,28 @@ and user):
 `maxsize` is only checked when logrotate runs (daily by default on RHEL).
 On RHEL with SELinux, a non-standard log folder may need the `var_log_t`
 label or logrotate will be denied (check `ausearch -m avc -ts recent`).
+
+### Audit log
+
+Every insert, update or delete on a project, folder or file (the `files`
+and `transcription_files` tables, not the check/md5/exif tables) writes one
+row to the `audit_log` table: who (web user, API key owner, or script),
+when, the project/folder/file with name snapshots, and a short event name
+such as `created`, `status_error`, `qc_decision`, `sent_to_dams` or
+`deleted`. The request details go to `ospreyaudit.log` on a line with the
+same `audit_id` and `request_id`. Rows are kept forever.
+
+Create the table once: `mysql -u <user> -p <db_name> < db/audit_log.sql`.
+Browse it on the sysadmin **Audit** tab (`/sysadmin/audit/`).
+Until it exists, audited changes still succeed and each event is logged at
+ERROR in `ospreyaudit.log` instead. To audit a new write, call
+`osprey.audit.record(...)` right after it (see the module docstring).
+
+```sql
+-- history of one folder
+SELECT event_at, actor, action, entity, event, file_name, note, request_id
+FROM audit_log WHERE folder_ref = '9876' ORDER BY audit_id;
+```
 
 ### Sysadmin report files (RHEL)
 
@@ -435,12 +460,15 @@ label is wrong; otherwise it is the group or file mode.
 venv/bin/python -m pytest tests/
 ```
 
-The suite stubs the database and does not need MySQL. Accessibility
-checks (renders templates statically, then runs axe via Playwright):
+The suite stubs the database and does not need MySQL. The accessibility
+checks in `tests/a11y/test_a11y.py` (render templates statically, then run
+axe in headless Chromium) are skipped unless Playwright and `axe.min.js` are
+present. One-time setup:
 
 ```bash
-npm install
-npm run a11y
+venv/bin/pip install -r requirements-dev.txt
+venv/bin/playwright install chromium
+python3 scripts/sync_vendor.py
 ```
 
 ## Nightly reports

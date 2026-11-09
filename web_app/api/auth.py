@@ -2,8 +2,16 @@
 
 import uuid
 
+from flask import g, has_request_context
+
 from logger import api_logger as logger
 from osprey.db import query_database_insert, run_query
+
+
+def _set_audit_actor(api_key, api_user):
+    """Remember who the key belongs to, for osprey.audit (request scope only)."""
+    if has_request_context():
+        g.api_actor = api_user or "key ...{}".format(api_key[-4:])
 
 
 def validate_api_key(api_key=None, url=None, params=None):
@@ -15,7 +23,7 @@ def validate_api_key(api_key=None, url=None, params=None):
         return False, False
     # Expiry is compared in SQL so both sides use the DB session time zone
     # (osprey.db sets it per connection). api_keys.expires_on is NOT NULL.
-    query = ("SELECT api_key, is_admin, expires_on > NOW() AS not_expired "
+    query = ("SELECT api_key, is_admin, api_user, expires_on > NOW() AS not_expired "
              "FROM api_keys WHERE api_key = %(api_key)s and is_active = 1")
     parameters = {'api_key': api_key}
     data = run_query(query, parameters=parameters, return_val=True)
@@ -34,6 +42,7 @@ def validate_api_key(api_key=None, url=None, params=None):
             )
             return False, False
         if data[0]['api_key'] == api_key:
+            _set_audit_actor(api_key, data[0].get('api_user'))
             if data[0]['is_admin'] != 1:
                 usage_query = (
                     "INSERT INTO api_keys_usage (api_key, valid, url, params) "

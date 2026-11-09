@@ -37,6 +37,7 @@ from osprey.services import files as files_service
 from osprey.services import project_custom_data as custom_data
 from osprey.services import qc as qc_service
 from osprey.services import report_materializations as materializations
+from osprey.services import sysadmin_audit
 from osprey.services import reports as report_service
 from osprey.services import sysadmin_reports
 from osprey.services import sysadmin_data
@@ -59,6 +60,7 @@ NAV = (
     ('sysadmin.dams', 'DAMS', 'fa-cloud-arrow-up'),
     ('sysadmin.api_keys', 'API keys', 'fa-key'),
     ('sysadmin.kiosks', 'Kiosks', 'fa-desktop'),
+    ('sysadmin.audit', 'Audit', 'fa-clock-rotate-left'),
     ('sysadmin.reports', 'Reports', 'fa-file-lines'),
     ('sysadmin.generate', 'Generate Reports', 'fa-play'),
     ('sysadmin.data_entry', 'Data Entry', 'fa-pen-to-square'),
@@ -329,6 +331,31 @@ def api_keys():
 @sysadmin_required
 def kiosks():
     return _render('sysadmin_kiosks.html', kiosks=section('kiosks', sysadmin_data.kiosks))
+
+
+@sysadmin_bp.route('/audit/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def audit():
+    """Audit trail of project/folder/file changes, newest first, filterable."""
+    filters = sysadmin_audit.parse_filters(request.args)
+    # Query string for the "Older" link: current filters minus the page cursor.
+    keep = {k: request.args[k] for k in filters if k != 'before' and request.args.get(k)}
+    return _render('sysadmin_audit.html',
+                   events=section('audit events', lambda: sysadmin_audit.events(filters)),
+                   options=section('audit filters', sysadmin_audit.filter_options),
+                   filters=filters, keep=keep,
+                   entities=sysadmin_audit.ENTITIES, actions=sysadmin_audit.ACTIONS)
+
+
+@sysadmin_bp.route('/audit/<int:audit_id>/', methods=['GET'], provide_automatic_options=False)
+@sysadmin_required
+def audit_event(audit_id):
+    """One audit row plus its detail line from ospreyaudit.log."""
+    row = section('audit event', lambda: sysadmin_audit.event(audit_id))
+    if row['ok'] and row['data'] is None:
+        abort(404)
+    return _render('sysadmin_audit_event.html', audit_id=audit_id, row=row,
+                   log=section('audit log line', lambda: sysadmin_audit.log_details(audit_id)))
 
 
 @sysadmin_bp.route('/reports/', methods=['GET'], provide_automatic_options=False)

@@ -8,6 +8,7 @@
     'use strict';
 
     var dataTableInstances = [];
+    var lastPayloadKey = null;
 
     function escapeHtml(text) {
         return String(text == null ? '' : text)
@@ -67,7 +68,7 @@
                 '<button class="accordion-button collapsed" type="button" ' +
                         'data-bs-toggle="collapse" data-bs-target="#' + panelId + '" ' +
                         'aria-expanded="false" aria-controls="' + panelId + '">' +
-                    'Transcription Field Fill Rate - ' + escapeHtml(source.source_name) + ' (click to expand)' +
+                    'Transcription Field Fill Rate - ' + escapeHtml(source.source_name) +
                     // Shared denominator for all fields, shown once instead of a per-row column.
                     '<span class="badge bg-secondary ms-2">' + filesLabel(source.total_files) + '</span>' +
                 '</button>' +
@@ -129,9 +130,37 @@
         });
     }
 
-    function render(panel, data) {
+    function openPanelIds(accordion) {
+        return Array.prototype.map.call(accordion.querySelectorAll('.accordion-collapse.show'), function (el) {
+            return el.id;
+        });
+    }
+
+    // Re-open the items that were open before a background refresh redrew them.
+    function reopenPanels(accordion, ids) {
+        ids.forEach(function (id) {
+            var collapseEl = document.getElementById(id);
+            if (!collapseEl || !accordion.contains(collapseEl)) {
+                return;
+            }
+            collapseEl.classList.add('show');
+            var button = accordion.querySelector('[data-bs-target="#' + id + '"]');
+            if (button) {
+                button.classList.remove('collapsed');
+                button.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+
+    function render(panel, data, silent) {
+        var payloadKey = JSON.stringify(data);
+        if (silent && payloadKey === lastPayloadKey) {
+            return;
+        }
+        lastPayloadKey = payloadKey;
         var accordion = document.getElementById('transcription_fill_accordion');
         var sources = data.sources || [];
+        var wasOpen = silent ? openPanelIds(accordion) : [];
         destroyTables();
         accordion.innerHTML = '';
         if (!sources.length) {
@@ -140,12 +169,13 @@
         }
         var reportUrl = panel.getAttribute('data-report-url') || '';
         accordion.innerHTML = sources.map(function (s) { return buildSourceItem(s, reportUrl); }).join('');
+        reopenPanels(accordion, wasOpen);
         initializeTables(sources);
         bindAccordionAdjust();
         panel.classList.remove('d-none');
     }
 
-    function loadFromUrl(url, panel) {
+    function loadFromUrl(url, panel, silent) {
         // Drop responses for a folder the user has already navigated away from
         // (see dashboard_table_panel.js loadFromUrl).
         var requestFolderId = panel.getAttribute('data-folder-id');
@@ -158,10 +188,14 @@
             })
             .then(function (data) {
                 if (panel.getAttribute('data-folder-id') === requestFolderId) {
-                    render(panel, data);
+                    render(panel, data, silent);
                 }
             })
             .catch(function (error) {
+                if (silent) {
+                    // Keep what is shown; the dashboard reports the failed refresh.
+                    throw error;
+                }
                 // Optional panel: hide it rather than show an error block.
                 if (panel.getAttribute('data-folder-id') === requestFolderId) {
                     panel.classList.add('d-none');
@@ -187,11 +221,21 @@
             encodeURIComponent(folderId) + '/transcription_fill';
         panel.setAttribute('data-fill-url', url);
         panel.setAttribute('data-folder-id', String(folderId));
+        lastPayloadKey = null;
         return loadFromUrl(url, panel);
+    }
+
+    function refresh() {
+        var panel = document.getElementById('dashboard-transcription-fill-panel');
+        if (!panel || !panel.getAttribute('data-fill-url')) {
+            return;
+        }
+        return loadFromUrl(panel.getAttribute('data-fill-url'), panel, true);
     }
 
     window.OspreyDashboardTranscriptionFill = {
         loadFromPanel: loadFromPanel,
-        loadForFolder: loadForFolder
+        loadForFolder: loadForFolder,
+        refresh: refresh
     };
 }());

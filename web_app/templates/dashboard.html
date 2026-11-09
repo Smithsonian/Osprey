@@ -23,7 +23,7 @@
             <h4>Recent images:</h4>
                 {% for img in recent_images %}
                     <a href="{{ url_for('files.file', file_id=img.file_id) }}"
-                       aria-label="Open file {{ img.file_id }}">
+                       aria-label="Open file {{ img.file_name or img.file_id }}">
                       <img src="{{ url_for('static', filename=img.preview) }}" alt="">
                     </a>
                 {% endfor %}
@@ -256,16 +256,15 @@
     {% endif %}
   </div>
   <div class="col-md">
-    <form action="{{ url_for('files.search_files', project_alias=project_alias) }}" method="GET">
+    <form action="{{ url_for('files.search_files', project_alias=project_alias) }}" method="GET" role="search">
+      <label for="search_files" class="form-label small fw-semibold mb-1">Search files in this project</label>
       <div class="input-group">
-        <span class="input-group-text" id="search-files-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+        <span class="input-group-text" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
         <input type="search"
                class="form-control"
                id="search_files"
                name="q"
-               aria-label="Search Files"
-               aria-describedby="search-files-addon"
-               placeholder="Search files in the project">
+               placeholder="File name…">
       </div>
     </form>
   </div>
@@ -296,9 +295,20 @@
      data-transcription="{{ 1 if transcription == 1 else 0 }}"
      data-qc-enabled="{{ 0 if project_info.qc_status == 0 else 1 }}">
 
-  <p class="small text-muted mb-2">
-    This project has <span id="folder-total-count">…</span> folders total.
-  </p>
+  <div class="dashboard-folder-panel-head">
+  <div class="d-flex align-items-center justify-content-between gap-2 mb-2 small text-muted">
+    <span><span id="folder-total-count">…</span> folders</span>
+    <span class="d-inline-flex align-items-center gap-1">
+      <span id="dashboard-refresh-status"></span>
+      <button type="button"
+              class="btn btn-link btn-sm p-0 text-muted dashboard-refresh-btn"
+              id="dashboard-refresh-btn"
+              title="Refresh folder data now"
+              aria-label="Refresh folder data now">
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+      </button>
+    </span>
+  </div>
 
   <div id="folder-list-loading" class="text-muted small py-2">
     <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
@@ -308,42 +318,76 @@
   <p id="folder-list-error" class="small text-danger mb-2 d-none" role="alert"></p>
 
   <div id="folder-list-controls" class="d-none">
+    <label for="folder-search" class="form-label small fw-semibold mb-1">Find a folder</label>
     <div class="input-group input-group-sm mb-2">
-      <span class="input-group-text" id="folder-search-addon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+      <span class="input-group-text" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
       <input type="search"
              class="form-control"
              id="folder-search"
-             aria-label="Search folders"
-             aria-describedby="folder-search-addon"
-             placeholder="Search folders…"
+             placeholder="Folder name…"
              autocomplete="off">
     </div>
 
-    <div class="dashboard-folder-filters mb-2">
-      <div class="dashboard-folder-filter-all mb-1">
-        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-folder-filter="all" aria-pressed="false">All</button>
-      </div>
-      <div class="dashboard-folder-filter-sub btn-group btn-group-sm flex-wrap w-100" role="group" aria-label="Filter folders by status">
-        <button type="button" class="btn btn-outline-success active" data-folder-filter="ok" aria-pressed="true">OK</button>
-        <button type="button" class="btn btn-outline-danger" data-folder-filter="errors" aria-pressed="false">Errors</button>
-        {% if transcription == 1 %}
-        <button type="button" class="btn btn-outline-info" data-folder-filter="transcribed" aria-pressed="false">Transcribed</button>
-        {% endif %}
-        {% if project_info.qc_status != 0 %}
-        <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="qc" aria-pressed="false">QC Failed</button>
-        <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="qc_pending" aria-pressed="false">QC Pending</button>
-        {% if transcription == 1 %}
-        <button type="button" class="btn btn-outline-success" data-folder-filter="transcription_qc_passed" aria-pressed="false">Transcription QC Passed</button>
-        <button type="button" class="btn btn-filter-qc-failed" data-folder-filter="transcription_qc" aria-pressed="false">Transcription QC Failed</button>
-        <button type="button" class="btn btn-filter-qc-pending" data-folder-filter="transcription_qc_pending" aria-pressed="false">Transcription QC Pending</button>
-        {% endif %}
-        {% endif %}
-        <button type="button" class="btn btn-outline-primary" data-folder-filter="dams" aria-pressed="false">In DAMS</button>
-        <button type="button" class="btn btn-outline-secondary" data-folder-filter="unavailable" aria-pressed="false">Unavailable</button>
+    <button type="button"
+            class="btn btn-outline-secondary btn-sm w-100 mb-2 d-lg-none"
+            data-bs-toggle="collapse"
+            data-bs-target="#folder-filters-collapse"
+            aria-expanded="false"
+            aria-controls="folder-filters-collapse">
+      <i class="fa-solid fa-filter" aria-hidden="true"></i>
+      Filters: <span id="folder-filter-current">…</span>
+    </button>
+
+    <div class="collapse d-lg-block" id="folder-filters-collapse">
+      <div class="dashboard-folder-filters mb-2" id="folder-filters" role="group" aria-label="Filter folders">
+        <div class="dashboard-folder-filter-main">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-folder-filter="all" aria-pressed="false">
+            <span>All</span><span class="badge rounded-pill dashboard-filter-count" data-count-for="all"></span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-warning dashboard-filter-attention" data-folder-filter="attention" aria-pressed="false"
+                  title="Folders with errors{% if project_info.qc_status != 0 %}, failed QC, or QC still to do{% endif %}">
+            <span>Needs attention</span><span class="badge rounded-pill dashboard-filter-count" data-count-for="attention"></span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success" data-folder-filter="ok" aria-pressed="false">
+            <span>OK</span><span class="badge rounded-pill dashboard-filter-count" data-count-for="ok"></span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-folder-filter="errors" aria-pressed="false">
+            <span>Errors</span><span class="badge rounded-pill dashboard-filter-count" data-count-for="errors"></span>
+          </button>
+        </div>
+        <label for="folder-filter-more" class="visually-hidden">More folder filters</label>
+        <select class="form-select form-select-sm mt-1" id="folder-filter-more">
+          <option value="">More filters…</option>
+          {% if project_info.qc_status != 0 %}
+          <optgroup label="Image QC">
+            <option value="qc">QC Failed</option>
+            <option value="qc_pending">QC Pending</option>
+          </optgroup>
+          {% endif %}
+          {% if transcription == 1 %}
+          <optgroup label="Transcription">
+            <option value="transcribed">Transcribed</option>
+            {% if project_info.qc_status != 0 %}
+            <option value="transcription_qc_passed">Transcription QC Passed</option>
+            <option value="transcription_qc">Transcription QC Failed</option>
+            <option value="transcription_qc_pending">Transcription QC Pending</option>
+            {% endif %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="Other">
+            <option value="dams">In DAMS</option>
+            <option value="unavailable">Unavailable</option>
+          </optgroup>
+        </select>
       </div>
     </div>
 
+    <p class="small text-muted mb-2 d-none" id="folder-search-note" role="status">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      Searching all folders. Filters apply again when the search is cleared.
+    </p>
     <p class="small text-danger mb-2 d-none" id="folder-search-empty" role="status">No folders match your search or filters.</p>
+  </div>
   </div>
 
   <div class="d-lg-none mb-3" id="folder-list-mobile-wrap">
@@ -353,7 +397,7 @@
     </select>
   </div>
 
-  <div class="d-none d-lg-block" id="folder-list-desktop"></div>
+  <div class="d-none d-lg-block dashboard-folder-list-scroll" id="folder-list-desktop"></div>
 </div>
 
     </div>
@@ -379,36 +423,35 @@
         <div id="filestable"></div>
 
         <!-- Choose view -->
-            <ul class="nav nav-tabs dashboard-tabs" role="tablist" aria-label="Folder detail views">
-                <li class="nav-item" role="presentation">
+            <nav aria-label="Folder views">
+            <ul class="nav nav-tabs dashboard-tabs">
+                <li class="nav-item">
                     <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}"
                        title="Link to the file checks of the folder"
                        class="nav-link {% if tab == "filechecks" %}active{% endif %}"
                        data-tab="filechecks"
-                       {% if tab == "filechecks" %}aria-current="page"{% endif %}
-                       role="tab">File Checks</a>
+                       {% if tab == "filechecks" %}aria-current="page"{% endif %}>File Checks</a>
                 </li>
                 {% if site_net == "internal" %}
-                <li class="nav-item" role="presentation">
+                <li class="nav-item">
                     <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}"
                        title="Link to view image previews in a lightbox of the folder"
                        class="nav-link {% if tab == "lightbox" %}active{% endif %}"
                        data-tab="lightbox"
-                       {% if tab == "lightbox" %}aria-current="page"{% endif %}
-                       role="tab">Lightbox</a>
+                       {% if tab == "lightbox" %}aria-current="page"{% endif %}>Lightbox</a>
                 </li>
                 {% endif %}
                 {% if postproc_data %}
-                <li class="nav-item" role="presentation">
+                <li class="nav-item">
                     <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}"
                        title="Link to view the post-production steps of the folder"
                        class="nav-link {% if tab == "postprod" %}active{% endif %}"
                        data-tab="postprod"
-                       {% if tab == "postprod" %}aria-current="page"{% endif %}
-                       role="tab">Post-Production</a>
+                       {% if tab == "postprod" %}aria-current="page"{% endif %}>Post-Production</a>
                 </li>
                 {% endif %}
             </ul>
+            </nav>
 
         <div class="dashboard-tab-panel">
 
@@ -447,7 +490,7 @@
 
     <p id="dashboard-qc-error" class="small text-danger d-none" role="alert"></p>
 
-    <div id="dashboard-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+    <div id="dashboard-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none">
         <div class="row">
             <div class="col">
                 <div class="accordion" id="qc_accordion">
@@ -459,7 +502,7 @@
                                     data-bs-target="#qc_accordion_panel"
                                     aria-expanded="false"
                                     aria-controls="qc_accordion_panel">
-                                Visual Image QC Details (click to expand)
+                                <span id="dashboard-qc-summary">Visual Image QC</span>
                             </button>
                         </h2>
                         <div id="qc_accordion_panel"
@@ -492,7 +535,7 @@
 
     <p id="dashboard-transcription-qc-error" class="small text-danger d-none" role="alert"></p>
 
-    <div id="dashboard-transcription-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none" role="alert">
+    <div id="dashboard-transcription-qc-content" class="alert alert-secondary dashboard-qc-block py-2 d-none">
         <div class="accordion" id="transcription_qc_accordion"></div>
     </div>
 </div>
@@ -523,9 +566,9 @@
             <span id="dashboard-files-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
         </div>
         <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by check status">
-            <button type="button" class="btn btn-outline-secondary active" data-files-filter="all">All</button>
-            <button type="button" class="btn btn-outline-danger" data-files-filter="failed">Failed</button>
-            <button type="button" class="btn btn-outline-secondary" data-files-filter="pending">Pending</button>
+            <button type="button" class="btn btn-outline-secondary active" data-files-filter="all" aria-pressed="true">All <span class="badge rounded-pill dashboard-filter-count" data-count-for="all"></span></button>
+            <button type="button" class="btn btn-outline-danger" data-files-filter="failed" aria-pressed="false">Failed <span class="badge rounded-pill dashboard-filter-count" data-count-for="failed"></span></button>
+            <button type="button" class="btn btn-outline-secondary" data-files-filter="pending" aria-pressed="false">Pending <span class="badge rounded-pill dashboard-filter-count" data-count-for="pending"></span></button>
         </div>
     </div>
     <div class="card-body p-0">
@@ -539,64 +582,42 @@
 </div>
 
 
-              <!-- File preview modal -->
-              <!-- Only display internally -->
-              <div class="modal fade" id="previewmodal1" tabindex="-1" aria-labelledby="previewmodal1Label" aria-hidden="true">
-                  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h1 class="modal-title" id="previewmodal1Label">Image Preview (JPG)</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                      </div>
-                      <div class="modal-body">
-                          <p>
-                            <span class="float-end"><em>Note: Image is resized to a JPEG file with max dimensions of 600 x 600. Click on the Details link for the fullsize</em></span>
-                            <a href="" id="filelink">Link to image</a>
-                          </p>
-
-                           <img src="#" style="width: 100%;" id="imagepreview" alt="Preview of the image">
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-            
         {% elif tab == "lightbox" %}
             {% if site_net == "internal" %}
-              <br><br>
-                <p class="fs-3" id="dashboard-lightbox-folder-heading">Image Previews for the Folder {{ folder_name.project_folder }}</p>
 <div id="dashboard-lightbox-panel"
-     class="dashboard-lightbox-panel"
+     class="card dashboard-files-card border-dark mb-3 mt-0 dashboard-lightbox-panel"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
      data-api-path="/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-transcription="{{ transcription }}"
      data-app-root="{{ app_root or '' }}">
-    <div id="dashboard-lightbox-loading" class="p-3 text-muted">Loading previews…</div>
-    <div id="dashboard-lightbox-error" class="p-3 text-danger d-none" role="alert"></div>
-    <div id="dashboard-lightbox-empty" class="p-3 text-muted d-none">No files in this folder.</div>
-    <div id="dashboard-lightbox-content" class="d-none">
-        <div class="row">
-            <div class="col">
-                <p><small><em>Sorted by file_name</em></small></p>
+    <div class="card-header dashboard-files-card-header">
+        <h2 class="h5 mb-0">Image Previews for the Folder <span id="dashboard-lightbox-folder-name">{{ folder_name.project_folder }}</span></h2>
+        <span class="text-muted small">Sorted by file name</span>
+    </div>
+    <div class="card-body">
+        <div id="dashboard-lightbox-loading" class="text-muted">Loading previews…</div>
+        <div id="dashboard-lightbox-error" class="text-danger d-none" role="alert"></div>
+        <div id="dashboard-lightbox-empty" class="text-muted d-none">No files in this folder.</div>
+        <div id="dashboard-lightbox-content" class="d-none">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Filter previews by check status">
+                    <button type="button" class="btn btn-outline-secondary active" data-lightbox-filter="all" aria-pressed="true">All <span class="badge rounded-pill dashboard-filter-count" data-count-for="all"></span></button>
+                    <button type="button" class="btn btn-outline-danger" data-lightbox-filter="failed" aria-pressed="false">Failed checks <span class="badge rounded-pill dashboard-filter-count" data-count-for="failed"></span></button>
+                </div>
+                <nav id="dashboard-lightbox-pagination-top" aria-label="Preview pages (top)"></nav>
             </div>
-            <div class="col">
-                <nav id="dashboard-lightbox-pagination-top" aria-label="pages"></nav>
+            <div id="lightbox-grid" class="dashboard-lightbox-grid"></div>
+            <div class="d-flex justify-content-end mt-3">
+                <nav id="dashboard-lightbox-pagination-bottom" aria-label="Preview pages (bottom)"></nav>
             </div>
         </div>
-        <div id="lightbox-grid" class="dashboard-lightbox-grid"></div>
-        <br>
-        <nav id="dashboard-lightbox-pagination-bottom" aria-label="pages"></nav>
     </div>
 </div>
             {% endif %}
 
         {% elif tab == "postprod" %}
 
-            <br><br>
-                <p class="fs-3" id="dashboard-postprod-folder-heading">Post-Production Steps for the Folder {{ folder_name.project_folder }}</p>
 <div id="dashboard-postprod-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
@@ -606,17 +627,17 @@
      data-app-root="{{ app_root or '' }}">
     <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-            <h2 class="h5 mb-0">Post-processing steps for folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <h2 class="h5 mb-0">Post-Production Steps for the Folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h2>
             <span id="dashboard-postprod-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
         </div>
-        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by post-processing status">
-            <button type="button" class="btn btn-outline-secondary active" data-postprod-filter="all">All</button>
-            <button type="button" class="btn btn-outline-danger" data-postprod-filter="failed">Failed</button>
-            <button type="button" class="btn btn-outline-secondary" data-postprod-filter="pending">Pending</button>
+        <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by post-production status">
+            <button type="button" class="btn btn-outline-secondary active" data-postprod-filter="all" aria-pressed="true">All <span class="badge rounded-pill dashboard-filter-count" data-count-for="all"></span></button>
+            <button type="button" class="btn btn-outline-danger" data-postprod-filter="failed" aria-pressed="false">Failed <span class="badge rounded-pill dashboard-filter-count" data-count-for="failed"></span></button>
+            <button type="button" class="btn btn-outline-secondary" data-postprod-filter="pending" aria-pressed="false">Pending <span class="badge rounded-pill dashboard-filter-count" data-count-for="pending"></span></button>
         </div>
     </div>
     <div class="card-body p-0">
-        <div id="dashboard-postprod-loading" class="p-3 text-muted">Loading post-processing steps…</div>
+        <div id="dashboard-postprod-loading" class="p-3 text-muted">Loading post-production steps…</div>
         <div id="dashboard-postprod-error" class="p-3 text-danger d-none" role="alert"></div>
         <div id="dashboard-postprod-empty" class="p-3 text-muted d-none">No files in this folder.</div>
         <div id="dashboard-postprod-table-wrap" class="dashboard-files-table-wrap d-none">
@@ -664,67 +685,22 @@
 
 {% if folder_id != None %}
 
-    <!-- Datatables -->
-    <script type="text/javascript">
-        $(document).ready( function () {
-
+    <script>
+        $(document).ready(function () {
         {% if tab == "filechecks" %}
-
-            var previewmodal1 = document.getElementById('previewmodal1');
-            previewmodal1.addEventListener('show.bs.modal', function (event) {
-              // Button that triggered the modal
-              var button = event.relatedTarget
-              // Extract info from data-bs-* attributes
-              var checkinfo = button.getAttribute('data-bs-info')
-              var filelink = button.getAttribute('data-bs-link')
-              var filetext = button.getAttribute('data-bs-text')
-              // If necessary, you could initiate an AJAX request here
-              // and then do the updating in a callback.
-              //
-              // Update the modal's content.
-              var modalBody1 = previewmodal1.querySelector('.modal-body img')
-              // modalBody1.src = checkinfo + '&max=1200';
-              modalBody1.src = checkinfo;
-              var modalBody2 = previewmodal1.querySelector('.modal-body a')
-              modalBody2.href = filelink;
-              previewmodal1.querySelector('.modal-body a').innerHTML = filetext;
-            });
-
-                OspreyDashboardFiles.loadFromPanel();
-                OspreyDashboardQc.loadFromPanel();
-                {% if transcription == 1 %}
-                OspreyDashboardTranscriptionQc.loadFromPanel();
-                OspreyDashboardTranscriptionFill.loadFromPanel();
-                {% endif %}
-
-
+            OspreyDashboardFiles.loadFromPanel();
+            OspreyDashboardQc.loadFromPanel();
+            {% if transcription == 1 %}
+            OspreyDashboardTranscriptionQc.loadFromPanel();
+            OspreyDashboardTranscriptionFill.loadFromPanel();
+            {% endif %}
         {% elif tab == "lightbox" %}
-
-                OspreyDashboardLightbox.loadFromPanel();
-
+            OspreyDashboardLightbox.loadFromPanel();
         {% elif tab == "postprod" %}
-
-                OspreyDashboardPostprocessing.loadFromPanel();
-
+            OspreyDashboardPostprocessing.loadFromPanel();
         {% endif %}
-
-            // Refresh dashboard after 10 minutes of inactivity
-            // https://stackoverflow.com/a/55144842
-            function reloadPage() {
-                clearTimeout(idleTime);
-                idleTime = setTimeout(function () {
-                    location.reload();
-                }, 600000);
-            }
-
-            var idleTime;
-             reloadPage();
-            $('html').on('mousemove click mouseup mousedown keydown keypress keyup submit change mouseenter scroll resize dblclick', function () {
-                clearTimeout(idleTime);
-                reloadPage();
-            });
+            // Data refreshes in the background (dashboard_folders.js); no page reload.
         });
-
     </script>
 
     {% endif %}

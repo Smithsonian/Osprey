@@ -1,0 +1,121 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% macro action_badge(action) -%}
+  <span class="badge {{ {'insert': 'bg-success', 'update': 'bg-secondary', 'delete': 'bg-danger'}.get(action, 'bg-light text-dark') }}">{{ action }}</span>
+{%- endmacro %}
+
+{# Link to this page with the current filters plus the given ones (keyword args). #}
+{% macro narrow() -%}
+  {{ url_for('sysadmin.audit', **dict(keep, **kwargs)) }}
+{%- endmacro %}
+
+{% block sysadmin_content %}
+
+{% call card('Audit log') %}
+  <p class="text-muted small">Every insert, update or delete on a project, folder or file, newest first. Click a folder or file to see its history, or <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> for the full request details from <code>ospreyaudit.log</code>.</p>
+
+  <form method="get" action="{{ url_for('sysadmin.audit') }}" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-6 col-lg-3">
+      <label for="audit-project" class="form-label small mb-1">Project</label>
+      <select id="audit-project" name="project_id" class="form-select form-select-sm">
+        <option value="">All projects</option>
+        {% if options.ok %}{% for p in options.data.projects %}
+        <option value="{{ p.project_id }}" {% if p.project_id == filters.project_id %}selected{% endif %}>{{ p.project_alias or p.project_title or ('#' ~ p.project_id) }}</option>
+        {% endfor %}{% endif %}
+      </select>
+    </div>
+    <div class="col-6 col-sm-3 col-lg-2">
+      <label for="audit-entity" class="form-label small mb-1">Type</label>
+      <select id="audit-entity" name="entity" class="form-select form-select-sm">
+        <option value="">Any</option>
+        {% for e in entities %}<option value="{{ e }}" {% if e == filters.entity %}selected{% endif %}>{{ e }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-sm-3 col-lg-2">
+      <label for="audit-action" class="form-label small mb-1">Action</label>
+      <select id="audit-action" name="action" class="form-select form-select-sm">
+        <option value="">Any</option>
+        {% for a in actions %}<option value="{{ a }}" {% if a == filters.action %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <label for="audit-actor" class="form-label small mb-1">Who</label>
+      <select id="audit-actor" name="actor" class="form-select form-select-sm">
+        <option value="">Anyone</option>
+        {% if options.ok %}{% for a in options.data.actors %}
+        <option value="{{ a.actor }}" {% if a.actor == filters.actor %}selected{% endif %}>{{ a.actor }}{% if a.actor_type == 'api_key' %} (API){% endif %}</option>
+        {% endfor %}{% endif %}
+      </select>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <label for="audit-q" class="form-label small mb-1">Folder, file, event or note contains</label>
+      <input id="audit-q" name="q" type="search" class="form-control form-control-sm" value="{{ filters.q or '' }}">
+    </div>
+    <div class="col-6 col-sm-3 col-lg-2">
+      <label for="audit-since" class="form-label small mb-1">From</label>
+      <input id="audit-since" name="since" type="date" class="form-control form-control-sm" value="{{ filters.since or '' }}">
+    </div>
+    <div class="col-6 col-sm-3 col-lg-2">
+      <label for="audit-until" class="form-label small mb-1">To</label>
+      <input id="audit-until" name="until" type="date" class="form-control form-control-sm" value="{{ filters.until or '' }}">
+    </div>
+    {% for key in ('folder_ref', 'file_ref', 'request_id') %}{% if filters[key] %}
+    <input type="hidden" name="{{ key }}" value="{{ filters[key] }}">
+    {% endif %}{% endfor %}
+    <div class="col-auto">
+      <button type="submit" class="btn btn-osprey btn-sm">Filter</button>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('sysadmin.audit') }}">Clear</a>
+    </div>
+  </form>
+
+  {% set pinned = [('folder_ref', 'Folder'), ('file_ref', 'File'), ('request_id', 'Request')] %}
+  {% if filters.folder_ref or filters.file_ref or filters.request_id %}
+  <p class="small mb-3">Showing only:
+    {% for key, label in pinned %}{% if filters[key] %}
+    <span class="badge bg-info text-dark">{{ label }} <code>{{ filters[key] }}</code></span>
+    <a class="small me-2" href="{{ url_for('sysadmin.audit', **dict(keep, **{key: ''})) }}">remove</a>
+    {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+
+  {% if not events.ok %}{{ section_error(events) }}
+  {% elif not events.data.table_present %}
+    <p class="text-muted mb-0">The <code>audit_log</code> table does not exist (see <code>db/audit_log.sql</code>).</p>
+  {% else %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-3 align-middle">
+    <thead><tr>
+      <th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th>
+      <th scope="col">Type</th><th scope="col">Event</th><th scope="col">Project</th>
+      <th scope="col">Folder</th><th scope="col">File</th><th scope="col">Note</th>
+      <th scope="col"><span class="visually-hidden">Details</span></th>
+    </tr></thead>
+    <tbody>
+      {% for r in events.data.rows %}
+      <tr>
+        <td class="text-nowrap small">{{ r.event_at.strftime('%Y-%m-%d %H:%M:%S') if r.event_at else '' }}</td>
+        <td class="small">{{ r.actor }}{% if r.actor_type == 'api_key' %} <span class="text-muted">(API)</span>{% elif r.actor_type == 'system' %} <span class="text-muted">(script)</span>{% endif %}</td>
+        <td>{{ action_badge(r.action) }}</td>
+        <td class="small">{{ r.entity }}{% if r.transcription %} <span class="text-muted">(transcription)</span>{% endif %}</td>
+        <td class="small"><code>{{ r.event }}</code></td>
+        <td class="small">{% if r.project_id %}<a href="{{ narrow(project_id=r.project_id) }}">{{ r.project_alias or ('#' ~ r.project_id) }}</a>{% endif %}</td>
+        <td class="small">{% if r.folder_ref %}<a href="{{ narrow(folder_ref=r.folder_ref) }}" title="History of folder {{ r.folder_ref }}">{{ r.folder_name or r.folder_ref }}</a>{% endif %}</td>
+        <td class="small">{% if r.file_ref %}<a href="{{ narrow(file_ref=r.file_ref) }}" title="History of file {{ r.file_ref }}">{{ r.file_name or r.file_ref }}</a>{% elif r.entity == 'file' %}<span class="text-muted">all files</span>{% endif %}</td>
+        <td class="small">{{ r.note or '' }}</td>
+        <td><a href="{{ url_for('sysadmin.audit_event', audit_id=r.audit_id) }}" title="Details of event {{ r.audit_id }}"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span class="visually-hidden">Details of event {{ r.audit_id }}</span></a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="text-muted">No audit events match these filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <nav class="d-flex gap-2" aria-label="Audit pages">
+    {% if filters.before %}<a class="btn btn-outline-secondary btn-sm" href="{{ url_for('sysadmin.audit', **keep) }}">Newest</a>{% endif %}
+    {% if events.data.next_before %}<a class="btn btn-outline-secondary btn-sm" href="{{ url_for('sysadmin.audit', **dict(keep, before=events.data.next_before)) }}">Older</a>{% endif %}
+  </nav>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

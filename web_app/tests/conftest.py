@@ -47,3 +47,25 @@ if 'osprey.db' not in sys.modules:
 
     _db.DatabasePoolError = DatabasePoolError
     sys.modules['osprey.db'] = _db
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _isolate_audit_db():
+    """Give osprey.audit its own DB mocks per test.
+
+    osprey.audit imports run_query/query_database_insert from the shared
+    osprey.db stub, so without this every audited write would add calls to
+    the mocks other tests inspect. test_audit.py reads these per-test mocks.
+    """
+    try:
+        from osprey import audit
+    except Exception:  # Flask not installed: nothing imports audit either
+        yield None
+        return
+    from unittest.mock import patch
+    with patch.object(audit, 'run_query', MagicMock(return_value=[])) as rq, \
+            patch.object(audit, 'query_database_insert', MagicMock(return_value=1)) as ins:
+        yield types.SimpleNamespace(run_query=rq, query_database_insert=ins)

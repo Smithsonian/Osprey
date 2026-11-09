@@ -374,6 +374,76 @@ color: #000;}
       margin-bottom: 0.5rem;
   }
 
+  /* Result line on the collapsed QC accordion buttons */
+  .dashboard-qc-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem 0.5rem;
+  }
+
+  .dashboard-qc-summary-detail {
+      font-size: 0.85em;
+      color: #495057;
+  }
+
+  /* Lightbox: fixed-size thumbnails so lazy-loaded images don't shift the grid */
+  .dashboard-lightbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+  }
+
+  .dashboard-lightbox-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      background-color: #f8f9fa;
+      color: #212529;
+      text-decoration: none;
+      text-align: center;
+      transition: border-color 0.12s ease-in-out, box-shadow 0.12s ease-in-out;
+  }
+
+  .dashboard-lightbox-card:hover,
+  .dashboard-lightbox-card:focus-visible {
+      border-color: #0d6efd;
+      box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.12);
+      color: #212529;
+  }
+
+  .dashboard-lightbox-card.is-failed {
+      border: 2px solid #dc3545;
+      background-color: #fff5f5;
+  }
+
+  .dashboard-lightbox-thumb {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 160px;
+      height: 160px;
+      background-color: #fff;
+      border-radius: 0.25rem;
+  }
+
+  .dashboard-lightbox-thumb img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+  }
+
+  .dashboard-lightbox-name {
+      font-size: 0.8rem;
+      word-break: break-all;
+  }
+
   .dashboard-sidebar {
       font-size: 0.9em;
   }
@@ -381,6 +451,45 @@ color: #000;}
   .dashboard-folder-panel {
       position: sticky;
       top: 1rem;
+  }
+
+  /* Desktop: the panel never grows past the viewport; the search and filters
+     stay put and only the folder list scrolls. */
+  @media (min-width: 992px) {
+      .dashboard-folder-panel {
+          display: flex;
+          flex-direction: column;
+          max-height: calc(100vh - 2rem);
+      }
+
+      .dashboard-folder-panel-head {
+          flex: 0 0 auto;
+      }
+
+      .dashboard-folder-list-scroll {
+          position: relative;
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          border-radius: 0.375rem;
+      }
+  }
+
+  .dashboard-refresh-btn.is-refreshing i {
+      animation: dashboard-spin 0.8s linear infinite;
+  }
+
+  @keyframes dashboard-spin {
+      to {
+          transform: rotate(360deg);
+      }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+      .dashboard-refresh-btn.is-refreshing i {
+          animation: none;
+      }
   }
 
   .dashboard-folder-list {
@@ -448,10 +557,6 @@ color: #000;}
       height: 0.5rem;
   }
 
-  .dashboard-folder-dot-selected {
-      background-color: #0d6efd;
-  }
-
   .dashboard-folder-name {
       flex: 1;
       min-width: 0;
@@ -476,64 +581,70 @@ color: #000;}
   }
 
   .dashboard-folder-filters {
-      display: flex;
-      flex-direction: column;
+      transition: opacity 0.15s ease-in-out;
   }
 
-  .dashboard-folder-filter-all .btn {
-      font-size: 0.75rem;
-      font-weight: 500;
+  /* Search ignores the filter; dim it so it reads as kept but paused. */
+  .dashboard-folder-filters.is-paused {
+      opacity: 0.45;
   }
 
-  .dashboard-folder-filter-sub {
+  .dashboard-folder-filters.is-paused:hover,
+  .dashboard-folder-filters.is-paused:focus-within {
+      opacity: 0.8;
+  }
+
+  .dashboard-folder-filter-main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 0.25rem;
   }
 
-  .dashboard-folder-filter-sub .btn {
+  .dashboard-folder-filter-main .btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.35rem;
       font-size: 0.75rem;
-      flex: 1 1 auto;
+      text-align: left;
+      min-width: 0;
   }
 
-  .dashboard-folder-filter-sub .btn-filter-qc-failed {
-      color: #7a4100;
-      border: 1px solid #7a4100;
-      background-color: #fff;
+  .dashboard-folder-filter-main .btn > span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
   }
 
-  .dashboard-folder-filter-sub .btn-filter-qc-failed:hover,
-  .dashboard-folder-filter-sub .btn-filter-qc-failed:focus {
-      color: #fff;
-      background-color: #7a4100;
-      border-color: #7a4100;
-  }
-
-  .dashboard-folder-filter-sub .btn-filter-qc-failed.active {
-      color: #fff;
-      background-color: #7a4100;
-      border-color: #7a4100;
-  }
-
-  .dashboard-folder-filter-sub .btn-filter-qc-pending {
+  /* outline-warning text is too light on white; darken for contrast */
+  .dashboard-folder-filter-main .dashboard-filter-attention {
       color: #664d03;
-      border: 1px solid #ffc107;
-      background-color: #fff;
   }
 
-  .dashboard-folder-filter-sub .btn-filter-qc-pending:hover,
-  .dashboard-folder-filter-sub .btn-filter-qc-pending:focus {
+  .dashboard-folder-filter-main .dashboard-filter-attention.active,
+  .dashboard-folder-filter-main .dashboard-filter-attention:hover {
       color: #000;
-      background-color: #ffc107;
-      border-color: #ffc107;
   }
 
-  .dashboard-folder-filter-sub .btn-filter-qc-pending.active {
-      color: #000;
-      background-color: #ffc107;
-      border-color: #ffc107;
+  .dashboard-filter-count {
+      background-color: rgba(0, 0, 0, 0.08);
+      color: inherit;
+      font-weight: 600;
   }
 
-  .dashboard-folder-filters .btn {
+  .btn.active .dashboard-filter-count {
+      background-color: rgba(255, 255, 255, 0.85);
+      color: #212529;
+  }
+
+  #folder-filter-more {
       font-size: 0.75rem;
+  }
+
+  #folder-filter-more.active {
+      border-color: #0d6efd;
+      box-shadow: inset 3px 0 0 #0d6efd;
+      font-weight: 600;
   }
 
   .dashboard-main-panel {

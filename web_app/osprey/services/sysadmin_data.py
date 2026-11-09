@@ -26,6 +26,7 @@ SCHEMA_CHECKS = (
     ('db/sysadmin_stats.sql', 'sysadmin_stats', None),
     ('db/sysadmin_reports.sql', 'sysadmin_reports', None),
     ('db/project_custom_data.sql', 'project_custom_values', None),
+    ('db/audit_log.sql', 'audit_log', None),
 )
 
 # api_keys_usage is indexed on api_key only (no created_at index), so

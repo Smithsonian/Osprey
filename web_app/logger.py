@@ -40,3 +40,10 @@ api_logger = logging.getLogger("osprey_api")
 api_logger.setLevel(log_level)
 api_logger.addHandler(make_handler('ospreyapi.log'))
 api_logger.propagate = False
+
+# Audit trail details (osprey/audit.py). Always INFO, whatever the env, so
+# every audit_log row has its matching detail line in production too.
+audit_logger = logging.getLogger("osprey_audit")
+audit_logger.setLevel(logging.INFO)
+audit_logger.addHandler(make_handler('ospreyaudit.log'))
+audit_logger.propagate = False

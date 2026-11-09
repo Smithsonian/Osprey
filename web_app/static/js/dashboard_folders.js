@@ -132,15 +132,12 @@
         });
     }
 
-    function dotClass(folder, selectedFolderId, qcEnabled) {
+    function dotClass(folder, qcEnabled) {
         if (folder.hasFolderError) {
             return 'dashboard-folder-dot-error';
         }
         if (folder.unavailable) {
             return 'dashboard-folder-dot-unavailable';
-        }
-        if (String(folder.folder_id) === String(selectedFolderId)) {
-            return 'dashboard-folder-dot-selected';
         }
         if (folder.file_errors === 1) {
             return 'dashboard-folder-dot-error';
@@ -236,7 +233,7 @@
             title + ' (' + escapeHtml(folder.capture_date) + ')' : title;
         var chips = buildChipsHtml(folder, qcEnabled);
         var inner =
-            '<span class="dashboard-folder-dot ' + dotClass(folder, selectedFolderId, qcEnabled) + '" aria-hidden="true"></span>' +
+            '<span class="dashboard-folder-dot ' + dotClass(folder, qcEnabled) + '" aria-hidden="true"></span>' +
             '<span class="dashboard-folder-name" title="' + tooltip + '">' + title + '</span>' +
             '<span class="dashboard-folder-chips">' + chips + '</span>';
 
@@ -255,7 +252,31 @@
             (selected ? ' aria-current="true"' : '') + '>' + inner + '</a>';
     }
 
+    function hasErrors(folder) {
+        return folder.file_errors === 1 || folder.hasFolderError;
+    }
+
+    // Folders someone should look at: errors, failed QC, or QC still to do.
+    // Unavailable folders are still processing and DAMS folders are done.
+    function needsAttention(folder, qcEnabled) {
+        if (folder.unavailable) {
+            return false;
+        }
+        if (hasErrors(folder)) {
+            return true;
+        }
+        if (!qcEnabled || folder.section === 'dams') {
+            return false;
+        }
+        return folder.qc_status === 'QC Failed' ||
+            folder.qc_status === 'QC Pending' ||
+            hasTranscriptionQcFailed(folder);
+    }
+
     function matchesFilter(folder, filterMode, qcEnabled) {
+        if (filterMode === 'attention') {
+            return needsAttention(folder, qcEnabled);
+        }
         if (filterMode === 'ok') {
             if (!folder.unavailable &&
                 !folder.hasFolderError &&
@@ -269,7 +290,7 @@
             return false;
         }
         if (filterMode === 'errors') {
-            return folder.file_errors === 1 || folder.hasFolderError;
+            return hasErrors(folder);
         }
         // Not tied to QC: shown in transcription projects even with QC off.
         if (filterMode === 'transcribed') {
@@ -310,6 +331,7 @@
 
     var FILTER_BUTTON_LABELS = {
         all: 'All',
+        attention: 'Needs attention',
         ok: 'OK',
         errors: 'Errors',
         qc: 'QC Failed',
@@ -321,6 +343,58 @@
         dams: 'In DAMS',
         unavailable: 'Unavailable'
     };
+
+    // Background refresh: replaces the old "reload the page after 10 minutes
+    // idle", which threw away scroll position, filters and table state.
+    var REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    var IDLE_BEFORE_REFRESH_MS = 60 * 1000;
+    var STATUS_TICK_MS = 30 * 1000;
+
+    // [panel element id, global loader]; only the panels for the active tab
+    // exist in the DOM.
+    var PANEL_MODULES = [
+        ['dashboard-files-panel', 'OspreyDashboardFiles'],
+        ['dashboard-qc-panel', 'OspreyDashboardQc'],
+        ['dashboard-lightbox-panel', 'OspreyDashboardLightbox'],
+        ['dashboard-postprod-panel', 'OspreyDashboardPostprocessing'],
+        ['dashboard-transcription-qc-panel', 'OspreyDashboardTranscriptionQc'],
+        ['dashboard-transcription-fill-panel', 'OspreyDashboardTranscriptionFill']
+    ];
+
+    function activePanelModules() {
+        return PANEL_MODULES.filter(function (entry) {
+            return document.getElementById(entry[0]) && window[entry[1]];
+        }).map(function (entry) {
+            return window[entry[1]];
+        });
+    }
+
+    function storageGet(key) {
+        try {
+            return window.sessionStorage.getItem(key);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function storageSet(key, value) {
+        try {
+            window.sessionStorage.setItem(key, value);
+        } catch (e) {
+            // Storage blocked (private mode etc.): the filter just isn't remembered.
+        }
+    }
+
+    function updatedAgoText(ms) {
+        var minutes = Math.floor(ms / 60000);
+        if (minutes < 1) {
+            return 'updated just now';
+        }
+        if (minutes < 60) {
+            return 'updated ' + minutes + ' min ago';
+        }
+        return 'updated ' + Math.floor(minutes / 60) + ' h ago';
+    }
 
     function initDashboardFolders() {
         var panel = document.getElementById('dashboard-folder-panel');
@@ -334,16 +408,27 @@
         var qcEnabled = panel.getAttribute('data-qc-enabled') !== '0';
         var searchInput = document.getElementById('folder-search');
         var emptyMsg = document.getElementById('folder-search-empty');
+        var searchNote = document.getElementById('folder-search-note');
         var loadingEl = document.getElementById('folder-list-loading');
         var errorEl = document.getElementById('folder-list-error');
         var controlsEl = document.getElementById('folder-list-controls');
         var desktopEl = document.getElementById('folder-list-desktop');
         var mobileSelect = document.getElementById('folder-select-mobile');
         var countEl = document.getElementById('folder-total-count');
+        var filtersEl = document.getElementById('folder-filters');
+        var moreSelect = document.getElementById('folder-filter-more');
+        var currentFilterEl = document.getElementById('folder-filter-current');
+        var refreshStatusEl = document.getElementById('dashboard-refresh-status');
+        var refreshBtn = document.getElementById('dashboard-refresh-btn');
         var filterButtons = panel.querySelectorAll('[data-folder-filter]');
+        var filterStorageKey = 'osprey.dashboard.folderFilter.' + projectAlias;
 
         var allFolders = [];
-        var filterMode = 'ok';
+        var filterMode = 'all';
+        var lastRefreshAt = Date.now();
+        var lastInteractionAt = Date.now();
+        var lastRefreshFailed = false;
+        var refreshing = false;
 
         function setLoading(isLoading) {
             if (loadingEl) {
@@ -364,6 +449,14 @@
             }
         }
 
+        function searchQuery() {
+            return searchInput ? searchInput.value.trim().toLowerCase() : '';
+        }
+
+        function isSelected(folder) {
+            return selectedFolderId !== '' && String(folder.folder_id) === String(selectedFolderId);
+        }
+
         function countForFilter(mode) {
             if (mode === 'all') {
                 return allFolders.length;
@@ -373,28 +466,82 @@
             }).length;
         }
 
-        function updateFilterButtons() {
+        function isValidFilter(mode) {
+            if (!mode) {
+                return false;
+            }
+            if (mode === 'all') {
+                return true;
+            }
+            var selector = '[data-folder-filter="' + mode + '"]';
+            var option = 'option[value="' + mode + '"]';
+            return Boolean(panel.querySelector(selector) || (moreSelect && moreSelect.querySelector(option)));
+        }
+
+        // Remembered per project for this browser tab, so switching tabs or
+        // reloading keeps the filter. First visit: show what needs attention.
+        function initialFilter() {
+            var saved = storageGet(filterStorageKey);
+            if (isValidFilter(saved)) {
+                return saved;
+            }
+            return countForFilter('attention') > 0 ? 'attention' : 'all';
+        }
+
+        function setFilter(mode) {
+            filterMode = mode;
+            storageSet(filterStorageKey, mode);
+        }
+
+        function visibleFolders() {
+            var query = searchQuery();
+            return allFolders.filter(function (folder) {
+                if (query) {
+                    // Search looks across every folder. The filter is kept
+                    // (shown dimmed) and applies again once the search is cleared.
+                    return folder.folder.toLowerCase().indexOf(query) !== -1;
+                }
+                // Keep the open folder in the list even if the filter would hide it.
+                return isSelected(folder) || matchesFilter(folder, filterMode, qcEnabled);
+            });
+        }
+
+        function updateFilterControls() {
+            var searching = Boolean(searchQuery());
+
             filterButtons.forEach(function (btn) {
                 var mode = btn.getAttribute('data-folder-filter') || 'all';
-                var label = FILTER_BUTTON_LABELS[mode] || mode;
-                btn.textContent = label + ' - ' + countForFilter(mode);
+                var countBadge = btn.querySelector('[data-count-for]');
+                if (countBadge) {
+                    countBadge.textContent = countForFilter(mode);
+                }
                 var isActive = mode === filterMode;
                 btn.classList.toggle('active', isActive);
                 btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
-        }
 
-        function visibleFolders() {
-            var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
-            return allFolders.filter(function (folder) {
-                var matchesSearch = !query || folder.folder.toLowerCase().indexOf(query) !== -1;
-                if (query) {
-                    // When searching by name, ignore the filter buttons entirely.
-                    return matchesSearch;
-                }
-                var matchesChip = matchesFilter(folder, filterMode, qcEnabled);
-                return matchesSearch && matchesChip;
-            });
+            if (moreSelect) {
+                Array.prototype.forEach.call(moreSelect.querySelectorAll('option'), function (opt) {
+                    if (opt.value) {
+                        opt.textContent = (FILTER_BUTTON_LABELS[opt.value] || opt.value) +
+                            ' (' + countForFilter(opt.value) + ')';
+                    }
+                });
+                var inMore = Boolean(moreSelect.querySelector('option[value="' + filterMode + '"]'));
+                moreSelect.value = inMore ? filterMode : '';
+                moreSelect.classList.toggle('active', inMore);
+            }
+
+            if (filtersEl) {
+                filtersEl.classList.toggle('is-paused', searching);
+            }
+            if (searchNote) {
+                searchNote.classList.toggle('d-none', !searching);
+            }
+            if (currentFilterEl) {
+                currentFilterEl.textContent = (FILTER_BUTTON_LABELS[filterMode] || filterMode) +
+                    (searching ? ' (paused while searching)' : '');
+            }
         }
 
         function renderMobileSelect(folders) {
@@ -411,13 +558,86 @@
                     return;
                 }
                 var href = '/dashboard/' + encodeURIComponent(projectAlias) + '/' + folder.folder_id + '/';
-                var selected = String(folder.folder_id) === String(selectedFolderId) ? ' selected' : '';
+                var selected = isSelected(folder) ? ' selected' : '';
                 var suffix = folder.fileCount ? ' (' + escapeHtml(folder.fileCount) + ')' : '';
                 html += '<option value="' + href + '"' + selected + '>' +
                     escapeHtml(folder.folder) + suffix + '</option>';
             });
 
             mobileSelect.innerHTML = html;
+        }
+
+        function renderDesktopList(folders) {
+            if (!desktopEl) {
+                return;
+            }
+            if (!folders.length) {
+                desktopEl.innerHTML = '';
+                return;
+            }
+            var html = '<div class="dashboard-folder-list list-group shadow-sm">';
+            folders.forEach(function (folder) {
+                html += buildRowHtml(folder, projectAlias, selectedFolderId, qcEnabled);
+            });
+            html += '</div>';
+            desktopEl.innerHTML = html;
+        }
+
+        // Scroll the folder list (not the page) so the open folder is visible.
+        function scrollSelectedIntoView() {
+            if (!desktopEl) {
+                return;
+            }
+            var row = desktopEl.querySelector('.dashboard-folder-row.selected');
+            if (!row) {
+                return;
+            }
+            var top = row.offsetTop;
+            var bottom = top + row.offsetHeight;
+            if (top < desktopEl.scrollTop || bottom > desktopEl.scrollTop + desktopEl.clientHeight) {
+                desktopEl.scrollTop = Math.max(0, top - desktopEl.clientHeight / 3);
+            }
+        }
+
+        // keepPosition: re-render in place (refresh / folder switch) instead of
+        // starting the list from the top (filter or search change).
+        function render(keepPosition) {
+            var folders = visibleFolders();
+            var scrollTop = desktopEl ? desktopEl.scrollTop : 0;
+            var focusedHref = null;
+            if (desktopEl && desktopEl.contains(document.activeElement)) {
+                focusedHref = document.activeElement.getAttribute('href');
+            }
+
+            renderDesktopList(folders);
+            renderMobileSelect(folders);
+
+            if (desktopEl) {
+                desktopEl.scrollTop = keepPosition ? scrollTop : 0;
+                if (focusedHref) {
+                    var again = desktopEl.querySelector('a[href="' + focusedHref.replace(/"/g, '\\"') + '"]');
+                    if (again) {
+                        again.focus({ preventScroll: true });
+                    }
+                }
+            }
+
+            if (countEl) {
+                countEl.textContent = allFolders.length;
+            }
+
+            updateFilterControls();
+
+            if (emptyMsg) {
+                if (!allFolders.length) {
+                    emptyMsg.textContent = 'This project has no folders yet.';
+                } else if (searchQuery()) {
+                    emptyMsg.textContent = 'No folders match your search.';
+                } else {
+                    emptyMsg.textContent = 'No folders match this filter.';
+                }
+                emptyMsg.classList.toggle('d-none', folders.length > 0);
+            }
         }
 
         function updateMainPanelBadges(folderId) {
@@ -434,29 +654,7 @@
         function updateSelectedFolder(folderId) {
             selectedFolderId = String(folderId);
             panel.setAttribute('data-selected-folder-id', selectedFolderId);
-            if (desktopEl) {
-                desktopEl.querySelectorAll('.dashboard-folder-row').forEach(function (row) {
-                    var isSelected = row.getAttribute('href') &&
-                        row.getAttribute('href').endsWith('/' + selectedFolderId + '/');
-                    row.classList.toggle('selected', isSelected);
-                    if (isSelected) {
-                        row.setAttribute('aria-current', 'true');
-                    } else {
-                        row.removeAttribute('aria-current');
-                    }
-                    var dot = row.querySelector('.dashboard-folder-dot');
-                    if (dot) {
-                        dot.className = 'dashboard-folder-dot ' +
-                            dotClass(allFolders.find(function (f) {
-                                return String(f.folder_id) === selectedFolderId;
-                            }) || { folder_id: folderId }, selectedFolderId, qcEnabled);
-                    }
-                });
-            }
-            if (mobileSelect) {
-                var href = '/dashboard/' + encodeURIComponent(projectAlias) + '/' + selectedFolderId + '/';
-                mobileSelect.value = href;
-            }
+            render(true);
             updateMainPanelBadges(selectedFolderId);
         }
 
@@ -485,38 +683,10 @@
             });
         }
 
-        function hasAnyPanelLoader() {
-            return Boolean(
-                (document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles) ||
-                (document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc) ||
-                (document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox) ||
-                (document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing) ||
-                (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc) ||
-                (document.getElementById('dashboard-transcription-fill-panel') && window.OspreyDashboardTranscriptionFill)
-            );
-        }
-
-        // Ask every panel loader present on the page (only the ones matching the
-        // active tab actually exist in the DOM) to reload for this folder.
         function loadPanelsForFolder(folderId) {
-            if (document.getElementById('dashboard-files-panel') && window.OspreyDashboardFiles) {
-                window.OspreyDashboardFiles.loadForFolder(folderId);
-            }
-            if (document.getElementById('dashboard-qc-panel') && window.OspreyDashboardQc) {
-                window.OspreyDashboardQc.loadForFolder(folderId);
-            }
-            if (document.getElementById('dashboard-lightbox-panel') && window.OspreyDashboardLightbox) {
-                window.OspreyDashboardLightbox.loadForFolder(folderId);
-            }
-            if (document.getElementById('dashboard-postprod-panel') && window.OspreyDashboardPostprocessing) {
-                window.OspreyDashboardPostprocessing.loadForFolder(folderId);
-            }
-            if (document.getElementById('dashboard-transcription-qc-panel') && window.OspreyDashboardTranscriptionQc) {
-                window.OspreyDashboardTranscriptionQc.loadForFolder(folderId);
-            }
-            if (document.getElementById('dashboard-transcription-fill-panel') && window.OspreyDashboardTranscriptionFill) {
-                window.OspreyDashboardTranscriptionFill.loadForFolder(folderId);
-            }
+            activePanelModules().forEach(function (mod) {
+                mod.loadForFolder(folderId);
+            });
         }
 
         function navigateToFolder(folderId) {
@@ -529,92 +699,119 @@
             loadPanelsForFolder(folderId);
         }
 
-        function onFolderNavigate(event, folderId) {
-            if (!hasAnyPanelLoader()) {
-                return;
-            }
-            event.preventDefault();
-            navigateToFolder(folderId);
-        }
-
-        var folderNavBound = false;
-
-        function bindFolderNavigation() {
-            if (!desktopEl || folderNavBound) {
-                return;
-            }
-            folderNavBound = true;
+        if (desktopEl) {
             desktopEl.addEventListener('click', function (event) {
                 var row = event.target.closest('a.dashboard-folder-row');
-                if (!row || !row.getAttribute('href')) {
+                if (!row || !row.getAttribute('href') || !activePanelModules().length) {
                     return;
                 }
                 var match = row.getAttribute('href').match(/\/([^/]+)\/?$/);
                 if (!match) {
                     return;
                 }
-                onFolderNavigate(event, match[1]);
+                event.preventDefault();
+                navigateToFolder(match[1]);
             });
         }
 
-        function renderDesktopList(folders) {
-            if (!desktopEl) {
+        function updateRefreshStatus() {
+            if (!refreshStatusEl) {
                 return;
             }
-
-            if (!folders.length) {
-                desktopEl.innerHTML = '';
-                return;
-            }
-
-            var html = '<div class="dashboard-folder-list list-group shadow-sm">';
-            folders.forEach(function (folder) {
-                html += buildRowHtml(folder, projectAlias, selectedFolderId, qcEnabled);
-            });
-            html += '</div>';
-            desktopEl.innerHTML = html;
+            refreshStatusEl.textContent = updatedAgoText(Date.now() - lastRefreshAt) +
+                (lastRefreshFailed ? ' (last refresh failed)' : '');
         }
 
-        function render() {
-            var folders = visibleFolders();
-            renderDesktopList(folders);
-            bindFolderNavigation();
-            renderMobileSelect(folders);
+        function fetchFolders() {
+            return fetch(foldersUrl, { credentials: 'same-origin' })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Could not load folders (' + response.status + ')');
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    return (data.folders || []).map(normalizeFolder);
+                });
+        }
 
-            if (countEl) {
-                countEl.textContent = allFolders.length;
+        // Re-fetch the folder list and the open folder's panels without a page
+        // reload. Each panel keeps its own state (filters, table page, open
+        // accordions) and skips the redraw when nothing changed.
+        function refreshAll() {
+            if (refreshing) {
+                return;
+            }
+            refreshing = true;
+            if (refreshBtn) {
+                refreshBtn.classList.add('is-refreshing');
+                refreshBtn.disabled = true;
             }
 
-            updateFilterButtons();
-
-            if (emptyMsg) {
-                var query = searchInput ? searchInput.value.trim() : '';
-                var hasCriteria = Boolean(query) || filterMode !== 'all';
-                if (query) {
-                    emptyMsg.textContent = 'No folders match your search.';
-                } else if (filterMode !== 'all') {
-                    emptyMsg.textContent = 'No folders match your filters.';
-                } else {
-                    emptyMsg.textContent = 'No folders match your search or filters.';
+            var failed = false;
+            var jobs = [fetchFolders().then(function (folders) {
+                allFolders = folders;
+                render(true);
+                if (selectedFolderId) {
+                    updateMainPanelBadges(selectedFolderId);
                 }
-                emptyMsg.classList.toggle('d-none', folders.length > 0 || !hasCriteria);
+            })];
+            if (selectedFolderId) {
+                activePanelModules().forEach(function (mod) {
+                    if (mod.refresh) {
+                        jobs.push(Promise.resolve(mod.refresh()));
+                    }
+                });
             }
+
+            Promise.all(jobs.map(function (job) {
+                return job.catch(function () {
+                    failed = true;
+                });
+            })).then(function () {
+                refreshing = false;
+                lastRefreshFailed = failed;
+                if (!failed) {
+                    lastRefreshAt = Date.now();
+                }
+                if (refreshBtn) {
+                    refreshBtn.classList.remove('is-refreshing');
+                    refreshBtn.disabled = false;
+                }
+                updateRefreshStatus();
+            });
         }
 
         filterButtons.forEach(function (button) {
             button.addEventListener('click', function () {
                 var mode = button.getAttribute('data-folder-filter') || 'all';
-                if (mode !== 'all' && filterMode === mode) {
-                    filterMode = 'all';
+                if (searchQuery()) {
+                    // Picking a filter while searching means "use this filter now".
+                    searchInput.value = '';
+                    setFilter(mode);
+                } else if (mode !== 'all' && filterMode === mode) {
+                    setFilter('all');
                 } else {
-                    filterMode = mode;
+                    setFilter(mode);
                 }
-                render();
+                render(false);
             });
         });
 
+        if (moreSelect) {
+            moreSelect.addEventListener('change', function () {
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+                setFilter(this.value || 'all');
+                render(false);
+            });
+        }
+
         if (searchInput) {
-            searchInput.addEventListener('input', render);
+            searchInput.addEventListener('input', function () {
+                render(false);
+            });
         }
 
         if (mobileSelect) {
@@ -622,7 +819,7 @@
                 if (!this.value) {
                     return;
                 }
-                if (hasAnyPanelLoader()) {
+                if (activePanelModules().length) {
                     var match = this.value.match(/\/([^/]+)\/?$/);
                     if (match) {
                         navigateToFolder(match[1]);
@@ -631,6 +828,10 @@
                 }
                 window.location.href = this.value;
             });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', refreshAll);
         }
 
         // Browser Back/Forward after a soft folder switch: the URL and history
@@ -643,32 +844,59 @@
                 window.location.reload();
                 return;
             }
-            if (!hasAnyPanelLoader()) {
+            if (!activePanelModules().length) {
                 return;
             }
             updateSelectedFolder(folderId);
+            scrollSelectedIntoView();
             updateDashboardTabLinks(folderId);
             loadPanelsForFolder(folderId);
         });
 
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (eventName) {
+            document.addEventListener(eventName, function () {
+                lastInteractionAt = Date.now();
+            }, { passive: true, capture: true });
+        });
+
+        // Refresh only while the tab is visible and the user has paused, so
+        // nothing shifts under someone who is reading or typing.
+        window.setInterval(function () {
+            updateRefreshStatus();
+            if (document.hidden) {
+                return;
+            }
+            var now = Date.now();
+            if (now - lastRefreshAt >= REFRESH_INTERVAL_MS && now - lastInteractionAt >= IDLE_BEFORE_REFRESH_MS) {
+                refreshAll();
+            }
+        }, STATUS_TICK_MS);
+
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden && Date.now() - lastRefreshAt >= REFRESH_INTERVAL_MS) {
+                refreshAll();
+            }
+        });
+
         setLoading(true);
-        fetch(foldersUrl, { credentials: 'same-origin' })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('Could not load folders (' + response.status + ')');
-                }
-                return response.json();
-            })
-            .then(function (data) {
-                allFolders = (data.folders || []).map(normalizeFolder);
+        fetchFolders()
+            .then(function (folders) {
+                allFolders = folders;
+                filterMode = initialFilter();
                 setLoading(false);
-                render();
+                render(false);
                 if (selectedFolderId) {
                     updateMainPanelBadges(selectedFolderId);
                 }
+                scrollSelectedIntoView();
+                lastRefreshAt = Date.now();
+                updateRefreshStatus();
             })
             .catch(function (error) {
                 setLoading(false);
+                if (controlsEl) {
+                    controlsEl.classList.add('d-none');
+                }
                 setError(error.message || 'Could not load folders.');
             });
     }

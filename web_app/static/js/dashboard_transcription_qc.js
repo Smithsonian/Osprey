@@ -2,14 +2,15 @@
     'use strict';
 
     var TRANSCRIPTION_QC_BADGE = {
-        0: '<span class="badge bg-success">Transcription OK</span>',
-        1: '<span class="badge bg-danger">Critical Issue</span>',
-        2: '<span class="badge bg-warning">Major Issue</span>',
-        3: '<span class="badge bg-warning">Minor Issue</span>',
-        9: '<span class="badge bg-secondary">Pending</span>'
+        0: '<span class="badge text-bg-success">Transcription OK</span>',
+        1: '<span class="badge text-bg-danger">Critical Issue</span>',
+        2: '<span class="badge text-bg-warning">Major Issue</span>',
+        3: '<span class="badge text-bg-warning">Minor Issue</span>',
+        9: '<span class="badge text-bg-secondary">Pending</span>'
     };
 
     var dataTableInstances = [];
+    var lastPayloadKey = null;
 
     function escapeHtml(text) {
         return String(text || '')
@@ -25,19 +26,76 @@
 
     function fileLinkHtml(file, appRoot) {
         var path = appRoot + '/file_transcription/' + file.file_id + '/';
-        return '<a href="' + path + '" title="File Details" target="_blank">' +
+        return '<a href="' + path + '" title="File Details">' +
             escapeHtml(file.file_name) + '</a>';
     }
 
     function statusBadge(statusValue) {
         if (parseInt(statusValue, 10) === 0) {
-            return '<span class="badge bg-success ms-2">QC Passed</span>';
+            return '<span class="badge text-bg-success">Passed</span>';
         }
         if (parseInt(statusValue, 10) === 1) {
-            return '<span class="badge bg-danger ms-2">QC Failed</span>';
+            return '<span class="badge text-bg-danger">Failed</span>';
         }
-        return '<span class="badge bg-secondary ms-2">QC Pending</span>';
+        return '<span class="badge text-bg-warning">Pending</span>';
     }
+
+    function plural(n, word) {
+        return n + ' ' + word + (n === 1 ? '' : 's');
+    }
+
+    // "25 files sampled · 2 critical, 1 minor · 3 pending" for the button.
+    function summaryDetail(source) {
+        var files = source.files || [];
+        var counts = { 0: 0, 1: 0, 2: 0, 3: 0, 9: 0 };
+        files.forEach(function (file) {
+            var value = parseInt(file.qc_results, 10);
+            counts[counts.hasOwnProperty(value) ? value : 9] += 1;
+        });
+        var parts = [plural(files.length, 'file') + ' sampled'];
+        var issues = [];
+        if (counts[1]) {
+            issues.push(counts[1] + ' critical');
+        }
+        if (counts[2]) {
+            issues.push(counts[2] + ' major');
+        }
+        if (counts[3]) {
+            issues.push(counts[3] + ' minor');
+        }
+        if (issues.length) {
+            parts.push(issues.join(', '));
+        } else if (files.length && !counts[9]) {
+            parts.push('no issues');
+        }
+        if (counts[9]) {
+            parts.push(counts[9] + ' pending');
+        }
+        return parts.join(' · ');
+    }
+
+    function openPanelIds(accordion) {
+        return Array.prototype.map.call(accordion.querySelectorAll('.accordion-collapse.show'), function (el) {
+            return el.id;
+        });
+    }
+
+    // Re-open the items that were open before a background refresh redrew them.
+    function reopenPanels(accordion, ids) {
+        ids.forEach(function (id) {
+            var collapseEl = document.getElementById(id);
+            if (!collapseEl || !accordion.contains(collapseEl)) {
+                return;
+            }
+            collapseEl.classList.add('show');
+            var button = accordion.querySelector('[data-bs-target="#' + id + '"]');
+            if (button) {
+                button.classList.remove('collapsed');
+                button.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+
 
     function destroyTables() {
         dataTableInstances.forEach(function (instance) {
@@ -47,7 +105,7 @@
     }
 
     function buildTableDom(source, appRoot) {
-        var thead = '<thead><tr><th scope="col">file_name</th><th scope="col">qc_notes</th><th scope="col">qc_results</th></tr></thead>';
+        var thead = '<thead><tr><th scope="col">File</th><th scope="col">QC notes</th><th scope="col">Result</th></tr></thead>';
         var bodyRows = (source.files || []).map(function (file) {
             return '<tr>' +
                 '<td scope="row">' + fileLinkHtml(file, appRoot) + '</td>' +
@@ -80,8 +138,12 @@
                 '<button class="accordion-button collapsed" type="button" ' +
                         'data-bs-toggle="collapse" data-bs-target="#' + panelId + '" ' +
                         'aria-expanded="false" aria-controls="' + panelId + '">' +
-                    'Transcription QC Details - ' + escapeHtml(source.source_name || 'Source ' + (index + 1)) +
-                    statusBadge(source.qc_status_value) +
+                    '<span class="dashboard-qc-summary">' +
+                        '<span class="fw-semibold">Transcription QC: ' +
+                            escapeHtml(source.source_name || 'Source ' + (index + 1)) + '</span>' +
+                        statusBadge(source.qc_status_value) +
+                        '<span class="dashboard-qc-summary-detail">' + escapeHtml(summaryDetail(source)) + '</span>' +
+                    '</span>' +
                 '</button>' +
             '</h2>' +
             '<div id="' + panelId + '" class="accordion-collapse collapse" ' +
@@ -145,13 +207,20 @@
         errorEl.classList.remove('d-none');
     }
 
-    function showContent(data, panel) {
+    function showContent(data, panel, silent) {
+        var payloadKey = JSON.stringify(data);
+        if (silent && payloadKey === lastPayloadKey) {
+            return;
+        }
+        lastPayloadKey = payloadKey;
+
         document.getElementById('dashboard-transcription-qc-loading').classList.add('d-none');
         document.getElementById('dashboard-transcription-qc-error').classList.add('d-none');
 
-        destroyTables();
         var contentEl = document.getElementById('dashboard-transcription-qc-content');
         var accordion = document.getElementById('transcription_qc_accordion');
+        var wasOpen = silent ? openPanelIds(accordion) : [];
+        destroyTables();
         accordion.innerHTML = '';
 
         if (!data.qc_checked || !(data.sources || []).length) {
@@ -164,16 +233,19 @@
             return buildSourceItem(source, index, appRoot);
         }).join('');
 
+        reopenPanels(accordion, wasOpen);
         initializeTables(data.sources);
         bindAccordionAdjust();
         contentEl.classList.remove('d-none');
     }
 
-    function loadFromUrl(url, panel) {
+    function loadFromUrl(url, panel, silent) {
         // See dashboard_table_panel.js loadFromUrl for why this guard is needed:
         // it drops responses that arrive after a newer folder has been requested.
         var requestFolderId = panel.getAttribute('data-folder-id');
-        showLoading();
+        if (!silent) {
+            showLoading();
+        }
         return fetch(url, { credentials: 'same-origin' })
             .then(function (response) {
                 if (!response.ok) {
@@ -185,12 +257,15 @@
                 if (panel.getAttribute('data-folder-id') !== requestFolderId) {
                     return data;
                 }
-                showContent(data, panel);
+                showContent(data, panel, silent);
                 return data;
             })
             .catch(function (error) {
                 if (panel.getAttribute('data-folder-id') !== requestFolderId) {
                     return;
+                }
+                if (silent) {
+                    throw error;
                 }
                 showError(error.message || 'Could not load transcription QC information.');
             });
@@ -217,11 +292,21 @@
         var url = urlBase + encodeURIComponent(folderId) + '/transcription_qc';
         panel.setAttribute('data-qc-url', url);
         panel.setAttribute('data-folder-id', String(folderId));
+        lastPayloadKey = null;
         return loadFromUrl(url, panel);
+    }
+
+    function refresh() {
+        var panel = document.getElementById('dashboard-transcription-qc-panel');
+        if (!panel || !panel.getAttribute('data-qc-url')) {
+            return;
+        }
+        return loadFromUrl(panel.getAttribute('data-qc-url'), panel, true);
     }
 
     window.OspreyDashboardTranscriptionQc = {
         loadFromPanel: loadFromPanel,
-        loadForFolder: loadForFolder
+        loadForFolder: loadForFolder,
+        refresh: refresh
     };
 }());

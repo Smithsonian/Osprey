@@ -1,0 +1,46 @@
+{% extends "sysadmin_base.html" %}
+{% from "partials/_sysadmin_macros.html" import section_error, card %}
+
+{% block sysadmin_content %}
+
+<p class="small"><a href="{{ url_for('sysadmin.audit') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Audit log</a></p>
+
+{% call card('Audit event ' ~ audit_id) %}
+  {% if not row.ok %}{{ section_error(row) }}
+  {% else %}{% set r = row.data %}
+  <dl class="row small mb-0">
+    <dt class="col-sm-3">When</dt><dd class="col-sm-9">{{ r.event_at }}</dd>
+    <dt class="col-sm-3">Who</dt><dd class="col-sm-9">{{ r.actor }} <span class="text-muted">({{ r.actor_type }}, via {{ r.source }})</span></dd>
+    <dt class="col-sm-3">What</dt><dd class="col-sm-9">{{ r.action }} {{ r.entity }}{% if r.transcription %} (transcription){% endif %}: <code>{{ r.event }}</code></dd>
+    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{% if r.project_id %}<a href="{{ url_for('sysadmin.audit', project_id=r.project_id) }}">{{ r.project_alias or '' }} <span class="text-muted">#{{ r.project_id }}</span></a>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+    <dt class="col-sm-3">Folder</dt><dd class="col-sm-9">{% if r.folder_ref %}<a href="{{ url_for('sysadmin.audit', folder_ref=r.folder_ref) }}">{{ r.folder_name or '' }} <span class="text-muted">{{ r.folder_ref }}</span></a>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+    <dt class="col-sm-3">File</dt><dd class="col-sm-9">{% if r.file_ref %}<a href="{{ url_for('sysadmin.audit', file_ref=r.file_ref) }}">{{ r.file_name or '' }} <span class="text-muted">{{ r.file_ref }}</span></a>{% elif r.entity == 'file' %}all files in the folder{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+    <dt class="col-sm-3">Note</dt><dd class="col-sm-9">{{ r.note or '—' }}</dd>
+    <dt class="col-sm-3">Request</dt><dd class="col-sm-9">{% if r.request_id %}<a href="{{ url_for('sysadmin.audit', request_id=r.request_id) }}" title="Other events in the same request"><code>{{ r.request_id }}</code></a>{% else %}<span class="text-muted">— (not from a web or API request)</span>{% endif %}</dd>
+  </dl>
+  {% endif %}
+{% endcall %}
+
+{% call card('Details from ospreyaudit.log') %}
+  {% if not log.ok %}{{ section_error(log) }}
+  {% elif not log.data.found %}
+    <p class="text-muted mb-0">No line for this event in the {{ log.data.files_searched }} audit log file(s) on this server. Older rotated files may have been removed, or the event was written on another server.</p>
+  {% else %}
+    {% if log.data.details %}
+    <div class="table-responsive">
+    <table class="table table-sm mb-3">
+      <thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>
+      <tbody>
+        {% for key, value in log.data.details.items() %}
+        <tr><td class="small"><code>{{ key }}</code></td><td class="small text-break">{{ value }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+    <p class="small text-muted mb-1">Raw line from <code>{{ log.data.file }}</code>:</p>
+    <pre class="small bg-light p-2 mb-0 text-wrap text-break">{{ log.data.line }}</pre>
+  {% endif %}
+{% endcall %}
+
+{% endblock %}

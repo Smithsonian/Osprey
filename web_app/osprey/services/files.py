@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pandas as pd
 
+from osprey import audit
 from osprey.db import query_database_insert, run_query
 
 
@@ -179,6 +180,7 @@ def send_folder_to_dams(folder_id):
     query_database_insert(
         ("UPDATE folders SET delivered_to_dams = 1 WHERE folder_id = %(folder_id)s"),
         {'folder_id': folder_id})
+    audit.record('update', 'folder', 'sent_to_dams', folder_ref=folder_id)
 
     # Del DAMS status badge, if exists
     query_database_insert(
@@ -249,12 +251,17 @@ def send_folder_to_dams(folder_id):
     no_files_pending = run_query(
         ("SELECT COUNT(*) as no_files FROM files WHERE folder_id = %(folder_id)s AND (dams_uan = '' OR dams_uan IS NULL)"),
         {'folder_id': folder_id})
+    # One row for the bulk UAN update (file_ref NULL = the folder's files).
+    audit.record('update', 'file', 'dams_uan_set', folder_ref=folder_id,
+                 note="{} files with UAN, {} pending".format(
+                     no_files_ready[0]['no_files'], no_files_pending[0]['no_files']))
 
     if no_files_ready[0]['no_files'] > 0 and no_files_pending[0]['no_files'] == 0:
         # Update in DAMS
         query_database_insert(
             ("UPDATE folders SET delivered_to_dams = 0 WHERE folder_id = %(folder_id)s"),
             {'folder_id': folder_id})
+        audit.record('update', 'folder', 'delivered_to_dams', folder_ref=folder_id)
         query_database_insert(
             ("DELETE FROM folders_badges WHERE folder_id = %(folder_id)s AND badge_type = 'dams_status'"),
             {'folder_id': folder_id})
@@ -271,6 +278,7 @@ def mark_file_sensitive(file_id, sensitive_info, user_id):
         ("INSERT INTO sensitive_contents (file_id, sensitive_contents, sensitive_info, user_id) "
          "VALUES (%(file_id)s, 1, %(sensitive_info)s, %(user_id)s) ON DUPLICATE KEY UPDATE sensitive_contents = 1"),
         {'file_id': file_id, 'sensitive_info': sensitive_info, 'user_id': user_id})
+    audit.record('update', 'file', 'marked_sensitive', file_ref=file_id)
 
 
 def get_file_sensitive(file_id):

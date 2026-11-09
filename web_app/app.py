@@ -28,6 +28,7 @@ import random
 from auth_service import AuthBaseUser, get_auth_service
 
 # MySQL — shared connection pool
+from osprey import audit
 from osprey.db import init_db, query_database_insert, run_query
 from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
 from osprey.services import reports as report_service
@@ -1291,14 +1292,14 @@ def dashboard(project_alias=None, folder_id=None):
             recent_images_pool = []
         elif preview_filter is None:
             if transcription == 1:
-                recent_images_pool = run_query("SELECT file_transcription_id as file_id, CONCAT('image_previews/', folder_transcription_id, '/160/', file_transcription_id, '.jpg') as preview FROM transcription_files WHERE folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_transcription_id DESC limit 100", {'project_id': project_info['project_id']})
+                recent_images_pool = run_query("SELECT file_transcription_id as file_id, file_name, CONCAT('image_previews/', folder_transcription_id, '/160/', file_transcription_id, '.jpg') as preview FROM transcription_files WHERE folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_transcription_id DESC limit 100", {'project_id': project_info['project_id']})
             else:
-                recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100", {'project_id': project_info['project_id']})
+                recent_images_pool = run_query("SELECT file_id, file_name, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100", {'project_id': project_info['project_id']})
         else:
             if transcription == 1:
-                recent_images_pool = run_query("SELECT file_transcription_id as file_id, CONCAT('image_previews/', folder_transcription_id, '/160/', file_transcription_id, '.jpg') as preview FROM transcription_files WHERE {} folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_transcription_id DESC limit 100".format(preview_filter), {'project_id': project_info['project_id']})
+                recent_images_pool = run_query("SELECT file_transcription_id as file_id, file_name, CONCAT('image_previews/', folder_transcription_id, '/160/', file_transcription_id, '.jpg') as preview FROM transcription_files WHERE {} folder_transcription_id IN (SELECT folder_transcription_id FROM transcription_folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_transcription_id DESC limit 100".format(preview_filter), {'project_id': project_info['project_id']})
             else:
-                recent_images_pool = run_query("SELECT file_id, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE {} folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100".format(preview_filter), {'project_id': project_info['project_id']})
+                recent_images_pool = run_query("SELECT file_id, file_name, CONCAT('image_previews/folder', folder_id, '/160/', file_id, '.jpg') as preview FROM files WHERE {} folder_id IN (SELECT folder_id FROM folders WHERE project_id = %(project_id)s and status = 0 and previews = 0) ORDER BY file_id DESC limit 100".format(preview_filter), {'project_id': project_info['project_id']})
         recent_images = []
         for img in recent_images_pool:
             if os.path.exists("static/{}".format(img['preview'])):
@@ -3182,6 +3183,11 @@ def qc_transcription_done(source_id, folder_id):
          'qc_by': user_id['user_id'],
          'qc_level': project_qc_settings['qc_level'],
          'qc_method': qc_service.qc_method(project_qc_settings)})
+    audit.record('update', 'folder', 'qc_decision', project_id=project_id,
+                 folder_ref=folder_id, transcription=True,
+                 note="Transcription QC {} - {}".format(
+                     "Passed" if qc_status == "0" else "Failed",
+                     source[0]['transcription_source_name']))
 
     badgecss = "bg-success" if qc_status == "0" else "bg-danger"
     badge_status = "Passed" if qc_status == "0" else "Failed"
@@ -3326,6 +3332,9 @@ def qc_done(folder_id):
                           'qc_level': project_qc_settings['qc_level'],
                           'qc_method': qc_service.qc_method(project_qc_settings)
                           })
+    audit.record('update', 'folder', 'qc_decision', project_id=project_id,
+                 folder_ref=folder_id, transcription=transcription == 1,
+                 note="QC Passed" if qc_status == "0" else "QC Failed")
     # Create folder badge
     clear_badges = run_query(f"DELETE FROM folders_badges WHERE {fold_id} = %(folder_id)s and badge_type = 'qc_status'",
             {'folder_id': folder_id})
