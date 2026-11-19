@@ -195,10 +195,10 @@ def materialize(report_id: str) -> dict:
     base = '{}_{}'.format(report_id, stamp)
 
     names = {'csv': base + '.csv'}
-    _write_atomic(os.path.join(ARTIFACT_DIR, names['csv']), lambda p: df.to_csv(p, index=False))
+    write_atomic(os.path.join(ARTIFACT_DIR, names['csv']), lambda p: df.to_csv(p, index=False))
     if len(df.index) <= XLSX_MAX_ROWS:
         names['xlsx'] = base + '.xlsx'
-        _write_atomic(os.path.join(ARTIFACT_DIR, names['xlsx']), lambda p: df.to_excel(p, index=False))
+        write_atomic(os.path.join(ARTIFACT_DIR, names['xlsx']), lambda p: df.to_excel(p, index=False))
 
     keep = set(names.values())
     for fn in os.listdir(ARTIFACT_DIR):
@@ -212,7 +212,7 @@ def materialize(report_id: str) -> dict:
     return {'row_count': len(df.index), 'csv': names['csv'], 'xlsx': names.get('xlsx')}
 
 
-def _write_atomic(path: str, write) -> None:
+def write_atomic(path: str, write) -> None:
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=os.path.splitext(path)[1])
     os.close(fd)
     try:

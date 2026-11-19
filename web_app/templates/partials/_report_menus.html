@@ -1,0 +1,46 @@
+{#
+  report_menus(reports, project_alias): the dashboard's data reports as one
+  dropdown per category (builtin_reports.group_reports). An icon marks each
+  report's kind and a lock marks restricted ones; the same words are in the
+  tooltip and in screen-reader text.
+#}
+{% macro report_menus(reports, project_alias) %}
+  {% set groups = reports | report_groups %}
+  {% if groups %}
+  <div class="dashboard-report-menus mt-2 pt-2 border-top">
+    <div class="small text-muted fw-bold mb-1" id="report-menus-label">Data Reports</div>
+    <div class="dashboard-fact-chips" role="group" aria-labelledby="report-menus-label">
+      {% for group in groups %}
+        <div class="dropdown">
+          {# Styled as the link chips above it (links, facts), so the row reads as one size. #}
+          <button class="dashboard-fact-chip dashboard-fact-chip-link dashboard-report-menu-toggle dropdown-toggle"
+                  type="button"
+                  id="report-menu-{{ group.key }}"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false">
+            <i class="fa-solid {{ group.icon }} fa-fw" aria-hidden="true"></i>
+            {{ group.label }}
+            <span class="badge rounded-pill text-bg-light border dashboard-report-count">{{ group.reports | length }}<span class="visually-hidden"> reports</span></span>
+          </button>
+          <ul class="dropdown-menu dashboard-report-menu" aria-labelledby="report-menu-{{ group.key }}">
+            {% for report in group.reports %}
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2"
+                   href="{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id) }}"
+                   title="{{ report.kind_label }}{% if report.access_label %} · {{ report.access_label }}{% endif %}">
+                  <i class="fa-solid {{ report.kind_icon }} fa-fw dashboard-report-kind" aria-hidden="true"></i>
+                  <span class="flex-grow-1">{{ report.report_title }}</span>
+                  {% if report.access_label %}
+                    <i class="fa-solid fa-lock fa-fw dashboard-report-lock" aria-hidden="true"></i>
+                  {% endif %}
+                  <span class="visually-hidden">({{ report.kind_label }}{% if report.access_label %}, {{ report.access_label | lower }}{% endif %})</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endmacro %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/_charts.html" import chart_card %}
 
 {% block title %}{{ project_info.project_title }} - {{ report.report_title }}{% endblock %}
 
@@ -22,72 +23,15 @@
     </a>
   </div>
 
-  <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
-    <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
-      <h2 class="h6 mb-0" id="chart-title-{{ chart.step_id }}">{{ chart.title }}</h2>
-      {% if not chart.empty %}
-        <a class="btn btn-outline-light btn-sm"
-           href="{{ url_for('reports.download_builtin_report_csv', project_alias=project_alias, report_id=report.report_id) }}"
-           download>
-          <i class="fa-solid fa-download" aria-hidden="true"></i>
-          Download CSV
-        </a>
-      {% endif %}
-    </div>
-    <div class="card-body">
-
-      {% if chart.empty %}
-        <div class="alert alert-info mb-0" role="status">
-          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-          No data is available for this report yet.
-        </div>
-        <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
-      {% else %}
-        <figure class="statistics-chart-figure mb-0"
-                role="group"
-                aria-labelledby="chart-title-{{ chart.step_id }}"
-                aria-describedby="chart-desc-{{ chart.step_id }}">
-          <div class="statistics-chart-canvas-wrap">
-            <canvas id="chart-{{ chart.step_id }}"
-                    role="img"
-                    aria-label="{{ chart.short_description }}"
-                    data-chart-spec='{{ chart.chart_js_spec | tojson }}'></canvas>
-          </div>
-          <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
-          <details class="statistics-chart-data mt-2">
-            <summary>View chart data table</summary>
-            <div class="table-responsive mt-2">
-              <table class="table table-sm table-striped mb-0">
-                <caption class="visually-hidden">Data for {{ chart.title }}</caption>
-                <thead>
-                  <tr>
-                    {% for col in chart.table_columns %}
-                      <th scope="col">{{ col.label }}</th>
-                    {% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row in chart.table_rows %}
-                    <tr>
-                      {% for col in chart.table_columns %}
-                        <td>{{ row[col.key] }}</td>
-                      {% endfor %}
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        </figure>
-      {% endif %}
-    </div>
-  </div>
+  {{ chart_card(chart, url_for('reports.download_builtin_report_csv', project_alias=project_alias, report_id=report.report_id)) }}
 </div>
 
 {% endblock %}
 
 {% block javascripts %}
+  {% if chart.datasets and not chart.empty %}
   <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
   <script src="{{ url_for('static', filename='vendor/chartjs/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/statistics_charts.js') }}"></script>
+  {% endif %}
 {% endblock %}

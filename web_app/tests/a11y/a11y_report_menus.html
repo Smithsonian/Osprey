@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "partials/_report_menus.html" import report_menus %}
+{% block title %}Report menus{% endblock %}
+{% block content %}
+<h1>Report menus</h1>
+{# A link chip next to the menus, to compare their sizes. #}
+<div class="dashboard-fact-chips">
+  <a class="dashboard-fact-chip dashboard-fact-chip-link" href="#">
+    <i class="fa-solid fa-link fa-fw" aria-hidden="true"></i> Project website</a>
+</div>
+{{ report_menus([
+  {"report_id": "daily_throughput", "report_title": "Daily throughput", "builtin": 1, "render": "chart", "category": "production"},
+  {"report_id": "capture_calendar", "report_title": "Capture calendar", "builtin": 1, "render": "chart", "category": "production"},
+  {"report_id": "qc_outcomes", "report_title": "QC outcomes over time", "builtin": 1, "render": "chart", "category": "quality", "members_only": True},
+  {"report_id": "folder_pipeline", "report_title": "Folder pipeline", "builtin": 1, "render": "chart", "category": "workflow"},
+  {"report_id": 7, "report_title": "Specimen status", "pregenerated": 1},
+  {"report_id": 8, "report_title": "Live list", "pregenerated": 0, "sysadmin_only": 1},
+  {"report_id": "transcription_profile", "report_title": "Transcription profile", "builtin": 1, "render": "transcription_profile", "pregenerated": 1, "category": "project_data"}
+], "demo-project") }}
+{% endblock %}

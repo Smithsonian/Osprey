@@ -24,7 +24,9 @@ SCHEMA_CHECKS = (
     ('db/transcription_profile.sql', 'transcription_profile_fill', None),
     ('db/transcription_profile.sql', 'transcription_profile_results', None),
     ('db/sysadmin_stats.sql', 'sysadmin_stats', None),
+    ('db/projects_stats_yearly.sql', 'projects_stats_yearly', None),
     ('db/sysadmin_reports.sql', 'sysadmin_reports', None),
+    ('db/data_reports_sysadmin_only.sql', 'data_reports', 'sysadmin_only'),
     ('db/project_custom_data.sql', 'project_custom_values', None),
     ('db/audit_log.sql', 'audit_log', None),
 )
@@ -62,6 +64,15 @@ def existing_tables(names):
         params,
     )
     return {r['name'] for r in rows}
+
+
+def _has_column(table, column):
+    rows = db.run_query(
+        "SELECT 1 FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %(t)s AND COLUMN_NAME = %(c)s",
+        {'t': table, 'c': column},
+    )
+    return bool(rows)
 
 
 def schema_status():
@@ -316,10 +327,13 @@ def dams_folders(project_id, folder_id=None):
 
 def reports():
     has_mat = bool(existing_tables(['report_materializations']))
+    # sysadmin_only is selected only once db/data_reports_sysadmin_only.sql is
+    # applied, so this page keeps working before that.
+    restricted = "r.sysadmin_only" if _has_column('data_reports', 'sysadmin_only') else "0"
     if has_mat:
         query = (
             "SELECT r.report_id, r.project_id, p.project_alias, r.report_title, "
-            "  r.pregenerated, r.updated_at, m.status, m.last_succeeded_at, "
+            "  r.pregenerated, " + restricted + " AS sysadmin_only, r.updated_at, m.status, m.last_succeeded_at, "
             "  m.duration_ms, m.row_count "
             "FROM data_reports r "
             "LEFT JOIN projects p ON p.project_id = r.project_id "
@@ -330,7 +344,7 @@ def reports():
     else:
         query = (
             "SELECT r.report_id, r.project_id, p.project_alias, r.report_title, "
-            "  r.pregenerated, r.updated_at "
+            "  r.pregenerated, " + restricted + " AS sysadmin_only, r.updated_at "
             "FROM data_reports r LEFT JOIN projects p ON p.project_id = r.project_id "
             "ORDER BY p.project_alias, r.report_title"
         )

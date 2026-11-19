@@ -70,3 +70,28 @@ def test_api_site_keeps_api_and_404(client, monkeypatch):
     assert client.get('/api/update/some_project').status_code == 405
     # Unmatched URLs still 404 instead of bouncing to the route list
     assert client.get('/no/such/page/').status_code == 404
+
+
+def test_load_user_returns_none_when_db_down(monkeypatch):
+    # The 500 page reads current_user; a DB outage must not crash it too.
+    from osprey.db import DatabasePoolError
+
+    def boom(*args, **kwargs):
+        raise DatabasePoolError("Can't connect to MySQL server")
+
+    monkeypatch.setattr(app_module, 'run_query', boom)
+    assert app_module.load_user('someone') is None
+
+
+def test_error_page_renders_when_db_down(client, monkeypatch):
+    from osprey.db import DatabasePoolError
+
+    def boom(*args, **kwargs):
+        raise DatabasePoolError("Can't connect to MySQL server")
+
+    monkeypatch.setattr(app_module, 'run_query', boom)
+    with client.session_transaction() as sess:
+        sess['_user_id'] = 'someone'  # logged-in session forces load_user
+    response = client.get('/no/such/page/')
+    assert response.status_code == 404
+    assert b'Error:' in response.data

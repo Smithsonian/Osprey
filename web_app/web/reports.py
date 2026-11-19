@@ -1,6 +1,7 @@
 """Web views for project data reports."""
 
 import csv
+import os
 from io import StringIO
 
 from flask import Blueprint
@@ -9,20 +10,26 @@ from flask import jsonify
 from flask import render_template
 from flask import request
 from flask import Response
+from flask import send_file
 from flask import url_for
 from flask_login import current_user
 from flask_login import login_required
 
 import settings
+from cache import cache
+from logger import logger
 from osprey.services import builtin_reports as builtin_report_service
 from osprey.services import reports as report_service
 from osprey.services import transcription_profile as transcription_profile_service
+from osprey.services.permissions import user_perms
 from web.errors import render_error
 from web.forms import LoginForm
+from web.sysadmin import sysadmin_allowed
 
 reports_bp = Blueprint('reports', __name__)
 
 RENDERING_PENDING = ' '
+CHART_CACHE_SECONDS = 900
 
 
 def _report_data_ready(rendering):
@@ -41,6 +48,63 @@ def _materialization_viewable(status):
         return True
     # Overnight re-queue sets status back to queued/running while prior artifacts remain.
     return status.get('last_succeeded_at') is not None
+
+
+def _visible_report(project_id, report_id):
+    """The project's report, or None if it is missing or not for this viewer.
+
+    A sysadmin-only report looks the same as a missing one to everyone else,
+    so every route here answers 404 for it and does not reveal it exists.
+    The same goes for a members-only built-in report and non-members.
+    """
+    report = report_service.get_project_report(project_id, report_id)
+    if report_service.is_sysadmin_only(report) and not sysadmin_allowed():
+        return None
+    if builtin_report_service.is_members_only(report) and not project_member(project_id):
+        return None
+    return report
+
+
+def project_member(project_id):
+    """True when the viewer is one of the project's users (qc_projects) or an admin."""
+    return user_perms(project_id) or user_perms('', user_type='admin')
+
+
+def chart_csv_response(chart, filename):
+    """The data table behind a chart spec, as a CSV download."""
+    columns = chart.get('table_columns') or []
+    output = StringIO()
+    writer = csv.writer(output, lineterminator='\n')
+    writer.writerow([col['label'] for col in columns])
+    for row in chart['table_rows']:
+        writer.writerow([row.get(col['key'], '') for col in columns])
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
+@cache.memoize(timeout=CHART_CACHE_SECONDS)
+def _load_chart(project_id, report_id, project_title):
+    """Built-in chart spec, kept briefly: several of these aggregate whole-project tables.
+
+    Callers check _visible_report first; the cached spec is the same for
+    everyone allowed to see the report.
+    """
+    return builtin_report_service.load_chart_report(project_id, report_id, project_title=project_title)
+
+
+def _artifact_link(project_alias, report, status, fmt):
+    """(file name, download URL) for a pregenerated csv/xlsx, or ('', '')."""
+    found = report_service.artifact_file(report, status, fmt)
+    if found is None:
+        return '', ''
+    kind, path = found
+    if kind == 'static':
+        return os.path.basename(path), url_for('static', filename=path)
+    return os.path.basename(path), url_for(
+        'reports.report_file', project_alias=project_alias, report_id=report['report_id'], fmt=fmt)
 
 
 def _render_transcription_profile(project_alias, project_id, project_info, report, username, asklogin, form):
@@ -91,30 +155,13 @@ def download_builtin_report_csv(project_alias=None, report_id=None):
     if project_id is None:
         return jsonify({'error': 'Project not found'}), 404
 
-    report = report_service.get_project_report(project_id, report_id)
+    report = _visible_report(project_id, report_id)
     if not builtin_report_service.is_builtin_chart_report(report):
         return jsonify({'error': 'Built-in chart report not found'}), 404
 
     project_info = report_service.get_project(project_id)
-    chart = builtin_report_service.load_chart_report(
-        project_id,
-        report_id,
-        project_title=project_info.get('project_title', ''),
-    )
-
-    columns = chart.get('table_columns') or []
-    output = StringIO()
-    writer = csv.writer(output, lineterminator='\n')
-    writer.writerow([col['label'] for col in columns])
-    for row in chart['table_rows']:
-        writer.writerow([row.get(col['key'], '') for col in columns])
-
-    filename = f'{project_alias}-{report_id}.csv'
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
-    )
+    chart = _load_chart(project_id, report_id, project_info.get('project_title', ''))
+    return chart_csv_response(chart, f'{project_alias}-{report_id}.csv')
 
 
 @reports_bp.route('/reports/<project_alias>/<report_id>/status', methods=['GET'], provide_automatic_options=False)
@@ -123,7 +170,7 @@ def report_status(project_alias=None, report_id=None):
     project_id = report_service.get_project_id(project_alias)
     if project_id is None:
         return jsonify({'error': 'Project not found'}), 404
-    project_report = report_service.get_project_report(project_id, report_id)
+    project_report = _visible_report(project_id, report_id)
     if project_report is None:
         return jsonify({'error': 'Report not found'}), 404
     if int(project_report.get('pregenerated') or 0) != 1:
@@ -158,7 +205,7 @@ def report_refresh(project_alias=None, report_id=None):
     project_id = report_service.get_project_id(project_alias)
     if project_id is None:
         return jsonify({'error': 'Project not found'}), 404
-    project_report = report_service.get_project_report(project_id, report_id)
+    project_report = _visible_report(project_id, report_id)
     if project_report is None:
         return jsonify({'error': 'Report not found'}), 404
     if int(project_report.get('pregenerated') or 0) != 1:
@@ -169,6 +216,37 @@ def report_refresh(project_alias=None, report_id=None):
     if not ok:
         return jsonify({'error': 'Failed to queue refresh'}), 500
     return jsonify({'result': True})
+
+
+@reports_bp.route('/reports/<project_alias>/<report_id>/file/<fmt>', methods=['GET'], provide_automatic_options=False)
+def report_file(project_alias=None, report_id=None, fmt=None):
+    """Latest CSV/XLSX of a pregenerated report.
+
+    Public reports' files are in static/ and this only redirects there.
+    Sysadmin-only reports' files are outside static/ and are sent from here,
+    after the same visibility check as the report page.
+    """
+    if fmt not in ('csv', 'xlsx'):
+        return render_error("File was not found.", 404, project_alias=project_alias)
+    project_id = report_service.get_project_id(project_alias)
+    project_report = _visible_report(project_id, report_id) if project_id is not None else None
+    if project_report is None or int(project_report.get('pregenerated') or 0) != 1:
+        return render_error("Report was not found.", 404, project_alias=project_alias)
+    found = report_service.artifact_file(
+        project_report, report_service.get_pregenerated_status(project_report), fmt)
+    if found is None:
+        return render_error("File was not found.", 404, project_alias=project_alias)
+    kind, path = found
+    if kind == 'static':
+        return redirect(url_for('static', filename=path))
+    try:
+        response = send_file(path, as_attachment=True, download_name=os.path.basename(path))
+    except OSError:  # boundary: file I/O; usually group permissions or the SELinux label (README)
+        logger.exception("sysadmin-only report file {} not readable".format(path))
+        return render_error("File could not be read.", 500, project_alias=project_alias)
+    logger.warning("{} downloaded {} of report {} / {}".format(
+        getattr(current_user, 'name', 'anonymous'), os.path.basename(path), project_alias, report_id))
+    return response
 
 
 @reports_bp.route('/reports/<project_alias>/<report_id>/', methods=['GET'], provide_automatic_options=False)
@@ -198,7 +276,7 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
         error_msg = "Project was not found."
         return render_error(error_msg, 404, project_alias=project_id)
 
-    project_report = report_service.get_project_report(project_id, report_id)
+    project_report = _visible_report(project_id, report_id)
     if project_report is None:
         error_msg = "Report was not found."
         return render_error(error_msg, 404, project_alias=project_alias)
@@ -211,11 +289,7 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
         )
 
     if builtin_report_service.is_builtin_chart_report(project_report):
-        chart = builtin_report_service.load_chart_report(
-            project_id,
-            report_id,
-            project_title=project_info.get('project_title', ''),
-        )
+        chart = _load_chart(project_id, report_id, project_info.get('project_title', ''))
         return render_template(
             'reports_chart.html',
             project_alias=project_alias,
@@ -259,7 +333,9 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
                 report=project_report,
             )
 
-        data_file, data_file_e, current_datetime_formatted, status = report_service.generate_pregenerated_report(project_report)
+        _csv, _xlsx, current_datetime_formatted, status = report_service.generate_pregenerated_report(project_report)
+        data_file, data_file_url = _artifact_link(project_alias, project_report, status, 'csv')
+        data_file_e, data_file_e_url = _artifact_link(project_alias, project_report, status, 'xlsx')
         pregenerated = 1
         tables = []
         preview = report_service.get_pregenerated_preview(project_report, limit=preview_limit)
@@ -277,8 +353,8 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
                 preview_row_count = status.get('row_count')
     else:
         report_data = report_service.get_report_data(project_report)
-        data_file = ""
-        data_file_e = ""
+        data_file = data_file_url = ""
+        data_file_e = data_file_e_url = ""
         current_datetime_formatted = ""
         status = None
         pregenerated = 0
@@ -300,6 +376,7 @@ def data_reports(project_alias=None, report_id=None, rendering=RENDERING_PENDING
                            preview_limit=preview_limit,
                            preview_row_count=preview_row_count,
                            data_file_e=data_file_e, report_data_updated=report_data_updated, form=form,
-                           data_file=data_file, pregenerated=pregenerated, report_date=current_datetime_formatted,
+                           data_file=data_file, data_file_url=data_file_url, data_file_e_url=data_file_e_url,
+                           pregenerated=pregenerated, report_date=current_datetime_formatted,
                            username=username, asklogin=asklogin,
                            materialization=status)

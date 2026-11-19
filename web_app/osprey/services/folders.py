@@ -32,7 +32,7 @@ def list_for_project(project_id, transcription, include_previews=True):
              " WHERE project_id = %(project_id)s"
              " GROUP BY f.folder_transcription_id, f.project_id, f.folder, f.folder_path, "
              "      f.status, f.preview_type, f.error_info, f.date, f.no_files,"
-             "      f.file_errors, q.qc_status"
+             "      f.file_errors, q.qc_status, f.delivered_to_dams"
              + previews_group +
              " ORDER BY f.date DESC, f.folder DESC"),
             {'project_id': project_id},
@@ -57,7 +57,7 @@ def list_for_project(project_id, transcription, include_previews=True):
          " WHERE project_id = %(project_id)s"
          " GROUP BY f.folder_id, f.project_id, f.project_folder, f.folder_path, "
          "      f.status, f.preview_type, f.error_info, f.date, f.no_files,"
-         "      f.file_errors, q.qc_status"
+         "      f.file_errors, q.qc_status, f.delivered_to_dams"
          + previews_group +
          " ORDER BY f.date DESC, f.project_folder DESC"),
         {'project_id': project_id},

@@ -1,6 +1,7 @@
 /**
  * Render Chart.js figures from data-chart-spec JSON.
- * Supports categorical and time-series x axes (x_scale: "time").
+ * Supports categorical and time-series x axes (x_scale: "time"), stacked
+ * series (stacked: true) and horizontal bars (index_axis: "y").
  */
 (function () {
     'use strict';
@@ -69,20 +70,39 @@
         };
     }
 
+    function buildValueScale(units) {
+        return {
+            beginAtZero: true,
+            title: {
+                display: !!units,
+                text: units
+            }
+        };
+    }
+
     function buildConfig(spec) {
         var chartType = spec.chart_js_type || 'bar';
         var units = spec.units || '';
         var useTime = spec.x_scale === 'time';
+        var horizontal = spec.index_axis === 'y';
         var data = {
             datasets: spec.datasets || []
         };
         if (!useTime) {
             data.labels = spec.labels || [];
         }
+        // Horizontal charts put the categories on y and the values on x.
+        var categoryScale = horizontal ? { ticks: { autoSkip: false } } : buildXScale(spec);
+        var valueScale = buildValueScale(units);
+        if (spec.stacked) {
+            categoryScale.stacked = true;
+            valueScale.stacked = true;
+        }
         return {
             type: chartType,
             data: data,
             options: {
+                indexAxis: horizontal ? 'y' : 'x',
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: prefersReducedMotion() ? false : undefined,
@@ -106,9 +126,12 @@
                                 return item.label || '';
                             },
                             label: function (context) {
-                                var value = context.parsed.y;
+                                var value = horizontal ? context.parsed.x : context.parsed.y;
                                 if (value === null || value === undefined) {
                                     value = context.parsed;
+                                }
+                                if (typeof value === 'number') {
+                                    value = value.toLocaleString();
                                 }
                                 var label = context.dataset.label || '';
                                 var text = label ? label + ': ' + value : String(value);
@@ -118,14 +141,8 @@
                     }
                 },
                 scales: {
-                    x: buildXScale(spec),
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: !!units,
-                            text: units
-                        }
-                    }
+                    x: horizontal ? valueScale : categoryScale,
+                    y: horizontal ? categoryScale : valueScale
                 }
             }
         };

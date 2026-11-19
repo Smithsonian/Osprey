@@ -191,6 +191,49 @@ def _cleanup_old_artifacts(materialized_view: str, keep_rel_paths: set[str], ret
             logger.exception(f"materialize_reports: failed to remove {path}")
 
 
+_PUBLIC_ARTIFACT_RE = r"_\d{8}_\d{6}\.(csv|xlsx)$"
+
+
+def _remove_artifacts(directory: str, stem: str, keep_names: set[str]) -> None:
+    """Remove every '<stem>_<YYYYmmdd_HHMMSS>.csv|xlsx' in directory except keep_names.
+
+    The full-name match (not a prefix test) keeps report 'a' from touching
+    the files of report 'a_b'.
+    """
+    if not os.path.isdir(directory):
+        return
+    pattern = re.compile("^" + re.escape(stem) + _PUBLIC_ARTIFACT_RE)
+    for name in os.listdir(directory):
+        if name in keep_names or not pattern.match(name):
+            continue
+        try:
+            os.remove(os.path.join(directory, name))
+            logger.info(f"materialize_reports: removed artifact {os.path.join(directory, name)}")
+        except OSError:
+            logger.exception(f"materialize_reports: failed to remove {os.path.join(directory, name)}")
+
+
+def _write_private_artifacts(project_id: int, report_id: str, materialized_view: str,
+                             df: pd.DataFrame, ts_compact: str) -> tuple[str, str]:
+    """Write a sysadmin-only report's CSV/XLSX outside static/; returns their names.
+
+    Files go to sysadmin_reports.ARTIFACT_DIR (0640, written then renamed) and
+    are served by the report page's gated download route. Only the newest run
+    is kept, and anything a public run of this report left in static/reports
+    is removed, since static/ is served to anyone.
+    """
+    out_dir = sysadmin_reports.ARTIFACT_DIR
+    os.makedirs(out_dir, exist_ok=True)
+    stem = report_service.private_artifact_base(project_id, report_id)
+    name_csv = f"{stem}_{ts_compact}.csv"
+    name_xlsx = f"{stem}_{ts_compact}.xlsx"
+    sysadmin_reports.write_atomic(os.path.join(out_dir, name_csv), lambda p: df.to_csv(p, index=False))
+    sysadmin_reports.write_atomic(os.path.join(out_dir, name_xlsx), lambda p: df.to_excel(p, index=False))
+    _remove_artifacts(out_dir, stem, {name_csv, name_xlsx})
+    _remove_artifacts("static/reports", materialized_view, set())
+    return name_csv, name_xlsx
+
+
 def _materialize_transcription_profile(project_id: int, report_id: str) -> None:
     """Built-in transcription profile: results go to DB tables, not CSV/XLSX artifacts."""
     start = time.time()
@@ -257,8 +300,7 @@ def _materialize_one(project_id: int, report_id: str) -> None:
         except Exception:
             source_updated_at = None
 
-        # Ensure static/reports exists.
-        Path("static/reports").mkdir(parents=True, exist_ok=True)
+        private = report_service.is_sysadmin_only(report)
 
         rep_timestamp = time.localtime()
         ts_compact = time.strftime("%Y%m%d_%H%M%S", rep_timestamp)
@@ -277,10 +319,18 @@ def _materialize_one(project_id: int, report_id: str) -> None:
 
         data = run_query(f"SELECT * FROM `{table_name}`", log_vals=False)
         df = pd.DataFrame(data if data else [])
-        df.to_csv(abs_csv, index=False)
-        df.to_excel(abs_xlsx, index=False)
-
-        _cleanup_old_artifacts(str(materialized_view), {rel_csv, rel_xlsx})
+        if private:
+            # Sysadmin-only: never written under static/, which anyone can read.
+            rel_csv, rel_xlsx = _write_private_artifacts(
+                project_id, report_id, str(materialized_view), df, ts_compact)
+        else:
+            Path("static/reports").mkdir(parents=True, exist_ok=True)
+            df.to_csv(abs_csv, index=False)
+            df.to_excel(abs_xlsx, index=False)
+            _cleanup_old_artifacts(str(materialized_view), {rel_csv, rel_xlsx})
+            # Files from when this report was sysadmin-only, if it ever was.
+            _remove_artifacts(sysadmin_reports.ARTIFACT_DIR,
+                              report_service.private_artifact_base(project_id, report_id), set())
 
         duration_ms = int((time.time() - start) * 1000)
         _set_status(

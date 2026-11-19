@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Overnight pregenerated report refresh.
 #
+# First recalculates projects_stats for ongoing projects and stores this
+# year's new images and objects per project (scripts/nightly_project_stats.py).
+#
 # Queues every data_reports row with pregenerated=1, then drains the
 # report_materializations queue until empty.
 #
@@ -29,6 +32,12 @@ if [[ -z "${PYTHON}" ]]; then
 fi
 
 export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+
+# Recalculate ongoing projects' totals, then store this year's new images and
+# objects per project for the homepage's "+N in <year>". Its failure
+# (e.g. db/projects_stats_yearly.sql not applied yet) must not stop the reports.
+echo "$(date -Is) recalculating project totals and this year's counts"
+"${PYTHON}" scripts/nightly_project_stats.py || echo "$(date -Is) WARNING: project stats step reported problems"
 
 echo "$(date -Is) queueing pregenerated reports"
 "${PYTHON}" scripts/queue_nightly_reports.py

@@ -135,7 +135,9 @@ def resolve_image_viewer(folder_id, file_id, file_name, *, transcription=False):
         if iiif_found:
             zoom_exists = 2
             manifest_id = _iiif_manifest_id(folder_id, file_name, transcription)
-            iiif_image = f"/iiif/3/{manifest_id}/info.json"
+            # settings.py files that predate iiif_url keep the old default
+            iiif_base = (getattr(settings, 'iiif_url', '') or '/iiif/3').rstrip('/')
+            iiif_image = f"{iiif_base}/{manifest_id}/info.json"
     else:
         logger.info("IIIF lookup for file_id=%s: skipped (iiif_enabled=False)", file_id)
 

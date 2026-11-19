@@ -280,7 +280,7 @@ who can open it.
 | API keys | keys masked to the last 4 characters, expiry, last use, calls in the past 24h, recent invalid attempts | `api_keys`, `api_keys_usage` |
 | Kiosks | latest check-in per machine over the past 30 days, compared with `OSPREY_KIOSKS` | `kiosk` |
 | Audit | `audit_log` events newest first, filtered by project, type, action, who, dates or text; click a folder/file for its history, or an event for its request details from `ospreyaudit.log` (current and rotated files on this server) | `audit_log` |
-| Reports | each `data_reports` row as live or pregenerated, with last materialization | `data_reports`, `report_materializations` |
+| Reports | each `data_reports` row as live or pregenerated, who can see it (everyone or sysadmins), with last materialization | `data_reports`, `report_materializations` |
 | Generate Reports | sysadmin-only report queries by project: live ones run on click (preview + CSV); pregenerated ones are queued and downloaded as CSV/XLSX | `sysadmin_reports`, `report_materializations` |
 | Data Entry | choose a project, then a data type, then add/remove its list of values (e.g. folder names a report treats differently) | `project_custom_types`, `project_custom_values` |
 
@@ -324,6 +324,19 @@ Notes:
   only the newest run is kept. The cron user writes that folder and the
   web server reads it, so both need a shared group. On RHEL the folder
   also needs an SELinux label httpd can read (see deploy notes).
+- **Sysadmin-only project reports** — a `data_reports` row with
+  `sysadmin_only = 1` (apply `db/data_reports_sysadmin_only.sql`; set the
+  flag by hand) stays a normal project report, with its chip on the
+  dashboard and its page under `/reports/<alias>/<report_id>/`, but only
+  sysadmins see either. Everyone else gets a 404, and the API leaves it
+  out. A pregenerated one writes its CSV/XLSX to `sysadmin_reports_folder`
+  instead of `static/reports/` and serves them from
+  `/reports/<alias>/<report_id>/file/<csv|xlsx>`. Files move on the next
+  run: after changing the flag on a pregenerated report, click **Requeue**
+  on the Reports tab, because the last public run's files stay in
+  `static/reports/` until that run finishes. Use this for a report that
+  belongs with a project; use `sysadmin_reports` for one that should not
+  appear on a dashboard at all.
 - **Set inactive** sets `users.user_active = 0`. `/login` already refuses
   inactive users, and an open session stops authenticating on the user's
   next request. Project assignments and QC history are kept. You cannot
@@ -371,6 +384,13 @@ Configuration is read from `settings.py`, which takes every value from
 environment variables (see the template for the full list: `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`, `LDAP_SERVER`, ...).
 `settings.py` is gitignored — never commit credentials.
+
+To serve the app under a sub-path (e.g. `https://host/osprey/`), set
+`APP_ROOT=/osprey`. It is applied as the WSGI script root, so links,
+redirects, static files and the session cookie all carry the prefix; the
+reverse proxy can forward the path with or without the prefix. Build URLs
+with `url_for` (or `request.script_root` where that is not possible), never
+with a hardcoded leading `/`.
 
 ## Run (development)
 

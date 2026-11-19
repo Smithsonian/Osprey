@@ -51,15 +51,24 @@ def enrich_project_details(project_row):
         str(v['project_postprocessing']) for v in project_postprocessing
     )
     project_stats = run_query(
-        ("SELECT collex_total, objects_digitized, images_taken "
+        # project_ok / project_err / other_stat feed the dashboard stat cards
+        # during its background refresh.
+        ("SELECT collex_total, objects_digitized, images_taken, "
+         "project_ok, project_err, other_stat "
          "FROM projects_stats WHERE project_id = %(project_id)s"),
         {'project_id': project_id},
     )
     project_row['project_stats'] = project_stats[0]
-    project_row['reports'] = run_query(
-        "SELECT report_id, report_title FROM data_reports WHERE project_id = %(project_id)s",
-        {'project_id': project_id},
-    )
+    # SELECT * so the sysadmin_only check works before and after
+    # db/data_reports_sysadmin_only.sql; sysadmin-only reports stay out of the API.
+    project_row['reports'] = [
+        {'report_id': row['report_id'], 'report_title': row['report_title']}
+        for row in run_query(
+            "SELECT * FROM data_reports WHERE project_id = %(project_id)s",
+            {'project_id': project_id},
+        )
+        if not row.get('sysadmin_only')
+    ]
     return project_row
 
 
@@ -251,10 +260,11 @@ def update_project(project_alias, project_id, p_title, p_status, p_start, p_desc
                  note="status: {}".format(p_status))
 
 
-def list_informatics_projects():
+def list_informatics_projects(script_root=''):
+    """List informatics projects; script_root prefixes the links built in SQL."""
     inf_section_query = (" SELECT "
                      " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CONCAT('<strong><a href=\"/infprojects/', p.proj_id, '\">', p.project_title, '</a></strong><br>', p.summary) as project_title, "
+                     " CONCAT('<strong><a href=\"', %(script_root)s, '/infprojects/', p.proj_id, '\">', p.project_title, '</a></strong><br>', p.summary) as project_title, "
                      " p.project_status, "
                      " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
                      "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
@@ -269,7 +279,7 @@ def list_informatics_projects():
                      " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
                      " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
                      " ORDER BY p.project_start DESC, p.project_end DESC")
-    return run_query(inf_section_query)
+    return run_query(inf_section_query, {'script_root': script_root})
 
 
 def get_informatics_project(proj_id):

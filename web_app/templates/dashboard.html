@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/_report_menus.html" import report_menus %}
 
 {% block title %}{{ project_info.project_title }} Dashboard, {{ folder_name.project_folder }} - {{ page_no }}{% endblock %}
 
@@ -16,22 +17,7 @@
 {% block content %}
 
 
-{% if recent_images|length > 10 %}
-<div class="row">
-    <div class="col">
-        <div class="dashboard-recent-images">
-            <h4>Recent images:</h4>
-                {% for img in recent_images %}
-                    <a href="{{ url_for('files.file', file_id=img.file_id) }}"
-                       aria-label="Open file {{ img.file_name or img.file_id }}">
-                      <img src="{{ url_for('static', filename=img.preview) }}" alt="">
-                    </a>
-                {% endfor %}
-        </div>
-        <br>
-    </div>
-</div>
-{% endif %}
+
 
 
 <div class="row g-3 mb-4">
@@ -128,31 +114,7 @@
       {% endfor %}
     </div>
 
-{% if reports|length > 0 %}
-  <div class="dashboard-report-chips mt-2 pt-2 border-top">
-    <div class="small text-muted mb-1">Data reports</div>
-    <div class="dashboard-fact-chips" role="list" aria-label="Data reports">
-      {% for report in reports %}
-        <a href="{{ url_for('reports.data_reports', project_alias=project_alias, report_id=report.report_id) }}"
-           role="listitem"
-           class="dashboard-fact-chip dashboard-fact-chip-link dashboard-report-chip"
-           title="{{ report.report_title }}">
-          <i class="fa-solid fa-chart-column fa-fw" aria-hidden="true"></i>
-          {{ report.report_title_brief }}
-          {% if report.render == 'transcription_profile' %}
-            <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Nightly</span>
-          {% elif report.builtin %}
-            <span class="badge rounded-pill text-bg-success dashboard-report-chip-badge">Chart</span>
-          {% elif report.pregenerated == 1 %}
-            <span class="badge rounded-pill text-bg-secondary dashboard-report-chip-badge">Export</span>
-          {% else %}
-            <span class="badge rounded-pill text-bg-info dashboard-report-chip-badge">Live</span>
-          {% endif %}
-        </a>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
+{{ report_menus(reports, project_alias) }}
   </div>
 </div>
     </div>
@@ -171,7 +133,7 @@
           <i class="fa-solid fa-image" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.total | default('0') }}</div>
+          <div class="fs-4 fw-semibold lh-1" data-stat="total">{{ project_stats.total | default('0') }}</div>
           <div class="text-muted small">Images</div>
         </div>
       </div>
@@ -184,7 +146,7 @@
           <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.objects | default('0') }}</div>
+          <div class="fs-4 fw-semibold lh-1" data-stat="objects">{{ project_stats.objects | default('0') }}</div>
           <div class="text-muted small">{{ project_info.obj_type }}</div>
         </div>
       </div>
@@ -197,8 +159,8 @@
           <i class="fa-solid fa-square-check" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.ok | default('0') }}</div>
-          <div class="text-muted small">OK{% if total_num > 0 %} ({{ ok_pct }}%){% endif %}</div>
+          <div class="fs-4 fw-semibold lh-1" data-stat="ok">{{ project_stats.ok | default('0') }}</div>
+          <div class="text-muted small">OK<span data-stat="ok-pct">{% if total_num > 0 %} ({{ ok_pct }}%){% endif %}</span></div>
         </div>
       </div>
     </div>
@@ -210,39 +172,35 @@
           <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
         </div>
         <div>
-          <div class="fs-4 fw-semibold lh-1">{{ project_stats.errors | default('0') }}</div>
-          <div class="text-muted small">Errors{% if total_num > 0 %} ({{ error_pct }}%){% endif %}</div>
+          <div class="fs-4 fw-semibold lh-1" data-stat="errors">{{ project_stats.errors | default('0') }}</div>
+          <div class="text-muted small">Errors<span data-stat="errors-pct">{% if total_num > 0 %} ({{ error_pct }}%){% endif %}</span></div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-{% if total_num > 0 %}
-  <div class="mb-3" title="Share of images that pass all checks">
-    <div class="d-flex justify-content-between small text-muted mb-1">
-      <span>Check pass rate</span>
-      <span>{{ ok_pct }}% OK · {{ error_pct }}% errors</span>
-    </div>
-    <div class="progress dashboard-progress" role="progressbar"
-         aria-valuenow="{{ ok_pct }}" aria-valuemin="0" aria-valuemax="100"
-         aria-label="Check pass rate">
-      {% if ok_pct > 0 %}
-        <div class="progress-bar bg-success" style="width: {{ ok_pct }}%"></div>
-      {% endif %}
-      {% if error_pct > 0 %}
-        <div class="progress-bar bg-danger" style="width: {{ error_pct }}%"></div>
-      {% endif %}
-    </div>
+{# Always rendered so the background refresh can fill it in; hidden while there are no images. #}
+<div class="mb-3{% if total_num == 0 %} d-none{% endif %}" id="dashboard-pass-rate" title="Share of images that pass all checks">
+  <div class="d-flex justify-content-between small text-muted mb-1">
+    <span>Check pass rate</span>
+    <span id="dashboard-pass-rate-text">{{ ok_pct }}% OK · {{ error_pct }}% errors</span>
   </div>
-{% endif %}
+  <div class="progress dashboard-progress" role="progressbar" id="dashboard-pass-rate-bar"
+       aria-valuenow="{{ ok_pct }}" aria-valuemin="0" aria-valuemax="100"
+       aria-label="Check pass rate">
+    <div class="progress-bar bg-success" data-stat="ok-bar" style="width: {{ ok_pct }}%"></div>
+    <div class="progress-bar bg-danger" data-stat="errors-bar" style="width: {{ error_pct }}%"></div>
+  </div>
+</div>
 
 <div class="row g-3 align-items-end mb-3">
   <div class="col-md">
-    {% if project_stats_other is defined and project_stats_other.other_stat | default('0') != "0" %}
-      <div class="alert alert-warning py-2 mb-md-0 small" title="{{ project_stats_other.other_name }} in this project">
+    {% if project_stats_other is defined and project_stats_other.other_name %}
+      <div class="alert alert-warning py-2 mb-md-0 small{% if project_stats_other.other_stat | default('0') == "0" %} d-none{% endif %}"
+           id="dashboard-other-stat" title="{{ project_stats_other.other_name }} in this project">
         {{ project_stats_other.other_icon | safe }}
-        <strong>{{ project_stats_other.other_stat }}</strong> {{ project_stats_other.other_name }}
+        <strong data-stat="other">{{ project_stats_other.other_stat }}</strong> {{ project_stats_other.other_name }}
       </div>
     {% endif %}
   </div>
@@ -290,7 +248,9 @@
 <div class="dashboard-folder-panel"
      id="dashboard-folder-panel"
      data-folders-url="{{ url_for('api.api_get_project_details', project_alias=project_alias) }}"
+     data-app-root="{{ request.script_root }}"
      data-project-alias="{{ project_alias }}"
+     data-project-title="{{ project_info.project_title }}"
      data-selected-folder-id="{{ folder_id if folder_id is not none else '' }}"
      data-transcription="{{ 1 if transcription == 1 else 0 }}"
      data-qc-enabled="{{ 0 if project_info.qc_status == 0 else 1 }}">
@@ -405,83 +365,88 @@
 
     {% if folder_name != None %}
 
-        <!-- This folder badges (updated by dashboard_folders.js on soft folder change) -->
-        <div id="dashboard-folder-badges" style="text-align: right;">
-            {% if folder_badges != None %}
-                {% if files_count != "0 files" and files_count != "0" %}
-                    &nbsp;<span class="badge bg-primary" title="{{ files_count }} Files">{{ files_count }} Files</span>
+        {# One header for the open folder: name, status chips and last update.
+           dashboard_folders.js keeps it current on soft folder switches. #}
+        <header class="dashboard-folder-header" id="dashboard-folder-header">
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-2">
+                <div>
+                    <span class="dashboard-folder-header-label">Folder</span>
+                    <h2 class="h4 mb-0" id="dashboard-folder-title">{{ folder_name.project_folder }}</h2>
+                </div>
+                <span class="small text-muted">Last updated <span id="dashboard-folder-last-updated">{{ fol_last_update }}</span></span>
+            </div>
+            <div id="dashboard-folder-badges" class="dashboard-folder-header-chips">
+                {% if folder_badges != None %}
+                    {% if files_count != "0 files" and files_count != "0" %}
+                        <span class="badge text-bg-primary">{{ files_count }} files</span>
+                    {% endif %}
+                    {% for folder_badge in folder_badges %}
+                        <span class="badge {{ folder_badge.badge_css }}">{{ folder_badge.badge_text }}</span>
+                    {% endfor %}
                 {% endif %}
-
-                {% for folder_badge in folder_badges %}
-                    &nbsp;<span class="badge {{ folder_badge.badge_css }}" title="{{ folder_badge.badge_text }}">{{ folder_badge.badge_text }}</span>
-                {% endfor %}
+            </div>
+            {% if folder_links | length > 0 %}
+                {# Server-rendered for the folder the page was opened on;
+                   hidden by dashboard_folders.js after a soft folder switch. #}
+                <div class="dashboard-folder-header-links small" id="dashboard-folder-links">
+                    <i class="fa-solid fa-link text-muted" aria-hidden="true"></i>
+                    <span class="text-muted">Links for this folder:</span>
+                    {% for link in folder_links %}
+                        <a href="{{ link.link_url }}">{{ link.link_text }}</a>{% if not loop.last %}<span class="text-muted" aria-hidden="true"> · </span>{% endif %}
+                    {% endfor %}
+                </div>
             {% endif %}
-        </div>
-
+        </header>
 
         <!-- Accessible jump to files -->
         <div id="filestable"></div>
 
-        <!-- Choose view -->
-            <nav aria-label="Folder views">
+        {# Tabs switch in place (dashboard_folders.js); the hrefs still work
+           without JavaScript and for opening a tab in a new window. #}
+        {% set show_lightbox = site_net == "internal" %}
+        {% set show_postprod = postproc_data or tab == "postprod" %}
+        <nav aria-label="Folder views">
             <ul class="nav nav-tabs dashboard-tabs">
                 <li class="nav-item">
-                    <a href="{% if tab == "filechecks" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="filechecks") }}{% endif %}"
-                       title="Link to the file checks of the folder"
+                    <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id) }}"
                        class="nav-link {% if tab == "filechecks" %}active{% endif %}"
                        data-tab="filechecks"
+                       data-tab-title="File Checks"
                        {% if tab == "filechecks" %}aria-current="page"{% endif %}>File Checks</a>
                 </li>
-                {% if site_net == "internal" %}
+                {% if show_lightbox %}
                 <li class="nav-item">
-                    <a href="{% if tab == "lightbox" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}{% endif %}"
-                       title="Link to view image previews in a lightbox of the folder"
+                    <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="lightbox") }}"
                        class="nav-link {% if tab == "lightbox" %}active{% endif %}"
                        data-tab="lightbox"
+                       data-tab-title="Lightbox"
                        {% if tab == "lightbox" %}aria-current="page"{% endif %}>Lightbox</a>
                 </li>
                 {% endif %}
-                {% if postproc_data %}
+                {% if show_postprod %}
                 <li class="nav-item">
-                    <a href="{% if tab == "postprod" %}#{% else %}{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}{% endif %}"
-                       title="Link to view the post-production steps of the folder"
+                    <a href="{{ url_for('dashboard_f', project_alias=project_alias, folder_id=folder_id, tab="postprod") }}"
                        class="nav-link {% if tab == "postprod" %}active{% endif %}"
                        data-tab="postprod"
+                       data-tab-title="Post-Production Steps"
                        {% if tab == "postprod" %}aria-current="page"{% endif %}>Post-Production</a>
                 </li>
                 {% endif %}
             </ul>
-            </nav>
+        </nav>
 
         <div class="dashboard-tab-panel">
 
-        {% if tab == "filechecks" %}
+        <section data-tab-pane="filechecks" aria-label="File checks"{% if tab != "filechecks" %} hidden{% endif %}>
 
-                {% if folder_links | length > 0 %}
 
-                    <div class="pb-1 float-end">
-                        <div class="card text-bg-light border-dark">
-                            <div class="card-header">
-                                Links related to this folder
-                            </div>
-                            <div class="card-body">
-                                <ul class="list-group list-group-flush">
-                                    {% for link in folder_links %}
-                                        <li class="list-group-item"><a href="{{ link.link_url }}" title="Link for {{ link.link_text }}" class="card-link">{{ link.link_text }}</a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                {% endif %}
 
 <div id="dashboard-qc-panel"
      data-qc-url="{{ url_for('api.api_get_folder_qc', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-transcription="{{ transcription }}"
-     data-app-root="{{ app_root or '' }}">
+     data-app-root="{{ request.script_root }}">
 
     <div id="dashboard-qc-loading" class="text-muted small py-1">
         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
@@ -495,7 +460,7 @@
             <div class="col">
                 <div class="accordion" id="qc_accordion">
                     <div class="accordion-item">
-                        <h2 class="accordion-header" id="qc_accordion_heading">
+                        <h3 class="accordion-header" id="qc_accordion_heading">
                             <button class="accordion-button collapsed"
                                     type="button"
                                     data-bs-toggle="collapse"
@@ -504,7 +469,7 @@
                                     aria-controls="qc_accordion_panel">
                                 <span id="dashboard-qc-summary">Visual Image QC</span>
                             </button>
-                        </h2>
+                        </h3>
                         <div id="qc_accordion_panel"
                              class="accordion-collapse collapse"
                              aria-labelledby="qc_accordion_heading"
@@ -524,9 +489,9 @@
                 {% if transcription == 1 %}
 <div id="dashboard-transcription-qc-panel"
      data-qc-url="{{ url_for('api.api_get_folder_transcription_qc', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
-     data-app-root="{{ app_root or '' }}">
+     data-app-root="{{ request.script_root }}">
 
     <div id="dashboard-transcription-qc-loading" class="text-muted small py-1">
         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
@@ -543,7 +508,7 @@
 <div id="dashboard-transcription-fill-panel"
      class="d-none"
      data-fill-url="{{ url_for('api.api_get_folder_transcription_fill', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-report-url="{{ url_for('reports.data_reports', project_alias=project_alias, report_id='transcription_profile') }}">
     {# Same block/accordion styling as the QC panels above; items are built per source in JS. #}
@@ -555,14 +520,14 @@
 <div id="dashboard-files-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-transcription="{{ transcription }}"
-     data-app-root="{{ app_root or '' }}"
+     data-app-root="{{ request.script_root }}"
      data-check-labels='{{ file_check_labels | tojson }}'>
     <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-            <h2 class="h5 mb-0">Files in folder <span id="dashboard-files-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <h3 class="h5 mb-0">Files in folder <span id="dashboard-files-folder-name">{{ folder_name.project_folder }}</span></h3>
             <span id="dashboard-files-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
         </div>
         <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by check status">
@@ -582,17 +547,19 @@
 </div>
 
 
-        {% elif tab == "lightbox" %}
-            {% if site_net == "internal" %}
+        </section>
+
+        {% if show_lightbox %}
+        <section data-tab-pane="lightbox" aria-label="Lightbox"{% if tab != "lightbox" %} hidden{% endif %}>
 <div id="dashboard-lightbox-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0 dashboard-lightbox-panel"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-transcription="{{ transcription }}"
-     data-app-root="{{ app_root or '' }}">
+     data-app-root="{{ request.script_root }}">
     <div class="card-header dashboard-files-card-header">
-        <h2 class="h5 mb-0">Image Previews for the Folder <span id="dashboard-lightbox-folder-name">{{ folder_name.project_folder }}</span></h2>
+        <h3 class="h5 mb-0">Image Previews for the Folder <span id="dashboard-lightbox-folder-name">{{ folder_name.project_folder }}</span></h3>
         <span class="text-muted small">Sorted by file name</span>
     </div>
     <div class="card-body">
@@ -614,20 +581,21 @@
         </div>
     </div>
 </div>
-            {% endif %}
+        </section>
+        {% endif %}
 
-        {% elif tab == "postprod" %}
-
+        {% if show_postprod %}
+        <section data-tab-pane="postprod" aria-label="Post-production"{% if tab != "postprod" %} hidden{% endif %}>
 <div id="dashboard-postprod-panel"
      class="card dashboard-files-card border-dark mb-3 mt-0"
      data-files-url="{{ url_for('api.api_get_folder_files', folder_id=folder_id) }}"
-     data-api-path="/api/folders/"
+     data-api-path="{{ request.script_root }}/api/folders/"
      data-folder-id="{{ folder_id }}"
      data-transcription="{{ transcription }}"
-     data-app-root="{{ app_root or '' }}">
+     data-app-root="{{ request.script_root }}">
     <div class="card-header dashboard-files-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-            <h2 class="h5 mb-0">Post-Production Steps for the Folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h2>
+            <h3 class="h5 mb-0">Post-Production Steps for the Folder <span id="dashboard-postprod-folder-name">{{ folder_name.project_folder }}</span></h3>
             <span id="dashboard-postprod-count" class="text-muted small">{{ files_count }} file{% if files_count != 1 %}s{% endif %}</span>
         </div>
         <div class="dashboard-files-filters btn-group btn-group-sm" role="group" aria-label="Filter files by post-production status">
@@ -646,16 +614,51 @@
     </div>
 </div>
 
-        {% else %}
-            &nbsp;
+        </section>
         {% endif %}
 
         </div>
 
-        <br><p>Folder last updated on <span id="dashboard-folder-last-updated">{{ fol_last_update }}</span>.</p>
-
     {% else %}
-        <p>Select a folder on the left</p>
+
+        {# No folder open: point at the folders that need work (filled by dashboard_folders.js). #}
+        <section class="card border-0 shadow-sm mb-3 dashboard-attention-summary"
+                 id="dashboard-attention-summary"
+                 aria-labelledby="dashboard-attention-heading">
+            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h2 class="h5 mb-0" id="dashboard-attention-heading">Folders needing attention</h2>
+                <span class="small text-muted" id="dashboard-attention-subtitle"></span>
+            </div>
+            <div class="card-body" id="dashboard-attention-body" aria-live="polite">
+                <p class="text-muted mb-0">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Loading folders…
+                </p>
+            </div>
+        </section>
+
+        <p class="small text-muted">
+            To open any folder, pick it from the folder list<span class="d-none d-lg-inline"> on the left</span><span class="d-lg-none"> above</span>.
+        </p>
+
+        {% if recent_images|length > 10 %}
+        <section class="card border-0 shadow-sm mb-3" aria-labelledby="dashboard-recent-heading">
+            <div class="card-header bg-white">
+                <h2 class="h6 mb-0" id="dashboard-recent-heading">Recent images</h2>
+            </div>
+            <div class="card-body py-2">
+                <div class="dashboard-recent-images">
+                    {% for img in recent_images %}
+                        <a href="{{ url_for('files.file', file_id=img.file_id) }}"
+                           aria-label="Open file {{ img.file_name or img.file_id }}">
+                          <img src="{{ url_for('static', filename=img.preview) }}" alt="" loading="lazy" height="120">
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
     {% endif %}
 
     </div>
@@ -682,27 +685,5 @@
 <script src="{{ url_for('static', filename='js/dashboard_transcription_fill.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_lightbox.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_postprocessing.js') }}"></script>
-
-{% if folder_id != None %}
-
-    <script>
-        $(document).ready(function () {
-        {% if tab == "filechecks" %}
-            OspreyDashboardFiles.loadFromPanel();
-            OspreyDashboardQc.loadFromPanel();
-            {% if transcription == 1 %}
-            OspreyDashboardTranscriptionQc.loadFromPanel();
-            OspreyDashboardTranscriptionFill.loadFromPanel();
-            {% endif %}
-        {% elif tab == "lightbox" %}
-            OspreyDashboardLightbox.loadFromPanel();
-        {% elif tab == "postprod" %}
-            OspreyDashboardPostprocessing.loadFromPanel();
-        {% endif %}
-            // Data refreshes in the background (dashboard_folders.js); no page reload.
-        });
-    </script>
-
-    {% endif %}
 
 {% endblock %}

@@ -64,7 +64,7 @@
         var link = reportUrl + '?source_id=' + encodeURIComponent(source.source_id);
 
         return '<div class="accordion-item">' +
-            '<h2 class="accordion-header" id="' + headingId + '">' +
+            '<h3 class="accordion-header" id="' + headingId + '">' +
                 '<button class="accordion-button collapsed" type="button" ' +
                         'data-bs-toggle="collapse" data-bs-target="#' + panelId + '" ' +
                         'aria-expanded="false" aria-controls="' + panelId + '">' +
@@ -72,7 +72,7 @@
                     // Shared denominator for all fields, shown once instead of a per-row column.
                     '<span class="badge bg-secondary ms-2">' + filesLabel(source.total_files) + '</span>' +
                 '</button>' +
-            '</h2>' +
+            '</h3>' +
             '<div id="' + panelId + '" class="accordion-collapse collapse" ' +
                  'aria-labelledby="' + headingId + '" data-bs-parent="#transcription_fill_accordion">' +
                 '<div class="accordion-body">' +

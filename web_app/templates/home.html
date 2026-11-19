@@ -8,16 +8,20 @@
 
 {% block content %}
 
-{% macro projects_table(table_title, tables, footnotes=None) %}
+{% macro projects_table(table_title, tables=None, footnotes=None) %}
 <div class="card border-0 shadow-sm homepage-table-card mb-4">
   <div class="card-header bg-dark text-white py-2">
     <h2 class="h6 mb-0">{{ table_title }}</h2>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive homepage-table-wrap">
-      {% for table in tables %}
-        {{ table|safe }}
-      {% endfor %}
+      {% if caller is defined %}
+        {{ caller() }}
+      {% else %}
+        {% for table in tables %}
+          {{ table|safe }}
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
   {% if footnotes %}
@@ -30,6 +34,61 @@
 </div>
 {% endmacro %}
 
+{% macro project_rows_table(table_id, rows, show_public=False, show_sparklines=False) %}
+<table id="{{ table_id }}" class="display table table-hover homepage-project-table w-100">
+  <thead>
+    <tr>
+      <th scope="col">Unit</th>
+      <th scope="col">Title</th>
+      <th scope="col">Status</th>
+      <th scope="col"><abbr title="Project Manager">PM</abbr></th>
+      <th scope="col">Dates</th>
+      <th scope="col">Specimens/Objects Digitized</th>
+      <th scope="col">Images Captured</th>
+      {% if show_public %}<th scope="col">Images Public</th>{% endif %}
+      {% if show_sparklines %}<th scope="col">Images per Month<br><small>last 12 months</small></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{% if row.unit_fullname %}<abbr title="{{ row.unit_fullname }}">{{ row.unit }}</abbr>{% else %}{{ row.unit }}{% endif %}</td>
+      <td>
+        {% if row.alias %}
+          <a href="{{ url_for('dashboard', project_alias=row.alias) }}">{{ row.title }}</a>
+        {% else %}
+          {{ row.title }}
+        {% endif %}
+        {% if row.progress is not none %}
+          <br><small>Estimated Progress: {{ row.progress }} %
+            <div class="progress dashboard-progress" role="progressbar" aria-label="Estimated progress of {{ row.title }}"
+                 aria-valuenow="{{ row.progress_bar }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar bg-success" style="width: {{ row.progress_bar }}%"></div>
+            </div>
+          </small>
+        {% endif %}
+      </td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.manager }}</td>
+      <td data-order="{{ row.start }}">{{ row.dates }}</td>
+      <td data-order="{{ row.objects }}">{{ row.objects_text }}</td>
+      <td data-order="{{ row.images }}">{{ row.images_text }}</td>
+      {% if show_public %}<td data-order="{{ row.images_public }}">{{ row.images_public_text }}</td>{% endif %}
+      {% if show_sparklines %}<td>{{ row.sparkline | safe }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{% macro year_line(change, key) %}
+  {% if change and change[key] %}
+    <div class="small homepage-stat-delta">
+      +{{ '{:,}'.format(change[key]) }} in {{ change.year }}
+    </div>
+  {% endif %}
+{% endmacro %}
+
 <div class="homepage-page">
 
   <div class="mb-3">
@@ -37,32 +96,39 @@
     <p class="text-muted small mb-0">Stats as of {{ last_update }}</p>
   </div>
 
-  <ul class="nav nav-tabs dashboard-tabs homepage-tabs flex-wrap" role="tablist" aria-label="Select team">
-    <li class="nav-item" role="presentation">
+  {# Each "tab" opens its own page, so this is navigation, not an ARIA tab list. #}
+  <nav aria-label="Select team">
+  <ul class="nav nav-tabs dashboard-tabs homepage-tabs flex-wrap">
+    <li class="nav-item">
       <a class="nav-link {% if team == 'summary' %}active{% endif %}"
          href="{{ url_for('homepage') }}"
          {% if team == 'summary' %}aria-current="page"{% endif %}>
         <i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Summary</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item">
       <a class="nav-link {% if team == 'md' %}active{% endif %}"
          href="{{ url_for('homepage', team='md') }}"
          {% if team == 'md' %}aria-current="page"{% endif %}>
         <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i> Mass Digitization</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item">
       <a class="nav-link {% if team == 'is' %}active{% endif %}"
          href="{{ url_for('homepage', team='is') }}"
          {% if team == 'is' %}aria-current="page"{% endif %}>
         <i class="fa-solid fa-camera" aria-hidden="true"></i> Imaging Services</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item">
       <a class="nav-link {% if team == 'inf' %}active{% endif %}"
          href="{{ url_for('homepage', team='inf') }}"
          {% if team == 'inf' %}aria-current="page"{% endif %}>
         <i class="fa-solid fa-laptop-code" aria-hidden="true"></i> Informatics</a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('trends.program_trends_page') }}">
+        <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Trends</a>
+    </li>
   </ul>
+  </nav>
 
   <div class="dashboard-tab-panel">
 
@@ -119,6 +185,7 @@
         <div>
           <div class="fs-4 fw-semibold lh-1">{{ summary_stats.objects_digitized }}</div>
           <div class="text-muted small">Specimens/Objects Digitized</div>
+          {{ year_line(year_change, 'objects') }}
         </div>
       </div>
     </div>
@@ -132,6 +199,7 @@
         <div>
           <div class="fs-4 fw-semibold lh-1">{{ summary_stats.images_captured }}</div>
           <div class="text-muted small">Images Captured</div>
+          {{ year_line(year_change, 'images') }}
         </div>
       </div>
     </div>
@@ -145,6 +213,9 @@
         <div>
           <div class="fs-4 fw-semibold lh-1">{{ summary_stats.images_public }}</div>
           <div class="text-muted small">Images Public</div>
+          {% if public_share is not none %}
+            <div class="small homepage-stat-delta">{{ public_share }}% of images captured</div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -195,7 +266,7 @@
         </div>
         <div class="card-body">
 <div class="row g-4">
-  {% for project in featured_projects %}
+  {% for project in featured_projects | default([]) %}
   <div class="col-md-6">
     <div class="card border-0 shadow-sm h-100 homepage-featured-card">
       <div class="row g-0 h-100">
@@ -221,7 +292,8 @@
         <div class="col-8">
           <div class="card-body d-flex flex-column h-100">
             <h3 class="h5 card-title">{{ project.title }}</h3>
-            <p class="card-text flex-grow-1">{{ project.body|safe }}</p>
+            {# From projects.project_description; empty when the project has none. #}
+            <p class="card-text flex-grow-1">{% if project.description %}{{ project.description }}{% endif %}</p>
             {% if project.link_type == 'dashboard' %}
             <a href="{{ url_for('dashboard', project_alias=project.project_alias) }}"
                class="btn btn-osprey btn-sm align-self-start"
@@ -255,7 +327,9 @@
         </div>
       </div>
 
-      {{ projects_table('Mass Digitization Projects', tables_md, ['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.']) }}
+      {% call projects_table('Mass Digitization Projects', footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.']) %}
+        {{ project_rows_table('list_projects_md', project_rows, show_sparklines=show_sparklines) }}
+      {% endcall %}
 
     {% elif team == "is" %}
 
@@ -267,7 +341,9 @@
         </div>
       </div>
 
-      {{ projects_table(is_table_title, tables_is, ['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.']) }}
+      {% call projects_table(is_table_title, footnotes=['* Value was estimated', 'We thank DAMS for providing DPO with access to their data.']) %}
+        {{ project_rows_table('list_projects_is', project_rows, show_public=True, show_sparklines=show_sparklines) }}
+      {% endcall %}
 
     {% elif team == "inf" %}
 

@@ -14,14 +14,6 @@
     },
   };
 
-  function initSortableTable(tableId) {
-    if (!$(tableId).length) {
-      return;
-    }
-    var table = $(tableId).DataTable($.extend({ order: [[0, 'desc']] }, dtOptions));
-    table.column(0).visible(false);
-  }
-
   function initPlainTable(tableId) {
     if (!$(tableId).length) {
       return;
@@ -32,9 +24,9 @@
   window.OspreyHomepage = {
     init: function (team) {
       if (team === 'md') {
-        initSortableTable('#list_projects_md');
+        initPlainTable('#list_projects_md');
       } else if (team === 'is') {
-        initSortableTable('#list_projects_is');
+        initPlainTable('#list_projects_is');
       } else if (team === 'inf') {
         initPlainTable('#list_projects_inf');
         initPlainTable('#list_software');

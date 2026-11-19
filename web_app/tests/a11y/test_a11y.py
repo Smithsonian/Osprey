@@ -28,7 +28,7 @@ def browser_page():
         browser.close()
 
 
-@pytest.mark.parametrize("page_name", ["a11y_smoke.html", "statistics.html"])
+@pytest.mark.parametrize("page_name", ["a11y_smoke.html", "statistics.html", "reports_chart.html", "report_menus.html"])
 def test_no_serious_a11y_violations(browser_page, page_name):
     browser_page.goto((OUT_DIR / page_name).as_uri())
     browser_page.add_script_tag(path=str(AXE_JS))

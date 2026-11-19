@@ -134,7 +134,7 @@
             '<p class="small text-muted mb-2">' + metaParts.join(' | ') + '</p>' : '';
 
         return '<div class="accordion-item">' +
-            '<h2 class="accordion-header" id="' + headingId + '">' +
+            '<h3 class="accordion-header" id="' + headingId + '">' +
                 '<button class="accordion-button collapsed" type="button" ' +
                         'data-bs-toggle="collapse" data-bs-target="#' + panelId + '" ' +
                         'aria-expanded="false" aria-controls="' + panelId + '">' +
@@ -145,7 +145,7 @@
                         '<span class="dashboard-qc-summary-detail">' + escapeHtml(summaryDetail(source)) + '</span>' +
                     '</span>' +
                 '</button>' +
-            '</h2>' +
+            '</h3>' +
             '<div id="' + panelId + '" class="accordion-collapse collapse" ' +
                  'aria-labelledby="' + headingId + '" data-bs-parent="#transcription_qc_accordion">' +
                 '<div class="accordion-body">' +

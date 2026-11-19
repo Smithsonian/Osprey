@@ -2,6 +2,7 @@
 
 import os
 import glob
+import re
 from pathlib import Path
 from time import strftime, localtime
 
@@ -11,9 +12,26 @@ from logger import logger
 from osprey.db import run_query
 from osprey.services import builtin_reports
 from osprey.services import report_materializations as materializations
+from osprey.services import sysadmin_reports
+
+# Pregenerated files of a public report: relative to static/, e.g.
+# "reports/report_x_20261013_020000.csv". A sysadmin-only report's files are
+# a bare name in sysadmin_reports.ARTIFACT_DIR (see private_artifact_base).
+PUBLIC_ARTIFACT_PREFIX = 'reports/'
+
+
+def is_sysadmin_only(report):
+    """True for a data_reports row flagged sysadmin_only.
+
+    Read with .get(): the column comes from db/data_reports_sysadmin_only.sql,
+    and until that is applied no report is restricted. Built-in reports have
+    no such key and are always public.
+    """
+    return bool(report and report.get('sysadmin_only'))
 
 
 def get_report(report_id):
+    """Report definition for the API, which never serves sysadmin-only reports."""
     data = run_query(
         "SELECT * FROM data_reports WHERE report_id = %(report_id)s",
         {'report_id': report_id},
@@ -23,7 +41,7 @@ def get_report(report_id):
             "SELECT * FROM data_reports WHERE report_alias = %(report_id)s",
             {'report_id': report_id},
         )
-    return data
+    return [row for row in data if not is_sysadmin_only(row)]
 
 
 def get_project_id(project_alias):
@@ -53,9 +71,49 @@ def get_project_report(project_id, report_id):
     return builtin_reports.get_builtin_report(project_id, report_id)
 
 
-def list_project_reports(project_id):
-    """Per-project data_reports plus built-in reports."""
-    return builtin_reports.list_project_reports(project_id)
+def list_project_reports(project_id, include_sysadmin_only=False, include_members_only=False):
+    """Per-project data_reports plus built-in reports.
+
+    Sysadmin-only reports are left out unless the caller has checked that the
+    viewer is a sysadmin; members-only built-in reports unless the caller has
+    checked that the viewer is one of the project's users or an admin.
+    """
+    reports = builtin_reports.list_project_reports(project_id)
+    if not include_sysadmin_only:
+        reports = [report for report in reports if not is_sysadmin_only(report)]
+    if not include_members_only:
+        reports = [report for report in reports if not builtin_reports.is_members_only(report)]
+    return reports
+
+
+def private_artifact_base(project_id, report_id):
+    """File name stem of a sysadmin-only report's files in ARTIFACT_DIR.
+
+    The dots keep these apart from sysadmin_reports files, which are named
+    after a report_id that cannot contain one.
+    """
+    safe_id = re.sub(r'[^A-Za-z0-9_-]+', '_', str(report_id))
+    return 'data.{}.{}'.format(int(project_id), safe_id)
+
+
+def artifact_file(report, materialization, fmt):
+    """Where the latest csv/xlsx of a pregenerated report can be read from.
+
+    Returns ('static', path under static/), ('private', absolute path), or
+    None when there is no file this report may hand out. A sysadmin-only
+    report never resolves to static/: files left there by a run from before
+    it was restricted are not offered (they go away on its next run).
+    """
+    name = materialization and materialization.get('artifact_path_' + fmt)
+    if not name:
+        return None
+    if name.startswith(PUBLIC_ARTIFACT_PREFIX):
+        return None if is_sysadmin_only(report) else ('static', name)
+    stem = private_artifact_base(report['project_id'], report['report_id']) + '_'
+    if not name.startswith(stem):
+        return None
+    path = sysadmin_reports.artifact_path(name)
+    return ('private', path) if path else None
 
 
 def get_report_last_updated(report):

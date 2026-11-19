@@ -1,0 +1,196 @@
+{#
+  Shared chart markup.
+
+  chart_card(chart, csv_url): one card for a chart spec built in osprey/services
+  (see builtin_reports.finish_chart_spec). Draws, as present in the spec:
+  summary figures, a Chart.js canvas (datasets), heat grids (grids), a note,
+  and the data table. Pages using it must load Chart.js and
+  static/js/statistics_charts.js when any chart has datasets.
+
+  timeline(tl, show_progress): project timeline from program_trends.build_timeline.
+#}
+
+{% macro chart_card(chart, csv_url=None) %}
+  <div class="card border-0 shadow-sm mb-3 statistics-chart-card">
+    <div class="card-header bg-dark text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <h2 class="h6 mb-0" id="chart-title-{{ chart.step_id }}">{{ chart.title }}</h2>
+      {% if csv_url and not chart.empty %}
+        <a class="btn btn-outline-light btn-sm" href="{{ csv_url }}" download>
+          <i class="fa-solid fa-download" aria-hidden="true"></i>
+          Download CSV
+        </a>
+      {% endif %}
+    </div>
+    <div class="card-body">
+
+      {% if chart.empty %}
+        <div class="alert alert-info mb-0" role="status">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          No data is available for this report yet.
+        </div>
+        <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
+      {% else %}
+
+        {% if chart.summary %}
+          <div class="row row-cols-2 row-cols-md-4 g-2 mb-3 osprey-chart-summary">
+            {% for item in chart.summary %}
+              <div class="col">
+                <div class="border rounded p-2 h-100">
+                  <p class="small text-muted mb-0">{{ item.label }}</p>
+                  <p class="h5 mb-0">{{ item.value }}</p>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <figure class="statistics-chart-figure mb-0"
+                role="group"
+                aria-labelledby="chart-title-{{ chart.step_id }}"
+                aria-describedby="chart-desc-{{ chart.step_id }}">
+
+          {% if chart.datasets %}
+            <div class="statistics-chart-canvas-wrap"
+                 {% if chart.height_px %}style="height: {{ chart.height_px }}px"{% endif %}>
+              <canvas id="chart-{{ chart.step_id }}"
+                      role="img"
+                      aria-label="{{ chart.short_description }}"
+                      data-chart-spec='{{ chart.chart_js_spec | tojson }}'></canvas>
+            </div>
+          {% endif %}
+
+          {% for grid in chart.grids or [] %}
+            <div class="table-responsive mb-3">
+              <table class="table table-sm table-bordered osprey-heat-grid mb-0">
+                <caption>{{ grid.title }}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{{ grid.row_header }}</th>
+                    {% for column in grid.columns %}
+                      <th scope="col">{{ column }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in grid.rows %}
+                    <tr>
+                      <th scope="row">{{ row.label }}</th>
+                      {% for cell in row.cells %}
+                        <td class="osprey-heat-{{ cell.level }}" title="{{ cell.title }}">{{ cell.text }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endfor %}
+
+          {% if chart.note %}
+            <p class="small text-muted mt-2 mb-0">{{ chart.note }}</p>
+          {% endif %}
+          <p id="chart-desc-{{ chart.step_id }}" class="visually-hidden">{{ chart.long_description }}</p>
+
+          <details class="statistics-chart-data mt-2">
+            <summary>View chart data table</summary>
+            <div class="table-responsive mt-2">
+              <table class="table table-sm table-striped mb-0">
+                <caption class="visually-hidden">Data for {{ chart.title }}</caption>
+                <thead>
+                  <tr>
+                    {% for col in chart.table_columns %}
+                      <th scope="col">{{ col.label }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in chart.table_rows %}
+                    <tr>
+                      {% for col in chart.table_columns %}
+                        <td>{{ row[col.key] }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </figure>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+
+{% macro timeline(tl, show_progress=False) %}
+  {% if tl.empty %}
+    <div class="alert alert-info mb-0" role="status">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      No projects with a start date yet.
+    </div>
+  {% else %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle osprey-timeline mb-0">
+        <caption class="visually-hidden">
+          Projects on a time axis from {{ tl.start }} to {{ tl.end }}.
+          Each row gives the project's dates and status as text{% if show_progress %}, with progress toward its goal{% endif %}.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Status</th>
+            <th scope="col">Dates</th>
+            {% if show_progress %}<th scope="col" class="text-end">Progress</th>{% endif %}
+            <th scope="col" class="osprey-timeline-axis-cell">
+              <span class="visually-hidden">Timeline</span>
+              <div class="osprey-timeline-axis" aria-hidden="true">
+                {% for year in tl.years %}
+                  {% if year.show %}<span style="left: {{ year.left }}%">{{ year.label }}</span>{% endif %}
+                {% endfor %}
+              </div>
+            </th>
+          </tr>
+        </thead>
+        {% for group in tl.groups %}
+          <tbody>
+            <tr class="osprey-timeline-group">
+              <th scope="rowgroup" colspan="{{ 5 if show_progress else 4 }}">
+                {{ group.label }}{% if group.title %} <span class="fw-normal text-muted">{{ group.title }}</span>{% endif %}
+              </th>
+            </tr>
+            {% for project in group.rows %}
+              <tr>
+                <th scope="row" class="fw-normal">
+                  {% if project.alias %}
+                    <a href="{{ url_for('dashboard', project_alias=project.alias) }}">{{ project.title }}</a>
+                  {% else %}
+                    {{ project.title }}
+                  {% endif %}
+                </th>
+                <td class="text-nowrap">
+                  {{ project.status }}
+                  {% if show_progress and project.late %}
+                    <span class="badge text-bg-warning" title="Planned end {{ project.planned_end }}">Past planned end</span>
+                  {% endif %}
+                </td>
+                <td class="text-nowrap small">{{ project.dates }}</td>
+                {% if show_progress %}
+                  <td class="text-end small">{% if project.progress is not none %}{{ '%.0f' | format(project.progress) }}%{% endif %}</td>
+                {% endif %}
+                <td class="osprey-timeline-axis-cell">
+                  <div class="osprey-timeline-track" aria-hidden="true">
+                    <div class="osprey-timeline-bar{% if project.ongoing %} is-ongoing{% endif %}"
+                         style="left: {{ project.left }}%; width: {{ project.width }}%">
+                      {% if show_progress and project.progress is not none %}
+                        <div class="osprey-timeline-progress" style="width: {{ project.progress }}%"></div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        {% endfor %}
+      </table>
+    </div>
+  {% endif %}
+{% endmacro %}

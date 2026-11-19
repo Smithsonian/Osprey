@@ -30,12 +30,20 @@ def url_for(endpoint: str, **values) -> str:
     return f"/{endpoint}"
 
 
+def _report_groups(reports):
+    # The app registers this filter in app.py; import lazily so rendering
+    # still needs no Flask app or database.
+    from osprey.services.builtin_reports import group_reports
+    return group_reports(reports)
+
+
 def build_env() -> Environment:
     loader = FileSystemLoader([str(TEST_TEMPLATES), str(ROOT / "templates")])
     env = Environment(
         loader=loader,
         autoescape=select_autoescape(enabled_extensions=("html", "xml")),
     )
+    env.filters["report_groups"] = _report_groups
     env.globals.update(
         url_for=url_for,
         request=DummyRequest(endpoint="a11y_smoke"),
@@ -113,6 +121,57 @@ def statistics_context() -> dict:
     }
 
 
+def chart_report_context() -> dict:
+    """Minimal context for templates/reports_chart.html: one chart card with a
+    summary, a stacked chart, a heat grid and a data table (partials/_charts.html)."""
+    datasets = [
+        {"label": "JHOVE", "data": [2.0, 0.5], "backgroundColor": "#0072B2", "borderColor": "#0072B2"},
+        {"label": "ImageMagick", "data": [1.0, 0], "backgroundColor": "#D55E00", "borderColor": "#D55E00"},
+    ]
+    description = "Stacked bar chart: Error rate by delivery for Demo. 2 folder(s) in delivery order."
+    return {
+        "site_env": "dev",
+        "site_net": "internal",
+        "site_ver": "test",
+        "analytics_code": "",
+        "username": "",
+        "asklogin": True,
+        "form": None,
+        "project_alias": "demo-project",
+        "project_info": {"project_title": "Demo Digitization Project"},
+        "report": {"report_id": "folder_error_rates", "report_title": "Error rate by delivery"},
+        "chart": {
+            "step_id": "folder_error_rates",
+            "title": "Error rate by delivery for Demo",
+            "empty": False,
+            "summary": [{"label": "Folders waiting for QC", "value": 4}],
+            "datasets": datasets,
+            "chart_js_spec": {
+                "step_id": "folder_error_rates", "chart_js_type": "bar", "chart_type": "bar",
+                "labels": ["batch_001", "batch_002"], "datasets": datasets,
+                "units": "% of files", "title": "Error rate by delivery", "stacked": True,
+            },
+            "grids": [{
+                "title": "Images captured per day",
+                "row_header": "Week of",
+                "columns": ["Mon", "Tue"],
+                "rows": [{"label": "2024-01-01", "cells": [
+                    {"text": "H", "level": 0, "title": "2024-01-01: 0 image(s) (holiday)"},
+                    {"text": "120", "level": 4, "title": "2024-01-02: 120 image(s)"},
+                ]}, {"label": "2024-01-08", "cells": [
+                    {"text": "60", "level": 2, "title": "2024-01-08: 60 image(s)"},
+                    {"text": "90", "level": 3, "title": "2024-01-09: 90 image(s)"},
+                ]}],
+            }],
+            "note": "A file that fails two checks is counted in both segments.",
+            "short_description": description,
+            "long_description": description,
+            "table_columns": [{"key": "folder", "label": "Folder"}, {"key": "files", "label": "Files"}],
+            "table_rows": [{"folder": "batch_001", "files": 400}, {"folder": "batch_002", "files": 380}],
+        },
+    }
+
+
 def assert_statistics_a11y(html: str) -> None:
     required = (
         'role="group"',
@@ -146,13 +205,15 @@ def render_pages() -> None:
     pages = {
         "a11y_smoke.html": ("a11y_smoke.html", context),
         "statistics.html": ("statistics.html", statistics_context()),
+        "reports_chart.html": ("reports_chart.html", chart_report_context()),
+        "report_menus.html": ("a11y_report_menus.html", context),
     }
 
     for out_name, (template_name, ctx) in pages.items():
         template = env.get_template(template_name)
         html = template.render(**ctx)
         (OUT_DIR / out_name).write_text(html, encoding="utf-8")
-        if out_name == "statistics.html":
+        if out_name in ("statistics.html", "reports_chart.html"):
             assert_statistics_a11y(html)
 
 

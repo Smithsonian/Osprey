@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "partials/_charts.html" import chart_card, timeline %}
+
+{% block title %}Program Trends — Collections Digitization Dashboard{% endblock %}
+
+{% block homelink %}
+    <span class="navbar-context">Program trends</span>
+{% endblock %}
+
+{% block content %}
+
+<div class="statistics-page">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+    <div>
+      <h1 class="h2 mb-1">Program Trends</h1>
+      <p class="text-muted small mb-0">How collections digitization has grown, and where the work has been done.</p>
+    </div>
+    <a class="btn btn-outline-dark btn-sm" href="{{ url_for('homepage') }}" title="Back to the homepage">
+      <i class="fa-solid fa-house" aria-hidden="true"></i>
+      Back to homepage
+    </a>
+  </div>
+
+  {{ chart_card(growth, url_for('trends.trends_csv', chart_id='growth')) }}
+  {{ chart_card(units, url_for('trends.trends_csv', chart_id='units')) }}
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-dark text-white py-2">
+      <h2 class="h6 mb-0">Project timeline</h2>
+    </div>
+    <div class="card-body">
+      <p class="small text-muted">
+        {{ project_timeline.total or 0 }} projects by museum or unit, {{ project_timeline.ongoing or 0 }} of them ongoing.
+        Ongoing projects are drawn up to today in a striped bar.
+      </p>
+      {{ timeline(project_timeline) }}
+    </div>
+  </div>
+</div>
+
+{% if asklogin %}
+    {{ login_modal(form, msg) }}
+{% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+  <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/chartjs/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/statistics_charts.js') }}"></script>
+{% endblock %}

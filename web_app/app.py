@@ -22,6 +22,7 @@ import locale
 import math
 import pandas as pd
 from uuid import UUID
+from datetime import date
 from time import strftime
 from time import localtime
 import random
@@ -29,12 +30,17 @@ from auth_service import AuthBaseUser, get_auth_service
 
 # MySQL — shared connection pool
 from osprey import audit
-from osprey.db import init_db, query_database_insert, run_query
+from osprey.db import DatabasePoolError, init_db, query_database_insert, run_query
 from osprey.files import attach_preview_paths, resolve_image_viewer, static_fullsize_path, static_preview_path
 from osprey.services import reports as report_service
 from osprey.services import qc as qc_service
+from osprey.services import program_trends
+from osprey.services import homepage as homepage_service
+from osprey.services import yearly_stats
+from osprey.services import builtin_reports as builtin_report_service
 from osprey.services.file_checks import assert_safe_sql_expression
 from web.errors import render_error
+from web.script_root import ScriptRootMiddleware
 # Flask Login
 from flask_login import LoginManager
 from flask_login import login_required
@@ -69,19 +75,9 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = (site_env == 'prod')
 
-# For subdirs
-def prefix_route(route_function, prefix='', mask='{0}{1}'):
-  '''
-    Defines a new route function with a prefix.
-    The mask argument is a `format string` formatted with, in that order:
-      prefix, route
-  '''
-  def newroute(route, *args, **kwargs):
-    '''New function to prefix the route'''
-    return route_function(mask.format(prefix, route), *args, **kwargs)
-  return newroute
-        
-app.route = prefix_route(app.route, '/')
+# Serve under a sub-path when settings.app_root is set ('' = domain root).
+# This sets the WSGI SCRIPT_NAME, so url_for/redirects/static/cookies follow it.
+app.wsgi_app = ScriptRootMiddleware(app.wsgi_app, getattr(settings, 'app_root', ''))
 
 # Minify responses
 if site_env == "prod":
@@ -114,6 +110,8 @@ app.jinja_env.globals['csrf_token'] = generate_csrf
 # qc_method / QC_METHODS for partials/_qc_method_badge.html
 app.jinja_env.globals['qc_method'] = qc_service.qc_method
 app.jinja_env.globals['qc_methods'] = qc_service.QC_METHODS
+# reports|report_groups for partials/_report_menus.html
+app.jinja_env.filters['report_groups'] = builtin_report_service.group_reports
 
 
 @app.context_processor
@@ -157,16 +155,18 @@ def redirect_web_routes_on_api_site():
     return redirect(url_for('api.api_route_list'))
 
 # Web Blueprints
-from web.reports import reports_bp
+from web.reports import reports_bp, project_member
 from web.invoices import invoices_bp
 from web.files import files_bp
 from web.projects import projects_bp
 from web.sysadmin import sysadmin_bp, sysadmin_allowed
+from web.trends import trends_bp, monthly_series
 app.register_blueprint(reports_bp)
 app.register_blueprint(invoices_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(sysadmin_bp)
+app.register_blueprint(trends_bp)
 
 
 @app.after_request
@@ -264,14 +264,14 @@ HOMEPAGE_TABLE_CLASSES = [
     'display', 'table', 'table-hover', 'homepage-project-table', 'w-100'
 ]
 
+# Projects featured on the homepage Summary tab. The text under each title is
+# the project's projects.project_description (edited on /edit_project/), so it
+# stays in step with the project; only the headline and image are set here.
 HOMEPAGE_FEATURED_PROJECTS = [
     {
         'title': 'Digitization of the JPC Archive is Now in Production',
         'image': 'items/Hank_Aaron.jpg',
         'image_alt': 'Photo of Hank Aaron from the JPC Archive',
-        'body': ('After the successful <em>Pilot</em> and <em>Priority One</em> projects, we have started '
-                 'the <em>Production 1A</em> project of the digitization of the JPC Archive. This phase will '
-                 'digitize more than 328,000 reflective and transmissive photographic items.'),
         'link_type': 'dashboard',
         'project_alias': 'jpc_production',
         'link_label': 'JPCA Production Project Dashboard',
@@ -281,9 +281,6 @@ HOMEPAGE_FEATURED_PROJECTS = [
         'title': 'Digitizing 200k Pollinators',
         'image': 'items/ento.png',
         'image_alt': 'Image of pollinator specimen',
-        'body': ('The Mass Digi team is starting the digitization of the NMNH Entomology collection of '
-                 'pollinators, including bees, butterflies, flies, and beetles. This conveyor system will '
-                 'digitize thousands of specimens per week and more than 200,000 specimens within a year.'),
         'link_type': 'dashboard',
         'project_alias': 'nmnh_mdpp_ento_pollinators',
         'link_label': 'Ento Pollinators Conveyor Dashboard',
@@ -293,8 +290,6 @@ HOMEPAGE_FEATURED_PROJECTS = [
         'title': 'Digitization of the National Herbarium Continues',
         'image': 'items/botany_accession_sample.jpg',
         'image_alt': 'Digitized mounted specimen from the National Herbarium Collection',
-        'body': ('We continue to digitize the Herbarium of the National Museum of Natural History. '
-                 'The project digitizes new accessions to the collection.'),
         'link_type': 'dashboard',
         'project_alias': 'botany_accessions',
         'link_label': 'Botany Project Dashboard',
@@ -359,6 +354,132 @@ def _homepage_stat_value(total):
     return "{:,}".format(total or 0)
 
 
+# The homepage numbers only change when project stats roll up, so every
+# visitor within this window shares one set of queries.
+HOMEPAGE_CACHE_SECONDS = 1800
+# Part of the cache key of the cached homepage data: bump it whenever the
+# data's shape changes, so a deploy never serves entries cached by older code
+# (which would be missing the new keys) for up to HOMEPAGE_CACHE_SECONDS.
+HOMEPAGE_DATA_VERSION = 4
+
+
+def _homepage_sparklines():
+    """{project_id: sparkline SVG} for the last 12 months, or None when the series is unavailable.
+
+    The sparklines are an extra: if their data cannot be loaded the homepage
+    is still served, with the column left out.
+    """
+    try:
+        today = date.today()
+        months = program_trends.last_months(today)
+        activity = program_trends.recent_activity(monthly_series(), today)
+    except Exception:  # boundary: optional homepage extra over an unverified series table
+        logger.exception("homepage sparklines unavailable")
+        return None
+    return {project_id: program_trends.sparkline_svg(values, months) for project_id, values in activity.items()}
+
+
+def _year_change(section):
+    """Images and objects registered this year for a section's cards, or None.
+
+    None (no highlight) until db/projects_stats_yearly.sql is applied and the
+    nightly job has stored the year's counts.
+    """
+    try:
+        return yearly_stats.load_year_totals(section, date.today().year)
+    except Exception:  # boundary: optional homepage extra over a hand-applied table
+        logger.exception("homepage yearly change unavailable")
+        return None
+
+
+@cache.memoize(timeout=HOMEPAGE_CACHE_SECONDS)
+def _homepage_section(team, unit=None, version=HOMEPAGE_DATA_VERSION):
+    """Template values for the summary, md and is tabs (cached per tab)."""
+    section = homepage_service.SECTIONS[team]
+    stats = homepage_service.load_section_stats(section)
+    data = {
+        'summary_stats': {
+            'objects_digitized': _homepage_stat_value(stats['objects']),
+            'images_captured': _homepage_stat_value(stats['images']),
+            'images_public': _homepage_stat_value(stats['images_public']),
+            'digitization_projects': _homepage_stat_value(stats['projects']),
+            'active_projects': _homepage_stat_value(stats['active']),
+        },
+        'public_share': homepage_service.public_share(stats['images_public'], stats['images']),
+        'year_change': _year_change(section),
+        'last_update': homepage_service.load_last_update(),
+        'featured_projects': (homepage_service.with_descriptions(HOMEPAGE_FEATURED_PROJECTS)
+                              if team == 'summary' else []),
+        'mass_digi_total': math.floor(stats['objects'] / 100000) / 10 if team == 'md' else 0,
+        'project_rows': [],
+        'show_sparklines': False,
+    }
+    if section:
+        sparklines = _homepage_sparklines()
+        data['project_rows'] = homepage_service.project_table_rows(
+            homepage_service.load_section_projects(section, unit), sparklines)
+        data['show_sparklines'] = sparklines is not None
+    return data
+
+
+@cache.memoize(timeout=HOMEPAGE_CACHE_SECONDS)
+def _homepage_informatics(script_root, version=HOMEPAGE_DATA_VERSION):
+    """Template values for the informatics tab (cached; script_root is part of the HTML)."""
+    stats = homepage_service.load_informatics_stats()
+    # These two tables are still built in SQL: their summary and details fields
+    # are edited by admins on /infprojects/ and may hold intentional HTML.
+    inf_section_query = (" SELECT "
+                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
+                     " CONCAT('<strong>', p.project_title, '</strong><br>', p.summary) as project_title, "
+                     " p.project_status, "
+                     " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
+                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
+                     " CASE "
+                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
+                     "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "
+                     "      ELSE CONCAT(date_format(p.project_start, '%b %Y'), ' - ', date_format(p.project_end, '%b %Y')) END "
+                     "         as project_dates, "
+                     " CASE WHEN p.records = 0 THEN 'NA' ELSE "
+                     " (CASE WHEN p.records_estimated IS True THEN CONCAT(coalesce(format(p.records, 0), 0), '*') ELSE "
+                     "      coalesce(format(p.records, 0), 0) END) END as records, "
+                     " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
+                     " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
+                     " ORDER BY p.project_start DESC, p.project_end DESC")
+    list_projects_inf = pd.DataFrame(run_query(inf_section_query))
+    list_projects_inf = list_projects_inf.rename(columns={
+        "project_unit": "Unit",
+        "project_title": "Title",
+        "project_status": "Status",
+        "github_link": "Repository",
+        "info_link": "More Info",
+        "project_dates": "Dates",
+        "records": "Records Created or Enhanced"
+    })
+    inf_software = ("SELECT CONCAT('<strong>', software_name, '</strong>') as software_name, software_details, "
+                    " CONCAT('<a href=\"', repository, '\" title=\"Link to code repository in Github\"><img src=\"', %(script_root)s, '/static/github-32.png\" alt=\"Github Logo\"></a>') as repository, "
+                    " CONCAT('<a href=\"', more_info, '\" title=\"Link to a page with more information about the software\">More Info</a>') as more_info "
+                    " FROM informatics_software ORDER BY sortby DESC")
+    list_software = pd.DataFrame(run_query(inf_software, {'script_root': script_root}))
+    list_software = list_software.rename(columns={
+        "software_name": "Software",
+        "software_details": "Details",
+        "repository": "Repository",
+        "more_info": "Details"
+    })
+    return {
+        'summary_stats': {
+            'digitization_projects': _homepage_stat_value(stats['projects']),
+            'active_projects': _homepage_stat_value(stats['active']),
+            'records': _homepage_stat_value(stats['records']),
+        },
+        'last_update': homepage_service.load_last_update(),
+        'tables_inf': [list_projects_inf.to_html(table_id='list_projects_inf', index=False, border=0,
+                                                 escape=False, classes=HOMEPAGE_TABLE_CLASSES)],
+        'tables_software': [list_software.to_html(table_id='list_software', index=False, border=0, escape=False,
+                                                  classes=HOMEPAGE_TABLE_CLASSES + ['homepage-software-table'])],
+    }
+
+
 def label_file_check_column(name):
     return FILE_CHECK_LABELS.get(name, name.replace('_', ' ').title())
 
@@ -392,7 +513,13 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(username):
     query = ("SELECT username, user_id, user_active, full_name FROM users WHERE username = %(username)s")
-    u = run_query(query, {'username': username})
+    try:
+        u = run_query(query, {'username': username})
+    except DatabasePoolError as e:
+        # Treat the user as anonymous so the 500 page can still render;
+        # error.html's context processor reads current_user, which calls this.
+        logger.error("load_user: database unavailable: {}".format(e))
+        return None
     if len(u) == 1:
         return AuthBaseUser(u[0]['username'], u[0]['user_id'], u[0]['full_name'], u[0]['user_active'])
     return None
@@ -426,228 +553,29 @@ def homepage(team=None, subset=None):
     # Flask message injected into the page, in case of any errors
     msg = None
 
-    # Last update
-    last_update = run_query("SELECT date_format(MAX(updated_at), '%d-%b-%Y') AS updated_at FROM projects_stats")
-
-    mass_digi_total = 0
-
     if team is None:
         team = "summary"
+    sawhm = team == "is" and (subset or "").lower() == "sawhm"
+    if team == "summary":
         team_heading = "Collections Digitization - Highlights"
         html_title = "Collections Digitization Dashboard"
-
-        # Summary stats
-        summary_stats = {
-            'objects_digitized': _homepage_stat_value(run_query(
-                "SELECT SUM(objects_digitized) as total "
-                "FROM projects_stats WHERE project_id NOT IN "
-                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
-            'images_captured': _homepage_stat_value(run_query(
-                "SELECT SUM(images_taken) as total "
-                "FROM projects_stats WHERE project_id NOT IN "
-                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
-            'digitization_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects WHERE skip_project IS NOT True")[0]['total']),
-            'active_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects "
-                "WHERE skip_project IS NOT True AND project_status='Ongoing'")[0]['total']),
-            'images_public': _homepage_stat_value(run_query(
-                "SELECT SUM(images_public) as total FROM projects_stats "
-                "WHERE project_id NOT IN "
-                "(SELECT project_id FROM projects WHERE skip_project IS True)")[0]['total']),
-        }
     elif team == "md":
         team_heading = "Summary of Mass Digitization Team Projects"
         html_title = "Mass Digitization Team Projects, Collections Digitization"
-
-        # MD stats
-        summary_stats = {
-            'objects_digitized': _homepage_stat_value(run_query(
-                "SELECT SUM(objects_digitized) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
-            )[0]['total']),
-            'images_captured': _homepage_stat_value(run_query(
-                "SELECT SUM(images_taken) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"
-            )[0]['total']),
-            'digitization_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True"
-            )[0]['total']),
-            'active_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'MD' AND "
-                "skip_project IS NOT True AND project_status='Ongoing'"
-            )[0]['total']),
-            'images_public': _homepage_stat_value(run_query(
-                "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'MD')"
-            )[0]['total']),
-        }
-        no_items = run_query(("SELECT SUM(objects_digitized) as total from projects_stats where project_id IN (SELECT project_id FROM projects WHERE project_section = 'MD' AND skip_project IS NOT True)"))[0]['total']
-        mass_digi_total = math.floor((int(no_items)*1.0)/100000)/10
-
     elif team == "is":
-        if subset and subset.lower() == "sawhm":
-            team_heading = "Summary of Imaging Services Team Projects (SAWHM)"
-        else:
-            team_heading = "Summary of Imaging Services Team Projects"
+        team_heading = ("Summary of Imaging Services Team Projects (SAWHM)" if sawhm
+                        else "Summary of Imaging Services Team Projects")
         html_title = "Imaging Services Team Projects, Collections Digitization"
-        summary_stats = {
-            'objects_digitized': _homepage_stat_value(run_query(
-                "SELECT SUM(objects_digitized) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
-            )[0]['total']),
-            'images_captured': _homepage_stat_value(run_query(
-                "SELECT SUM(images_taken) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True)"
-            )[0]['total']),
-            'digitization_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'IS' AND skip_project IS NOT True"
-            )[0]['total']),
-            'active_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects WHERE project_section = 'IS' AND "
-                "skip_project IS NOT True AND project_status='Ongoing'"
-            )[0]['total']),
-            'images_public': _homepage_stat_value(run_query(
-                "SELECT SUM(images_public) as total FROM projects_stats WHERE project_id IN "
-                "(SELECT project_id FROM projects WHERE skip_project IS NOT True AND project_section = 'IS')"
-            )[0]['total']),
-        }
-
     elif team == "inf":
         team_heading = "Summary of Informatics Team Projects"
         html_title = "Summary of the Informatics Team Projects, Collections Digitization"
-        # IS stats
-        summary_stats = {
-            'digitization_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects_informatics")[0]['total']),
-            'active_projects': _homepage_stat_value(run_query(
-                "SELECT COUNT(*) as total FROM projects_informatics WHERE project_status='Ongoing'"
-            )[0]['total']),
-            'records': _homepage_stat_value(run_query(
-                "SELECT SUM(records) as total FROM projects_informatics WHERE records_redundant IS False"
-            )[0]['total']),
-        }
+    else:
+        return render_error("Team was not found.", 404)
 
-    section_query = ((" SELECT "
-                     " p.projects_order, "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
-                     "      CASE WHEN "
-                     "             p.project_alias IS NULL "
-                     "              THEN p.project_title "
-                     "      ELSE "
-                     "          (CASE WHEN "
-                     "              p.project_status = 'Ongoing' and ps.collex_to_digitize != 0 "
-                     "              THEN "
-                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\">', p.project_title, '</a><br>"
-                     "                  <small>Estimated Progress: ', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), ' % "
-                     "                  <div class=\"progress dashboard-progress\"> "
-                     "                      <div class=\"progress-bar bg-success\" role=\"progressbar\" style=\"width: ', "
-                     "                          ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '%\" "
-                     "                         aria-valuenow=\"', ROUND((ps.objects_digitized/ps.collex_to_digitize) * 100), '\" aria-valuemin=\"0\" aria-valuemax=\"100\"> "
-                     "                      </div> "
-                     "                   </div></small>"
-                     "              ') "
-                     "          ELSE "
-                     "              CONCAT('<a href=\"{app_root}/dashboard/', p.project_alias, '\">', p.project_title, '</a>') "
-                     "          END) "
-                     "      END as project_title, "
-                     " p.project_status, "
-                     " p.project_manager, "
-                     " CASE "
-                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%d %b %Y'), ' -') "
-                     "      WHEN p.project_start = p.project_end THEN date_format(p.project_start, '%d %b %Y') "                     
-                     "      WHEN date_format(p.project_start, '%Y-%c') = date_format(p.project_end, '%Y-%c') "
-                     "          THEN CONCAT(date_format(p.project_start, '%d'), ' - ', date_format(p.project_end, '%d %b %Y')) "
-                     "      WHEN date_format(p.project_start, '%Y') = date_format(p.project_end, '%Y') "
-                     "          THEN CONCAT(date_format(p.project_start, '%d %b'), ' - ', date_format(p.project_end, '%d %b %Y')) "
-                     "      ELSE CONCAT(date_format(p.project_start, '%d %b %Y'), ' - ', date_format(p.project_end, '%d %b %Y')) END "
-                     "         as project_dates, "
-                     " CASE WHEN p.objects_estimated IS True THEN CONCAT(coalesce(format(ps.objects_digitized, 0), 0), '*') ELSE "
-                     " coalesce(format(ps.objects_digitized, 0), 0) END as objects_digitized, "
-                     " CASE WHEN p.images_estimated IS True THEN CONCAT(coalesce(format(ps.images_taken, 0), 0), '*') ELSE coalesce(format(ps.images_taken, 0), 0) END as images_taken, "
-                     " CASE WHEN p.images_estimated IS True THEN CONCAT(coalesce(format(ps.images_public, 0), 0), '*') ELSE coalesce(format(ps.images_public, 0), 0) END as images_public "
-                     " FROM projects p LEFT JOIN projects_stats ps ON (p.project_id = ps.project_id) LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
-                     " WHERE p.skip_project = 0 AND p.project_section = %(section)s "
-                     " GROUP BY "
-                     "        p.project_id, p.project_title, p.project_unit, p.project_status, p.project_description, "
-                     "        p.project_method, p.project_manager, p.project_start, p.project_end, p.updated_at, p.projects_order, p.project_type, "
-                     "        ps.collex_to_digitize, p.images_estimated, p.objects_estimated, ps.images_taken, ps.objects_digitized, ps.images_public"
-                     " ORDER BY p.projects_order DESC").format(app_root=settings.app_root))
-    list_projects_md = pd.DataFrame(run_query(section_query, {'section': 'MD'}))
-    list_projects_md = list_projects_md.drop("images_public", axis=1)
-    list_projects_md = list_projects_md.rename(columns={
-        "project_unit": "Unit",
-        "project_title": "Title",
-        "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
-        "project_dates": "Dates",
-        "objects_digitized": "Specimens/Objects Digitized",
-        "images_taken": "Images Captured"
-    })
-
-    if subset is None:
-        subset = ""
-    is_section_query = section_query
-    if subset.lower() == "sawhm":
-        is_section_query = section_query.replace(
-            "WHERE p.skip_project = 0 AND p.project_section = %(section)s",
-            "WHERE p.skip_project = 0 AND p.project_section = %(section)s AND p.project_unit = 'SAWHM'",
-        )
-    list_projects_is = pd.DataFrame(run_query(is_section_query, {'section': 'IS'}))
-    # list_projects_is = list_projects_is.drop("images_public", axis=1)
-
-    list_projects_is = list_projects_is.rename(columns={
-        "project_unit": "Unit",
-        "project_title": "Title",
-        "project_status": "Status",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
-        "project_dates": "Dates",
-        "objects_digitized": "Specimens/Objects Digitized",
-        "images_taken": "Images Captured"
-    })
-
-    # Informatics Table
-    inf_section_query = (" SELECT "
-                     " CONCAT('<abbr title=\"', u.unit_fullname, '\">', p.project_unit, '</abbr>') as project_unit, "
-                     " CONCAT('<strong>', p.project_title, '</strong><br>', p.summary) as project_title, "
-                     " p.project_status, "
-                     " CASE WHEN p.github_link IS NULL THEN 'NA' ELSE "
-                     "       CONCAT('<a href=\"', p.github_link, '\" title=\"Link to code repository of ', p.project_title, ' in Github\">Repository</a>') END as github_link, "
-                     " CASE "
-                     "      WHEN p.project_end IS NULL THEN CONCAT(date_format(p.project_start, '%b %Y'), ' -') "
-                     "      WHEN date_format(p.project_start, '%b %Y') = date_format(p.project_end, '%b %Y') THEN date_format(p.project_start, '%b %Y') "                     
-                     "      ELSE CONCAT(date_format(p.project_start, '%b %Y'), ' - ', date_format(p.project_end, '%b %Y')) END "
-                     "         as project_dates, "
-                     " CASE WHEN p.records = 0 THEN 'NA' ELSE "
-                     " (CASE WHEN p.records_estimated IS True THEN CONCAT(coalesce(format(p.records, 0), 0), '*') ELSE "
-                     "      coalesce(format(p.records, 0), 0) END) END as records, "
-                     " CASE WHEN p.info_link IS NULL THEN 'NA' ELSE p.info_link END AS info_link "
-                     " FROM projects_informatics p LEFT JOIN si_units u ON (p.project_unit = u.unit_id) "
-                     " ORDER BY p.project_start DESC, p.project_end DESC")
-    list_projects_inf = pd.DataFrame(run_query(inf_section_query))
-    list_projects_inf = list_projects_inf.rename(columns={
-        "project_unit": "Unit",
-        "project_title": "Title",
-        "project_status": "Status",
-        "github_link": "Repository",
-        "info_link": "More Info",
-        "project_manager": "<abbr title=\"Project Manager\">PM</abbr>",
-        "project_dates": "Dates",
-        "records": "Records Created or Enhanced"
-    })
-
-    # Informatics Software
-    inf_software = ("SELECT CONCAT('<strong>', software_name, '</strong>') as software_name, software_details, "
-                    " CONCAT('<a href=\"', repository, '\" title=\"Link to code repository in Github\"><img src=\"/static/github-32.png\" alt=\"Github Logo\"></a>') as repository, "
-                    " CONCAT('<a href=\"', more_info, '\" title=\"Link to a page with more information about the software\">More Info</a>') as more_info "
-                    " FROM informatics_software ORDER BY sortby DESC")
-    list_software = pd.DataFrame(run_query(inf_software))
-    list_software = list_software.rename(columns={
-        "software_name": "Software",
-        "software_details": "Details",
-        "repository": "Repository",
-        "more_info": "Details"
-    })
+    if team == "inf":
+        data = _homepage_informatics(request.script_root, HOMEPAGE_DATA_VERSION)
+    else:
+        data = _homepage_section(team, 'SAWHM' if sawhm else None, HOMEPAGE_DATA_VERSION)
 
     # kiosk mode
     kiosk, user_address = kiosk_mode(request, settings.kiosks)
@@ -655,32 +583,17 @@ def homepage(team=None, subset=None):
         asklogin = True
     else:
         asklogin = False
-    is_table_title = "Imaging Services Projects"
-    if subset.lower() == "sawhm":
-        is_table_title = "Imaging Services Projects (SAWHM projects only)"
 
     return render_template('home.html',
                            form=form, msg=msg, user_exists=user_exists,
-                           username=username, summary_stats=summary_stats, team=team,
-                           tables_md=[list_projects_md.to_html(table_id='list_projects_md', index=False,
-                                                               border=0, escape=False,
-                                                               classes=HOMEPAGE_TABLE_CLASSES)],
-                           tables_is=[list_projects_is.to_html(table_id='list_projects_is', index=False,
-                                                               border=0, escape=False,
-                                                               classes=HOMEPAGE_TABLE_CLASSES)],
-                           tables_inf=[list_projects_inf.to_html(table_id='list_projects_inf', index=False,
-                                                               border=0, escape=False,
-                                                               classes=HOMEPAGE_TABLE_CLASSES)],
-                           tables_software=[list_software.to_html(table_id='list_software', index=False,
-                                                               border=0, escape=False,
-                                                               classes=HOMEPAGE_TABLE_CLASSES + ['homepage-software-table'])],
-                           featured_projects=HOMEPAGE_FEATURED_PROJECTS,
-                           is_table_title=is_table_title,
-                           asklogin=asklogin, last_update=last_update[0]['updated_at'] or 'unknown',
-                           mass_digi_total=mass_digi_total,
+                           username=username, team=team,
+                           is_table_title=("Imaging Services Projects (SAWHM projects only)" if sawhm
+                                           else "Imaging Services Projects"),
+                           asklogin=asklogin,
                            kiosk=kiosk, user_address=user_address, team_heading=team_heading,
-                           html_title=html_title, app_root=settings.app_root,
-                           subset=subset.upper())
+                           html_title=html_title,
+                           subset=(subset or "").upper(),
+                           **data)
 
 
 @app.route('/login', methods=['POST'], provide_automatic_options=False)
@@ -1003,7 +916,7 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
         elif tab == "lightbox":
             page_no = "Lightbox"
         elif tab == "postprod":
-            page_no = "Post-Processing Steps"
+            page_no = "Post-Production Steps"
         if transcription == 1:
             folder_badges = run_query("SELECT f.folder_transcription_id as folder_id, b.badge_type, b.badge_css, b.badge_text FROM folders_badges b, transcription_folders f WHERE b.folder_uid = f.folder_transcription_id and f.folder_transcription_id = %(folder_id)s and b.badge_type != 'no_files'", {'folder_id': folder_id})
         else:
@@ -1030,7 +943,8 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
     logger.info("folder_links: {}".format(folder_links))
 
     # Reports (per-project data_reports + built-in reports)
-    reports = report_service.list_project_reports(project_id)
+    reports = report_service.list_project_reports(
+        project_id, include_sysadmin_only=sysadmin_allowed(), include_members_only=project_member(project_id))
     proj_reports = len(reports) > 0
 
     # Disk space
@@ -1069,7 +983,6 @@ def dashboard_f(project_alias=None, folder_id=None, tab=None, page=None):
                            recent_images=recent_images,
                            tables=[],
                            file_check_labels=FILE_CHECK_LABELS,
-                           app_root=settings.app_root,
                            titles=[''],
                            username=user_name, project_admin=project_admin,
                            is_admin=is_admin, tab=tab, page=page, files_count=files_count,
@@ -1252,7 +1165,8 @@ def dashboard(project_alias=None, folder_id=None):
     folder_qc = None
 
     # Reports (per-project data_reports + built-in reports)
-    reports = report_service.list_project_reports(project_id)
+    reports = report_service.list_project_reports(
+        project_id, include_sysadmin_only=sysadmin_allowed(), include_members_only=project_member(project_id))
     proj_reports = len(reports) > 0
 
     # kiosk mode

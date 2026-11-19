@@ -114,7 +114,7 @@ def infprojects():
 
     is_admin = user_perms('', user_type='admin')
     logger.info("is_admin:{}".format(is_admin))
-    list_projects_inf = pd.DataFrame(project_service.list_informatics_projects())
+    list_projects_inf = pd.DataFrame(project_service.list_informatics_projects(request.script_root))
     list_projects_inf = list_projects_inf.rename(columns={
         "project_unit": "Unit",
         "project_title": "Title",
