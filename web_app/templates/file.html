@@ -164,6 +164,23 @@
 
                         {% endif %}
 
+                        {% if download_paths and (download_paths['800'] or download_paths['full']) %}
+                            <div class="file-sysadmin-downloads d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Download image (sysadmin)">
+                                {% if download_paths['800'] %}
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('static', filename=download_paths['800']) }}"
+                                       download="{{ file_details.file_name }}_800.jpg">
+                                        <i class="fa-solid fa-download" aria-hidden="true"></i> Download 800px
+                                    </a>
+                                {% endif %}
+                                {% if download_paths['full'] %}
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('static', filename=download_paths['full']) }}"
+                                       download="{{ file_details.file_name }}.jpg">
+                                        <i class="fa-solid fa-download" aria-hidden="true"></i> Download full size
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
                         </div>
                     </div>
 

@@ -73,6 +73,19 @@ def static_fullsize_path(folder_id, file_id, transcription=False):
     return static_preview_path(folder_id, file_id, size="600", transcription=transcription)
 
 
+def sysadmin_download_paths(folder_id, file_id, transcription=False):
+    """Return {'800': path|None, 'full': path|None} for files that exist on disk.
+
+    Unlike static_fullsize_path, there is no fallback to smaller sizes or
+    na_*.png placeholders: a missing file yields None.
+    """
+    base = _preview_base_path(folder_id, file_id, transcription)
+    out = {}
+    for key, path in (('800', f"{base}/800/{file_id}.jpg"), ('full', f"{base}/{file_id}.jpg")):
+        out[key] = path if os.path.isfile(f"static/{path}") else None
+    return out
+
+
 def attach_preview_paths(file_details, file_id, transcription=False):
     """Add preview_img_path, preview_img_path_600, and fullsize_img_path to file_details."""
     if transcription:

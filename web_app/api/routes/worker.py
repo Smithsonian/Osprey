@@ -57,6 +57,45 @@ def _folder_audit_event(query_property, query_value):
     return None
 
 
+VLM_REVIEW_VERDICTS = ('ok', 'review')
+
+# ON DUPLICATE KEY UPDATE for the *_vlm_review tables. A re-run that changes
+# the model's result clears the staff assessment, which described the old
+# result. MySQL applies these assignments left to right, so the staff columns
+# must come before verdict/issues/model are overwritten.
+_VLM_SAME_RESULT = "(verdict <=> %(verdict)s AND issues <=> %(issues)s AND model <=> %(model)s)"
+_VLM_REVIEW_UPDATE = (
+    f"staff_assessment = IF({_VLM_SAME_RESULT}, staff_assessment, NULL), "
+    f"assessed_by = IF({_VLM_SAME_RESULT}, assessed_by, NULL), "
+    f"assessed_at = IF({_VLM_SAME_RESULT}, assessed_at, NULL), "
+    f"staff_notes = IF({_VLM_SAME_RESULT}, staff_notes, NULL), "
+    "verdict = %(verdict)s, issues = %(issues)s, model = %(model)s, updated_at = CURRENT_TIMESTAMP"
+)
+
+
+def _vlm_review_error(file_id, verdict, form):
+    """Validation message for a vlm_review update, or None when it is valid."""
+    if not file_id:
+        return 'file_id is required for vlm_review'
+    if verdict not in VLM_REVIEW_VERDICTS:
+        return 'vlm_review value must be one of: {}'.format(', '.join(VLM_REVIEW_VERDICTS))
+    issues = form.get("issues")
+    if issues is None:
+        return 'issues is required for vlm_review'
+    try:
+        parsed = json.loads(issues)
+    except ValueError:
+        return 'issues must be a JSON list'
+    if not isinstance(parsed, list):
+        return 'issues must be a JSON list'
+    model = (form.get("model") or "").strip()
+    if not model:
+        return 'model is required for vlm_review'
+    if len(model) > 64:
+        return 'model must be at most 64 characters'
+    return None
+
+
 def _upsert_preview_type_badge(fid, folder_id, badge_text, badge_css):
     # Transcription badges have folder_id = NULL, so the folder_id-based unique
     # keys never match and ON DUPLICATE KEY UPDATE would insert a new row on
@@ -583,6 +622,33 @@ def api_update_project_details(project_alias=None):
                         )
                         audit.record('update', 'file', 'datetime_created', project_id=project_id,
                                      folder_ref=folder_id, file_ref=file_id)
+                elif query_property == "vlm_review":
+                    # Advisory VLM review from the worker (db/vlm_review.sql). Stored
+                    # apart from files_checks so it never affects stats, badges or QC.
+                    error = _vlm_review_error(file_id, query_value, request.form)
+                    if error is not None:
+                        return jsonify({'error': error}), 400
+                    params = {
+                        'file_id': file_id,
+                        'folder_id': folder_id,
+                        'verdict': query_value,
+                        # Re-serialized so an unchanged result compares equal on re-runs.
+                        'issues': json.dumps(json.loads(request.form.get("issues")), ensure_ascii=False),
+                        'model': request.form.get("model").strip(),
+                    }
+                    if transcription == 1:
+                        query = (
+                            "INSERT INTO transcription_files_vlm_review "
+                            " (file_transcription_id, verdict, issues, model) "
+                            " VALUES (%(file_id)s, %(verdict)s, %(issues)s, %(model)s) "
+                            " ON DUPLICATE KEY UPDATE " + _VLM_REVIEW_UPDATE)
+                    else:
+                        query = (
+                            "INSERT INTO files_vlm_review "
+                            " (file_id, folder_id, verdict, issues, model) "
+                            " VALUES (%(file_id)s, %(folder_id)s, %(verdict)s, %(issues)s, %(model)s) "
+                            " ON DUPLICATE KEY UPDATE folder_id = %(folder_id)s, " + _VLM_REVIEW_UPDATE)
+                    query_database_insert(query, params)
                 elif query_property == "delete":
                     # Names are looked up before the row is gone.
                     audit_ctx = audit.lookup_context(project_id=project_id, file_ref=file_id,

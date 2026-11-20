@@ -10,12 +10,14 @@ from flask_login import login_required
 
 import settings
 from logger import logger
-from osprey.files import attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path
+from osprey.files import (attach_preview_paths, check_file_id, resolve_image_viewer, static_preview_path,
+                          sysadmin_download_paths)
 from osprey.services import file_search as file_search_service
 from osprey.services import files as files_service
 from osprey.services.permissions import kiosk_mode, user_perms
 from web.errors import render_error
 from web.forms import LoginForm
+from web.sysadmin import sysadmin_allowed
 
 files_bp = Blueprint('files', __name__)
 
@@ -92,7 +94,12 @@ def file(file_id=None):
     iiif_image = viewer['iiif_image']
     transcription_text = ""
 
-    return render_template('file.html',
+    if sysadmin_allowed():
+        download_paths = sysadmin_download_paths(file_details['folder_id'], file_id)
+    else:
+        download_paths = None
+
+    return render_template('file.html', download_paths=download_paths,
                            zoom_exists=zoom_exists, iiif_image=iiif_image, zoom_filename=zoom_filename, folder_info=folder_info,
                            file_details=file_details, file_checks=file_checks,
                            file_postprocessing=file_postprocessing, username=user_name, image_url=image_url,

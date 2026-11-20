@@ -2,7 +2,8 @@
 # Overnight pregenerated report refresh.
 #
 # First recalculates projects_stats for ongoing projects and stores this
-# year's new images and objects per project (scripts/nightly_project_stats.py).
+# year's new images and objects per project (scripts/nightly_project_stats.py),
+# and counts files_exif rows per project (scripts/count_exif.py).
 #
 # Queues every data_reports row with pregenerated=1, then drains the
 # report_materializations queue until empty.
@@ -38,6 +39,11 @@ export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 # (e.g. db/projects_stats_yearly.sql not applied yet) must not stop the reports.
 echo "$(date -Is) recalculating project totals and this year's counts"
 "${PYTHON}" scripts/nightly_project_stats.py || echo "$(date -Is) WARNING: project stats step reported problems"
+
+# Count files_exif rows per project for /sysadmin/schema/. Its failure
+# (e.g. db/exif_counts.sql not applied yet) must not stop the reports.
+echo "$(date -Is) counting EXIF rows per project"
+"${PYTHON}" scripts/count_exif.py || echo "$(date -Is) WARNING: EXIF count step failed; see the app log"
 
 echo "$(date -Is) queueing pregenerated reports"
 "${PYTHON}" scripts/queue_nightly_reports.py

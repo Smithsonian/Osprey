@@ -42,7 +42,14 @@ out-of-band.
    mysql -u <user> -p <db_name> < db/sysadmin_reports.sql
    ```
 
-6. Schedule overnight generation. Copy an entry from
+6. Apply the EXIF counts table (filled nightly by `scripts/count_exif.py`;
+   read by `/sysadmin/schema/`):
+
+   ```bash
+   mysql -u <user> -p <db_name> < db/exif_counts.sql
+   ```
+
+7. Schedule overnight generation. Copy an entry from
    [`cron/nightly_reports.cron.example`](cron/nightly_reports.cron.example), or run:
 
    ```bash
